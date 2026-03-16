@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.app.dao.PriceSnapshotDAO">
+
+    <resultMap id="priceSnapshotResultMap" type="PriceSnapshot">
+        <id property="snapshotNo" column="snapshotNo"/>
+        <result property="itemCode" column="itemCode"/>
+        <result property="itemName" column="itemName"/>
+        <result property="marketType" column="marketType"/>
+        <result property="unit" column="unit"/>
+        <result property="avgPrice" column="avgPrice"/>
+        <result property="minPrice" column="minPrice"/>
+        <result property="maxPrice" column="maxPrice"/>
+        <result property="changeRate" column="changeRate"/>
+        <result property="snapshotDate" column="snapshotDate"/>
+        <result property="sourceName" column="sourceName"/>
+    </resultMap>
+
+    <update id="mergePriceSnapshot" parameterType="PriceSnapshot">
+        MERGE INTO OFT_PRICE_SNAPSHOT target
+        USING (
+            SELECT
+                #{itemCode} AS ITEM_CODE,
+                #{itemName} AS ITEM_NAME,
+                #{marketType} AS MARKET_TYPE,
+                #{unit} AS UNIT,
+                #{avgPrice} AS AVG_PRICE,
+                #{minPrice} AS MIN_PRICE,
+                #{maxPrice} AS MAX_PRICE,
+                #{changeRate} AS CHANGE_RATE,
+                TO_DATE(#{snapshotDate}, 'YYYY-MM-DD') AS SNAPSHOT_DATE,
+                #{sourceName} AS SOURCE_NAME
+            FROM DUAL
+        ) source
+        ON (
+            NVL(UPPER(TRIM(target.ITEM_CODE)), UPPER(TRIM(target.ITEM_NAME))) =
+            NVL(UPPER(TRIM(source.ITEM_CODE)), UPPER(TRIM(source.ITEM_NAME)))
+            AND target.MARKET_TYPE = source.MARKET_TYPE
+            AND UPPER(TRIM(target.UNIT)) = UPPER(TRIM(source.UNIT))
+            AND target.SNAPSHOT_DATE = source.SNAPSHOT_DATE
+            AND UPPER(TRIM(target.SOURCE_NAME)) = UPPER(TRIM(source.SOURCE_NAME))
+        )
+        WHEN MATCHED THEN
+            UPDATE SET
+                target.ITEM_NAME = source.ITEM_NAME,
+                target.UNIT = source.UNIT,
+                target.AVG_PRICE = source.AVG_PRICE,
+                target.MIN_PRICE = source.MIN_PRICE,
+                target.MAX_PRICE = source.MAX_PRICE,
+                target.CHANGE_RATE = source.CHANGE_RATE
+        WHEN NOT MATCHED THEN
+            INSERT (
+                ITEM_CODE,
+                ITEM_NAME,
+                MARKET_TYPE,
+                UNIT,
+                AVG_PRICE,
+                MIN_PRICE,
+                MAX_PRICE,
+                CHANGE_RATE,
+                SNAPSHOT_DATE,
+                SOURCE_NAME
+            )
+            VALUES (
+                source.ITEM_CODE,
+                source.ITEM_NAME,
+                source.MARKET_TYPE,
+                source.UNIT,
+                source.AVG_PRICE,
+                source.MIN_PRICE,
+                source.MAX_PRICE,
+                source.CHANGE_RATE,
+                source.SNAPSHOT_DATE,
+                source.SOURCE_NAME
+            )
+    </update>
+
+    <select id="selectLatestSnapshotDate" resultType="string">
+        SELECT TO_CHAR(MAX(SNAPSHOT_DATE), 'YYYY-MM-DD')
+        FROM OFT_PRICE_SNAPSHOT
+    </select>
+
+    <select id="selectPriceSnapshotList" parameterType="map" resultMap="priceSnapshotResultMap">
+        SELECT *
+        FROM (
+            SELECT
+                SNAPSHOT_NO AS snapshotNo,
+                ITEM_CODE AS itemCode,
+                ITEM_NAME AS itemName,
+                MARKET_TYPE AS marketType,
+                UNIT AS unit,
+                AVG_PRICE AS avgPrice,
+                MIN_PRICE AS minPrice,
+                MAX_PRICE AS maxPrice,
+                CHANGE_RATE AS changeRate,
+                TO_CHAR(SNAPSHOT_DATE, 'YYYY-MM-DD') AS snapshotDate,
+                SOURCE_NAME AS sourceName
+            FROM OFT_PRICE_SNAPSHOT
+            WHERE 1 = 1
+            <if test="snapshotDate != null and snapshotDate != ''">
+                AND SNAPSHOT_DATE = TO_DATE(#{snapshotDate}, 'YYYY-MM-DD')
+            </if>
+            <if test="marketType != null and marketType != ''">
+                AND MARKET_TYPE = #{marketType}
+            </if>
+            <if test="itemName != null and itemName != ''">
+                AND UPPER(ITEM_NAME) LIKE '%' || UPPER(#{itemName}) || '%'
+            </if>
+            ORDER BY SNAPSHOT_DATE DESC, MARKET_TYPE ASC, ITEM_NAME ASC
+        )
+        WHERE ROWNUM &lt;= #{limit}
+    </select>
+
+    <select id="selectPriceSnapshotTrend" parameterType="map" resultMap="priceSnapshotResultMap">
+        SELECT *
+        FROM (
+            SELECT *
+            FROM (
+                SELECT
+                    SNAPSHOT_NO AS snapshotNo,
+                    ITEM_CODE AS itemCode,
+                    ITEM_NAME AS itemName,
+                    MARKET_TYPE AS marketType,
+                    UNIT AS unit,
+                    AVG_PRICE AS avgPrice,
+                    MIN_PRICE AS minPrice,
+                    MAX_PRICE AS maxPrice,
+                    CHANGE_RATE AS changeRate,
+                    TO_CHAR(SNAPSHOT_DATE, 'YYYY-MM-DD') AS snapshotDate,
+                    SOURCE_NAME AS sourceName
+                FROM OFT_PRICE_SNAPSHOT
+                WHERE ITEM_CODE = #{itemCode}
+                  AND MARKET_TYPE = #{marketType}
+                ORDER BY SNAPSHOT_DATE DESC
+            )
+            WHERE ROWNUM &lt;= #{limit}
+        )
+        ORDER BY snapshotDate ASC
+    </select>
+
+</mapper>

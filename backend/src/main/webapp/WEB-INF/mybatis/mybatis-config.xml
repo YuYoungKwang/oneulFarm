@@ -10,13 +10,7 @@
 	</settings>
 
 	<typeAliases>
-		<typeAlias type="com.app.dto.room.Room" alias="Room"/>
-		<typeAlias type="com.app.dto.user.User" alias="User"/>
-		<typeAlias type="com.app.dto.user.UserSearchCondition" alias="UserSearchCondition"/>
-		<typeAlias type="com.app.dto.room.RoomSearchCondition" alias="RoomSearchCondition"/>
-		<typeAlias type="com.app.dto.file.FileInfo" alias="FileInfo"/>
-		<typeAlias type="com.app.dto.user.UserProfileImage" alias="UserProfileImage"/>
-		
+		<package name="com.app.dto"/>
 	</typeAliases>
 	
 </configuration>
