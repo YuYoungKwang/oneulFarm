@@ -26,6 +26,7 @@ function MyPageView({
   profileLoading,
   profileError,
   onOpenProfileEdit,
+  onOpenAddressModal,
 }) {
   const stats = getOrderStats(orders);
   const accountLabel = profile.userId || 'mypage01';
@@ -43,7 +44,7 @@ function MyPageView({
         </div>
         <div className="page-actions">
           <button type="button" className="btn-outline" onClick={onOpenProfileEdit}>회원정보 수정</button>
-          <button type="button" className="btn">배송지 관리</button>
+          <button type="button" className="btn" onClick={onOpenAddressModal}>배송지 관리</button>
         </div>
       </section>
 
@@ -112,6 +113,7 @@ function MyPageView({
               <div className="mini-thumb" />
               <h4>배송지 관리</h4>
               <p>기본 배송지 변경과 주소 추가를 관리합니다.</p>
+              <button type="button" className="btn-text" onClick={onOpenAddressModal}>배송지 보기</button>
             </article>
             <article className="mini-recipe">
               <div className="mini-thumb" />

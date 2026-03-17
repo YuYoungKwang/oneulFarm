@@ -3,12 +3,14 @@ import './App.css';
 import DashboardView from './DashboardView';
 import MyPageView from './MyPageView';
 import ProfileEditModal from './ProfileEditModal';
+import AddressModal from './AddressModal';
 import { pageTabs } from './mockData';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
 const ORDER_API_BASE = `${API_BASE_URL}/api/orders`;
 const DASHBOARD_API_BASE = `${API_BASE_URL}/api/dashboard`;
 const USER_API_BASE = `${API_BASE_URL}/api/users`;
+const ADDRESS_API_BASE = `${USER_API_BASE}/me/addresses`;
 const DEMO_USER_NO = '1';
 
 const EMPTY_PROFILE = {
@@ -31,6 +33,17 @@ const EMPTY_PROFILE_FORM = {
   nickname: '',
   email: '',
   phone: '',
+};
+
+const EMPTY_ADDRESS_FORM = {
+  addressName: '',
+  recipientName: '',
+  recipientPhone: '',
+  zipCode: '',
+  address1: '',
+  address2: '',
+  deliveryMessage: '',
+  isDefault: 'N',
 };
 
 async function parseResponse(response, fallbackMessage) {
@@ -62,6 +75,14 @@ function App() {
   const [profileForm, setProfileForm] = useState(EMPTY_PROFILE_FORM);
   const [profileSubmitError, setProfileSubmitError] = useState('');
   const [profileSubmitting, setProfileSubmitting] = useState(false);
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [addresses, setAddresses] = useState([]);
+  const [addressesLoading, setAddressesLoading] = useState(false);
+  const [addressesError, setAddressesError] = useState('');
+  const [changingAddressNo, setChangingAddressNo] = useState(null);
+  const [addressForm, setAddressForm] = useState(EMPTY_ADDRESS_FORM);
+  const [addressFormError, setAddressFormError] = useState('');
+  const [addressSubmitting, setAddressSubmitting] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -246,6 +267,107 @@ function App() {
     }
   }
 
+  async function fetchAddresses() {
+    setAddressesLoading(true);
+    setAddressesError('');
+
+    try {
+      const response = await fetch(ADDRESS_API_BASE, {
+        headers: { 'X-USER-NO': DEMO_USER_NO },
+      });
+
+      const payload = await parseResponse(response, '배송지 목록을 불러오지 못했습니다.');
+      setAddresses(Array.isArray(payload.data) ? payload.data : []);
+    } catch (error) {
+      setAddressesError(error.message || '배송지 목록을 불러오지 못했습니다.');
+    } finally {
+      setAddressesLoading(false);
+    }
+  }
+
+  function openAddressModal() {
+    setIsAddressModalOpen(true);
+    setAddressForm(EMPTY_ADDRESS_FORM);
+    setAddressFormError('');
+    fetchAddresses();
+  }
+
+  function closeAddressModal() {
+    setIsAddressModalOpen(false);
+    setAddressesError('');
+    setChangingAddressNo(null);
+    setAddressFormError('');
+    setAddressSubmitting(false);
+  }
+
+  function handleAddressFormChange(event) {
+    const { name, value, type, checked } = event.target;
+    setAddressForm((current) => ({
+      ...current,
+      [name]: type === 'checkbox' ? (checked ? 'Y' : 'N') : value,
+    }));
+  }
+
+  async function handleAddressFormSubmit(event) {
+    event.preventDefault();
+    setAddressSubmitting(true);
+    setAddressFormError('');
+
+    try {
+      const response = await fetch(ADDRESS_API_BASE, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-USER-NO': DEMO_USER_NO,
+        },
+        body: JSON.stringify(addressForm),
+      });
+
+      const payload = await parseResponse(response, '배송지 등록에 실패했습니다.');
+      setAddresses(Array.isArray(payload.data) ? payload.data : []);
+      setAddressForm(EMPTY_ADDRESS_FORM);
+
+      const profileResponse = await fetch(`${USER_API_BASE}/me`, {
+        headers: { 'X-USER-NO': DEMO_USER_NO },
+      });
+      const profilePayload = await parseResponse(profileResponse, '회원정보를 불러오지 못했습니다.');
+      if (profilePayload.data) {
+        setProfile({ ...EMPTY_PROFILE, ...profilePayload.data });
+      }
+    } catch (error) {
+      setAddressFormError(error.message || '배송지 등록에 실패했습니다.');
+    } finally {
+      setAddressSubmitting(false);
+    }
+  }
+
+  async function handleChangeDefaultAddress(addressNo) {
+    setChangingAddressNo(addressNo);
+    setAddressesError('');
+
+    try {
+      const response = await fetch(`${ADDRESS_API_BASE}/${addressNo}/default`, {
+        method: 'PATCH',
+        headers: { 'X-USER-NO': DEMO_USER_NO },
+      });
+
+      const payload = await parseResponse(response, '기본 배송지 변경에 실패했습니다.');
+      setAddresses(Array.isArray(payload.data) ? payload.data : []);
+
+      const profileResponse = await fetch(`${USER_API_BASE}/me`, {
+        headers: { 'X-USER-NO': DEMO_USER_NO },
+      });
+      const profilePayload = await parseResponse(profileResponse, '회원정보를 불러오지 못했습니다.');
+      if (profilePayload.data) {
+        setProfile({ ...EMPTY_PROFILE, ...profilePayload.data });
+      }
+    } catch (error) {
+      setAddressesError(error.message || '기본 배송지 변경에 실패했습니다.');
+    } finally {
+      setChangingAddressNo(null);
+    }
+  }
+
   return (
     <div className="page-shell">
       <header className="top-nav">
@@ -307,6 +429,7 @@ function App() {
             profileLoading={profileLoading}
             profileError={profileError}
             onOpenProfileEdit={openProfileEdit}
+            onOpenAddressModal={openAddressModal}
           />
         ) : (
           <DashboardView
@@ -325,6 +448,20 @@ function App() {
         onSubmit={handleProfileSubmit}
         submitting={profileSubmitting}
         error={profileSubmitError}
+      />
+      <AddressModal
+        open={isAddressModalOpen}
+        addresses={addresses}
+        loading={addressesLoading}
+        error={addressesError}
+        changingAddressNo={changingAddressNo}
+        form={addressForm}
+        formError={addressFormError}
+        submitting={addressSubmitting}
+        onClose={closeAddressModal}
+        onChangeDefault={handleChangeDefaultAddress}
+        onFormChange={handleAddressFormChange}
+        onFormSubmit={handleAddressFormSubmit}
       />
 
       <footer className="site-footer">
