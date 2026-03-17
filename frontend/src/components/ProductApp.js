@@ -4,6 +4,8 @@ import { CartIcon, SearchIcon } from './ProductIcons';
 import CartPage from './CartPage';
 import ProductDetailPage from './ProductDetailPage';
 import ProductListPage from './ProductListPage';
+import LoginPage from './LoginPage';
+import SignupPage from './SignupPage';
 import {
   DEFAULT_ROUTE,
   defaultFilters,
@@ -106,6 +108,14 @@ export default function ProductApp() {
     navigateToHash('#/cart');
   }
 
+  function openLogin() {
+    navigateToHash('#/login');
+  }
+
+  function goToSignup() {
+    window.location.hash = '#/signup';
+  }
+
   function toggleWishlist(productNo) {
     setWishlist((previousWishlist) =>
       previousWishlist.includes(productNo)
@@ -150,9 +160,16 @@ export default function ProductApp() {
 
   return (
     <div className="page-shell">
-      <SiteHeader cartCount={cartCount} onOpenCart={openCart} />
+      {/* 로그인 페이지에서는 헤더 숨김 */}
+      {route.page !== 'login' && route.page !== 'signup' && (
+        <SiteHeader cartCount={cartCount} onOpenCart={openCart} onOpenLogin={openLogin} onOpenSignup={goToSignup} />
+      )}
       <main className="container">
-        {route.page === 'cart' ? (
+        {route.page === 'signup' ? (
+          <SignupPage onBack={openProductList} />
+        ) : route.page === 'login' ? (
+          <LoginPage onBack={openProductList} />
+        ) : route.page === 'cart' ? (
           <CartPage
             cartItems={cartItems}
             onClearCart={clearCart}
@@ -206,7 +223,7 @@ export default function ProductApp() {
   );
 }
 
-function SiteHeader({ cartCount, onOpenCart }) {
+function SiteHeader({ cartCount, onOpenCart, onOpenLogin, onOpenSignup }) {
   return (
     <header className="top-nav">
       <a className="logo" href={DEFAULT_ROUTE}>
@@ -243,10 +260,10 @@ function SiteHeader({ cartCount, onOpenCart }) {
           <CartIcon />
           {cartCount > 0 ? <span className="cart-badge">{cartCount}</span> : null}
         </button>
-        <button className="btn-outline" type="button">
+        <button className="btn-outline" type="button" onClick={onOpenLogin}>
           로그인
         </button>
-        <button className="btn" type="button">
+        <button className="btn" type="button" onClick={onOpenSignup}>
           가입
         </button>
       </div>

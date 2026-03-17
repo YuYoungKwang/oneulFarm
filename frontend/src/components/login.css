@@ -1,0 +1,106 @@
+.login-page-container {
+    min-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    background: transparent;
+}
+
+.login-logo {
+    align-self: center;
+    margin-bottom: 24px;
+    margin-top: 120px;
+    /* 위쪽 여백 추가 */
+    text-decoration: none;
+    font-weight: 800;
+    font-size: 32px;
+    color: #0f7a40;
+}
+
+.login-title {
+    text-align: center;
+}
+
+.login-form {
+    max-width: 500px;
+    margin: 0 auto;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 16px;
+    padding: 40px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.login-form input[type="text"],
+.login-form input[type="password"],
+.login-form input[type="email"] {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    margin-bottom: 16px;
+}
+
+.login-form select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    margin-bottom: 16px;
+    background: #fff;
+    font-size: 15px;
+    color: #333;
+    appearance: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+.login-form select span {
+    margin-left: 8px;
+}
+
+.login-form .login-keep {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.login-form .login-keep label {
+    font-size: 15px;
+}
+
+.login-form .login-btn {
+    width: 100%;
+}
+
+.login-form .login-back {
+    width: 100%;
+    margin-top: 16px;
+}
+
+.login-links {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    margin-top: 18px;
+    margin-bottom: 120px;
+    /* 밑쪽 여백 추가 */
+}
+
+.login-links span {
+    color: #888;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    padding: 0 10px;
+}
+
+.login-links .divider {
+    color: #ccc;
+    font-size: 13px;
+    font-weight: 500;
+    user-select: none;
+}
