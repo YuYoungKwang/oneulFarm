@@ -501,51 +501,52 @@ function MyPageView({
             <>
               <section className="order-list">
                 {orders.map((order) => (
-                  <article
-                    key={order.orderNo}
-                    className={`order-card ${selectedOrderNo === order.orderNo ? 'is-selected' : ''}`}
-                  >
-                    <div className="order-top">
-                      <div>
-                        <div className="card-title order-title">주문번호 {order.orderId}</div>
-                        <div className="section-sub">{formatDate(order.orderedAt)} 주문</div>
+                  <div key={order.orderNo} className="order-list-entry">
+                    <article
+                      className={`order-card ${selectedOrderNo === order.orderNo ? 'is-selected' : ''}`}
+                    >
+                      <div className="order-top">
+                        <div>
+                          <div className="card-title order-title">주문번호 {order.orderId}</div>
+                          <div className="section-sub">{formatDate(order.orderedAt)} 주문</div>
+                        </div>
+                        <span className={`status-pill ${getDeliveryBadgeClass(order.deliveryStatus)}`}>
+                          {getDeliveryLabel(order.deliveryStatus)}
+                        </span>
                       </div>
-                      <span className={`status-pill ${getDeliveryBadgeClass(order.deliveryStatus)}`}>
-                        {getDeliveryLabel(order.deliveryStatus)}
-                      </span>
-                    </div>
 
-                    <div className="order-summary-grid">
-                      <div className="order-summary-item">
-                        <strong>대표 상품</strong>
-                        <span>{order.displayProductName}</span>
+                      <div className="order-summary-grid">
+                        <div className="order-summary-item">
+                          <strong>대표 상품</strong>
+                          <span>{order.displayProductName}</span>
+                        </div>
+                        <div className="order-summary-item">
+                          <strong>상품 수</strong>
+                          <span>{order.itemCount}건</span>
+                        </div>
+                        <div className="order-summary-item">
+                          <strong>최종 결제금액</strong>
+                          <span>{formatPrice(order.finalAmount)}</span>
+                        </div>
+                        <div className="order-summary-item">
+                          <strong>총 절약금액</strong>
+                          <span>{formatPrice(order.totalSavedAmount)}</span>
+                        </div>
                       </div>
-                      <div className="order-summary-item">
-                        <strong>상품 수</strong>
-                        <span>{order.itemCount}건</span>
-                      </div>
-                      <div className="order-summary-item">
-                        <strong>최종 결제금액</strong>
-                        <span>{formatPrice(order.finalAmount)}</span>
-                      </div>
-                      <div className="order-summary-item">
-                        <strong>총 절약금액</strong>
-                        <span>{formatPrice(order.totalSavedAmount)}</span>
-                      </div>
-                    </div>
 
-                    <div className="help-row">
-                      <span>{order.orderStatus} · {getDeliveryLabel(order.deliveryStatus)}</span>
-                      <button type="button" className="btn-outline" onClick={() => onSelectOrder(order.orderNo)}>
-                        주문 상세 보기
-                      </button>
-                    </div>
-                  </article>
+                      <div className="help-row">
+                        <span>{order.orderStatus} · {getDeliveryLabel(order.deliveryStatus)}</span>
+                        <button type="button" className="btn-outline" onClick={() => onSelectOrder(order.orderNo)}>
+                          주문 상세 보기
+                        </button>
+                      </div>
+                    </article>
+
+                    {selectedOrderNo === order.orderNo && (
+                      <OrderDetailPanel detail={orderDetail} loading={detailLoading} error={detailError} />
+                    )}
+                  </div>
                 ))}
-              </section>
-
-              <section className="section">
-                <OrderDetailPanel detail={orderDetail} loading={detailLoading} error={detailError} />
               </section>
             </>
           )}

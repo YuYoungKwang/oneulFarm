@@ -25,7 +25,7 @@ http://www.springframework.org/schema/context/spring-context.xsd">
 	</beans:bean>
 	
 	<resources location="file:///D:/fileStorage/" mapping="/fileStorage/**" />
-	<resources location="/resources/" mapping="/**"></resources>
+	<resources location="/resources/" mapping="/resources/**"></resources>
 
 
 	<annotation-driven>						
