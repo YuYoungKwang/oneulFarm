@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -14,10 +15,15 @@ import com.app.common.ApiResponse;
 import com.app.dto.OrderDetailResponseDto;
 import com.app.dto.OrderListResponseDto;
 import com.app.service.OrderService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 @RestController
 @RequestMapping(value = "/api/orders", produces = MediaType.APPLICATION_JSON_VALUE)
 public class OrderController {
+
+    private static final ObjectMapper OBJECT_MAPPER =
+        new ObjectMapper().registerModule(new JavaTimeModule());
 
     @Autowired
     private OrderService orderService;
@@ -30,10 +36,12 @@ public class OrderController {
     }
 
     @GetMapping("/me/{orderNo}")
-    public ApiResponse<OrderDetailResponseDto> getMyOrderDetail(
+    public ResponseEntity<String> getMyOrderDetail(
         @RequestHeader("X-USER-NO") Long userNo,
-        @PathVariable Long orderNo
-    ) {
-        return ApiResponse.success(orderService.getMyOrderDetail(userNo, orderNo), "주문 상세 조회 성공");
+        @PathVariable("orderNo") Long orderNo
+    ) throws Exception {
+        ApiResponse<OrderDetailResponseDto> response =
+            ApiResponse.success(orderService.getMyOrderDetail(userNo, orderNo), "주문 상세 조회 성공");
+        return ResponseEntity.ok(OBJECT_MAPPER.writeValueAsString(response));
     }
 }
