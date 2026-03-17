@@ -101,9 +101,6 @@ function App() {
         const nextOrders = Array.isArray(payload.data) ? payload.data : [];
 
         setOrders(nextOrders);
-        if (nextOrders.length > 0) {
-          setSelectedOrderNo((current) => current ?? nextOrders[0].orderNo);
-        }
       } catch (error) {
         if (error.name === 'AbortError') {
           return;
@@ -368,6 +365,10 @@ function App() {
     }
   }
 
+  function handleSelectOrder(orderNo) {
+    setSelectedOrderNo((current) => (current === orderNo ? null : orderNo));
+  }
+
   return (
     <div className="page-shell">
       <header className="top-nav">
@@ -422,7 +423,7 @@ function App() {
             orderDetail={orderDetail}
             detailLoading={detailLoading}
             detailError={detailError}
-            onSelectOrder={setSelectedOrderNo}
+            onSelectOrder={handleSelectOrder}
             summary={summary}
             summaryLoading={summaryLoading}
             profile={profile}
