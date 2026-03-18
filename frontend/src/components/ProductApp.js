@@ -1,11 +1,15 @@
 import { startTransition, useEffect, useState } from 'react';
+import '../styles/product.css';
 import { findProductByNo, productCatalog } from '../data/productData';
-import { CartIcon, SearchIcon } from './ProductIcons';
 import CartPage from './CartPage';
+import CheckoutPage from './CheckoutPage';
+import OrderCompletePage from './OrderCompletePage';
+import OrdersPage from './OrdersPage';
 import ProductDetailPage from './ProductDetailPage';
 import ProductListPage from './ProductListPage';
 import LoginPage from './LoginPage';
 import SignupPage from './SignupPage';
+import { advanceOrderStatus, createOrderFromCart } from './orderUiUtils';
 import {
   DEFAULT_ROUTE,
   defaultFilters,
@@ -22,6 +26,9 @@ export default function ProductApp() {
     readStoredValue('oneulFarmWishlist', [])
   );
   const [cart, setCart] = useState(() => readStoredValue('oneulFarmCart', {}));
+  const [orders, setOrders] = useState(() =>
+    readStoredValue('oneulFarmOrders', [])
+  );
 
   useEffect(() => {
     if (!window.location.hash) {
@@ -51,6 +58,10 @@ export default function ProductApp() {
   }, [cart]);
 
   useEffect(() => {
+    persistValue('oneulFarmOrders', orders);
+  }, [orders]);
+
+  useEffect(() => {
     if (process.env.NODE_ENV === 'test') {
       return;
     }
@@ -58,14 +69,10 @@ export default function ProductApp() {
     if (typeof window.scrollTo === 'function') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [route.page, route.productNo]);
+  }, [route.page, route.productNo, route.orderId]);
 
   const categories = Array.from(
     new Set(productCatalog.map((product) => product.categoryName))
-  );
-  const cartCount = Object.values(cart).reduce(
-    (sum, quantity) => sum + quantity,
-    0
   );
   const cartItems = Object.entries(cart)
     .map(([productNo, quantity]) => ({
@@ -75,6 +82,10 @@ export default function ProductApp() {
     .filter((item) => item.product);
   const currentProduct =
     route.page === 'product-detail' ? findProductByNo(route.productNo) : null;
+  const currentOrder =
+    route.orderId != null
+      ? orders.find((order) => order.orderId === route.orderId) || null
+      : null;
 
   function updateFilter(key, value) {
     setFilters((previousFilters) => ({
@@ -108,12 +119,14 @@ export default function ProductApp() {
     navigateToHash('#/cart');
   }
 
-  function openLogin() {
-    navigateToHash('#/login');
+  function openCheckout() {
+    navigateToHash('#/checkout');
   }
 
-  function goToSignup() {
-    window.location.hash = '#/signup';
+  function openOrders(orderId) {
+    navigateToHash(
+      orderId ? `#/orders/${encodeURIComponent(orderId)}` : '#/orders'
+    );
   }
 
   function toggleWishlist(productNo) {
@@ -158,12 +171,28 @@ export default function ProductApp() {
     setCart({});
   }
 
+  function submitOrder(checkoutForm) {
+    if (!cartItems.length) {
+      navigateToHash('#/cart');
+      return;
+    }
+
+    const newOrder = createOrderFromCart(cartItems, checkoutForm, orders);
+    setOrders((previousOrders) => [newOrder, ...previousOrders]);
+    clearCart();
+    navigateToHash(`#/order-complete/${encodeURIComponent(newOrder.orderId)}`);
+  }
+
+  function moveOrderToNextStatus(orderId) {
+    setOrders((previousOrders) =>
+      previousOrders.map((order) =>
+        order.orderId === orderId ? advanceOrderStatus(order) : order
+      )
+    );
+  }
+
   return (
-    <div className="page-shell">
-      {/* 로그인 페이지에서는 헤더 숨김 */}
-      {route.page !== 'login' && route.page !== 'signup' && (
-        <SiteHeader cartCount={cartCount} onOpenCart={openCart} onOpenLogin={openLogin} onOpenSignup={goToSignup} />
-      )}
+    <div className="product-app page-shell">
       <main className="container">
         {route.page === 'signup' ? (
           <SignupPage onBack={openProductList} />
@@ -186,8 +215,29 @@ export default function ProductApp() {
               );
             }}
             onOpenProduct={openProduct}
+            onProceedToCheckout={openCheckout}
             onRemoveItem={removeFromCart}
             onReturnToProducts={openProductList}
+          />
+        ) : route.page === 'checkout' ? (
+          <CheckoutPage
+            cartItems={cartItems}
+            onBackToCart={openCart}
+            onSubmitOrder={submitOrder}
+          />
+        ) : route.page === 'order-complete' ? (
+          <OrderCompletePage
+            onOpenOrders={() => openOrders(route.orderId)}
+            onReturnToProducts={openProductList}
+            order={currentOrder}
+          />
+        ) : route.page === 'orders' ? (
+          <OrdersPage
+            onAdvanceStatus={moveOrderToNextStatus}
+            onOpenOrder={openOrders}
+            onReturnToProducts={openProductList}
+            orders={orders}
+            selectedOrderId={route.orderId}
           />
         ) : route.page === 'product-detail' ? (
           currentProduct ? (
@@ -223,60 +273,12 @@ export default function ProductApp() {
   );
 }
 
-function SiteHeader({ cartCount, onOpenCart, onOpenLogin, onOpenSignup }) {
-  return (
-    <header className="top-nav">
-      <a className="logo" href={DEFAULT_ROUTE}>
-        <span className="logo-mark" />
-        <span>oneulFarm</span>
-      </a>
-      <nav className="nav-links" aria-label="주요 메뉴">
-        <button className="nav-link" type="button">
-          시세분석
-        </button>
-        <button className="nav-link is-active" type="button">
-          상품
-        </button>
-        <button className="nav-link" type="button">
-          레시피
-        </button>
-        <button className="nav-link" type="button">
-          추천
-        </button>
-        <button className="nav-link" type="button">
-          마이페이지
-        </button>
-      </nav>
-      <div className="nav-actions">
-        <button className="icon-btn" type="button" aria-label="검색">
-          <SearchIcon />
-        </button>
-        <button
-          className="icon-btn cart-icon"
-          type="button"
-          aria-label="장바구니"
-          onClick={onOpenCart}
-        >
-          <CartIcon />
-          {cartCount > 0 ? <span className="cart-badge">{cartCount}</span> : null}
-        </button>
-        <button className="btn-outline" type="button" onClick={onOpenLogin}>
-          로그인
-        </button>
-        <button className="btn" type="button" onClick={onOpenSignup}>
-          가입
-        </button>
-      </div>
-    </header>
-  );
-}
-
 function NotFoundPage({ onBack }) {
   return (
     <section className="empty-state detail-empty">
-      <div className="empty-icon">📦</div>
+      <div className="empty-icon">🔎</div>
       <h1>상품을 찾을 수 없습니다.</h1>
-      <p>삭제되었거나 잘못된 경로입니다. 상품 목록으로 돌아가세요.</p>
+      <p>삭제되었거나 잘못된 경로입니다. 상품 목록으로 돌아가주세요.</p>
       <button className="btn" type="button" onClick={onBack}>
         상품 목록으로 이동
       </button>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dashboardMapper">
+
+    <resultMap id="DashboardSummaryResultMap" type="com.app.dto.DashboardSummaryDto">
+        <result property="totalSavedAmount" column="totalSavedAmount" />
+        <result property="monthlySavedAmount" column="monthlySavedAmount" />
+        <result property="totalOrderCount" column="totalOrderCount" />
+        <result property="totalPurchaseAmount" column="totalPurchaseAmount" />
+    </resultMap>
+
+    <select id="selectDashboardSummary" parameterType="java.lang.Long" resultMap="DashboardSummaryResultMap"><![CDATA[
+        SELECT
+            NVL((
+                SELECT SUM(NVL(oi.SAVED_AMOUNT, 0))
+                FROM OFT_ORDERS o
+                JOIN OFT_ORDER_ITEM oi
+                  ON oi.ORDER_NO = o.ORDER_NO
+                WHERE o.USER_NO = #{userNo}
+                  AND o.ORDER_STATUS != 'CANCELED'
+            ), 0) AS totalSavedAmount,
+            NVL((
+                SELECT SUM(NVL(oi.SAVED_AMOUNT, 0))
+                FROM OFT_ORDERS o
+                JOIN OFT_ORDER_ITEM oi
+                  ON oi.ORDER_NO = o.ORDER_NO
+                WHERE o.USER_NO = #{userNo}
+                  AND o.ORDER_STATUS != 'CANCELED'
+                  AND TO_CHAR(o.ORDERED_AT, 'YYYYMM') = TO_CHAR(SYSDATE, 'YYYYMM')
+            ), 0) AS monthlySavedAmount,
+            NVL((
+                SELECT COUNT(*)
+                FROM OFT_ORDERS o
+                WHERE o.USER_NO = #{userNo}
+                  AND o.ORDER_STATUS != 'CANCELED'
+            ), 0) AS totalOrderCount,
+            NVL((
+                SELECT SUM(NVL(o.FINAL_AMOUNT, 0))
+                FROM OFT_ORDERS o
+                WHERE o.USER_NO = #{userNo}
+                  AND o.ORDER_STATUS != 'CANCELED'
+            ), 0) AS totalPurchaseAmount
+        FROM DUAL
+    ]]></select>
+
+</mapper>
