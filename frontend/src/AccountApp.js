@@ -996,11 +996,9 @@ function AccountApp() {
             onOrderFilterSubmit={handleOrderFilterSubmit}
             onOrderFilterReset={handleOrderFilterReset}
             onSelectOrder={handleSelectOrder}
-            onMoveToMypage={() => moveToPage('mypage')}
           />
         ) : (
           <DashboardView
-            onMoveToMypage={() => moveToPage('mypage')}
             summary={summary}
             summaryLoading={summaryLoading}
             monthlySavings={monthlySavings}

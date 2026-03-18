@@ -7,7 +7,6 @@ import {
 } from './appUtils';
 
 function DashboardView({
-  onMoveToMypage,
   summary = {},
   summaryLoading = false,
   monthlySavings = [],
@@ -37,11 +36,6 @@ function DashboardView({
         <div>
           <h1>대시보드</h1>
           <p>절약 금액과 소비 패턴을 한 화면에서 확인하는 개인 대시보드입니다.</p>
-        </div>
-        <div className="page-actions">
-          <button type="button" className="btn-outline" onClick={onMoveToMypage}>
-            마이페이지로 이동
-          </button>
         </div>
       </section>
 

@@ -148,6 +148,7 @@
   background: transparent;
   color: #475569;
   font-weight: 800;
+  font-size: 15px;
   cursor: pointer;
 }
 
@@ -168,7 +169,7 @@
 .account-app .card-sub,
 .account-app .small{
   margin: 0;
-  font-size: 14px;
+  font-size: 17px;
   color: var(--muted);
 }
 
@@ -189,7 +190,7 @@
 }
 
 .account-app .section-title{
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 800;
   letter-spacing: -0.02em;
 }
@@ -256,13 +257,13 @@
 
 .account-app .stat-label,
 .account-app .quick-label{
-  font-size: 14px;
+  font-size: 16px;
   color: var(--muted);
   font-weight: 600;
 }
 
 .account-app .stat-value{
-  font-size: 32px;
+  font-size: 36px;
   font-weight: 900;
   margin-top: 10px;
   color: var(--green-dark);
@@ -275,12 +276,12 @@
 }
 
 .account-app .stat-value--compact{
-  font-size: 24px;
+  font-size: 26px;
 }
 
 .account-app .quick-value{
   margin-top: 8px;
-  font-size: 20px;
+  font-size: 25px;
   font-weight: 800;
 }
 
@@ -309,7 +310,7 @@
 }
 
 .account-app .card-title{
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 800;
   margin-bottom: 6px;
 }
@@ -386,20 +387,20 @@
 }
 
 .account-app .savings-highlight__label{
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 800;
   color: #3f6c52;
 }
 
 .account-app .savings-highlight__value{
-  font-size: 34px;
+  font-size: 38px;
   font-weight: 900;
   letter-spacing: -0.03em;
   color: #0f7a42;
 }
 
 .account-app .savings-highlight__sub{
-  font-size: 14px;
+  font-size: 16px;
   color: #557462;
 }
 
@@ -411,11 +412,11 @@
   padding: 12px 14px;
   border-radius: 16px;
   background: #f8fafb;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .account-app .insight-item strong{
-  font-size: 15px;
+  font-size: 18px;
 }
 
 .account-app .insight-item--review{
@@ -456,6 +457,7 @@
   padding: 10px 16px;
   border-radius: 999px;
   font-weight: 700;
+  font-size: 15px;
   background: #fff;
   border: 1px solid var(--line);
   color: #475569;
@@ -498,7 +500,7 @@
   gap: 10px;
   flex-wrap: wrap;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .account-app .mypage-recent-order{
@@ -515,7 +517,7 @@
 }
 
 .account-app .mypage-recent-order__label{
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 800;
   color: var(--muted);
 }
@@ -525,6 +527,7 @@
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  font-size: 16px;
 }
 
 .account-app .mypage-recent-order__saving{
@@ -532,7 +535,7 @@
   border-radius: 999px;
   background: rgba(21, 154, 85, 0.12);
   color: #0f7a42;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
 }
 
@@ -565,12 +568,12 @@
 }
 
 .account-app .order-summary-item strong{
-  font-size: 13px;
+  font-size: 16px;
   color: var(--muted);
 }
 
 .account-app .order-summary-item span{
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 800;
   color: var(--text);
 }
@@ -623,7 +626,7 @@
 .account-app .status-pill{
   padding: 7px 12px;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
 }
 
@@ -642,7 +645,7 @@
   justify-content: space-between;
   gap: 12px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .account-app .product-grid{
@@ -683,7 +686,7 @@
 .account-app .badge{
   padding: 7px 12px;
   border-radius: 999px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
   display: inline-flex;
   align-items: center;
@@ -781,12 +784,12 @@
 
 .account-app .bar-chart__item strong{
   color: var(--green-dark);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .account-app .bar-chart__item span{
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .account-app .compare-bars{
@@ -800,7 +803,7 @@
   grid-template-columns: 110px 1fr 84px;
   gap: 12px;
   align-items: center;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .account-app .bar{
@@ -908,7 +911,7 @@
 .account-app .form-field{
   display: grid;
   gap: 8px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text);
 }
@@ -954,7 +957,7 @@
   align-items: center;
   gap: 10px;
   margin-top: 16px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text);
 }
@@ -964,7 +967,7 @@
   border-radius: 14px;
   background: #fff4eb;
   color: #b45309;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
 }
 
@@ -1030,7 +1033,7 @@
   display: grid;
   gap: 6px;
   color: var(--text);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .account-app .profile-inline-card{
@@ -1057,13 +1060,13 @@
 }
 
 .account-app .profile-inline-row__label{
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
   color: var(--muted);
 }
 
 .account-app .profile-inline-row__value{
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--text);
   line-height: 1.6;
@@ -1162,7 +1165,7 @@
 .account-app .detail-block h3,
 .account-app .detail-items h3{
   margin: 0;
-  font-size: 18px;
+  font-size: 21px;
 }
 
 .account-app .detail-row{
@@ -1170,7 +1173,7 @@
   justify-content: space-between;
   gap: 12px;
   align-items: flex-start;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .account-app .detail-row strong{
@@ -1225,7 +1228,7 @@
 
 .account-app .detail-hint{
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 @media (max-width: 1180px){.account-app .stats-grid,

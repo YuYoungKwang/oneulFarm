@@ -1,3 +1,16 @@
+function normalizeDateValue(value) {
+  if (!value) {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    const [year, month, day, hour = 0, minute = 0, second = 0] = value;
+    return new Date(year, Number(month || 1) - 1, day || 1, hour, minute, second);
+  }
+
+  return new Date(value);
+}
+
 export function formatPrice(value) {
   return `${Number(value || 0).toLocaleString('ko-KR')}원`;
 }
@@ -7,9 +20,9 @@ export function formatDate(value) {
     return '-';
   }
 
-  const date = new Date(value);
+  const date = normalizeDateValue(value);
   if (Number.isNaN(date.getTime())) {
-    return value;
+    return String(value);
   }
 
   return date.toLocaleDateString('ko-KR', {
@@ -24,9 +37,9 @@ export function formatDateTime(value) {
     return '-';
   }
 
-  const date = new Date(value);
+  const date = normalizeDateValue(value);
   if (Number.isNaN(date.getTime())) {
-    return value;
+    return String(value);
   }
 
   return date.toLocaleString('ko-KR', {
@@ -93,7 +106,7 @@ export function formatMonthLabel(value) {
 
   const matched = String(value).match(/^(\d{4})-(\d{2})$/);
   if (!matched) {
-    return value;
+    return String(value);
   }
 
   return `${Number(matched[2])}월`;

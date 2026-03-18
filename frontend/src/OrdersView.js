@@ -1,4 +1,10 @@
-import { formatDate, formatPrice, getDeliveryBadgeClass, getDeliveryLabel, getOrderStats } from './appUtils';
+import {
+  formatDate,
+  formatPrice,
+  getDeliveryBadgeClass,
+  getDeliveryLabel,
+  getOrderStats,
+} from './appUtils';
 import OrderDetailPanel from './OrderDetailPanel';
 
 function OrdersView({
@@ -14,7 +20,6 @@ function OrdersView({
   onOrderFilterSubmit,
   onOrderFilterReset,
   onSelectOrder,
-  onMoveToMypage,
 }) {
   const stats = getOrderStats(orders);
 
@@ -24,11 +29,6 @@ function OrdersView({
         <div>
           <h1>주문관리</h1>
           <p>배송 상태와 기간 조건으로 주문을 찾고, 필요한 주문만 펼쳐서 상세를 확인하는 전용 화면입니다.</p>
-        </div>
-        <div className="page-actions">
-          <button type="button" className="btn-outline" onClick={onMoveToMypage}>
-            마이페이지로 돌아가기
-          </button>
         </div>
       </section>
 
