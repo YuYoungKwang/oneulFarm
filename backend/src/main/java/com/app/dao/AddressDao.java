@@ -2,8 +2,7 @@ package com.app.dao;
 
 import java.util.List;
 
-import com.app.dto.CreateAddressRequestDto;
-import com.app.dto.UpdateAddressRequestDto;
+import com.app.dto.AddressRequestDto;
 import com.app.dto.UserAddressDto;
 
 public interface AddressDao {
@@ -14,9 +13,9 @@ public interface AddressDao {
 
     int countMyAddresses(Long userNo);
 
-    int insertAddress(Long userNo, CreateAddressRequestDto request);
+    int insertAddress(Long userNo, AddressRequestDto request);
 
-    int updateAddress(Long userNo, Long addressNo, UpdateAddressRequestDto request);
+    int updateAddress(Long userNo, Long addressNo, AddressRequestDto request);
 
     int clearDefaultAddress(Long userNo);
 

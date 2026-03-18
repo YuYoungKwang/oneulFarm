@@ -9,8 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.app.dao.AddressDao;
-import com.app.dto.CreateAddressRequestDto;
-import com.app.dto.UpdateAddressRequestDto;
+import com.app.dto.AddressRequestDto;
 import com.app.dto.UserAddressDto;
 
 @Service
@@ -26,7 +25,7 @@ public class AddressServiceImpl implements AddressService {
 
     @Override
     @Transactional
-    public List<UserAddressDto> addAddress(Long userNo, CreateAddressRequestDto request) {
+    public List<UserAddressDto> addAddress(Long userNo, AddressRequestDto request) {
         validateRequest(
             request.getRecipientName(),
             request.getRecipientPhone(),
@@ -63,7 +62,7 @@ public class AddressServiceImpl implements AddressService {
 
     @Override
     @Transactional
-    public List<UserAddressDto> updateAddress(Long userNo, Long addressNo, UpdateAddressRequestDto request) {
+    public List<UserAddressDto> updateAddress(Long userNo, Long addressNo, AddressRequestDto request) {
         UserAddressDto currentAddress = addressDao.findMyAddress(userNo, addressNo);
         if (currentAddress == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "배송지 정보를 찾을 수 없습니다.");

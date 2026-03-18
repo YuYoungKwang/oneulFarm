@@ -8,8 +8,7 @@ import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
-import com.app.dto.CreateAddressRequestDto;
-import com.app.dto.UpdateAddressRequestDto;
+import com.app.dto.AddressRequestDto;
 import com.app.dto.UserAddressDto;
 
 @Repository
@@ -49,7 +48,7 @@ public class AddressDaoImpl implements AddressDao {
     }
 
     @Override
-    public int insertAddress(Long userNo, CreateAddressRequestDto request) {
+    public int insertAddress(Long userNo, AddressRequestDto request) {
         Map<String, Object> params = new HashMap<>();
         params.put("userNo", userNo);
         params.put("recipientName", request.getRecipientName());
@@ -64,7 +63,7 @@ public class AddressDaoImpl implements AddressDao {
     }
 
     @Override
-    public int updateAddress(Long userNo, Long addressNo, UpdateAddressRequestDto request) {
+    public int updateAddress(Long userNo, Long addressNo, AddressRequestDto request) {
         Map<String, Object> params = new HashMap<>();
         params.put("userNo", userNo);
         params.put("addressNo", addressNo);

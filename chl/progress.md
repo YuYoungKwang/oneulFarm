@@ -311,6 +311,14 @@
   - 현재 남은 작업
 - 설계 원칙 변경이 있으면 `docs` 문서를 같이 갱신한다.
 - 구현 순서나 우선순위가 바뀌면 `chl/implementation_plan.md`도 함께 수정한다.
+## 2026-03-18 추가 기록 3
+
+- 배송지 요청 DTO 중복 정리
+  - `CreateAddressRequestDto`, `UpdateAddressRequestDto` 제거
+  - `AddressRequestDto` 하나로 통합
+- 주소 컨트롤러/서비스/DAO 시그니처를 통합 DTO 기준으로 연결
+- 배포본에 남아 있던 예전 배송지 요청 DTO 클래스 정리
+
 ## 2026-03-18 추가 기록 2
 
 - 상세 개인정보 화면에 이메일/닉네임 중복 확인 기능 추가
