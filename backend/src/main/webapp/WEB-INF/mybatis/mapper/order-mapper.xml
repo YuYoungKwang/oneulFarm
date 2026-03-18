@@ -52,7 +52,7 @@
         <result property="reviewNo" column="reviewNo" />
     </resultMap>
 
-    <select id="selectMyOrders" parameterType="java.lang.Long" resultMap="OrderListResultMap">
+    <select id="selectMyOrders" parameterType="map" resultMap="OrderListResultMap">
         SELECT
             o.ORDER_NO AS orderNo,
             o.ORDER_ID AS orderId,
@@ -88,7 +88,16 @@
                 ON firstItem.ORDER_ITEM_NO = agg.FIRST_ORDER_ITEM_NO
         ) oi
             ON oi.ORDER_NO = o.ORDER_NO
-        WHERE o.USER_NO = #{_parameter}
+        WHERE o.USER_NO = #{userNo}
+        <if test="deliveryStatus != null and deliveryStatus != ''">
+          AND NVL(d.DELIVERY_STATUS, 'READY') = #{deliveryStatus}
+        </if>
+        <if test="dateFrom != null">
+          AND o.ORDERED_AT &gt;= #{dateFrom}
+        </if>
+        <if test="dateTo != null">
+          AND o.ORDERED_AT &lt; #{dateTo}
+        </if>
         ORDER BY o.ORDERED_AT DESC
     </select>
 

@@ -15,10 +15,14 @@ function MyPageView({
   orders,
   ordersLoading,
   ordersError,
+  orderFilters,
   selectedOrderNo,
   orderDetail,
   detailLoading,
   detailError,
+  onOrderFilterChange,
+  onOrderFilterSubmit,
+  onOrderFilterReset,
   onSelectOrder,
   summary,
   summaryLoading,
@@ -126,6 +130,34 @@ function MyPageView({
 
       {activeTab === 'orders' && (
         <>
+          <article className="card order-filter-bar">
+            <form className="order-filter-form" onSubmit={onOrderFilterSubmit}>
+              <div className="order-filter-grid">
+                <label className="form-field">
+                  <span>배송 상태</span>
+                  <select name="deliveryStatus" value={orderFilters.deliveryStatus} onChange={onOrderFilterChange}>
+                    <option value="ALL">전체</option>
+                    <option value="READY">배송 준비</option>
+                    <option value="SHIPPING">배송 중</option>
+                    <option value="DELIVERED">배송 완료</option>
+                  </select>
+                </label>
+                <label className="form-field">
+                  <span>시작일</span>
+                  <input type="date" name="dateFrom" value={orderFilters.dateFrom} onChange={onOrderFilterChange} />
+                </label>
+                <label className="form-field">
+                  <span>종료일</span>
+                  <input type="date" name="dateTo" value={orderFilters.dateTo} onChange={onOrderFilterChange} />
+                </label>
+              </div>
+              <div className="order-filter-actions">
+                <button type="button" className="btn-outline" onClick={onOrderFilterReset}>초기화</button>
+                <button type="submit" className="btn">조회</button>
+              </div>
+            </form>
+          </article>
+
           <div className="quick-grid">
             <article className="quick-card">
               <div className="quick-label">총 주문</div>

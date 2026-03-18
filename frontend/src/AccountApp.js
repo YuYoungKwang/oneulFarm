@@ -51,6 +51,12 @@ const EMPTY_WITHDRAW_FORM = {
   currentPassword: '',
 };
 
+const EMPTY_ORDER_FILTERS = {
+  deliveryStatus: 'ALL',
+  dateFrom: '',
+  dateTo: '',
+};
+
 const EMPTY_DUPLICATE_STATE = {
   email: {
     checking: false,
@@ -138,6 +144,8 @@ function AccountApp() {
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [ordersError, setOrdersError] = useState('');
+  const [orderFilters, setOrderFilters] = useState(EMPTY_ORDER_FILTERS);
+  const [appliedOrderFilters, setAppliedOrderFilters] = useState(EMPTY_ORDER_FILTERS);
   const [selectedOrderNo, setSelectedOrderNo] = useState(null);
   const [orderDetail, setOrderDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -199,7 +207,18 @@ function AccountApp() {
       setOrdersError('');
 
       try {
-        const response = await fetch(`${ORDER_API_BASE}/me`, {
+        const query = new URLSearchParams();
+        if (appliedOrderFilters.deliveryStatus && appliedOrderFilters.deliveryStatus !== 'ALL') {
+          query.set('deliveryStatus', appliedOrderFilters.deliveryStatus);
+        }
+        if (appliedOrderFilters.dateFrom) {
+          query.set('dateFrom', appliedOrderFilters.dateFrom);
+        }
+        if (appliedOrderFilters.dateTo) {
+          query.set('dateTo', appliedOrderFilters.dateTo);
+        }
+
+        const response = await fetch(`${ORDER_API_BASE}/me${query.toString() ? `?${query.toString()}` : ''}`, {
           headers: { 'X-USER-NO': DEMO_USER_NO },
           signal: controller.signal,
         });
@@ -216,7 +235,7 @@ function AccountApp() {
 
     fetchOrders();
     return () => controller.abort();
-  }, []);
+  }, [appliedOrderFilters]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -356,6 +375,14 @@ function AccountApp() {
     fetchOrderDetail();
     return () => controller.abort();
   }, [selectedOrderNo]);
+
+  useEffect(() => {
+    if (selectedOrderNo && !orders.some((order) => order.orderNo === selectedOrderNo)) {
+      setSelectedOrderNo(null);
+      setOrderDetail(null);
+      setDetailError('');
+    }
+  }, [orders, selectedOrderNo]);
 
   function moveToPage(page) {
     window.location.hash = ACCOUNT_ROUTES[page] || ACCOUNT_ROUTES.mypage;
@@ -844,6 +871,24 @@ function AccountApp() {
     setSelectedOrderNo((current) => (current === orderNo ? null : orderNo));
   }
 
+  function handleOrderFilterChange(event) {
+    const { name, value } = event.target;
+    setOrderFilters((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  }
+
+  function handleOrderFilterSubmit(event) {
+    event.preventDefault();
+    setAppliedOrderFilters({ ...orderFilters });
+  }
+
+  function handleOrderFilterReset() {
+    setOrderFilters(EMPTY_ORDER_FILTERS);
+    setAppliedOrderFilters(EMPTY_ORDER_FILTERS);
+  }
+
   return (
     <div className="account-app page-shell">
       <main className="container">
@@ -882,10 +927,14 @@ function AccountApp() {
               orders={orders}
               ordersLoading={ordersLoading}
               ordersError={ordersError}
+              orderFilters={orderFilters}
               selectedOrderNo={selectedOrderNo}
               orderDetail={orderDetail}
               detailLoading={detailLoading}
               detailError={detailError}
+              onOrderFilterChange={handleOrderFilterChange}
+              onOrderFilterSubmit={handleOrderFilterSubmit}
+              onOrderFilterReset={handleOrderFilterReset}
               onSelectOrder={handleSelectOrder}
               summary={summary}
               summaryLoading={summaryLoading}

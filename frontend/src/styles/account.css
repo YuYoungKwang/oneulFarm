@@ -163,6 +163,28 @@
   margin: 0 0 32px;
 }
 
+.account-app .order-filter-bar{
+  margin: 0 0 18px;
+}
+
+.account-app .order-filter-form{
+  display: grid;
+  gap: 16px;
+}
+
+.account-app .order-filter-grid{
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr;
+  gap: 14px;
+}
+
+.account-app .order-filter-actions{
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .account-app .stat-card,
 .account-app .quick-card{
   background: var(--surface);
@@ -728,7 +750,23 @@
   background: #fff;
 }
 
+.account-app .form-field select{
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 16px;
+  font: inherit;
+  color: var(--text);
+  background: #fff;
+}
+
 .account-app .form-field input:focus{
+  outline: none;
+  border-color: rgba(21, 154, 85, 0.6);
+  box-shadow: 0 0 0 4px rgba(21, 154, 85, 0.08);
+}
+
+.account-app .form-field select:focus{
   outline: none;
   border-color: rgba(21, 154, 85, 0.6);
   box-shadow: 0 0 0 4px rgba(21, 154, 85, 0.08);
@@ -1066,6 +1104,10 @@
   }
 
   .account-app .form-grid{
+    grid-template-columns: 1fr;
+  }
+
+  .account-app .order-filter-grid{
     grid-template-columns: 1fr;
   }
 
