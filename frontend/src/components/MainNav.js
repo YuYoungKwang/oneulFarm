@@ -51,9 +51,7 @@ function MainNav({ activeSection, cartCount = 0, onOpenCart }) {
             onClick={onOpenCart || (() => navigateTo('#/cart'))}
           >
             <CartIcon />
-            {cartCount > 0 ? (
-              <span className="main-nav__cart-badge">{cartCount}</span>
-            ) : null}
+            {cartCount > 0 ? <span className="main-nav__cart-badge">{cartCount}</span> : null}
           </button>
           <button className="main-nav__btn-outline" type="button">
             로그인

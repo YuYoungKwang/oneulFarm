@@ -674,7 +674,7 @@ function AccountApp() {
     setWithdrawError('');
 
     const confirmed = window.confirm(
-      '정말 회원 탈퇴를 진행하시겠습니까? 탈퇴 후에는 현재 계정으로 마이페이지 기능을 계속 사용할 수 없습니다.'
+      '정말 회원 탈퇴를 진행하시겠습니까? 탈퇴 이후에는 현재 계정으로 마이페이지 기능을 계속 사용할 수 없습니다.'
     );
     if (!confirmed) {
       setWithdrawing(false);

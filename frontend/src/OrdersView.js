@@ -23,28 +23,13 @@ function OrdersView({
       <section className="page-head">
         <div>
           <h1>주문관리</h1>
-          <p>필터와 기간 조회로 주문 흐름을 한 화면에서 관리할 수 있도록 분리한 주문 전용 페이지입니다.</p>
+          <p>배송 상태와 기간 조건으로 주문을 찾고, 필요한 주문만 펼쳐서 상세를 확인하는 전용 화면입니다.</p>
         </div>
         <div className="page-actions">
           <button type="button" className="btn-outline" onClick={onMoveToMypage}>
             마이페이지로 돌아가기
           </button>
         </div>
-      </section>
-
-      <section className="section">
-        <article className="card orders-hero-card">
-          <div className="orders-hero-card__copy">
-            <div className="card-title">주문 흐름을 더 넓게 보도록 분리했습니다.</div>
-            <div className="card-sub">
-              배송 상태와 기간 조건으로 빠르게 필터링하고, 필요한 주문만 펼쳐서 상세를 확인할 수 있습니다.
-            </div>
-          </div>
-          <div className="orders-hero-card__meta">
-            <span className="badge green">주문 {stats.totalCount}건</span>
-            <span className="badge green">절약 {formatPrice(stats.totalSavedAmount)}</span>
-          </div>
-        </article>
       </section>
 
       <section className="section">

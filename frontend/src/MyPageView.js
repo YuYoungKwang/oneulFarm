@@ -29,7 +29,7 @@ function MyPageView({
       <section className="page-head">
         <div>
           <h1>마이페이지</h1>
-          <p>개인 정보와 주소, 최근 주문 흐름을 한눈에 확인하는 요약 허브 화면입니다.</p>
+          <p>개인 정보와 배송지, 최근 주문 상태를 한 화면에서 확인하는 개인 허브입니다.</p>
         </div>
       </section>
 
@@ -46,8 +46,12 @@ function MyPageView({
               </div>
             </div>
             <div className="profile-summary__actions">
-              <button type="button" className="btn-outline" onClick={onOpenProfileDetail}>상세 개인정보</button>
-              <button type="button" className="btn" onClick={onOpenAddressModal}>배송지 관리</button>
+              <button type="button" className="btn-outline" onClick={onOpenProfileDetail}>
+                상세 개인정보
+              </button>
+              <button type="button" className="btn" onClick={onOpenAddressModal}>
+                배송지 관리
+              </button>
             </div>
           </div>
 
@@ -65,11 +69,12 @@ function MyPageView({
               <span>{profileLoading ? '불러오는 중...' : defaultAddressLabel}</span>
             </div>
             <div className="insight-item">
-              <strong>최근 주문 상태</strong>
-              <span>{recentOrder ? getDeliveryLabel(recentOrder.deliveryStatus) : '주문 없음'}</span>
+              <strong>최근 주문일</strong>
+              <span>{recentOrder ? formatDate(recentOrder.orderedAt) : '주문 없음'}</span>
             </div>
           </div>
-          {recentOrder && (
+
+          {recentOrder ? (
             <div className="mypage-recent-order">
               <div className="mypage-recent-order__label">최근 주문</div>
               <div className="mypage-recent-order__content">
@@ -81,8 +86,7 @@ function MyPageView({
                 <span>결제 {formatPrice(recentOrder.finalAmount)}</span>
               </div>
             </div>
-          )}
-          {!recentOrder && (
+          ) : (
             <div className="mypage-recent-order mypage-recent-order--empty">
               <div className="mypage-recent-order__label">최근 주문</div>
               <div className="section-sub">아직 주문 내역이 없습니다.</div>
@@ -111,8 +115,11 @@ function MyPageView({
           <div className="section-head">
             <div>
               <div className="section-title">찜한 상품</div>
-              <div className="section-sub">현재는 계정 화면 전용 데모 데이터로 구성되어 있습니다.</div>
+              <div className="section-sub">
+                상품 화면과의 실제 연동 전까지는 미리보기 형태로만 제공합니다.
+              </div>
             </div>
+            <span className="badge green">연동 예정</span>
           </div>
 
           <div className="product-grid">
@@ -128,10 +135,14 @@ function MyPageView({
                   <div className="avg">{item.avg}</div>
                 </div>
                 <div className="product-foot">
-                  <button type="button" className="btn">장바구니 담기</button>
-                  <a href="#/products" className="btn-outline">상세</a>
+                  <button type="button" className="btn btn-disabled" disabled>
+                    장바구니 연동 예정
+                  </button>
+                  <a href="#/products" className="btn-outline">상품 보러가기</a>
                 </div>
-                <button type="button" className="btn line">찜 해제</button>
+                <button type="button" className="btn line btn-disabled" disabled>
+                  찜 해제 연동 예정
+                </button>
               </article>
             ))}
           </div>
@@ -141,7 +152,15 @@ function MyPageView({
       {activeTab === 'reviews' && (
         <section className="section grid-2">
           <article className="card">
-            <div className="card-title">작성 가능한 리뷰</div>
+            <div className="section-head">
+              <div>
+                <div className="card-title">작성 가능한 리뷰</div>
+                <div className="section-sub">
+                  주문 상품과의 실제 연동 전까지는 준비 상태로 유지합니다.
+                </div>
+              </div>
+              <span className="badge green">연동 예정</span>
+            </div>
             <div className="insight-list">
               {writableReviews.map((review) => (
                 <div key={review.name} className="insight-item insight-item--review">
@@ -150,14 +169,24 @@ function MyPageView({
                     <strong>{review.name}</strong>
                     <span>{review.orderId} / {review.date}</span>
                   </div>
-                  <button type="button" className="btn">리뷰 작성</button>
+                  <button type="button" className="btn btn-disabled" disabled>
+                    리뷰 작성 예정
+                  </button>
                 </div>
               ))}
             </div>
           </article>
 
           <article className="card">
-            <div className="card-title">내가 작성한 리뷰</div>
+            <div className="section-head">
+              <div>
+                <div className="card-title">내가 작성한 리뷰</div>
+                <div className="section-sub">
+                  리뷰 기능과 상품 화면이 정리되면 실제 데이터로 교체됩니다.
+                </div>
+              </div>
+              <span className="badge green">연동 예정</span>
+            </div>
             <div className="insight-list">
               {myReviews.map((review) => (
                 <div key={review.name} className="insight-item insight-item--review">
@@ -168,8 +197,8 @@ function MyPageView({
                     <div className="section-sub">{review.content}</div>
                   </div>
                   <div className="review-buttons">
-                    <button type="button" className="btn-outline">수정</button>
-                    <button type="button" className="btn line">삭제</button>
+                    <button type="button" className="btn-outline btn-disabled" disabled>수정 예정</button>
+                    <button type="button" className="btn line btn-disabled" disabled>삭제 예정</button>
                   </div>
                 </div>
               ))}

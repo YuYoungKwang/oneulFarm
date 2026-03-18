@@ -50,6 +50,14 @@
   transform: translateY(-1px);
 }
 
+.account-app .btn:disabled,
+.account-app .btn-outline:disabled,
+.account-app .btn.line:disabled{
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 .account-app .btn-outline{
   background: #fff;
   border: 1px solid var(--line);
@@ -67,6 +75,12 @@
   border: 1px solid var(--line);
   color: var(--green-dark);
   padding: 12px 18px;
+}
+
+.account-app .btn-disabled{
+  border-color: rgba(203, 213, 225, 0.9) !important;
+  background: #f8fafc !important;
+  color: #94a3b8 !important;
 }
 
 .account-app .btn.line.btn-danger-line{
@@ -406,24 +420,6 @@
 .account-app .order-list{
   display: grid;
   gap: 16px;
-}
-
-.account-app .orders-hero-card{
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-}
-
-.account-app .orders-hero-card__copy{
-  max-width: 620px;
-}
-
-.account-app .orders-hero-card__meta{
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
 }
 
 .account-app .order-list-entry{
@@ -1180,7 +1176,6 @@
 .account-app .order-top,
 .account-app .help-row,
 .account-app .section-head,
-.account-app .orders-hero-card,
 .account-app .mypage-preview-card__head{
     align-items: flex-start;
     flex-direction: column;

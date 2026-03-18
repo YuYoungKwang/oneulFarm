@@ -83,7 +83,7 @@ function OrderDetailPanel({ detail, loading, error }) {
               </div>
               <div className="detail-row"><strong>구매 단가</strong><span>{formatPrice(item.unitPrice)}</span></div>
               <div className="detail-row"><strong>소계</strong><span>{formatPrice(item.subtotal)}</span></div>
-              <div className="detail-row"><strong>소매가</strong><span>{formatPrice(item.marketAvgPrice)}</span></div>
+              <div className="detail-row"><strong>시장 평균가</strong><span>{formatPrice(item.marketAvgPrice)}</span></div>
               <div className="detail-row"><strong>절약 금액</strong><span>{formatPrice(item.savedAmount)}</span></div>
               <div className="detail-row"><strong>절약률</strong><span>{Number(item.savingRate || 0).toFixed(2)}%</span></div>
               <div className="detail-actions">

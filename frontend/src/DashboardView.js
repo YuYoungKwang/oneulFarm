@@ -75,7 +75,7 @@ function DashboardView({
       <section className="section grid-2">
         <article className="card">
           <div className="card-title">월별 절약 금액</div>
-          <div className="card-sub">월별 절약 흐름을 세로 막대 차트로 보여줍니다.</div>
+          <div className="card-sub">월별 절약 흐름을 막대 차트로 보여줍니다.</div>
           <div className="chart-shell">
             {dashboardLoading ? (
               <div className="feedback-card">차트 데이터를 불러오는 중입니다.</div>

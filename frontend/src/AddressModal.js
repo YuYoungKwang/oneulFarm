@@ -40,7 +40,7 @@ function AddressModal({
     if (mustKeepDefault && !event.target.checked) {
       onDefaultToggleBlocked(
         addresses.length <= 1
-          ? '배송지가 하나일 때는 기본 배송지를 해제할 수 없습니다.'
+          ? '배송지가 하나뿐일 때는 기본 배송지를 해제할 수 없습니다.'
           : '기본 배송지는 해제할 수 없습니다. 다른 배송지를 먼저 기본 배송지로 변경해 주세요.'
       );
       return;
@@ -61,7 +61,7 @@ function AddressModal({
           <div>
             <div className="section-title">배송지 관리</div>
             <div className="section-sub">
-              배송지 목록을 확인하고, 기본 배송지 변경과 배송지 추가, 수정, 삭제를 할 수 있습니다.
+              배송지 목록을 확인하고, 기본 배송지 변경과 배송지 추가, 수정, 삭제를 진행할 수 있습니다.
             </div>
           </div>
           <div className="page-actions">

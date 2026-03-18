@@ -89,10 +89,12 @@ function ProfileDetailView({
       <section className="page-head">
         <div>
           <h1>상세 개인정보</h1>
-          <p>이 페이지에서 계정 정보를 확인하고, 수정 가능한 항목만 바로 편집할 수 있습니다.</p>
+          <p>마이페이지에서 계정 정보를 확인하고, 수정 가능한 항목만 바로 편집할 수 있습니다.</p>
         </div>
         <div className="page-actions">
-          <button type="button" className="btn-outline" onClick={onBack}>마이페이지로 돌아가기</button>
+          <button type="button" className="btn-outline" onClick={onBack}>
+            마이페이지로 돌아가기
+          </button>
         </div>
       </section>
 
@@ -154,7 +156,9 @@ function ProfileDetailView({
                         {profileSubmitError && <div className="form-error">{profileSubmitError}</div>}
 
                         <div className="profile-inline-row__actions">
-                          <button type="button" className="btn-outline" onClick={handleCancelProfileEdit}>취소</button>
+                          <button type="button" className="btn-outline" onClick={handleCancelProfileEdit}>
+                            취소
+                          </button>
                           <button type="submit" className="btn" disabled={profileSubmitting}>
                             {profileSubmitting ? '저장 중...' : '저장'}
                           </button>
@@ -166,7 +170,9 @@ function ProfileDetailView({
                           {profileLoading ? '불러오는 중...' : item.value}
                         </div>
                         <div className="profile-inline-row__actions">
-                          <button type="button" className="btn-outline" onClick={() => setActiveEditor(item.key)}>수정</button>
+                          <button type="button" className="btn-outline" onClick={() => setActiveEditor(item.key)}>
+                            수정
+                          </button>
                         </div>
                       </>
                     )}
@@ -232,7 +238,9 @@ function ProfileDetailView({
                   {passwordError && <div className="form-error">{passwordError}</div>}
 
                   <div className="profile-inline-row__actions">
-                    <button type="button" className="btn-outline" onClick={handleCancelPasswordEdit}>취소</button>
+                    <button type="button" className="btn-outline" onClick={handleCancelPasswordEdit}>
+                      취소
+                    </button>
                     <button type="submit" className="btn" disabled={passwordSubmitting}>
                       {passwordSubmitting ? '변경 중...' : '변경'}
                     </button>
@@ -242,7 +250,9 @@ function ProfileDetailView({
                 <>
                   <div className="profile-inline-row__value">********</div>
                   <div className="profile-inline-row__actions">
-                    <button type="button" className="btn-outline" onClick={() => setActiveEditor('password')}>변경</button>
+                    <button type="button" className="btn-outline" onClick={() => setActiveEditor('password')}>
+                      변경
+                    </button>
                   </div>
                 </>
               )}
@@ -254,7 +264,7 @@ function ProfileDetailView({
           <div className="section-head">
             <div>
               <div className="section-title">회원 탈퇴</div>
-              <div className="section-sub">탈퇴 후에는 현재 계정 정보로 마이페이지 기능을 계속 사용할 수 없습니다.</div>
+              <div className="section-sub">탈퇴 이후에는 현재 계정 정보로 마이페이지 기능을 계속 사용할 수 없습니다.</div>
             </div>
           </div>
 
