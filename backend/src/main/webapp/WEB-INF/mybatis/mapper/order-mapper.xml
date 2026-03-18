@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="orderMapper">
+
+    <resultMap id="OrderListItemResultMap" type="com.app.dto.OrderListItemDto">
+        <result property="orderNo" column="orderNo" />
+        <result property="orderId" column="orderId" />
+        <result property="orderedAt" column="orderedAt" />
+        <result property="orderStatus" column="orderStatus" />
+        <result property="deliveryStatus" column="deliveryStatus" />
+        <result property="firstProductName" column="firstProductName" />
+        <result property="itemCount" column="itemCount" />
+        <result property="finalAmount" column="finalAmount" />
+        <result property="totalSavedAmount" column="totalSavedAmount" />
+    </resultMap>
+
+    <resultMap id="OrderDetailInfoResultMap" type="com.app.dto.OrderDetailInfoDto">
+        <result property="orderNo" column="orderNo" />
+        <result property="orderId" column="orderId" />
+        <result property="orderedAt" column="orderedAt" />
+        <result property="orderStatus" column="orderStatus" />
+        <result property="recipientName" column="recipientName" />
+        <result property="recipientPhone" column="recipientPhone" />
+        <result property="zipCode" column="zipCode" />
+        <result property="address1" column="address1" />
+        <result property="address2" column="address2" />
+        <result property="deliveryStatus" column="deliveryStatus" />
+        <result property="courierName" column="courierName" />
+        <result property="trackingNo" column="trackingNo" />
+        <result property="deliveredAt" column="deliveredAt" />
+        <result property="paymentMethod" column="paymentMethod" />
+        <result property="paymentStatus" column="paymentStatus" />
+        <result property="paidAt" column="paidAt" />
+        <result property="paidAmount" column="paidAmount" />
+        <result property="totalAmount" column="totalAmount" />
+        <result property="discountAmount" column="discountAmount" />
+        <result property="deliveryFee" column="deliveryFee" />
+        <result property="finalAmount" column="finalAmount" />
+    </resultMap>
+
+    <resultMap id="OrderItemDetailResultMap" type="com.app.dto.OrderItemDetailDto">
+        <result property="orderItemNo" column="orderItemNo" />
+        <result property="productNo" column="productNo" />
+        <result property="productName" column="productName" />
+        <result property="unitPrice" column="unitPrice" />
+        <result property="quantity" column="quantity" />
+        <result property="subtotal" column="subtotal" />
+        <result property="marketAvgPrice" column="marketAvgPrice" />
+        <result property="savedAmount" column="savedAmount" />
+        <result property="savingRate" column="savingRate" />
+        <result property="reviewNo" column="reviewNo" />
+    </resultMap>
+
+    <select id="selectMyOrders" parameterType="java.lang.Long" resultMap="OrderListItemResultMap">
+        SELECT
+            o.ORDER_NO AS orderNo,
+            o.ORDER_ID AS orderId,
+            o.ORDERED_AT AS orderedAt,
+            o.ORDER_STATUS AS orderStatus,
+            NVL(d.DELIVERY_STATUS, 'READY') AS deliveryStatus,
+            oi.FIRST_PRODUCT_NAME AS firstProductName,
+            oi.ITEM_COUNT AS itemCount,
+            o.FINAL_AMOUNT AS finalAmount,
+            oi.TOTAL_SAVED_AMOUNT AS totalSavedAmount
+        FROM OFT_ORDERS o
+        LEFT JOIN OFT_DELIVERY d
+            ON d.ORDER_NO = o.ORDER_NO
+        JOIN (
+            SELECT
+                agg.ORDER_NO,
+                firstItem.PRODUCT_NAME AS FIRST_PRODUCT_NAME,
+                agg.ITEM_COUNT,
+                agg.TOTAL_SAVED_AMOUNT
+            FROM (
+                SELECT
+                    ORDER_NO,
+                    COUNT(*) AS ITEM_COUNT,
+                    SUM(NVL(SAVED_AMOUNT, 0)) AS TOTAL_SAVED_AMOUNT,
+                    MIN(ORDER_ITEM_NO) AS FIRST_ORDER_ITEM_NO
+                FROM OFT_ORDER_ITEM
+                GROUP BY ORDER_NO
+            ) agg
+            JOIN OFT_ORDER_ITEM firstItem
+                ON firstItem.ORDER_ITEM_NO = agg.FIRST_ORDER_ITEM_NO
+        ) oi
+            ON oi.ORDER_NO = o.ORDER_NO
+        WHERE o.USER_NO = #{userNo}
+        ORDER BY o.ORDERED_AT DESC
+    </select>
+
+    <select id="selectOrderDetailInfo" parameterType="map" resultMap="OrderDetailInfoResultMap">
+        SELECT
+            o.ORDER_NO AS orderNo,
+            o.ORDER_ID AS orderId,
+            o.ORDERED_AT AS orderedAt,
+            o.ORDER_STATUS AS orderStatus,
+            o.RECIPIENT_NAME AS recipientName,
+            o.RECIPIENT_PHONE AS recipientPhone,
+            o.ZIP_CODE AS zipCode,
+            o.ADDRESS1 AS address1,
+            o.ADDRESS2 AS address2,
+            NVL(d.DELIVERY_STATUS, 'READY') AS deliveryStatus,
+            d.COURIER_NAME AS courierName,
+            d.TRACKING_NO AS trackingNo,
+            d.DELIVERED_AT AS deliveredAt,
+            p.PAYMENT_METHOD AS paymentMethod,
+            p.PAYMENT_STATUS AS paymentStatus,
+            p.PAID_AT AS paidAt,
+            p.PAID_AMOUNT AS paidAmount,
+            o.TOTAL_AMOUNT AS totalAmount,
+            o.DISCOUNT_AMOUNT AS discountAmount,
+            o.DELIVERY_FEE AS deliveryFee,
+            o.FINAL_AMOUNT AS finalAmount
+        FROM OFT_ORDERS o
+        LEFT JOIN OFT_DELIVERY d
+            ON d.ORDER_NO = o.ORDER_NO
+        LEFT JOIN OFT_PAYMENT p
+            ON p.ORDER_NO = o.ORDER_NO
+        WHERE o.USER_NO = #{userNo}
+          AND o.ORDER_NO = #{orderNo}
+    </select>
+
+    <select id="selectOrderItems" parameterType="java.lang.Long" resultMap="OrderItemDetailResultMap">
+        SELECT
+            oi.ORDER_ITEM_NO AS orderItemNo,
+            oi.PRODUCT_NO AS productNo,
+            oi.PRODUCT_NAME AS productName,
+            oi.UNIT_PRICE AS unitPrice,
+            oi.QUANTITY AS quantity,
+            oi.SUBTOTAL AS subtotal,
+            oi.MARKET_AVG_PRICE AS marketAvgPrice,
+            oi.SAVED_AMOUNT AS savedAmount,
+            oi.SAVING_RATE AS savingRate,
+            r.REVIEW_NO AS reviewNo
+        FROM OFT_ORDER_ITEM oi
+        LEFT JOIN OFT_REVIEW r
+            ON r.ORDER_ITEM_NO = oi.ORDER_ITEM_NO
+           AND r.PRODUCT_NO = oi.PRODUCT_NO
+           AND r.DELETED_AT IS NULL
+        WHERE oi.ORDER_NO = #{orderNo}
+        ORDER BY oi.ORDER_ITEM_NO ASC
+    </select>
+
+</mapper>

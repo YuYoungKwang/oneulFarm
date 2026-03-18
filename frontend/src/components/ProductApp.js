@@ -1,4 +1,5 @@
 import { startTransition, useEffect, useState } from 'react';
+import '../styles/product.css';
 import { findProductByNo, productCatalog } from '../data/productData';
 import { CartIcon, SearchIcon } from './ProductIcons';
 import CartPage from './CartPage';
@@ -194,7 +195,7 @@ export default function ProductApp() {
   }
 
   return (
-    <div className="page-shell">
+    <div className="product-app page-shell">
       <SiteHeader
         cartCount={cartCount}
         onOpenCart={openCart}
