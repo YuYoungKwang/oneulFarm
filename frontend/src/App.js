@@ -53,10 +53,30 @@ const EMPTY_ADDRESS_FORM = {
 };
 
 async function parseResponse(response, fallbackMessage) {
-  const payload = await response.json().catch(() => null);
+  const contentType = response.headers.get('content-type') || '';
+  let payload = null;
+  let textPayload = '';
+
+  if (contentType.includes('application/json')) {
+    payload = await response.json().catch(() => null);
+  } else {
+    textPayload = await response.text().catch(() => '');
+  }
 
   if (!response.ok) {
-    throw new Error(payload?.message || fallbackMessage);
+    const extractedMessage = textPayload
+      ? textPayload
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .match(/메시지\s*([^]+?)\s*설명|메시지\s*([^]+?)\s*Apache Tomcat/i)
+      : null;
+
+    const errorMessage = payload?.message
+      || extractedMessage?.[1]?.trim()
+      || extractedMessage?.[2]?.trim()
+      || fallbackMessage;
+
+    throw new Error(errorMessage);
   }
 
   return payload;
@@ -227,14 +247,27 @@ function App() {
   }, [selectedOrderNo]);
 
   function openProfileDetail() {
-    setProfileSubmitError('');
-    setPasswordError('');
-    setPasswordForm(EMPTY_PASSWORD_FORM);
+    resetProfileForm();
+    resetPasswordForm();
     setCurrentPage('profile-detail');
   }
 
   function moveToMypage() {
     setCurrentPage('mypage');
+  }
+
+  function resetProfileForm() {
+    setProfileForm({
+      nickname: profile.nickname || '',
+      email: profile.email || '',
+      phone: profile.phone || '',
+    });
+    setProfileSubmitError('');
+  }
+
+  function resetPasswordForm() {
+    setPasswordForm(EMPTY_PASSWORD_FORM);
+    setPasswordError('');
   }
 
   function handleProfileFormChange(event) {
@@ -271,8 +304,10 @@ function App() {
           phone: nextProfile.phone || '',
         });
       }
+      return true;
     } catch (error) {
       setProfileSubmitError(error.message || '회원정보를 저장하지 못했습니다.');
+      return false;
     } finally {
       setProfileSubmitting(false);
     }
@@ -294,7 +329,7 @@ function App() {
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       setPasswordError('새 비밀번호와 비밀번호 확인이 일치하지 않습니다.');
       setPasswordSubmitting(false);
-      return;
+      return false;
     }
 
     try {
@@ -311,8 +346,10 @@ function App() {
       );
 
       setPasswordForm(EMPTY_PASSWORD_FORM);
+      return true;
     } catch (error) {
       setPasswordError(error.message || '비밀번호 변경에 실패했습니다.');
+      return false;
     } finally {
       setPasswordSubmitting(false);
     }
@@ -524,11 +561,13 @@ function App() {
             profileSubmitError={profileSubmitError}
             onProfileFormChange={handleProfileFormChange}
             onProfileSubmit={handleProfileSubmit}
+            onResetProfileForm={resetProfileForm}
             passwordForm={passwordForm}
             passwordSubmitting={passwordSubmitting}
             passwordError={passwordError}
             onPasswordFormChange={handlePasswordFormChange}
             onPasswordSubmit={handlePasswordSubmit}
+            onResetPasswordForm={resetPasswordForm}
             onBack={moveToMypage}
             onOpenAddressModal={openAddressModal}
           />
