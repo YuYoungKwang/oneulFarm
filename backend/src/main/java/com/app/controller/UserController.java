@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.app.common.ApiResponse;
 import com.app.dto.ChangePasswordRequestDto;
+import com.app.dto.CurrentPasswordRequestDto;
 import com.app.dto.DuplicateCheckResponseDto;
 import com.app.dto.UpdateUserProfileRequestDto;
 import com.app.dto.UserProfileDto;
@@ -46,6 +47,15 @@ public class UserController {
     ) {
         userService.changePassword(userNo, request);
         return ApiResponse.success(null, "비밀번호 변경 성공");
+    }
+
+    @PatchMapping(value = "/me/withdraw", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ApiResponse<Void> withdrawMyAccount(
+        @RequestHeader("X-USER-NO") Long userNo,
+        @RequestBody CurrentPasswordRequestDto request
+    ) {
+        userService.withdrawMyAccount(userNo, request);
+        return ApiResponse.success(null, "회원 탈퇴가 완료되었습니다.");
     }
 
     @GetMapping("/check-email")

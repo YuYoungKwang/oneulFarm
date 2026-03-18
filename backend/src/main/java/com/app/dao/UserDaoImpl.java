@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import com.app.dto.ChangePasswordRequestDto;
+import com.app.dto.CurrentPasswordRequestDto;
 import com.app.dto.UpdateUserProfileRequestDto;
 import com.app.dto.UserProfileDto;
 
@@ -67,5 +68,13 @@ public class UserDaoImpl implements UserDao {
         params.put("userNo", userNo);
         params.put("newPassword", request.getNewPassword());
         return sqlSessionTemplate.update(NAMESPACE + "updatePassword", params);
+    }
+
+    @Override
+    public int updateStatusToWithdrawn(Long userNo, CurrentPasswordRequestDto request) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("userNo", userNo);
+        params.put("currentPassword", request.getCurrentPassword());
+        return sqlSessionTemplate.update(NAMESPACE + "updateStatusToWithdrawn", params);
     }
 }

@@ -47,6 +47,10 @@ const EMPTY_PASSWORD_FORM = {
   confirmPassword: '',
 };
 
+const EMPTY_WITHDRAW_FORM = {
+  currentPassword: '',
+};
+
 const EMPTY_DUPLICATE_STATE = {
   email: {
     checking: false,
@@ -158,6 +162,9 @@ function AccountApp() {
   const [passwordForm, setPasswordForm] = useState(EMPTY_PASSWORD_FORM);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSubmitting, setPasswordSubmitting] = useState(false);
+  const [withdrawForm, setWithdrawForm] = useState(EMPTY_WITHDRAW_FORM);
+  const [withdrawError, setWithdrawError] = useState('');
+  const [withdrawing, setWithdrawing] = useState(false);
 
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [addresses, setAddresses] = useState([]);
@@ -361,8 +368,10 @@ function AccountApp() {
       phone: profile.phone || '',
     });
     setPasswordForm(EMPTY_PASSWORD_FORM);
+    setWithdrawForm(EMPTY_WITHDRAW_FORM);
     setProfileSubmitError('');
     setPasswordError('');
+    setWithdrawError('');
     setIsProfileDetailOpen(true);
   }
 
@@ -370,8 +379,10 @@ function AccountApp() {
     setIsProfileDetailOpen(false);
     setProfileSubmitError('');
     setPasswordError('');
+    setWithdrawError('');
     setProfileSubmitting(false);
     setPasswordSubmitting(false);
+    setWithdrawing(false);
   }
 
   function handleProfileFormChange(event) {
@@ -573,6 +584,14 @@ function AccountApp() {
     setPasswordError('');
   }
 
+  function handleWithdrawFormChange(event) {
+    const { name, value } = event.target;
+    setWithdrawForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  }
+
   async function handlePasswordSubmit(event) {
     event.preventDefault();
     setPasswordSubmitting(true);
@@ -595,6 +614,38 @@ function AccountApp() {
       return false;
     } finally {
       setPasswordSubmitting(false);
+    }
+  }
+
+  async function handleWithdrawSubmit(event) {
+    event.preventDefault();
+    setWithdrawing(true);
+    setWithdrawError('');
+
+    const confirmed = window.confirm('정말 회원 탈퇴하시겠습니까? 탈퇴 후에는 현재 계정으로 마이페이지 기능을 계속 사용할 수 없습니다.');
+    if (!confirmed) {
+      setWithdrawing(false);
+      return false;
+    }
+
+    try {
+      const response = await fetch(`${USER_API_BASE}/me/withdraw`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-USER-NO': DEMO_USER_NO,
+        },
+        body: JSON.stringify(withdrawForm),
+      });
+      await parseResponse(response, '회원 탈퇴 처리에 실패했습니다.');
+      window.alert('회원 탈퇴가 완료되었습니다.');
+      window.location.hash = '#/products';
+      return true;
+    } catch (error) {
+      setWithdrawError(error.message || '회원 탈퇴 처리에 실패했습니다.');
+      return false;
+    } finally {
+      setWithdrawing(false);
     }
   }
 
@@ -816,6 +867,11 @@ function AccountApp() {
               onPasswordFormChange={handlePasswordFormChange}
               onPasswordSubmit={handlePasswordSubmit}
               onResetPasswordForm={resetPasswordForm}
+              withdrawForm={withdrawForm}
+              withdrawing={withdrawing}
+              withdrawError={withdrawError}
+              onWithdrawFormChange={handleWithdrawFormChange}
+              onWithdrawSubmit={handleWithdrawSubmit}
               onBack={closeProfileDetail}
               onOpenAddressModal={openAddressModal}
             />

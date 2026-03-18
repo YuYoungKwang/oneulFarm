@@ -1,6 +1,7 @@
 package com.app.dao;
 
 import com.app.dto.ChangePasswordRequestDto;
+import com.app.dto.CurrentPasswordRequestDto;
 import com.app.dto.UpdateUserProfileRequestDto;
 import com.app.dto.UserProfileDto;
 
@@ -17,4 +18,6 @@ public interface UserDao {
     int countByPassword(Long userNo, String password);
 
     int updatePassword(Long userNo, ChangePasswordRequestDto request);
+
+    int updateStatusToWithdrawn(Long userNo, CurrentPasswordRequestDto request);
 }

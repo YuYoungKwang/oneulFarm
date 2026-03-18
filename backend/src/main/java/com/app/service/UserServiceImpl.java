@@ -8,8 +8,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.app.dto.ChangePasswordRequestDto;
 import com.app.dao.UserDao;
+import com.app.dto.ChangePasswordRequestDto;
+import com.app.dto.CurrentPasswordRequestDto;
 import com.app.dto.DuplicateCheckResponseDto;
 import com.app.dto.UpdateUserProfileRequestDto;
 import com.app.dto.UserProfileDto;
@@ -36,7 +37,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserProfileDto updateMyProfile(Long userNo, UpdateUserProfileRequestDto request) {
-        validateRequest(request);
+        validateProfileRequest(request);
 
         if (userDao.countByEmail(request.getEmail(), userNo) > 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 사용 중인 이메일입니다.");
@@ -70,6 +71,21 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
+    public void withdrawMyAccount(Long userNo, CurrentPasswordRequestDto request) {
+        validateWithdrawRequest(request);
+
+        if (userDao.countByPassword(userNo, request.getCurrentPassword()) == 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "현재 비밀번호가 일치하지 않습니다.");
+        }
+
+        int updatedCount = userDao.updateStatusToWithdrawn(userNo, request);
+        if (updatedCount == 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "회원 탈퇴 처리에 실패했습니다.");
+        }
+    }
+
+    @Override
     public DuplicateCheckResponseDto checkEmail(Long userNo, String email) {
         String normalizedEmail = normalize(email);
         return new DuplicateCheckResponseDto(normalizedEmail, userDao.countByEmail(normalizedEmail, userNo) == 0);
@@ -81,8 +97,11 @@ public class UserServiceImpl implements UserService {
         return new DuplicateCheckResponseDto(normalizedNickname, userDao.countByNickname(normalizedNickname, userNo) == 0);
     }
 
-    private void validateRequest(UpdateUserProfileRequestDto request) {
-        if (isBlank(request.getNickname()) || isBlank(request.getEmail()) || isBlank(request.getPhone())) {
+    private void validateProfileRequest(UpdateUserProfileRequestDto request) {
+        if (request == null
+            || isBlank(request.getNickname())
+            || isBlank(request.getEmail())
+            || isBlank(request.getPhone())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "닉네임, 이메일, 연락처는 필수입니다.");
         }
 
@@ -92,7 +111,10 @@ public class UserServiceImpl implements UserService {
     }
 
     private void validatePasswordRequest(ChangePasswordRequestDto request) {
-        if (isBlank(request.getCurrentPassword()) || isBlank(request.getNewPassword()) || isBlank(request.getConfirmPassword())) {
+        if (request == null
+            || isBlank(request.getCurrentPassword())
+            || isBlank(request.getNewPassword())
+            || isBlank(request.getConfirmPassword())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "현재 비밀번호와 새 비밀번호를 모두 입력해 주세요.");
         }
 
@@ -111,6 +133,14 @@ public class UserServiceImpl implements UserService {
         if (request.getCurrentPassword().equals(request.getNewPassword())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "새 비밀번호는 현재 비밀번호와 달라야 합니다.");
         }
+    }
+
+    private void validateWithdrawRequest(CurrentPasswordRequestDto request) {
+        if (request == null || isBlank(request.getCurrentPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "회원 탈퇴를 위해 현재 비밀번호를 입력해 주세요.");
+        }
+
+        request.setCurrentPassword(request.getCurrentPassword().trim());
     }
 
     private String normalize(String value) {

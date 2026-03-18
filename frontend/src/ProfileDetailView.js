@@ -19,6 +19,11 @@ function ProfileDetailView({
   onPasswordFormChange,
   onPasswordSubmit,
   onResetPasswordForm,
+  withdrawForm,
+  withdrawing,
+  withdrawError,
+  onWithdrawFormChange,
+  onWithdrawSubmit,
   onBack,
   onOpenAddressModal,
 }) {
@@ -61,6 +66,14 @@ function ProfileDetailView({
     }
   }
 
+  async function handleWithdrawRowSubmit(event) {
+    event.preventDefault();
+    const success = await onWithdrawSubmit(event);
+    if (success) {
+      setActiveEditor(null);
+    }
+  }
+
   function handleCancelProfileEdit() {
     onResetProfileForm();
     setActiveEditor(null);
@@ -76,7 +89,7 @@ function ProfileDetailView({
       <section className="page-head">
         <div>
           <h1>상세 개인정보</h1>
-          <p>한 화면에서 계정 정보를 확인하고, 수정 가능한 항목만 바로 편집할 수 있습니다.</p>
+          <p>이 페이지에서 계정 정보를 확인하고, 수정 가능한 항목만 바로 편집할 수 있습니다.</p>
         </div>
         <div className="page-actions">
           <button type="button" className="btn-outline" onClick={onBack}>마이페이지로 돌아가기</button>
@@ -89,19 +102,21 @@ function ProfileDetailView({
         <article className="card profile-inline-card">
           <div className="section-head">
             <div>
-              <div className="section-title">{profileLoading ? '불러오는 중...' : (profile.nickname || profile.userId || '-')}</div>
-              <div className="section-sub">수정 가능한 항목만 오른쪽 버튼으로 바로 편집됩니다.</div>
+              <div className="section-title">
+                {profileLoading ? '불러오는 중...' : (profile.nickname || profile.userId || '-')}
+              </div>
+              <div className="section-sub">수정 가능한 항목은 오른쪽 버튼으로 바로 편집할 수 있습니다.</div>
             </div>
           </div>
 
           <div className="profile-inline-list">
             {infoRows.map((item) => {
               const isEditing = activeEditor === item.key;
+              const isProfileField = item.key === 'nickname' || item.key === 'email' || item.key === 'phone';
+              const duplicateInfo = duplicateState?.[item.key];
+              const showDuplicateCheck = item.key === 'nickname' || item.key === 'email';
 
-              if (item.key === 'nickname' || item.key === 'email' || item.key === 'phone') {
-                const duplicateInfo = duplicateState?.[item.key];
-                const showDuplicateCheck = item.key === 'nickname' || item.key === 'email';
-
+              if (isProfileField) {
                 return (
                   <div key={item.key} className={`profile-inline-row ${isEditing ? 'is-editing' : ''}`}>
                     <div className="profile-inline-row__label">{item.label}</div>
@@ -113,9 +128,10 @@ function ProfileDetailView({
                             name={item.key}
                             value={profileForm[item.key]}
                             onChange={onProfileFormChange}
-                            placeholder={`${item.label}을 입력해 주세요`}
+                            placeholder={`${item.label}을 입력해 주세요.`}
                           />
                         </div>
+
                         {showDuplicateCheck && (
                           <div className="profile-inline-row__actions">
                             <button
@@ -128,12 +144,15 @@ function ProfileDetailView({
                             </button>
                           </div>
                         )}
+
                         {showDuplicateCheck && duplicateInfo?.message && (
                           <div className={`form-error ${duplicateInfo.available ? 'form-error--success' : ''}`}>
                             {duplicateInfo.message}
                           </div>
                         )}
+
                         {profileSubmitError && <div className="form-error">{profileSubmitError}</div>}
+
                         <div className="profile-inline-row__actions">
                           <button type="button" className="btn-outline" onClick={handleCancelProfileEdit}>취소</button>
                           <button type="submit" className="btn" disabled={profileSubmitting}>
@@ -143,7 +162,9 @@ function ProfileDetailView({
                       </form>
                     ) : (
                       <>
-                        <div className="profile-inline-row__value">{profileLoading ? '불러오는 중...' : item.value}</div>
+                        <div className="profile-inline-row__value">
+                          {profileLoading ? '불러오는 중...' : item.value}
+                        </div>
                         <div className="profile-inline-row__actions">
                           <button type="button" className="btn-outline" onClick={() => setActiveEditor(item.key)}>수정</button>
                         </div>
@@ -156,7 +177,9 @@ function ProfileDetailView({
               return (
                 <div key={item.key} className="profile-inline-row">
                   <div className="profile-inline-row__label">{item.label}</div>
-                  <div className="profile-inline-row__value">{profileLoading ? '불러오는 중...' : item.value}</div>
+                  <div className="profile-inline-row__value">
+                    {profileLoading ? '불러오는 중...' : item.value}
+                  </div>
                   <div className="profile-inline-row__actions">
                     {item.onAction && (
                       <button type="button" className="btn-outline" onClick={item.onAction}>
@@ -205,7 +228,9 @@ function ProfileDetailView({
                       />
                     </label>
                   </div>
+
                   {passwordError && <div className="form-error">{passwordError}</div>}
+
                   <div className="profile-inline-row__actions">
                     <button type="button" className="btn-outline" onClick={handleCancelPasswordEdit}>취소</button>
                     <button type="submit" className="btn" disabled={passwordSubmitting}>
@@ -223,6 +248,36 @@ function ProfileDetailView({
               )}
             </div>
           </div>
+        </article>
+
+        <article className="card withdraw-card">
+          <div className="section-head">
+            <div>
+              <div className="section-title">회원 탈퇴</div>
+              <div className="section-sub">탈퇴 후에는 현재 계정 정보로 마이페이지 기능을 계속 사용할 수 없습니다.</div>
+            </div>
+          </div>
+
+          <form className="withdraw-form" onSubmit={handleWithdrawRowSubmit}>
+            <label className="form-field form-field--full">
+              <span>현재 비밀번호</span>
+              <input
+                type="password"
+                name="currentPassword"
+                value={withdrawForm.currentPassword}
+                onChange={onWithdrawFormChange}
+                placeholder="회원 탈퇴를 위해 현재 비밀번호를 입력해 주세요."
+              />
+            </label>
+
+            {withdrawError && <div className="form-error">{withdrawError}</div>}
+
+            <div className="withdraw-actions">
+              <button type="submit" className="btn line btn-danger-line" disabled={withdrawing}>
+                {withdrawing ? '탈퇴 처리 중...' : '회원 탈퇴'}
+              </button>
+            </div>
+          </form>
         </article>
       </section>
     </>

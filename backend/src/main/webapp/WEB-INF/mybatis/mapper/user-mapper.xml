@@ -37,6 +37,7 @@
             ), 0) AS totalSavedAmount
         FROM OFT_USERS u
         WHERE u.USER_NO = #{userNo}
+          AND u.STATUS = 'ACTIVE'
     ]]></select>
 
     <select id="countByEmail" parameterType="map" resultType="int"><![CDATA[
@@ -58,6 +59,7 @@
         FROM OFT_USERS
         WHERE USER_NO = #{userNo}
           AND PASSWORD = #{password}
+          AND STATUS = 'ACTIVE'
     ]]></select>
 
     <update id="updateMyProfile" parameterType="map"><![CDATA[
@@ -67,6 +69,7 @@
             PHONE = #{phone},
             UPDATED_AT = SYSTIMESTAMP
         WHERE USER_NO = #{userNo}
+          AND STATUS = 'ACTIVE'
     ]]></update>
 
     <update id="updatePassword" parameterType="map"><![CDATA[
@@ -74,6 +77,16 @@
         SET PASSWORD = #{newPassword},
             UPDATED_AT = SYSTIMESTAMP
         WHERE USER_NO = #{userNo}
+          AND STATUS = 'ACTIVE'
+    ]]></update>
+
+    <update id="updateStatusToWithdrawn" parameterType="map"><![CDATA[
+        UPDATE OFT_USERS
+        SET STATUS = 'WITHDRAWN',
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE USER_NO = #{userNo}
+          AND PASSWORD = #{currentPassword}
+          AND STATUS = 'ACTIVE'
     ]]></update>
 
 </mapper>
