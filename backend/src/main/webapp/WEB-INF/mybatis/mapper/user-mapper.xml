@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="userMapper">
+
+    <resultMap id="UserProfileResultMap" type="com.app.dto.UserProfileDto">
+        <result property="userNo" column="userNo" />
+        <result property="userId" column="userId" />
+        <result property="nickname" column="nickname" />
+        <result property="email" column="email" />
+        <result property="phone" column="phone" />
+        <result property="profileImageUrl" column="profileImageUrl" />
+        <result property="defaultAddress" column="defaultAddress" />
+        <result property="totalSavedAmount" column="totalSavedAmount" />
+    </resultMap>
+
+    <select id="selectMyProfile" parameterType="java.lang.Long" resultMap="UserProfileResultMap"><![CDATA[
+        SELECT
+            u.USER_NO AS userNo,
+            u.USER_ID AS userId,
+            u.NICKNAME AS nickname,
+            u.EMAIL AS email,
+            u.PHONE AS phone,
+            u.PROFILE_IMAGE_URL AS profileImageUrl,
+            (
+                SELECT TRIM(a.ADDRESS1 || ' ' || NVL(a.ADDRESS2, ''))
+                FROM OFT_USER_ADDRESS a
+                WHERE a.USER_NO = u.USER_NO
+                  AND a.IS_DEFAULT = 'Y'
+            ) AS defaultAddress,
+            NVL((
+                SELECT SUM(NVL(oi.SAVED_AMOUNT, 0))
+                FROM OFT_ORDERS o
+                JOIN OFT_ORDER_ITEM oi
+                  ON oi.ORDER_NO = o.ORDER_NO
+                WHERE o.USER_NO = u.USER_NO
+            ), 0) AS totalSavedAmount
+        FROM OFT_USERS u
+        WHERE u.USER_NO = #{userNo}
+    ]]></select>
+
+    <select id="countByEmail" parameterType="map" resultType="int"><![CDATA[
+        SELECT COUNT(*)
+        FROM OFT_USERS
+        WHERE UPPER(TRIM(EMAIL)) = UPPER(TRIM(#{email}))
+          AND USER_NO != #{userNo}
+    ]]></select>
+
+    <select id="countByNickname" parameterType="map" resultType="int"><![CDATA[
+        SELECT COUNT(*)
+        FROM OFT_USERS
+        WHERE UPPER(TRIM(NICKNAME)) = UPPER(TRIM(#{nickname}))
+          AND USER_NO != #{userNo}
+    ]]></select>
+
+    <update id="updateMyProfile" parameterType="map"><![CDATA[
+        UPDATE OFT_USERS
+        SET NICKNAME = #{nickname},
+            EMAIL = #{email},
+            PHONE = #{phone},
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE USER_NO = #{userNo}
+    ]]></update>
+
+</mapper>

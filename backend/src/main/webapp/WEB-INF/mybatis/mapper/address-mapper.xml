@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="addressMapper">
+
+    <resultMap id="UserAddressResultMap" type="com.app.dto.UserAddressDto">
+        <result property="addressNo" column="addressNo" />
+        <result property="recipientName" column="recipientName" />
+        <result property="recipientPhone" column="recipientPhone" />
+        <result property="zipCode" column="zipCode" />
+        <result property="address1" column="address1" />
+        <result property="address2" column="address2" />
+        <result property="addressName" column="addressName" />
+        <result property="deliveryMessage" column="deliveryMessage" />
+        <result property="isDefault" column="isDefault" />
+        <result property="createdAt" column="createdAt" />
+    </resultMap>
+
+    <select id="selectMyAddresses" parameterType="java.lang.Long" resultMap="UserAddressResultMap"><![CDATA[
+        SELECT
+            ADDRESS_NO AS addressNo,
+            RECIPIENT_NAME AS recipientName,
+            RECIPIENT_PHONE AS recipientPhone,
+            ZIP_CODE AS zipCode,
+            ADDRESS1 AS address1,
+            ADDRESS2 AS address2,
+            ADDRESS_NAME AS addressName,
+            DELIVERY_MESSAGE AS deliveryMessage,
+            IS_DEFAULT AS isDefault,
+            TO_CHAR(CREATED_AT, 'YYYY-MM-DD HH24:MI:SS') AS createdAt
+        FROM OFT_USER_ADDRESS
+        WHERE USER_NO = #{userNo}
+        ORDER BY CASE WHEN IS_DEFAULT = 'Y' THEN 0 ELSE 1 END, CREATED_AT DESC
+    ]]></select>
+
+    <select id="countMyAddress" parameterType="map" resultType="int"><![CDATA[
+        SELECT COUNT(*)
+        FROM OFT_USER_ADDRESS
+        WHERE USER_NO = #{userNo}
+          AND ADDRESS_NO = #{addressNo}
+    ]]></select>
+
+    <select id="countMyAddresses" parameterType="java.lang.Long" resultType="int"><![CDATA[
+        SELECT COUNT(*)
+        FROM OFT_USER_ADDRESS
+        WHERE USER_NO = #{userNo}
+    ]]></select>
+
+    <insert id="insertAddress" parameterType="map"><![CDATA[
+        INSERT INTO OFT_USER_ADDRESS (
+            USER_NO,
+            RECIPIENT_NAME,
+            RECIPIENT_PHONE,
+            ZIP_CODE,
+            ADDRESS1,
+            ADDRESS2,
+            IS_DEFAULT,
+            ADDRESS_NAME,
+            DELIVERY_MESSAGE
+        ) VALUES (
+            #{userNo},
+            #{recipientName},
+            #{recipientPhone},
+            #{zipCode},
+            #{address1},
+            #{address2},
+            #{isDefault},
+            #{addressName},
+            #{deliveryMessage}
+        )
+    ]]></insert>
+
+    <update id="clearDefaultAddress" parameterType="java.lang.Long"><![CDATA[
+        UPDATE OFT_USER_ADDRESS
+        SET IS_DEFAULT = 'N',
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE USER_NO = #{userNo}
+          AND IS_DEFAULT = 'Y'
+    ]]></update>
+
+    <update id="setDefaultAddress" parameterType="map"><![CDATA[
+        UPDATE OFT_USER_ADDRESS
+        SET IS_DEFAULT = 'Y',
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE USER_NO = #{userNo}
+          AND ADDRESS_NO = #{addressNo}
+    ]]></update>
+
+</mapper>
