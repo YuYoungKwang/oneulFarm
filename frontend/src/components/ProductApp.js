@@ -7,6 +7,8 @@ import OrderCompletePage from './OrderCompletePage';
 import OrdersPage from './OrdersPage';
 import ProductDetailPage from './ProductDetailPage';
 import ProductListPage from './ProductListPage';
+import RecipeDetailPage from './RecipeDetailPage';
+import RecipeListPage from './RecipeListPage';
 import { advanceOrderStatus, createOrderFromCart } from './orderUiUtils';
 import {
   DEFAULT_ROUTE,
@@ -111,6 +113,14 @@ export default function ProductApp() {
 
   function openProductList() {
     navigateToHash(DEFAULT_ROUTE);
+  }
+
+  function openRecipe(recipeNo) {
+    navigateToHash(`#/recipes/${recipeNo}`);
+  }
+
+  function openRecipeList() {
+    navigateToHash('#/recipes');
   }
 
   function openCart() {
@@ -233,6 +243,10 @@ export default function ProductApp() {
             orders={orders}
             selectedOrderId={route.orderId}
           />
+        ) : route.page === 'recipe-detail' ? (
+          <RecipeDetailPage recipeNo={route.recipeNo} onBack={openRecipeList} />
+        ) : route.page === 'recipes' ? (
+          <RecipeListPage onOpenRecipe={openRecipe} />
         ) : route.page === 'product-detail' ? (
           currentProduct ? (
             <ProductDetailPage

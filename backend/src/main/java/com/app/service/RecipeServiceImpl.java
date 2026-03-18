@@ -12,6 +12,7 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
@@ -20,7 +21,9 @@ import org.springframework.web.util.UriUtils;
 
 import com.app.dao.RecipeDAO;
 import com.app.dto.RecipeDTO;
+import com.app.dto.RecipeDetailDTO;
 import com.app.dto.RecipeIngredientDTO;
+import com.app.dto.RecipeListResponseDTO;
 import com.app.dto.RecipeStepDTO;
 import com.app.dto.RecipeStepImageDTO;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -34,13 +37,13 @@ public class RecipeServiceImpl implements RecipeService {
     private static final String SOURCE_NAME = "FOOD_SAFETY_KOREA_COOKRCP01";
     private static final String RECIPE_API_RESULT_SUCCESS = "INFO-000";
     private static final String RECIPE_API_RESULT_NO_DATA = "INFO-200";
-    // FoodSafetyKorea COOKRCP01 responds reliably in 100-row windows.
     private static final int DEFAULT_RECIPE_SYNC_BATCH_SIZE = 100;
     private static final int MAX_RECIPE_API_BATCH_SIZE = 100;
+    private static final int DEFAULT_LIMIT = 12;
+    private static final int MAX_LIMIT = 60;
 
-    private final RecipeDAO recipeDAO;
-    private final ObjectMapper objectMapper;
-    private final RestTemplate restTemplate;
+    @Autowired
+    private RecipeDAO recipeDAO;
 
     @Value("${foodsafetykorea.baseUrl:https://openapi.foodsafetykorea.go.kr/api}")
     private String foodsafetyKoreaBaseUrl;
@@ -48,8 +51,10 @@ public class RecipeServiceImpl implements RecipeService {
     @Value("${foodsafetykorea.apiKey:sample}")
     private String foodsafetyKoreaApiKey;
 
-    public RecipeServiceImpl(RecipeDAO recipeDAO) {
-        this.recipeDAO = recipeDAO;
+    private final ObjectMapper objectMapper;
+    private final RestTemplate restTemplate;
+
+    public RecipeServiceImpl() {
         this.objectMapper = new ObjectMapper();
         this.restTemplate = createRestTemplate();
     }
@@ -75,7 +80,6 @@ public class RecipeServiceImpl implements RecipeService {
 
             requestCount += recipeNodeList.size();
             processedCount += syncRecipeNodeList(recipeNodeList);
-
             startIndex += recipeNodeList.size();
 
             if (recipeApiResponse.getTotalCount() > 0 && startIndex > recipeApiResponse.getTotalCount()) {
@@ -93,6 +97,65 @@ public class RecipeServiceImpl implements RecipeService {
             Integer.valueOf(processedCount)
         );
         return processedCount;
+    }
+
+    @Override
+    public RecipeListResponseDTO getRecipeList(String keyword, String ingredientKeyword, String sort, Integer limit) {
+        String resolvedKeyword = trimToNull(keyword);
+        String resolvedIngredientKeyword = trimToNull(ingredientKeyword);
+        String resolvedSort = normalizeSort(sort);
+        int resolvedLimit = resolveLimit(limit);
+
+        List<RecipeDTO> recipeList = recipeDAO.selectRecipeList(
+            resolvedKeyword,
+            resolvedIngredientKeyword,
+            resolvedSort,
+            resolvedLimit
+        );
+
+        RecipeListResponseDTO responseDTO = new RecipeListResponseDTO();
+        responseDTO.setCount(recipeList.size());
+        responseDTO.setKeyword(resolvedKeyword);
+        responseDTO.setIngredientKeyword(resolvedIngredientKeyword);
+        responseDTO.setSort(resolvedSort);
+        responseDTO.setRecipeList(recipeList);
+        return responseDTO;
+    }
+
+    @Override
+    public RecipeDetailDTO getRecipeDetail(Long recipeNo) {
+        if (recipeNo == null || recipeNo.longValue() <= 0L) {
+            throw new IllegalArgumentException("recipeNo는 필수입니다.");
+        }
+
+        RecipeDetailDTO recipeDetailDTO = recipeDAO.selectRecipeDetail(recipeNo);
+        if (recipeDetailDTO == null) {
+            return null;
+        }
+
+        List<RecipeIngredientDTO> ingredientList = recipeDAO.selectRecipeIngredientList(recipeNo);
+        List<RecipeStepDTO> stepList = recipeDAO.selectRecipeStepList(recipeNo);
+        List<RecipeStepImageDTO> stepImageList = recipeDAO.selectRecipeStepImageList(recipeNo);
+
+        Map<Long, List<RecipeStepImageDTO>> stepImageMap = new LinkedHashMap<Long, List<RecipeStepImageDTO>>();
+        for (RecipeStepImageDTO stepImageDTO : stepImageList) {
+            stepImageMap
+                .computeIfAbsent(stepImageDTO.getStepNo(), key -> new ArrayList<RecipeStepImageDTO>())
+                .add(stepImageDTO);
+        }
+
+        for (RecipeStepDTO stepDTO : stepList) {
+            List<RecipeStepImageDTO> imageList = stepImageMap.get(stepDTO.getStepNo());
+            if (imageList == null) {
+                imageList = new ArrayList<RecipeStepImageDTO>();
+            }
+            stepDTO.setImageList(imageList);
+            stepDTO.setPrimaryImageUrl(imageList.isEmpty() ? null : imageList.get(0).getImageUrl());
+        }
+
+        recipeDetailDTO.setIngredientList(ingredientList);
+        recipeDetailDTO.setStepList(stepList);
+        return recipeDetailDTO;
     }
 
     private int syncRecipeNodeList(List<JsonNode> recipeNodeList) {
@@ -115,17 +178,24 @@ public class RecipeServiceImpl implements RecipeService {
                 recipeDAO.deleteRecipeStepImageByRecipeNo(recipeDTO.getRecipeNo());
                 recipeDAO.deleteRecipeStepByRecipeNo(recipeDTO.getRecipeNo());
 
-                List<RecipeIngredientDTO> recipeIngredientDTOList = buildRecipeIngredientList(recipeDTO.getRecipeNo(), recipeNode.path("RCP_PARTS_DTLS").asText());
-                for (RecipeIngredientDTO recipeIngredientDTO : recipeIngredientDTOList) {
+                List<RecipeIngredientDTO> ingredientList = buildRecipeIngredientList(
+                    recipeDTO.getRecipeNo(),
+                    recipeNode.path("RCP_PARTS_DTLS").asText()
+                );
+                for (RecipeIngredientDTO recipeIngredientDTO : ingredientList) {
                     recipeDAO.insertRecipeIngredient(recipeIngredientDTO);
                 }
 
-                List<RecipeStepDTO> recipeStepDTOList = buildRecipeStepList(recipeDTO.getRecipeNo(), recipeNode);
-                for (RecipeStepDTO recipeStepDTO : recipeStepDTOList) {
+                List<RecipeStepDTO> stepList = buildRecipeStepList(recipeDTO.getRecipeNo(), recipeNode);
+                for (RecipeStepDTO recipeStepDTO : stepList) {
                     recipeDAO.insertRecipeStep(recipeStepDTO);
 
-                    List<RecipeStepImageDTO> recipeStepImageDTOList = buildRecipeStepImageList(recipeStepDTO.getStepNo(), recipeNode, recipeStepDTO.getStepSeq());
-                    for (RecipeStepImageDTO recipeStepImageDTO : recipeStepImageDTOList) {
+                    List<RecipeStepImageDTO> stepImageDTOList = buildRecipeStepImageList(
+                        recipeStepDTO.getStepNo(),
+                        recipeNode,
+                        recipeStepDTO.getStepSeq()
+                    );
+                    for (RecipeStepImageDTO recipeStepImageDTO : stepImageDTOList) {
                         recipeDAO.insertRecipeStepImage(recipeStepImageDTO);
                     }
                 }
@@ -153,55 +223,15 @@ public class RecipeServiceImpl implements RecipeService {
         return processedCount;
     }
 
-    @Override
-    public List<RecipeDTO> getRecipeList(String keyword, Integer limit) {
-        int resolvedLimit = resolveLimit(limit, 20, 100);
-        return recipeDAO.selectRecipeList(keyword, resolvedLimit);
-    }
-
-    @Override
-    public Map<String, Object> getRecipeDetail(Long recipeNo) {
-        if (recipeNo == null || recipeNo.longValue() <= 0L) {
-            throw new IllegalArgumentException("recipeNo는 필수입니다.");
-        }
-
-        RecipeDTO recipeDTO = recipeDAO.selectRecipeByRecipeNo(recipeNo);
-        if (recipeDTO == null) {
-            throw new IllegalArgumentException("존재하지 않는 레시피입니다.");
-        }
-
-        List<RecipeIngredientDTO> recipeIngredientDTOList = recipeDAO.selectRecipeIngredientList(recipeNo);
-        List<RecipeStepDTO> recipeStepDTOList = recipeDAO.selectRecipeStepList(recipeNo);
-        List<RecipeStepImageDTO> recipeStepImageDTOList = recipeDAO.selectRecipeStepImageList(recipeNo);
-
-        List<Map<String, Object>> stepDetailList = new ArrayList<Map<String, Object>>();
-        for (RecipeStepDTO recipeStepDTO : recipeStepDTOList) {
-            Map<String, Object> stepMap = new LinkedHashMap<String, Object>();
-            stepMap.put("stepNo", recipeStepDTO.getStepNo());
-            stepMap.put("stepSeq", recipeStepDTO.getStepSeq());
-            stepMap.put("description", recipeStepDTO.getDescription());
-
-            List<RecipeStepImageDTO> matchedImageList = new ArrayList<RecipeStepImageDTO>();
-            for (RecipeStepImageDTO recipeStepImageDTO : recipeStepImageDTOList) {
-                if (recipeStepDTO.getStepNo() != null && recipeStepDTO.getStepNo().equals(recipeStepImageDTO.getStepNo())) {
-                    matchedImageList.add(recipeStepImageDTO);
-                }
-            }
-            stepMap.put("images", matchedImageList);
-            stepDetailList.add(stepMap);
-        }
-
-        Map<String, Object> recipeDetail = new LinkedHashMap<String, Object>();
-        recipeDetail.put("recipe", recipeDTO);
-        recipeDetail.put("ingredients", recipeIngredientDTOList);
-        recipeDetail.put("steps", stepDetailList);
-        return recipeDetail;
-    }
-
     private RecipeApiResponse fetchRecipeApiResponse(String keyword, int startIndex, int endIndex) {
         try {
             String requestUrl = buildRecipeRequestUrl(keyword, startIndex, endIndex);
-            logger.info("레시피 API 조회 요청 - keyword={}, startIndex={}, endIndex={}", keyword, Integer.valueOf(startIndex), Integer.valueOf(endIndex));
+            logger.info(
+                "레시피 API 조회 요청 - keyword={}, startIndex={}, endIndex={}",
+                keyword,
+                Integer.valueOf(startIndex),
+                Integer.valueOf(endIndex)
+            );
 
             String responseBody = restTemplate.getForObject(requestUrl, String.class);
             if (responseBody == null || responseBody.isBlank()) {
@@ -229,6 +259,7 @@ public class RecipeServiceImpl implements RecipeService {
             for (JsonNode itemNode : rowNode) {
                 recipeNodeList.add(itemNode);
             }
+
             return new RecipeApiResponse(totalCount, recipeNodeList);
         } catch (IOException exception) {
             throw new IllegalStateException("레시피 API 응답을 해석하지 못했습니다.", exception);
@@ -304,6 +335,7 @@ public class RecipeServiceImpl implements RecipeService {
         if (imageUrl != null) {
             return imageUrl;
         }
+
         return trimToNull(recipeNode.path("ATT_FILE_NO_MK").asText());
     }
 
@@ -313,7 +345,7 @@ public class RecipeServiceImpl implements RecipeService {
             return Collections.emptyList();
         }
 
-        List<RecipeIngredientDTO> recipeIngredientDTOList = new ArrayList<RecipeIngredientDTO>();
+        List<RecipeIngredientDTO> ingredientList = new ArrayList<RecipeIngredientDTO>();
         String[] lineArray = ingredientText.split("\\r?\\n");
         for (String line : lineArray) {
             String normalizedLine = normalizeIngredientLine(line);
@@ -353,15 +385,15 @@ public class RecipeServiceImpl implements RecipeService {
                 recipeIngredientDTO.setRecipeNo(recipeNo);
                 recipeIngredientDTO.setIngredientName(ingredientName);
                 recipeIngredientDTO.setAmount(amount);
-                recipeIngredientDTOList.add(recipeIngredientDTO);
+                ingredientList.add(recipeIngredientDTO);
             }
         }
 
-        return recipeIngredientDTOList;
+        return ingredientList;
     }
 
     private List<RecipeStepDTO> buildRecipeStepList(Long recipeNo, JsonNode recipeNode) {
-        List<RecipeStepDTO> recipeStepDTOList = new ArrayList<RecipeStepDTO>();
+        List<RecipeStepDTO> stepList = new ArrayList<RecipeStepDTO>();
 
         for (int index = 1; index <= 20; index++) {
             String manualKey = String.format(Locale.ROOT, "MANUAL%02d", Integer.valueOf(index));
@@ -374,10 +406,10 @@ public class RecipeServiceImpl implements RecipeService {
             recipeStepDTO.setRecipeNo(recipeNo);
             recipeStepDTO.setStepSeq(Integer.valueOf(index));
             recipeStepDTO.setDescription(description);
-            recipeStepDTOList.add(recipeStepDTO);
+            stepList.add(recipeStepDTO);
         }
 
-        return recipeStepDTOList;
+        return stepList;
     }
 
     private List<RecipeStepImageDTO> buildRecipeStepImageList(Long stepNo, JsonNode recipeNode, Integer stepSeq) {
@@ -396,9 +428,54 @@ public class RecipeServiceImpl implements RecipeService {
         recipeStepImageDTO.setImageUrl(truncate(imageUrl, 500));
         recipeStepImageDTO.setSortOrder(Integer.valueOf(1));
 
-        List<RecipeStepImageDTO> recipeStepImageDTOList = new ArrayList<RecipeStepImageDTO>();
-        recipeStepImageDTOList.add(recipeStepImageDTO);
-        return recipeStepImageDTOList;
+        List<RecipeStepImageDTO> recipeStepImageList = new ArrayList<RecipeStepImageDTO>();
+        recipeStepImageList.add(recipeStepImageDTO);
+        return recipeStepImageList;
+    }
+
+    private String normalizeSort(String sort) {
+        String normalizedSort = trimToNull(sort);
+        if (normalizedSort == null) {
+            return "RECOMMENDED";
+        }
+
+        String upperCaseSort = normalizedSort.toUpperCase(Locale.ROOT);
+        if ("RECOMMENDED".equals(upperCaseSort) || "EASY".equals(upperCaseSort) || "FAST".equals(upperCaseSort)) {
+            return upperCaseSort;
+        }
+
+        throw new IllegalArgumentException("sort는 RECOMMENDED, EASY, FAST 중 하나여야 합니다.");
+    }
+
+    private int resolveLimit(Integer limit) {
+        if (limit == null || limit.intValue() <= 0) {
+            return DEFAULT_LIMIT;
+        }
+        return Math.min(limit.intValue(), MAX_LIMIT);
+    }
+
+    private int resolveSyncTargetCount(Integer limit) {
+        if (limit == null || limit.intValue() <= 0) {
+            return Integer.MAX_VALUE;
+        }
+        return limit.intValue();
+    }
+
+    private int parsePositiveInteger(String value, int defaultValue) {
+        String normalizedValue = trimToNull(value);
+        if (normalizedValue == null) {
+            return defaultValue;
+        }
+
+        try {
+            int parsedValue = Integer.parseInt(normalizedValue);
+            if (parsedValue < 0) {
+                return defaultValue;
+            }
+            return parsedValue;
+        } catch (NumberFormatException exception) {
+            return defaultValue;
+        }
     }
 
     private String normalizeIngredientLine(String line) {
@@ -442,37 +519,6 @@ public class RecipeServiceImpl implements RecipeService {
         return new BigDecimal(value.replace(",", ""));
     }
 
-    private int resolveLimit(Integer limit, int defaultValue, int maxValue) {
-        if (limit == null || limit.intValue() <= 0) {
-            return defaultValue;
-        }
-        return Math.min(limit.intValue(), maxValue);
-    }
-
-    private int resolveSyncTargetCount(Integer limit) {
-        if (limit == null || limit.intValue() <= 0) {
-            return Integer.MAX_VALUE;
-        }
-        return limit.intValue();
-    }
-
-    private int parsePositiveInteger(String value, int defaultValue) {
-        String normalizedValue = trimToNull(value);
-        if (normalizedValue == null) {
-            return defaultValue;
-        }
-
-        try {
-            int parsedValue = Integer.parseInt(normalizedValue);
-            if (parsedValue < 0) {
-                return defaultValue;
-            }
-            return parsedValue;
-        } catch (NumberFormatException exception) {
-            return defaultValue;
-        }
-    }
-
     private String truncate(String value, int maxLength) {
         if (value == null) {
             return null;
@@ -487,11 +533,13 @@ public class RecipeServiceImpl implements RecipeService {
         if (value == null) {
             return null;
         }
-        String trimmed = value.trim();
-        if (trimmed.isEmpty()) {
+
+        String trimmedValue = value.trim();
+        if (trimmedValue.isEmpty()) {
             return null;
         }
-        return trimmed;
+
+        return trimmedValue;
     }
 
     private RestTemplate createRestTemplate() {

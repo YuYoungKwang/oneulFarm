@@ -1,40 +1,51 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="recipeMapper">
 
-<mapper namespace="com.app.dao.RecipeDAO">
-
-    <resultMap id="recipeResultMap" type="RecipeDTO">
-        <id property="recipeNo" column="recipeNo"/>
-        <result property="externalRecipeId" column="externalRecipeId"/>
-        <result property="recipeName" column="recipeName"/>
-        <result property="description" column="description"/>
-        <result property="cookTime" column="cookTime"/>
-        <result property="difficulty" column="difficulty"/>
-        <result property="calories" column="calories"/>
-        <result property="imageUrl" column="imageUrl"/>
-        <result property="sourceName" column="sourceName"/>
+    <resultMap id="RecipeResultMap" type="RecipeDTO">
+        <id property="recipeNo" column="recipeNo" />
+        <result property="externalRecipeId" column="externalRecipeId" />
+        <result property="recipeName" column="recipeName" />
+        <result property="description" column="description" />
+        <result property="cookTime" column="cookTime" />
+        <result property="difficulty" column="difficulty" />
+        <result property="calories" column="calories" />
+        <result property="imageUrl" column="imageUrl" />
+        <result property="sourceName" column="sourceName" />
     </resultMap>
 
-    <resultMap id="recipeIngredientResultMap" type="RecipeIngredientDTO">
-        <id property="ingredientNo" column="ingredientNo"/>
-        <result property="recipeNo" column="recipeNo"/>
-        <result property="ingredientName" column="ingredientName"/>
-        <result property="amount" column="amount"/>
+    <resultMap id="RecipeDetailResultMap" type="RecipeDetailDTO">
+        <id property="recipeNo" column="recipeNo" />
+        <result property="externalRecipeId" column="externalRecipeId" />
+        <result property="recipeName" column="recipeName" />
+        <result property="description" column="description" />
+        <result property="cookTime" column="cookTime" />
+        <result property="difficulty" column="difficulty" />
+        <result property="calories" column="calories" />
+        <result property="imageUrl" column="imageUrl" />
+        <result property="sourceName" column="sourceName" />
     </resultMap>
 
-    <resultMap id="recipeStepResultMap" type="RecipeStepDTO">
-        <id property="stepNo" column="stepNo"/>
-        <result property="recipeNo" column="recipeNo"/>
-        <result property="stepSeq" column="stepSeq"/>
-        <result property="description" column="description"/>
+    <resultMap id="RecipeIngredientResultMap" type="RecipeIngredientDTO">
+        <id property="ingredientNo" column="ingredientNo" />
+        <result property="recipeNo" column="recipeNo" />
+        <result property="ingredientName" column="ingredientName" />
+        <result property="amount" column="amount" />
     </resultMap>
 
-    <resultMap id="recipeStepImageResultMap" type="RecipeStepImageDTO">
-        <id property="stepImageNo" column="stepImageNo"/>
-        <result property="stepNo" column="stepNo"/>
-        <result property="imageUrl" column="imageUrl"/>
-        <result property="sortOrder" column="sortOrder"/>
+    <resultMap id="RecipeStepResultMap" type="RecipeStepDTO">
+        <id property="stepNo" column="stepNo" />
+        <result property="recipeNo" column="recipeNo" />
+        <result property="stepSeq" column="stepSeq" />
+        <result property="description" column="description" />
+    </resultMap>
+
+    <resultMap id="RecipeStepImageResultMap" type="RecipeStepImageDTO">
+        <id property="stepImageNo" column="stepImageNo" />
+        <result property="stepNo" column="stepNo" />
+        <result property="imageUrl" column="imageUrl" />
+        <result property="sortOrder" column="sortOrder" />
     </resultMap>
 
     <insert id="mergeRecipe" parameterType="RecipeDTO">
@@ -153,77 +164,111 @@
         )
     </insert>
 
-    <select id="selectRecipeList" parameterType="map" resultMap="recipeResultMap">
+    <select id="selectRecipeList" parameterType="map" resultMap="RecipeResultMap">
         SELECT *
         FROM (
             SELECT
-                RECIPE_NO AS recipeNo,
-                EXTERNAL_RECIPE_ID AS externalRecipeId,
-                RECIPE_NAME AS recipeName,
-                DESCRIPTION AS description,
-                COOK_TIME AS cookTime,
-                DIFFICULTY AS difficulty,
-                CALORIES AS calories,
-                IMAGE_URL AS imageUrl,
-                SOURCE_NAME AS sourceName
-            FROM OFT_RECIPE
+                r.RECIPE_NO AS recipeNo,
+                r.EXTERNAL_RECIPE_ID AS externalRecipeId,
+                r.RECIPE_NAME AS recipeName,
+                DBMS_LOB.SUBSTR(r.DESCRIPTION, 1000, 1) AS description,
+                r.COOK_TIME AS cookTime,
+                r.DIFFICULTY AS difficulty,
+                r.CALORIES AS calories,
+                r.IMAGE_URL AS imageUrl,
+                r.SOURCE_NAME AS sourceName,
+                r.CREATED_AT AS createdAt
+            FROM OFT_RECIPE r
             WHERE 1 = 1
             <if test="keyword != null and keyword != ''">
-                AND UPPER(RECIPE_NAME) LIKE '%' || UPPER(#{keyword}) || '%'
+                AND (
+                    UPPER(r.RECIPE_NAME) LIKE '%' || UPPER(#{keyword}) || '%'
+                    OR UPPER(DBMS_LOB.SUBSTR(r.DESCRIPTION, 4000, 1)) LIKE '%' || UPPER(#{keyword}) || '%'
+                )
             </if>
-            ORDER BY RECIPE_NO DESC
+            <if test="ingredientKeyword != null and ingredientKeyword != ''">
+                AND EXISTS (
+                    SELECT 1
+                    FROM OFT_RECIPE_INGREDIENT ri
+                    WHERE ri.RECIPE_NO = r.RECIPE_NO
+                      AND UPPER(ri.INGREDIENT_NAME) LIKE '%' || UPPER(#{ingredientKeyword}) || '%'
+                )
+            </if>
+            ORDER BY
+            <choose>
+                <when test="sort == 'FAST'">
+                    NVL(TO_NUMBER(REGEXP_SUBSTR(r.COOK_TIME, '[0-9]+')), 99999) ASC,
+                    r.CREATED_AT DESC,
+                    r.RECIPE_NO DESC
+                </when>
+                <when test="sort == 'EASY'">
+                    CASE r.DIFFICULTY
+                        WHEN '쉬움' THEN 1
+                        WHEN '보통' THEN 2
+                        WHEN '어려움' THEN 3
+                        ELSE 4
+                    END ASC,
+                    NVL(TO_NUMBER(REGEXP_SUBSTR(r.COOK_TIME, '[0-9]+')), 99999) ASC,
+                    r.CREATED_AT DESC,
+                    r.RECIPE_NO DESC
+                </when>
+                <otherwise>
+                    r.CREATED_AT DESC,
+                    r.RECIPE_NO DESC
+                </otherwise>
+            </choose>
         )
         WHERE ROWNUM &lt;= #{limit}
     </select>
 
-    <select id="selectRecipeByRecipeNo" parameterType="long" resultMap="recipeResultMap">
+    <select id="selectRecipeDetail" parameterType="java.lang.Long" resultMap="RecipeDetailResultMap"><![CDATA[
         SELECT
-            RECIPE_NO AS recipeNo,
-            EXTERNAL_RECIPE_ID AS externalRecipeId,
-            RECIPE_NAME AS recipeName,
-            DESCRIPTION AS description,
-            COOK_TIME AS cookTime,
-            DIFFICULTY AS difficulty,
-            CALORIES AS calories,
-            IMAGE_URL AS imageUrl,
-            SOURCE_NAME AS sourceName
-        FROM OFT_RECIPE
-        WHERE RECIPE_NO = #{value}
-    </select>
+            r.RECIPE_NO AS recipeNo,
+            r.EXTERNAL_RECIPE_ID AS externalRecipeId,
+            r.RECIPE_NAME AS recipeName,
+            DBMS_LOB.SUBSTR(r.DESCRIPTION, 4000, 1) AS description,
+            r.COOK_TIME AS cookTime,
+            r.DIFFICULTY AS difficulty,
+            r.CALORIES AS calories,
+            r.IMAGE_URL AS imageUrl,
+            r.SOURCE_NAME AS sourceName
+        FROM OFT_RECIPE r
+        WHERE r.RECIPE_NO = #{recipeNo}
+    ]]></select>
 
-    <select id="selectRecipeIngredientList" parameterType="long" resultMap="recipeIngredientResultMap">
+    <select id="selectRecipeIngredientList" parameterType="java.lang.Long" resultMap="RecipeIngredientResultMap"><![CDATA[
         SELECT
-            INGREDIENT_NO AS ingredientNo,
-            RECIPE_NO AS recipeNo,
-            INGREDIENT_NAME AS ingredientName,
-            AMOUNT AS amount
-        FROM OFT_RECIPE_INGREDIENT
-        WHERE RECIPE_NO = #{value}
-        ORDER BY INGREDIENT_NO ASC
-    </select>
+            ri.INGREDIENT_NO AS ingredientNo,
+            ri.RECIPE_NO AS recipeNo,
+            ri.INGREDIENT_NAME AS ingredientName,
+            ri.AMOUNT AS amount
+        FROM OFT_RECIPE_INGREDIENT ri
+        WHERE ri.RECIPE_NO = #{recipeNo}
+        ORDER BY ri.INGREDIENT_NO ASC
+    ]]></select>
 
-    <select id="selectRecipeStepList" parameterType="long" resultMap="recipeStepResultMap">
+    <select id="selectRecipeStepList" parameterType="java.lang.Long" resultMap="RecipeStepResultMap"><![CDATA[
         SELECT
-            STEP_NO AS stepNo,
-            RECIPE_NO AS recipeNo,
-            STEP_SEQ AS stepSeq,
-            DESCRIPTION AS description
-        FROM OFT_RECIPE_STEP
-        WHERE RECIPE_NO = #{value}
-        ORDER BY STEP_SEQ ASC
-    </select>
+            rs.STEP_NO AS stepNo,
+            rs.RECIPE_NO AS recipeNo,
+            rs.STEP_SEQ AS stepSeq,
+            DBMS_LOB.SUBSTR(rs.DESCRIPTION, 4000, 1) AS description
+        FROM OFT_RECIPE_STEP rs
+        WHERE rs.RECIPE_NO = #{recipeNo}
+        ORDER BY rs.STEP_SEQ ASC
+    ]]></select>
 
-    <select id="selectRecipeStepImageList" parameterType="long" resultMap="recipeStepImageResultMap">
+    <select id="selectRecipeStepImageList" parameterType="java.lang.Long" resultMap="RecipeStepImageResultMap"><![CDATA[
         SELECT
-            imageTable.STEP_IMAGE_NO AS stepImageNo,
-            imageTable.STEP_NO AS stepNo,
-            imageTable.IMAGE_URL AS imageUrl,
-            imageTable.SORT_ORDER AS sortOrder
-        FROM OFT_RECIPE_STEP_IMAGE imageTable
-        INNER JOIN OFT_RECIPE_STEP stepTable
-            ON stepTable.STEP_NO = imageTable.STEP_NO
-        WHERE stepTable.RECIPE_NO = #{value}
-        ORDER BY stepTable.STEP_SEQ ASC, imageTable.SORT_ORDER ASC
-    </select>
+            rsi.STEP_IMAGE_NO AS stepImageNo,
+            rsi.STEP_NO AS stepNo,
+            rsi.IMAGE_URL AS imageUrl,
+            rsi.SORT_ORDER AS sortOrder
+        FROM OFT_RECIPE_STEP_IMAGE rsi
+        JOIN OFT_RECIPE_STEP rs
+          ON rs.STEP_NO = rsi.STEP_NO
+        WHERE rs.RECIPE_NO = #{recipeNo}
+        ORDER BY rs.STEP_SEQ ASC, rsi.SORT_ORDER ASC
+    ]]></select>
 
 </mapper>

@@ -5,9 +5,11 @@ import java.util.List;
 import java.util.Map;
 
 import org.mybatis.spring.SqlSessionTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import com.app.dto.RecipeDTO;
+import com.app.dto.RecipeDetailDTO;
 import com.app.dto.RecipeIngredientDTO;
 import com.app.dto.RecipeStepDTO;
 import com.app.dto.RecipeStepImageDTO;
@@ -15,13 +17,10 @@ import com.app.dto.RecipeStepImageDTO;
 @Repository
 public class RecipeDAOImpl implements RecipeDAO {
 
-    private static final String NAMESPACE = "com.app.dao.RecipeDAO.";
+    private static final String NAMESPACE = "recipeMapper.";
 
-    private final SqlSessionTemplate sqlSessionTemplate;
-
-    public RecipeDAOImpl(SqlSessionTemplate sqlSessionTemplate) {
-        this.sqlSessionTemplate = sqlSessionTemplate;
-    }
+    @Autowired
+    private SqlSessionTemplate sqlSessionTemplate;
 
     @Override
     public int mergeRecipe(RecipeDTO recipeDTO) {
@@ -59,16 +58,18 @@ public class RecipeDAOImpl implements RecipeDAO {
     }
 
     @Override
-    public List<RecipeDTO> selectRecipeList(String keyword, int limit) {
+    public List<RecipeDTO> selectRecipeList(String keyword, String ingredientKeyword, String sort, int limit) {
         Map<String, Object> parameterMap = new HashMap<String, Object>();
         parameterMap.put("keyword", keyword);
+        parameterMap.put("ingredientKeyword", ingredientKeyword);
+        parameterMap.put("sort", sort);
         parameterMap.put("limit", Integer.valueOf(limit));
         return sqlSessionTemplate.selectList(NAMESPACE + "selectRecipeList", parameterMap);
     }
 
     @Override
-    public RecipeDTO selectRecipeByRecipeNo(Long recipeNo) {
-        return sqlSessionTemplate.selectOne(NAMESPACE + "selectRecipeByRecipeNo", recipeNo);
+    public RecipeDetailDTO selectRecipeDetail(Long recipeNo) {
+        return sqlSessionTemplate.selectOne(NAMESPACE + "selectRecipeDetail", recipeNo);
     }
 
     @Override

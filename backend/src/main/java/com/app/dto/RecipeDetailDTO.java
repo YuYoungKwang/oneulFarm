@@ -3,7 +3,7 @@ package com.app.dto;
 import java.math.BigDecimal;
 import java.util.List;
 
-public class RecipeDTO {
+public class RecipeDetailDTO {
 
     private Long recipeNo;
     private String externalRecipeId;

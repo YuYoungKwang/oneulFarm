@@ -1,11 +1,15 @@
 package com.app.dto;
 
+import java.util.List;
+
 public class RecipeStepDTO {
 
     private Long stepNo;
     private Long recipeNo;
     private Integer stepSeq;
     private String description;
+    private String primaryImageUrl;
+    private List<RecipeStepImageDTO> imageList;
 
     public Long getStepNo() {
         return stepNo;
@@ -37,5 +41,21 @@ public class RecipeStepDTO {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getPrimaryImageUrl() {
+        return primaryImageUrl;
+    }
+
+    public void setPrimaryImageUrl(String primaryImageUrl) {
+        this.primaryImageUrl = primaryImageUrl;
+    }
+
+    public List<RecipeStepImageDTO> getImageList() {
+        return imageList;
+    }
+
+    public void setImageList(List<RecipeStepImageDTO> imageList) {
+        this.imageList = imageList;
     }
 }
