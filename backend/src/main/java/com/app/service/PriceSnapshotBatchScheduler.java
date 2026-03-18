@@ -12,12 +12,17 @@ public class PriceSnapshotBatchScheduler {
     private static final Logger logger = LoggerFactory.getLogger(PriceSnapshotBatchScheduler.class);
 
     private final PriceSnapshotService priceSnapshotService;
+    private final ProductPriceMatchService productPriceMatchService;
 
     @Value("${batch.priceSnapshotDailyEnabled:true}")
     private boolean priceSnapshotDailyEnabled;
 
-    public PriceSnapshotBatchScheduler(PriceSnapshotService priceSnapshotService) {
+    public PriceSnapshotBatchScheduler(
+        PriceSnapshotService priceSnapshotService,
+        ProductPriceMatchService productPriceMatchService
+    ) {
         this.priceSnapshotService = priceSnapshotService;
+        this.productPriceMatchService = productPriceMatchService;
     }
 
     @Scheduled(
@@ -26,16 +31,22 @@ public class PriceSnapshotBatchScheduler {
     )
     public void syncDailyPriceSnapshot() {
         if (!priceSnapshotDailyEnabled) {
-            logger.info("KAMIS 일일 시세 배치가 비활성화되어 실행하지 않습니다.");
+            logger.info("Daily KAMIS price batch is disabled.");
             return;
         }
 
         try {
-            logger.info("KAMIS 일일 시세 배치 시작");
+            logger.info("Daily KAMIS price batch started.");
             int processedCount = priceSnapshotService.syncPriceSnapshot();
-            logger.info("KAMIS 일일 시세 배치 완료 - processedCount={}", processedCount);
+            ProductPriceMatchService.ProductPriceMatchRefreshResult refreshResult = productPriceMatchService.refreshProductPriceMatch();
+            logger.info(
+                "Daily KAMIS price batch completed. processedCount={}, matchProcessedCount={}, badgeCount={}",
+                processedCount,
+                refreshResult.getProcessedCount(),
+                refreshResult.getBadgeCount()
+            );
         } catch (Exception exception) {
-            logger.error("KAMIS 일일 시세 배치 실행 실패", exception);
+            logger.error("Daily KAMIS price batch failed.", exception);
         }
     }
 }
