@@ -6,18 +6,47 @@ function AddressModal({
   changingAddressNo,
   deletingAddressNo,
   isFormOpen,
+  editingAddressNo,
   form,
   formError,
   submitting,
   onClose,
   onChangeDefault,
   onDeleteAddress,
-  onToggleForm,
+  onStartCreate,
+  onStartEdit,
+  onCloseForm,
   onFormChange,
+  onDefaultToggleBlocked,
   onFormSubmit,
 }) {
   if (!open) {
     return null;
+  }
+
+  const isEditMode = editingAddressNo !== null;
+  const editingAddress = isEditMode
+    ? addresses.find((address) => address.addressNo === editingAddressNo) || null
+    : null;
+  const mustKeepDefault =
+    addresses.length === 0 ||
+    addresses.length === 1 ||
+    (editingAddress && editingAddress.isDefault === 'Y');
+  const formTitle = isEditMode ? '배송지 수정' : '새 배송지 등록';
+  const submitLabel = isEditMode ? '배송지 저장' : '배송지 등록';
+  const submitLoadingLabel = isEditMode ? '저장 중..' : '등록 중..';
+
+  function handleDefaultChange(event) {
+    if (mustKeepDefault && !event.target.checked) {
+      onDefaultToggleBlocked(
+        addresses.length <= 1
+          ? '배송지가 하나일 때는 기본 배송지를 해제할 수 없습니다.'
+          : '기본 배송지는 해제할 수 없습니다. 다른 배송지를 먼저 기본 배송지로 변경해 주세요.'
+      );
+      return;
+    }
+
+    onFormChange(event);
   }
 
   return (
@@ -29,19 +58,19 @@ function AddressModal({
         onClick={(event) => event.stopPropagation()}
       >
         <div className="section-head modal-head modal-head--sticky">
-            <div>
-              <div className="section-title">배송지 관리</div>
-              <div className="section-sub">
-              배송지 목록을 확인하고, 기본 배송지를 변경하거나 배송지를 추가 및 삭제할 수 있습니다.
-              </div>
+          <div>
+            <div className="section-title">배송지 관리</div>
+            <div className="section-sub">
+              배송지 목록을 확인하고, 기본 배송지 변경과 배송지 추가, 수정, 삭제를 할 수 있습니다.
             </div>
+          </div>
           <div className="page-actions">
             {isFormOpen ? (
-              <button type="button" className="btn-outline" onClick={onToggleForm}>
+              <button type="button" className="btn-outline" onClick={onCloseForm}>
                 목록으로 돌아가기
               </button>
             ) : (
-              <button type="button" className="btn-outline" onClick={onToggleForm}>
+              <button type="button" className="btn-outline" onClick={onStartCreate}>
                 배송지 추가
               </button>
             )}
@@ -53,7 +82,7 @@ function AddressModal({
 
         {isFormOpen ? (
           <form className="card profile-form address-form-panel" onSubmit={onFormSubmit}>
-            <div className="card-title">새 배송지 등록</div>
+            <div className="card-title">{formTitle}</div>
             <div className="form-grid">
               <label className="form-field">
                 <span>배송지 이름</span>
@@ -61,7 +90,7 @@ function AddressModal({
                   name="addressName"
                   value={form.addressName}
                   onChange={onFormChange}
-                  placeholder="집 또는 회사"
+                  placeholder="집, 회사"
                 />
               </label>
               <label className="form-field">
@@ -124,8 +153,8 @@ function AddressModal({
               <input
                 type="checkbox"
                 name="isDefault"
-                checked={form.isDefault === 'Y'}
-                onChange={onFormChange}
+                checked={mustKeepDefault ? true : form.isDefault === 'Y'}
+                onChange={handleDefaultChange}
               />
               <span>기본 배송지로 설정</span>
             </label>
@@ -133,11 +162,11 @@ function AddressModal({
             {formError && <div className="form-error">{formError}</div>}
 
             <div className="modal-actions">
-              <button type="button" className="btn-outline" onClick={onToggleForm}>
+              <button type="button" className="btn-outline" onClick={onCloseForm}>
                 취소
               </button>
               <button type="submit" className="btn" disabled={submitting}>
-                {submitting ? '등록 중..' : '배송지 등록'}
+                {submitting ? submitLoadingLabel : submitLabel}
               </button>
             </div>
           </form>
@@ -152,51 +181,62 @@ function AddressModal({
 
             {!loading && !error && addresses.length > 0 && (
               <div className="address-list">
-                {addresses.map((address) => (
-                  <article key={address.addressNo} className="address-card">
-                    <div className="address-card__top">
-                      <div>
-                        <div className="card-title">{address.addressName || '배송지'}</div>
-                        <div className="section-sub">
-                          {address.recipientName} / {address.recipientPhone}
+                {addresses.map((address) => {
+                  const isChanging = changingAddressNo === address.addressNo;
+                  const isDeleting = deletingAddressNo === address.addressNo;
+
+                  return (
+                    <article key={address.addressNo} className="address-card">
+                      <div className="address-card__top">
+                        <div>
+                          <div className="card-title">{address.addressName || '배송지'}</div>
+                          <div className="section-sub">
+                            {address.recipientName} / {address.recipientPhone}
+                          </div>
                         </div>
-                      </div>
-                      <div className="address-card__actions">
-                        {address.isDefault === 'Y' ? (
-                          <span className="badge green">기본 배송지</span>
-                        ) : (
+                        <div className="address-card__actions">
+                          {address.isDefault === 'Y' ? (
+                            <span className="badge green">기본 배송지</span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn-outline"
+                              disabled={isChanging || isDeleting}
+                              onClick={() => onChangeDefault(address.addressNo)}
+                            >
+                              {isChanging ? '변경 중..' : '기본으로 설정'}
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="btn-outline"
-                            disabled={
-                              changingAddressNo === address.addressNo || deletingAddressNo === address.addressNo
-                            }
-                            onClick={() => onChangeDefault(address.addressNo)}
+                            disabled={isChanging || isDeleting}
+                            onClick={() => onStartEdit(address)}
                           >
-                            {changingAddressNo === address.addressNo ? '변경 중..' : '기본으로 설정'}
+                            수정
                           </button>
-                        )}
-                        <button
-                          type="button"
-                          className="btn line btn-danger-line"
-                          disabled={deletingAddressNo === address.addressNo}
-                          onClick={() => onDeleteAddress(address.addressNo)}
-                        >
-                          {deletingAddressNo === address.addressNo ? '삭제 중..' : '삭제'}
-                        </button>
+                          <button
+                            type="button"
+                            className="btn line btn-danger-line"
+                            disabled={isDeleting || isChanging}
+                            onClick={() => onDeleteAddress(address.addressNo)}
+                          >
+                            {isDeleting ? '삭제 중..' : '삭제'}
+                          </button>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="address-card__body">
-                      <div>{address.zipCode}</div>
-                      <div>{address.address1}</div>
-                      {address.address2 && <div>{address.address2}</div>}
-                      {address.deliveryMessage && (
-                        <div className="section-sub">배송메시지: {address.deliveryMessage}</div>
-                      )}
-                    </div>
-                  </article>
-                ))}
+                      <div className="address-card__body">
+                        <div>{address.zipCode}</div>
+                        <div>{address.address1}</div>
+                        {address.address2 && <div>{address.address2}</div>}
+                        {address.deliveryMessage && (
+                          <div className="section-sub">배송메시지: {address.deliveryMessage}</div>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </div>

@@ -67,6 +67,39 @@ function getAccountPageFromHash(hash) {
   return hash.startsWith(ACCOUNT_ROUTES.dashboard) ? 'dashboard' : 'mypage';
 }
 
+function validateAddressForm(form) {
+  const recipientName = String(form.recipientName || '').trim();
+  const recipientPhone = String(form.recipientPhone || '').trim();
+  const zipCode = String(form.zipCode || '').trim();
+  const address1 = String(form.address1 || '').trim();
+
+  if (!recipientName) {
+    return '수령인을 입력해 주세요.';
+  }
+
+  if (!recipientPhone) {
+    return '연락처를 입력해 주세요.';
+  }
+
+  if (!/^01[0-9]-?\d{3,4}-?\d{4}$/.test(recipientPhone)) {
+    return '연락처 형식이 올바르지 않습니다. 예: 010-1234-5678';
+  }
+
+  if (!zipCode) {
+    return '우편번호를 입력해 주세요.';
+  }
+
+  if (!/^\d{5}$/.test(zipCode)) {
+    return '우편번호는 5자리 숫자로 입력해 주세요.';
+  }
+
+  if (!address1) {
+    return '기본 주소를 입력해 주세요.';
+  }
+
+  return '';
+}
+
 async function parseResponse(response, fallbackMessage) {
   const payload = await response.json().catch(() => null);
 
@@ -82,6 +115,7 @@ function AccountApp() {
     getAccountPageFromHash(window.location.hash)
   );
   const [activeTab, setActiveTab] = useState('orders');
+
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [ordersError, setOrdersError] = useState('');
@@ -114,6 +148,8 @@ function AccountApp() {
   const [addressesLoading, setAddressesLoading] = useState(false);
   const [addressesError, setAddressesError] = useState('');
   const [changingAddressNo, setChangingAddressNo] = useState(null);
+  const [deletingAddressNo, setDeletingAddressNo] = useState(null);
+  const [editingAddressNo, setEditingAddressNo] = useState(null);
   const [addressForm, setAddressForm] = useState(EMPTY_ADDRESS_FORM);
   const [addressFormError, setAddressFormError] = useState('');
   const [addressSubmitting, setAddressSubmitting] = useState(false);
@@ -298,6 +334,10 @@ function AccountApp() {
     return () => controller.abort();
   }, [selectedOrderNo]);
 
+  function moveToPage(page) {
+    window.location.hash = ACCOUNT_ROUTES[page] || ACCOUNT_ROUTES.mypage;
+  }
+
   function openProfileDetail() {
     setProfileForm({
       nickname: profile.nickname || '',
@@ -402,6 +442,16 @@ function AccountApp() {
     }
   }
 
+  async function refreshProfile() {
+    const response = await fetch(`${USER_API_BASE}/me`, {
+      headers: { 'X-USER-NO': DEMO_USER_NO },
+    });
+    const payload = await parseResponse(response, '회원정보를 불러오지 못했습니다.');
+    if (payload.data) {
+      setProfile({ ...EMPTY_PROFILE, ...payload.data });
+    }
+  }
+
   async function fetchAddresses() {
     setAddressesLoading(true);
     setAddressesError('');
@@ -424,6 +474,7 @@ function AccountApp() {
     setAddressForm(EMPTY_ADDRESS_FORM);
     setAddressFormError('');
     setIsAddressFormOpen(false);
+    setEditingAddressNo(null);
     fetchAddresses();
   }
 
@@ -431,8 +482,40 @@ function AccountApp() {
     setIsAddressModalOpen(false);
     setAddressesError('');
     setChangingAddressNo(null);
+    setDeletingAddressNo(null);
+    setEditingAddressNo(null);
     setAddressFormError('');
     setAddressSubmitting(false);
+    setIsAddressFormOpen(false);
+  }
+
+  function handleStartCreateAddress() {
+    setAddressForm(EMPTY_ADDRESS_FORM);
+    setAddressFormError('');
+    setEditingAddressNo(null);
+    setIsAddressFormOpen(true);
+  }
+
+  function handleStartEditAddress(address) {
+    setAddressForm({
+      addressName: address.addressName || '',
+      recipientName: address.recipientName || '',
+      recipientPhone: address.recipientPhone || '',
+      zipCode: address.zipCode || '',
+      address1: address.address1 || '',
+      address2: address.address2 || '',
+      deliveryMessage: address.deliveryMessage || '',
+      isDefault: address.isDefault || 'N',
+    });
+    setAddressFormError('');
+    setEditingAddressNo(address.addressNo);
+    setIsAddressFormOpen(true);
+  }
+
+  function handleCloseAddressForm() {
+    setAddressForm(EMPTY_ADDRESS_FORM);
+    setAddressFormError('');
+    setEditingAddressNo(null);
     setIsAddressFormOpen(false);
   }
 
@@ -444,14 +527,12 @@ function AccountApp() {
     }));
   }
 
-  async function refreshProfile() {
-    const response = await fetch(`${USER_API_BASE}/me`, {
-      headers: { 'X-USER-NO': DEMO_USER_NO },
-    });
-    const payload = await parseResponse(response, '회원정보를 불러오지 못했습니다.');
-    if (payload.data) {
-      setProfile({ ...EMPTY_PROFILE, ...payload.data });
-    }
+  function handleBlockedDefaultUncheck(message) {
+    setAddressForm((current) => ({
+      ...current,
+      isDefault: 'Y',
+    }));
+    setAddressFormError(message);
   }
 
   async function handleAddressFormSubmit(event) {
@@ -459,22 +540,44 @@ function AccountApp() {
     setAddressSubmitting(true);
     setAddressFormError('');
 
+    const isEditMode = editingAddressNo !== null;
+    const validationMessage = validateAddressForm(addressForm);
+
+    if (validationMessage) {
+      setAddressFormError(validationMessage);
+      setAddressSubmitting(false);
+      return;
+    }
+
     try {
-      const response = await fetch(ADDRESS_API_BASE, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-USER-NO': DEMO_USER_NO,
-        },
-        body: JSON.stringify(addressForm),
-      });
-      const payload = await parseResponse(response, '배송지 등록에 실패했습니다.');
+      const response = await fetch(
+        isEditMode ? `${ADDRESS_API_BASE}/${editingAddressNo}` : ADDRESS_API_BASE,
+        {
+          method: isEditMode ? 'PATCH' : 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-USER-NO': DEMO_USER_NO,
+          },
+          body: JSON.stringify(addressForm),
+        }
+      );
+
+      const payload = await parseResponse(
+        response,
+        isEditMode ? '배송지 수정에 실패했습니다.' : '배송지 등록에 실패했습니다.'
+      );
+
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
       setAddressForm(EMPTY_ADDRESS_FORM);
+      setAddressFormError('');
+      setEditingAddressNo(null);
       setIsAddressFormOpen(false);
       await refreshProfile();
     } catch (error) {
-      setAddressFormError(error.message || '배송지 등록에 실패했습니다.');
+      setAddressFormError(
+        error.message ||
+          (isEditMode ? '배송지 수정에 실패했습니다.' : '배송지 등록에 실패했습니다.')
+      );
     } finally {
       setAddressSubmitting(false);
     }
@@ -500,7 +603,7 @@ function AccountApp() {
   }
 
   async function handleDeleteAddress(addressNo) {
-    setChangingAddressNo(addressNo);
+    setDeletingAddressNo(addressNo);
     setAddressesError('');
 
     try {
@@ -514,21 +617,12 @@ function AccountApp() {
     } catch (error) {
       setAddressesError(error.message || '배송지 삭제에 실패했습니다.');
     } finally {
-      setChangingAddressNo(null);
+      setDeletingAddressNo(null);
     }
-  }
-
-  function handleToggleAddressForm() {
-    setAddressFormError('');
-    setIsAddressFormOpen((current) => !current);
   }
 
   function handleSelectOrder(orderNo) {
     setSelectedOrderNo((current) => (current === orderNo ? null : orderNo));
-  }
-
-  function moveToPage(page) {
-    window.location.hash = ACCOUNT_ROUTES[page] || ACCOUNT_ROUTES.mypage;
   }
 
   return (
@@ -596,16 +690,20 @@ function AccountApp() {
         loading={addressesLoading}
         error={addressesError}
         changingAddressNo={changingAddressNo}
-        deletingAddressNo={changingAddressNo}
+        deletingAddressNo={deletingAddressNo}
         isFormOpen={isAddressFormOpen}
+        editingAddressNo={editingAddressNo}
         form={addressForm}
         formError={addressFormError}
         submitting={addressSubmitting}
         onClose={closeAddressModal}
         onChangeDefault={handleChangeDefaultAddress}
         onDeleteAddress={handleDeleteAddress}
-        onToggleForm={handleToggleAddressForm}
+        onStartCreate={handleStartCreateAddress}
+        onStartEdit={handleStartEditAddress}
+        onCloseForm={handleCloseAddressForm}
         onFormChange={handleAddressFormChange}
+        onDefaultToggleBlocked={handleBlockedDefaultUncheck}
         onFormSubmit={handleAddressFormSubmit}
       />
 

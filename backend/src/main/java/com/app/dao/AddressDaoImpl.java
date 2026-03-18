@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import com.app.dto.CreateAddressRequestDto;
+import com.app.dto.UpdateAddressRequestDto;
 import com.app.dto.UserAddressDto;
 
 @Repository
@@ -60,6 +61,22 @@ public class AddressDaoImpl implements AddressDao {
         params.put("deliveryMessage", request.getDeliveryMessage());
         params.put("isDefault", request.getIsDefault());
         return sqlSessionTemplate.insert(NAMESPACE + "insertAddress", params);
+    }
+
+    @Override
+    public int updateAddress(Long userNo, Long addressNo, UpdateAddressRequestDto request) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("userNo", userNo);
+        params.put("addressNo", addressNo);
+        params.put("recipientName", request.getRecipientName());
+        params.put("recipientPhone", request.getRecipientPhone());
+        params.put("zipCode", request.getZipCode());
+        params.put("address1", request.getAddress1());
+        params.put("address2", request.getAddress2());
+        params.put("addressName", request.getAddressName());
+        params.put("deliveryMessage", request.getDeliveryMessage());
+        params.put("isDefault", request.getIsDefault());
+        return sqlSessionTemplate.update(NAMESPACE + "updateAddress", params);
     }
 
     @Override

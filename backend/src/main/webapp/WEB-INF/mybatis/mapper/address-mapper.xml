@@ -87,6 +87,21 @@
         )
     ]]></insert>
 
+    <update id="updateAddress" parameterType="map"><![CDATA[
+        UPDATE OFT_USER_ADDRESS
+        SET RECIPIENT_NAME = #{recipientName},
+            RECIPIENT_PHONE = #{recipientPhone},
+            ZIP_CODE = #{zipCode},
+            ADDRESS1 = #{address1},
+            ADDRESS2 = #{address2},
+            ADDRESS_NAME = #{addressName},
+            DELIVERY_MESSAGE = #{deliveryMessage},
+            IS_DEFAULT = #{isDefault},
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE USER_NO = #{userNo}
+          AND ADDRESS_NO = #{addressNo}
+    ]]></update>
+
     <update id="clearDefaultAddress" parameterType="java.lang.Long"><![CDATA[
         UPDATE OFT_USER_ADDRESS
         SET IS_DEFAULT = 'N',

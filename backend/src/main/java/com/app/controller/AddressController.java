@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.app.common.ApiResponse;
 import com.app.dto.CreateAddressRequestDto;
+import com.app.dto.UpdateAddressRequestDto;
 import com.app.dto.UserAddressDto;
 import com.app.service.AddressService;
 
@@ -41,6 +42,15 @@ public class AddressController {
         return ApiResponse.success(addressService.addAddress(userNo, request), "배송지 등록 성공");
     }
 
+    @PatchMapping(value = "/{addressNo}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ApiResponse<List<UserAddressDto>> updateAddress(
+        @RequestHeader("X-USER-NO") Long userNo,
+        @PathVariable("addressNo") Long addressNo,
+        @RequestBody UpdateAddressRequestDto request
+    ) {
+        return ApiResponse.success(addressService.updateAddress(userNo, addressNo, request), "배송지 수정 성공");
+    }
+
     @PatchMapping("/{addressNo}/default")
     public ApiResponse<List<UserAddressDto>> changeDefaultAddress(
         @RequestHeader("X-USER-NO") Long userNo,
@@ -57,9 +67,6 @@ public class AddressController {
         @RequestHeader("X-USER-NO") Long userNo,
         @PathVariable("addressNo") Long addressNo
     ) {
-        return ApiResponse.success(
-            addressService.deleteAddress(userNo, addressNo),
-            "배송지 삭제 성공"
-        );
+        return ApiResponse.success(addressService.deleteAddress(userNo, addressNo), "배송지 삭제 성공");
     }
 }
