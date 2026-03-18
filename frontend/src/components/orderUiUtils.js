@@ -14,46 +14,46 @@ export function formatOrderDateTime(value) {
 
 export function getPaymentMethodLabel(method) {
   if (method === 'BANK') {
-    return '무통장입금';
+    return '\uBB34\uD1B5\uC7A5\uC785\uAE08';
   }
 
   if (method === 'EASY_PAY') {
-    return '간편결제';
+    return '\uAC04\uD3B8\uACB0\uC81C';
   }
 
-  return '카드 결제';
+  return '\uCE74\uB4DC \uACB0\uC81C';
 }
 
 export function getDeliveryStatusLabel(status) {
   if (status === 'SHIPPING') {
-    return '배송중';
+    return '\uBC30\uC1A1\uC911';
   }
 
   if (status === 'DELIVERED') {
-    return '배송완료';
+    return '\uBC30\uC1A1\uC644\uB8CC';
   }
 
   if (status === 'CANCELED') {
-    return '배송취소';
+    return '\uBC30\uC1A1\uCDE8\uC18C';
   }
 
-  return '배송준비';
+  return '\uBC30\uC1A1\uC900\uBE44';
 }
 
 export function getOrderStatusMeta(status) {
   if (status === 'SHIPPING') {
-    return { label: '배송중', tone: 'shipping' };
+    return { label: '\uBC30\uC1A1\uC911', tone: 'shipping' };
   }
 
   if (status === 'COMPLETED') {
-    return { label: '주문 완료', tone: 'completed' };
+    return { label: '\uC8FC\uBB38 \uC644\uB8CC', tone: 'completed' };
   }
 
   if (status === 'CANCELED') {
-    return { label: '주문 취소', tone: 'canceled' };
+    return { label: '\uC8FC\uBB38 \uCDE8\uC18C', tone: 'canceled' };
   }
 
-  return { label: '결제 완료', tone: 'paid' };
+  return { label: '\uACB0\uC81C \uC644\uB8CC', tone: 'paid' };
 }
 
 export function buildOrderId(existingOrders) {
@@ -81,7 +81,7 @@ export function createOrderFromCart(cartItems, checkoutForm, existingOrders) {
     (sum, item) => sum + getSavingAmount(item.product) * item.quantity,
     0
   );
-  const orderId = buildOrderId(existingOrders);
+  const orderId = checkoutForm.orderId || buildOrderId(existingOrders);
 
   return {
     orderNo: baseId,
@@ -103,14 +103,14 @@ export function createOrderFromCart(cartItems, checkoutForm, existingOrders) {
       paymentNo: baseId + 1,
       paymentMethod: checkoutForm.paymentMethod,
       paymentStatus: 'SUCCESS',
-      paymentKey: `PAY-${orderId}`,
+      paymentKey: checkoutForm.paymentKey || `PAY-${orderId}`,
       paidAmount: totalAmount,
       paidAt: now,
       createdAt: now,
     },
     delivery: {
       deliveryNo: baseId + 2,
-      courierName: '오늘팜 배송',
+      courierName: 'oneulFarm',
       trackingNo: '',
       deliveryStatus: 'READY',
       shippedAt: null,
@@ -128,7 +128,7 @@ export function createOrderFromCart(cartItems, checkoutForm, existingOrders) {
       savedAmount: getSavingAmount(item.product) * item.quantity,
       product: item.product,
     })),
-    summaryText: `${cartItems.length}개 상품 / ${formatCurrency(totalAmount)}`,
+    summaryText: `${cartItems.length}\uAC1C \uC0C1\uD488 / ${formatCurrency(totalAmount)}`,
     totalSavedAmount,
   };
 }
