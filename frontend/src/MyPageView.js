@@ -73,7 +73,7 @@ function MyPageView({
         </article>
       </div>
 
-      <section className="section grid-2 mypage-intro">
+      <section className="section mypage-intro">
         <article className="card profile-summary-card">
           <div className="profile-summary">
             <div className="profile-badge">{getProfileInitials(profile)}</div>
@@ -96,30 +96,6 @@ function MyPageView({
               <strong>기본 배송지</strong>
               <span>{profileLoading ? '불러오는 중...' : defaultAddressLabel}</span>
             </div>
-          </div>
-        </article>
-
-        <article className="card">
-          <div className="card-title">빠른 작업</div>
-          <div className="card-sub">자주 쓰는 액션을 먼저 배치했습니다.</div>
-          <div className="mini-recipes quick-actions-grid">
-            <article className="mini-recipe">
-              <div className="mini-thumb" />
-              <h4>회원정보 수정</h4>
-              <p>이메일, 연락처, 닉네임을 바로 수정합니다.</p>
-              <button type="button" className="btn-text" onClick={onOpenProfileEdit}>바로 수정</button>
-            </article>
-            <article className="mini-recipe">
-              <div className="mini-thumb" />
-              <h4>배송지 관리</h4>
-              <p>기본 배송지 변경과 주소 추가를 관리합니다.</p>
-              <button type="button" className="btn-text" onClick={onOpenAddressModal}>배송지 보기</button>
-            </article>
-            <article className="mini-recipe">
-              <div className="mini-thumb" />
-              <h4>대시보드 이동</h4>
-              <p>절약 금액과 소비 패턴 분석을 확인합니다.</p>
-            </article>
           </div>
         </article>
       </section>
