@@ -38,11 +38,11 @@ export function formatDateTime(value) {
   });
 }
 
-export function getMonthlyHeight(value) {
+export function getMonthlyHeight() {
   return '0%';
 }
 
-export function getProductWidth(value) {
+export function getProductWidth() {
   return '0%';
 }
 

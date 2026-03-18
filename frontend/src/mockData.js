@@ -10,7 +10,7 @@ export const tabs = [
 ];
 
 export const wishlist = [
-  { name: '방울토마토 1kg', price: 4200, avg: '평균가보다 12% 저렴', badge: '혜택 상품', emoji: '🍅' },
+  { name: '방울토마토 1kg', price: 4200, avg: '평균가보다 12% 저렴', badge: '추천 상품', emoji: '🍅' },
   { name: '제주 당근 1kg', price: 2500, avg: '이번 주 관심 상품', badge: '찜 추천', emoji: '🥕' },
   { name: '국내산 양파 1kg', price: 3200, avg: '재입고 알림 설정', badge: '알림', emoji: '🧅' },
 ];
@@ -23,7 +23,7 @@ export const myReviews = [
   {
     name: '감자 1kg',
     rating: '★★★★★',
-    content: '배송도 빠르고 상태가 깔끔해서 다음에도 다시 주문할 것 같습니다.',
+    content: '배송도 빠르고 상태가 좋아서 다음에도 다시 주문할 것 같습니다.',
     date: '2026.03.16',
     emoji: '🥔',
   },

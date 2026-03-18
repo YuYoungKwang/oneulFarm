@@ -34,7 +34,7 @@ function AddressModal({
     (editingAddress && editingAddress.isDefault === 'Y');
   const formTitle = isEditMode ? '배송지 수정' : '새 배송지 등록';
   const submitLabel = isEditMode ? '배송지 저장' : '배송지 등록';
-  const submitLoadingLabel = isEditMode ? '저장 중..' : '등록 중..';
+  const submitLoadingLabel = isEditMode ? '저장 중...' : '등록 중...';
 
   function handleDefaultChange(event) {
     if (mustKeepDefault && !event.target.checked) {
@@ -90,7 +90,7 @@ function AddressModal({
                   name="addressName"
                   value={form.addressName}
                   onChange={onFormChange}
-                  placeholder="집, 회사"
+                  placeholder="집 / 회사"
                 />
               </label>
               <label className="form-field">
@@ -144,7 +144,7 @@ function AddressModal({
                   name="deliveryMessage"
                   value={form.deliveryMessage}
                   onChange={onFormChange}
-                  placeholder="문 앞에 놓아주세요"
+                  placeholder="문 앞에 두고 벨 눌러 주세요"
                 />
               </label>
             </div>
@@ -207,7 +207,7 @@ function AddressModal({
                               disabled={isChanging || isDeleting}
                               onClick={() => onChangeDefault(address.addressNo)}
                             >
-                              {isChanging ? '변경 중..' : '기본으로 설정'}
+                              {isChanging ? '변경 중...' : '기본으로 설정'}
                             </button>
                           )}
                           <button
@@ -224,7 +224,7 @@ function AddressModal({
                             disabled={isDeleting || isChanging}
                             onClick={() => onDeleteAddress(address.addressNo)}
                           >
-                            {isDeleting ? '삭제 중..' : '삭제'}
+                            {isDeleting ? '삭제 중...' : '삭제'}
                           </button>
                         </div>
                       </div>

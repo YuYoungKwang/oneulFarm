@@ -311,3 +311,18 @@
   - 현재 남은 작업
 - 설계 원칙 변경이 있으면 `docs` 문서를 같이 갱신한다.
 - 구현 순서나 우선순위가 바뀌면 `chl/implementation_plan.md`도 함께 수정한다.
+## 2026-03-18 추가 기록
+
+- 계정 화면 한글 깨짐 정리
+  - `frontend/src/AccountApp.js`
+  - `frontend/src/MyPageView.js`
+  - `frontend/src/ProfileDetailView.js`
+  - `frontend/src/OrderDetailPanel.js`
+  - `frontend/src/DashboardView.js`
+  - `frontend/src/AddressModal.js`
+  - `frontend/src/mockData.js`
+  - `frontend/src/appUtils.js`
+  - `frontend/src/components/MainNav.js`
+- 마이페이지, 대시보드, 주문 상세, 배송지 관리, 상세 개인정보 화면 문구를 정상 한글로 복구
+- 주소 검증/오류 문구와 푸터, 네비게이션 문구도 함께 정리
+- 프론트 빌드 재확인 완료

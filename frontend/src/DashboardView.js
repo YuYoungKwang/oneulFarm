@@ -34,7 +34,6 @@ function DashboardView({
         </div>
         <div className="page-actions">
           <button type="button" className="btn-outline" onClick={onMoveToMypage}>마이페이지 이동</button>
-          <button type="button" className="btn">이번 달 리포트</button>
         </div>
       </section>
 

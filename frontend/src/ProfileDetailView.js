@@ -88,7 +88,7 @@ function ProfileDetailView({
           <div className="section-head">
             <div>
               <div className="section-title">{profileLoading ? '불러오는 중...' : (profile.nickname || profile.userId || '-')}</div>
-              <div className="section-sub">수정 가능한 항목만 오른쪽 버튼으로 바로 편집합니다.</div>
+              <div className="section-sub">수정 가능한 항목만 오른쪽 버튼으로 바로 편집됩니다.</div>
             </div>
           </div>
 
@@ -108,7 +108,7 @@ function ProfileDetailView({
                             name={item.key}
                             value={profileForm[item.key]}
                             onChange={onProfileFormChange}
-                            placeholder={`${item.label}을 입력하세요`}
+                            placeholder={`${item.label}을 입력해 주세요`}
                           />
                         </div>
                         {profileSubmitError && <div className="form-error">{profileSubmitError}</div>}
@@ -129,10 +129,6 @@ function ProfileDetailView({
                     )}
                   </div>
                 );
-              }
-
-              if (item.key === 'password') {
-                return null;
               }
 
               return (
