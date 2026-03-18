@@ -1,6 +1,8 @@
 import { startTransition, useEffect, useState } from 'react';
 import AccountApp from './AccountApp';
+import { clearAuthUser, getAuthUser } from './auth';
 import MainNav from './components/MainNav';
+import PasswordChangeRequiredPage from './components/PasswordChangeRequiredPage';
 import ProductApp from './components/ProductApp';
 
 function resolveAppFromHash(hash) {
@@ -53,6 +55,11 @@ function App() {
     resolveActiveSection(window.location.hash)
   );
   const [cartCount, setCartCount] = useState(() => readCartCount());
+  const [authUser, setAuthUser] = useState(() => getAuthUser());
+
+  const navigateTo = (hash) => {
+    window.location.hash = hash;
+  };
 
   useEffect(() => {
     const syncApp = () => {
@@ -60,6 +67,7 @@ function App() {
         setCurrentApp(resolveAppFromHash(window.location.hash));
         setActiveSection(resolveActiveSection(window.location.hash));
         setCartCount(readCartCount());
+        setAuthUser(getAuthUser());
       });
     };
 
@@ -77,8 +85,25 @@ function App() {
 
   return (
     <>
-      <MainNav activeSection={activeSection} cartCount={cartCount} />
-      {currentApp === 'account' ? <AccountApp /> : <ProductApp />}
+      <MainNav
+        activeSection={activeSection}
+        authUser={authUser}
+        cartCount={cartCount}
+        onOpenLogin={() => navigateTo('#/login')}
+        onOpenSignup={() => navigateTo('#/signup')}
+        onOpenCart={() => navigateTo('#/cart')}
+        onLogout={() => {
+          clearAuthUser();
+          navigateTo('#/products');
+        }}
+      />
+      {authUser?.passwordChangeRequired ? (
+        <PasswordChangeRequiredPage authUser={authUser} />
+      ) : currentApp === 'account' ? (
+        <AccountApp />
+      ) : (
+        <ProductApp authUser={authUser} />
+      )}
     </>
   );
 }

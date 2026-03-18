@@ -19,7 +19,7 @@ import {
   readStoredValue,
 } from './productUiUtils';
 
-export default function ProductApp() {
+export default function ProductApp({ authUser }) {
   const [route, setRoute] = useState(() => parseHash(window.location.hash));
   const [filters, setFilters] = useState(defaultFilters);
   const [wishlist, setWishlist] = useState(() =>
@@ -198,6 +198,8 @@ export default function ProductApp() {
           <SignupPage onBack={openProductList} />
         ) : route.page === 'login' ? (
           <LoginPage onBack={openProductList} />
+        ) : route.page === 'cart' && !authUser?.userNo ? (
+          <LoginRequiredCartNotice />
         ) : route.page === 'cart' ? (
           <CartPage
             cartItems={cartItems}
@@ -282,6 +284,39 @@ function NotFoundPage({ onBack }) {
       <button className="btn" type="button" onClick={onBack}>
         상품 목록으로 이동
       </button>
+    </section>
+  );
+}
+
+function LoginRequiredCartNotice() {
+  return (
+    <section className="card">
+      <div className="page-head" style={{ marginBottom: '8px' }}>
+        <div>
+          <h1>로그인이 필요합니다.</h1>
+          <p>장바구니는 로그인 후 이용할 수 있습니다.</p>
+        </div>
+      </div>
+      <div className="page-actions">
+        <button
+          className="btn"
+          type="button"
+          onClick={() => {
+            window.location.hash = '#/login';
+          }}
+        >
+          로그인하러 가기
+        </button>
+        <button
+          className="btn-outline"
+          type="button"
+          onClick={() => {
+            window.location.hash = '#/signup';
+          }}
+        >
+          회원가입
+        </button>
+      </div>
     </section>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { getAuthUser, parseApiResponse } from './auth';
 import './styles/account.css';
 import DashboardView from './DashboardView';
 import MyPageView from './MyPageView';
@@ -10,7 +11,6 @@ const ORDER_API_BASE = `${API_BASE_URL}/api/orders`;
 const DASHBOARD_API_BASE = `${API_BASE_URL}/api/dashboard`;
 const USER_API_BASE = `${API_BASE_URL}/api/users`;
 const ADDRESS_API_BASE = `${USER_API_BASE}/me/addresses`;
-const DEMO_USER_NO = '1';
 
 const EMPTY_PROFILE = {
   userId: '',
@@ -54,17 +54,8 @@ function getAccountPageFromHash(hash) {
   return hash.startsWith(ACCOUNT_ROUTES.dashboard) ? 'dashboard' : 'mypage';
 }
 
-async function parseResponse(response, fallbackMessage) {
-  const payload = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    throw new Error(payload?.message || fallbackMessage);
-  }
-
-  return payload;
-}
-
 function AccountApp() {
+  const [authUser, setAuthUser] = useState(() => getAuthUser());
   const [currentPage, setCurrentPage] = useState(() =>
     getAccountPageFromHash(window.location.hash)
   );
@@ -98,17 +89,29 @@ function AccountApp() {
   useEffect(() => {
     const syncPage = () => {
       setCurrentPage(getAccountPageFromHash(window.location.hash));
+      setAuthUser(getAuthUser());
     };
 
     syncPage();
     window.addEventListener('hashchange', syncPage);
+    window.addEventListener('storage', syncPage);
+    window.addEventListener('oneulFarm:storage-change', syncPage);
 
     return () => {
       window.removeEventListener('hashchange', syncPage);
+      window.removeEventListener('storage', syncPage);
+      window.removeEventListener('oneulFarm:storage-change', syncPage);
     };
   }, []);
 
   useEffect(() => {
+    if (!authUser?.userNo) {
+      setOrders([]);
+      setOrdersLoading(false);
+      setOrdersError('');
+      return undefined;
+    }
+
     const controller = new AbortController();
 
     async function fetchOrders() {
@@ -117,19 +120,16 @@ function AccountApp() {
 
       try {
         const response = await fetch(`${ORDER_API_BASE}/me`, {
-          headers: { 'X-USER-NO': DEMO_USER_NO },
+          headers: { 'X-USER-NO': String(authUser.userNo) },
           signal: controller.signal,
         });
 
-        const payload = await parseResponse(response, '주문 목록을 불러오지 못했습니다.');
-        const nextOrders = Array.isArray(payload.data) ? payload.data : [];
-
-        setOrders(nextOrders);
+        const payload = await parseApiResponse(response, '주문 목록을 불러오지 못했습니다.');
+        setOrders(Array.isArray(payload.data) ? payload.data : []);
       } catch (error) {
-        if (error.name === 'AbortError') {
-          return;
+        if (error.name !== 'AbortError') {
+          setOrdersError(error.message || '주문 목록을 불러오지 못했습니다.');
         }
-        setOrdersError(error.message || '주문 목록을 불러오지 못했습니다.');
       } finally {
         setOrdersLoading(false);
       }
@@ -137,9 +137,15 @@ function AccountApp() {
 
     fetchOrders();
     return () => controller.abort();
-  }, []);
+  }, [authUser]);
 
   useEffect(() => {
+    if (!authUser?.userNo) {
+      setSummary(EMPTY_SUMMARY);
+      setSummaryLoading(false);
+      return undefined;
+    }
+
     const controller = new AbortController();
 
     async function fetchSummary() {
@@ -147,14 +153,12 @@ function AccountApp() {
 
       try {
         const response = await fetch(`${DASHBOARD_API_BASE}/summary`, {
-          headers: { 'X-USER-NO': DEMO_USER_NO },
+          headers: { 'X-USER-NO': String(authUser.userNo) },
           signal: controller.signal,
         });
 
-        const payload = await parseResponse(response, '대시보드 요약을 불러오지 못했습니다.');
-        if (payload.data) {
-          setSummary(payload.data);
-        }
+        const payload = await parseApiResponse(response, '대시보드 요약을 불러오지 못했습니다.');
+        setSummary(payload.data || EMPTY_SUMMARY);
       } catch (error) {
         if (error.name !== 'AbortError') {
           setSummary(EMPTY_SUMMARY);
@@ -166,9 +170,16 @@ function AccountApp() {
 
     fetchSummary();
     return () => controller.abort();
-  }, []);
+  }, [authUser]);
 
   useEffect(() => {
+    if (!authUser?.userNo) {
+      setProfile(EMPTY_PROFILE);
+      setProfileLoading(false);
+      setProfileError('');
+      return undefined;
+    }
+
     const controller = new AbortController();
 
     async function fetchProfile() {
@@ -177,19 +188,16 @@ function AccountApp() {
 
       try {
         const response = await fetch(`${USER_API_BASE}/me`, {
-          headers: { 'X-USER-NO': DEMO_USER_NO },
+          headers: { 'X-USER-NO': String(authUser.userNo) },
           signal: controller.signal,
         });
 
-        const payload = await parseResponse(response, '회원정보를 불러오지 못했습니다.');
-        if (payload.data) {
-          setProfile({ ...EMPTY_PROFILE, ...payload.data });
-        }
+        const payload = await parseApiResponse(response, '회원 정보를 불러오지 못했습니다.');
+        setProfile(payload.data ? { ...EMPTY_PROFILE, ...payload.data } : EMPTY_PROFILE);
       } catch (error) {
-        if (error.name === 'AbortError') {
-          return;
+        if (error.name !== 'AbortError') {
+          setProfileError(error.message || '회원 정보를 불러오지 못했습니다.');
         }
-        setProfileError(error.message || '회원정보를 불러오지 못했습니다.');
       } finally {
         setProfileLoading(false);
       }
@@ -197,13 +205,13 @@ function AccountApp() {
 
     fetchProfile();
     return () => controller.abort();
-  }, []);
+  }, [authUser]);
 
   useEffect(() => {
-    if (!selectedOrderNo) {
+    if (!authUser?.userNo || !selectedOrderNo) {
       setOrderDetail(null);
       setDetailError('');
-      return;
+      return undefined;
     }
 
     const controller = new AbortController();
@@ -214,18 +222,17 @@ function AccountApp() {
 
       try {
         const response = await fetch(`${ORDER_API_BASE}/me/${selectedOrderNo}`, {
-          headers: { 'X-USER-NO': DEMO_USER_NO },
+          headers: { 'X-USER-NO': String(authUser.userNo) },
           signal: controller.signal,
         });
 
-        const payload = await parseResponse(response, '주문 상세를 불러오지 못했습니다.');
+        const payload = await parseApiResponse(response, '주문 상세를 불러오지 못했습니다.');
         setOrderDetail(payload.data || null);
       } catch (error) {
-        if (error.name === 'AbortError') {
-          return;
+        if (error.name !== 'AbortError') {
+          setOrderDetail(null);
+          setDetailError(error.message || '주문 상세를 불러오지 못했습니다.');
         }
-        setOrderDetail(null);
-        setDetailError(error.message || '주문 상세를 불러오지 못했습니다.');
       } finally {
         setDetailLoading(false);
       }
@@ -233,7 +240,7 @@ function AccountApp() {
 
     fetchOrderDetail();
     return () => controller.abort();
-  }, [selectedOrderNo]);
+  }, [authUser, selectedOrderNo]);
 
   function openProfileEdit() {
     setProfileForm({
@@ -269,20 +276,18 @@ function AccountApp() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'X-USER-NO': DEMO_USER_NO,
+          'X-USER-NO': String(authUser.userNo),
         },
         body: JSON.stringify(profileForm),
       });
 
-      const payload = await parseResponse(response, '회원정보를 저장하지 못했습니다.');
-
+      const payload = await parseApiResponse(response, '회원 정보를 수정하지 못했습니다.');
       if (payload.data) {
         setProfile({ ...EMPTY_PROFILE, ...payload.data });
       }
-
       setIsProfileModalOpen(false);
     } catch (error) {
-      setProfileSubmitError(error.message || '회원정보를 저장하지 못했습니다.');
+      setProfileSubmitError(error.message || '회원 정보를 수정하지 못했습니다.');
     } finally {
       setProfileSubmitting(false);
     }
@@ -294,10 +299,10 @@ function AccountApp() {
 
     try {
       const response = await fetch(ADDRESS_API_BASE, {
-        headers: { 'X-USER-NO': DEMO_USER_NO },
+        headers: { 'X-USER-NO': String(authUser.userNo) },
       });
 
-      const payload = await parseResponse(response, '배송지 목록을 불러오지 못했습니다.');
+      const payload = await parseApiResponse(response, '배송지 목록을 불러오지 못했습니다.');
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
     } catch (error) {
       setAddressesError(error.message || '배송지 목록을 불러오지 못했습니다.');
@@ -331,6 +336,16 @@ function AccountApp() {
     }));
   }
 
+  async function refreshProfile() {
+    const profileResponse = await fetch(`${USER_API_BASE}/me`, {
+      headers: { 'X-USER-NO': String(authUser.userNo) },
+    });
+    const profilePayload = await parseApiResponse(profileResponse, '회원 정보를 불러오지 못했습니다.');
+    if (profilePayload.data) {
+      setProfile({ ...EMPTY_PROFILE, ...profilePayload.data });
+    }
+  }
+
   async function handleAddressFormSubmit(event) {
     event.preventDefault();
     setAddressSubmitting(true);
@@ -341,23 +356,16 @@ function AccountApp() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-USER-NO': DEMO_USER_NO,
+          'X-USER-NO': String(authUser.userNo),
         },
         body: JSON.stringify(addressForm),
       });
 
-      const payload = await parseResponse(response, '배송지 등록에 실패했습니다.');
+      const payload = await parseApiResponse(response, '배송지 등록에 실패했습니다.');
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
       setAddressForm(EMPTY_ADDRESS_FORM);
       setIsAddressFormOpen(false);
-
-      const profileResponse = await fetch(`${USER_API_BASE}/me`, {
-        headers: { 'X-USER-NO': DEMO_USER_NO },
-      });
-      const profilePayload = await parseResponse(profileResponse, '회원정보를 불러오지 못했습니다.');
-      if (profilePayload.data) {
-        setProfile({ ...EMPTY_PROFILE, ...profilePayload.data });
-      }
+      await refreshProfile();
     } catch (error) {
       setAddressFormError(error.message || '배송지 등록에 실패했습니다.');
     } finally {
@@ -372,19 +380,12 @@ function AccountApp() {
     try {
       const response = await fetch(`${ADDRESS_API_BASE}/${addressNo}/default`, {
         method: 'PATCH',
-        headers: { 'X-USER-NO': DEMO_USER_NO },
+        headers: { 'X-USER-NO': String(authUser.userNo) },
       });
 
-      const payload = await parseResponse(response, '기본 배송지 변경에 실패했습니다.');
+      const payload = await parseApiResponse(response, '기본 배송지 변경에 실패했습니다.');
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
-
-      const profileResponse = await fetch(`${USER_API_BASE}/me`, {
-        headers: { 'X-USER-NO': DEMO_USER_NO },
-      });
-      const profilePayload = await parseResponse(profileResponse, '회원정보를 불러오지 못했습니다.');
-      if (profilePayload.data) {
-        setProfile({ ...EMPTY_PROFILE, ...profilePayload.data });
-      }
+      await refreshProfile();
     } catch (error) {
       setAddressesError(error.message || '기본 배송지 변경에 실패했습니다.');
     } finally {
@@ -408,7 +409,24 @@ function AccountApp() {
   return (
     <div className="account-app page-shell">
       <main className="container">
-        {currentPage === 'mypage' ? (
+        {!authUser?.userNo ? (
+          <section className="card">
+            <div className="page-head" style={{ marginBottom: '8px' }}>
+              <div>
+                <h1>로그인이 필요합니다.</h1>
+                <p>마이페이지와 대시보드는 로그인 후 이용할 수 있습니다.</p>
+              </div>
+            </div>
+            <div className="page-actions">
+              <button className="btn" type="button" onClick={() => { window.location.hash = '#/login'; }}>
+                로그인하러 가기
+              </button>
+              <button className="btn-outline" type="button" onClick={() => { window.location.hash = '#/signup'; }}>
+                회원가입
+              </button>
+            </div>
+          </section>
+        ) : currentPage === 'mypage' ? (
           <MyPageView
             activeTab={activeTab}
             setActiveTab={setActiveTab}

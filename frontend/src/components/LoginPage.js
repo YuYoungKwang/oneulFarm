@@ -1,170 +1,470 @@
 import React, { useState } from 'react';
-import { DEFAULT_ROUTE } from './productUiUtils';
-import './user.css';
+import { parseApiResponse, setAuthUser } from '../auth';
+import '../styles/user.css';
 
-export default function LoginPage({ onBack }) {
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
+const AUTH_API_BASE = `${API_BASE_URL}/api/auth`;
 
-    function handleSubmit(e) {
-        e.preventDefault();
-        alert(`로그인 시도: ${username}`);
+const INITIAL_FIND_ID_FORM = {
+  email: '',
+  phone: '',
+};
+
+const INITIAL_RESET_PASSWORD_FORM = {
+  email: '',
+};
+
+export default function LoginPage() {
+  const [form, setForm] = useState({
+    userId: '',
+    password: '',
+  });
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const [isFindIdOpen, setIsFindIdOpen] = useState(false);
+  const [findIdForm, setFindIdForm] = useState(INITIAL_FIND_ID_FORM);
+  const [findIdError, setFindIdError] = useState('');
+  const [foundUserId, setFoundUserId] = useState('');
+  const [findingId, setFindingId] = useState(false);
+
+  const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
+  const [resetPasswordForm, setResetPasswordForm] = useState(INITIAL_RESET_PASSWORD_FORM);
+  const [resetPasswordError, setResetPasswordError] = useState('');
+  const [resetPasswordSuccess, setResetPasswordSuccess] = useState('');
+  const [sendingTemporaryPassword, setSendingTemporaryPassword] = useState(false);
+
+  function handleChange(event) {
+    const { name, value } = event.target;
+    setForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  }
+
+  function handleFindIdChange(event) {
+    const { name, value } = event.target;
+    setFindIdForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  }
+
+  function handleResetPasswordChange(event) {
+    const { name, value } = event.target;
+    setResetPasswordForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setSubmitting(true);
+    setError('');
+
+    try {
+      const response = await fetch(`${AUTH_API_BASE}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(form),
+      });
+
+      const payload = await parseApiResponse(response, '로그인에 실패했습니다.');
+      if (payload.data) {
+        setAuthUser(payload.data);
+        window.location.hash = '#/mypage';
+      }
+    } catch (requestError) {
+      setError(requestError.message || '로그인에 실패했습니다.');
+    } finally {
+      setSubmitting(false);
     }
+  }
 
-    function goToSignup() {
-        window.location.hash = '#/signup';
+  async function handleFindIdSubmit(event) {
+    event.preventDefault();
+    setFindingId(true);
+    setFindIdError('');
+    setFoundUserId('');
+
+    try {
+      const response = await fetch(`${AUTH_API_BASE}/find-userid`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(findIdForm),
+      });
+
+      const payload = await parseApiResponse(response, '아이디를 찾지 못했습니다.');
+      const resolvedUserId = payload?.data?.userId || '';
+
+      setFoundUserId(resolvedUserId);
+      setForm((current) => ({
+        ...current,
+        userId: resolvedUserId,
+      }));
+    } catch (requestError) {
+      setFindIdError(requestError.message || '아이디를 찾지 못했습니다.');
+    } finally {
+      setFindingId(false);
     }
+  }
 
-    function handleKakaoLogin() {
-        const REST_API_KEY = '여기에_카카오_REST_API_KEY';
-        const REDIRECT_URI = 'http://localhost:3000/kakao/callback';
+  async function handleResetPasswordSubmit(event) {
+    event.preventDefault();
+    setSendingTemporaryPassword(true);
+    setResetPasswordError('');
+    setResetPasswordSuccess('');
 
-        const kakaoURL = `https://kauth.kakao.com/oauth/authorize?client_id=${REST_API_KEY}&redirect_uri=${REDIRECT_URI}&response_type=code`;
+    try {
+      const response = await fetch(`${AUTH_API_BASE}/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(resetPasswordForm),
+      });
 
-        window.location.href = kakaoURL;
+      await parseApiResponse(response, '임시 비밀번호를 전송하지 못했습니다.');
+      setResetPasswordSuccess(
+        '입력한 네이버 이메일로 임시 비밀번호를 전송했습니다. 이메일 또는 아이디와 임시 비밀번호로 로그인해 주세요.'
+      );
+      setForm((current) => ({
+        ...current,
+        userId: resetPasswordForm.email,
+        password: '',
+      }));
+    } catch (requestError) {
+      setResetPasswordError(requestError.message || '임시 비밀번호를 전송하지 못했습니다.');
+    } finally {
+      setSendingTemporaryPassword(false);
     }
+  }
 
-    function handleNaverLogin() {
-        const CLIENT_ID = '네이버_CLIENT_ID';
-        const REDIRECT_URI = 'http://localhost:3000/naver/callback';
-        const STATE = Math.random().toString(36).substring(2); // 보안용
+  function openFindIdModal() {
+    setFindIdForm(INITIAL_FIND_ID_FORM);
+    setFindIdError('');
+    setFoundUserId('');
+    setIsFindIdOpen(true);
+  }
 
-        const naverURL = `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&state=${STATE}`;
+  function closeFindIdModal() {
+    setIsFindIdOpen(false);
+    setFindIdError('');
+    setFoundUserId('');
+    setFindingId(false);
+  }
 
-        window.location.href = naverURL;
-    }
+  function openResetPasswordModal() {
+    setResetPasswordForm(INITIAL_RESET_PASSWORD_FORM);
+    setResetPasswordError('');
+    setResetPasswordSuccess('');
+    setIsResetPasswordOpen(true);
+  }
 
-    function handleGoogleLogin() {
-        const CLIENT_ID = '구글_CLIENT_ID';
-        const REDIRECT_URI = 'http://localhost:3000/google/callback';
+  function closeResetPasswordModal() {
+    setIsResetPasswordOpen(false);
+    setResetPasswordError('');
+    setResetPasswordSuccess('');
+    setSendingTemporaryPassword(false);
+  }
 
-        const googleURL = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=openid%20email%20profile`;
+  function goToSignup() {
+    window.location.hash = '#/signup';
+  }
 
-        window.location.href = googleURL;
-    }
+  function redirectToSocialLogin(url) {
+    window.location.href = url;
+  }
 
-    return (
-        <div className="page-shell">
+  function handleKakaoLogin() {
+    const restApiKey =
+      process.env.REACT_APP_KAKAO_REST_API_KEY || '여기에_카카오_REST_API_KEY';
+    const redirectUri =
+      process.env.REACT_APP_KAKAO_REDIRECT_URI || 'http://localhost:3000/kakao/callback';
 
-            <header className="top-nav">
-                <a className="logo" href={DEFAULT_ROUTE}>
-                    <span className="logo-mark"></span>
-                    <span>LOGO</span>
-                </a>
+    const kakaoUrl =
+      'https://kauth.kakao.com/oauth/authorize' +
+      `?client_id=${restApiKey}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      '&response_type=code';
 
-                <nav className="nav-links">
-                    <a className="nav-link" href="#">시세분석</a>
-                    <a className="nav-link" href="#">상품</a>
-                    <a className="nav-link" href="#">레시피</a>
-                    <a className="nav-link" href="#">추천</a>
-                    <a className="nav-link" href="#">마이페이지</a>
-                </nav>
+    redirectToSocialLogin(kakaoUrl);
+  }
 
-                <div className="nav-actions">
-                    <button
-                        className="btn-outline"
-                        onClick={() => window.location.hash = '#/login'}
-                    >
-                        로그인
-                    </button>
+  function handleNaverLogin() {
+    const clientId =
+      process.env.REACT_APP_NAVER_CLIENT_ID || '네이버_CLIENT_ID';
+    const redirectUri =
+      process.env.REACT_APP_NAVER_REDIRECT_URI || 'http://localhost:3000/naver/callback';
+    const state = Math.random().toString(36).slice(2);
 
-                    <button
-                        className="btn"
-                        onClick={() => window.location.hash = '#/signup'}
-                    >
-                        가입
-                    </button>
+    const naverUrl =
+      'https://nid.naver.com/oauth2.0/authorize' +
+      `?response_type=code&client_id=${clientId}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&state=${state}`;
+
+    redirectToSocialLogin(naverUrl);
+  }
+
+  function handleGoogleLogin() {
+    const clientId =
+      process.env.REACT_APP_GOOGLE_CLIENT_ID || '구글_CLIENT_ID';
+    const redirectUri =
+      process.env.REACT_APP_GOOGLE_REDIRECT_URI || 'http://localhost:3000/google/callback';
+
+    const googleUrl =
+      'https://accounts.google.com/o/oauth2/v2/auth' +
+      `?client_id=${clientId}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      '&response_type=code' +
+      `&scope=${encodeURIComponent('openid email profile')}`;
+
+    redirectToSocialLogin(googleUrl);
+  }
+
+  return (
+    <div className="page-shell">
+      <main className="container">
+        <section className="auth-wrap">
+          <article className="auth-brand">
+            <span className="eyebrow">oneulFarm 로그인</span>
+            <h1>
+              오늘 장보기를
+              <br />
+              <span className="accent">계속 이어가세요</span>
+            </h1>
+            <p className="muted">
+              로그인하면 주문 내역, 절약 금액, 추천 상품을 한곳에서 확인할 수 있습니다.
+            </p>
+
+            <ul>
+              <li>절약 금액 자동 집계</li>
+              <li>주문 및 배송 상태 확인</li>
+              <li>구매 이력 기반 맞춤 추천</li>
+            </ul>
+
+            <div className="empty-illustration" style={{ marginTop: '24px' }}>
+              오늘의 장보기 흐름을 이어서 확인해보세요
+            </div>
+          </article>
+
+          <article className="auth-form">
+            <div className="card-title" style={{ fontSize: '28px', marginBottom: '24px' }}>
+              로그인
+            </div>
+
+            <form onSubmit={handleSubmit}>
+              <div className="field">
+                <label>아이디 또는 이메일</label>
+                <input
+                  className="input"
+                  type="text"
+                  name="userId"
+                  placeholder="아이디 또는 이메일을 입력해 주세요"
+                  value={form.userId}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div className="field">
+                <label>비밀번호</label>
+                <input
+                  className="input"
+                  type="password"
+                  name="password"
+                  placeholder="비밀번호를 입력해 주세요"
+                  value={form.password}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div className="help-row">
+                <span
+                  className="help-link"
+                  onClick={openFindIdModal}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      openFindIdModal();
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                >
+                  아이디 찾기
+                </span>
+                <span
+                  className="help-link"
+                  onClick={openResetPasswordModal}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      openResetPasswordModal();
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                >
+                  비밀번호 찾기
+                </span>
+              </div>
+
+              {error ? <div className="notice">{error}</div> : null}
+
+              <button
+                className="btn"
+                type="submit"
+                style={{ width: '100%', marginTop: '20px' }}
+                disabled={submitting}
+              >
+                {submitting ? '로그인 중...' : '로그인'}
+              </button>
+            </form>
+
+            <div className="auth-divider">간편로그인</div>
+
+            <div className="social-grid">
+              <button className="social-btn kakao" type="button" onClick={handleKakaoLogin}>
+                카카오
+              </button>
+              <button className="social-btn naver" type="button" onClick={handleNaverLogin}>
+                네이버
+              </button>
+              <button className="social-btn google" type="button" onClick={handleGoogleLogin}>
+                구글
+              </button>
+            </div>
+
+            <p className="card-sub" style={{ marginTop: '18px', textAlign: 'center' }}>
+              아직 계정이 없나요?{' '}
+              <span
+                onClick={goToSignup}
+                style={{ color: 'var(--green)', fontWeight: 800, cursor: 'pointer' }}
+              >
+                회원가입
+              </span>
+            </p>
+          </article>
+        </section>
+      </main>
+
+      {isFindIdOpen ? (
+        <div className="auth-modal-backdrop" onClick={closeFindIdModal}>
+          <div className="auth-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="auth-modal__head">
+              <div>
+                <div className="card-title">아이디 찾기</div>
+                <div className="card-sub">가입한 이메일과 연락처를 입력해 주세요.</div>
+              </div>
+              <button className="btn-outline" type="button" onClick={closeFindIdModal}>
+                닫기
+              </button>
+            </div>
+
+            <form onSubmit={handleFindIdSubmit}>
+              <div className="field">
+                <label>이메일</label>
+                <input
+                  className="input"
+                  type="email"
+                  name="email"
+                  placeholder="가입한 이메일"
+                  value={findIdForm.email}
+                  onChange={handleFindIdChange}
+                  required
+                />
+              </div>
+
+              <div className="field">
+                <label>연락처</label>
+                <input
+                  className="input"
+                  type="text"
+                  name="phone"
+                  placeholder="가입한 연락처"
+                  value={findIdForm.phone}
+                  onChange={handleFindIdChange}
+                  required
+                />
+              </div>
+
+              {findIdError ? <div className="notice">{findIdError}</div> : null}
+
+              {foundUserId ? (
+                <div className="auth-result">
+                  찾은 아이디: <strong>{foundUserId}</strong>
                 </div>
-            </header>
+              ) : null}
 
-            <main className="container">
-
-                <section className="auth-wrap">
-
-                    <article className="auth-brand">
-                        <span className="eyebrow">Farmly 로그인</span>
-                        <h1>
-                            시세 기반 장보기를<br />
-                            <span className="accent">계속 이어가세요</span>
-                        </h1>
-                        <p className="muted">
-                            로그인하면 절약 금액, 주문 내역, 레시피 추천을 모두 저장할 수 있어요.
-                        </p>
-
-                        <ul>
-                            <li>누적 절약 금액 자동 집계</li>
-                            <li>주문 내역과 배송 상태 확인</li>
-                            <li>최근 구매 재료 기반 레시피 추천</li>
-                        </ul>
-
-                        <div className="empty-illustration" style={{ marginTop: '24px' }}>
-                            브랜드 일러스트 영역
-                        </div>
-                    </article>
-
-                    <article className="auth-form">
-                        <div className="card-title" style={{ fontSize: '28px', marginBottom: '24px' }}>로그인</div>
-
-                        <form onSubmit={handleSubmit}>
-                            <div className="field">
-                                <label>아이디</label>
-                                <input
-                                    className="input"
-                                    type="text"
-                                    placeholder="아이디 입력"
-                                    value={username}
-                                    onChange={e => setUsername(e.target.value)}
-                                    required
-                                />
-                            </div>
-
-                            <div className="field">
-                                <label>비밀번호</label>
-                                <input
-                                    className="input"
-                                    type="password"
-                                    placeholder="비밀번호를 입력하세요"
-                                    value={password}
-                                    onChange={e => setPassword(e.target.value)}
-                                    required
-                                />
-                            </div>
-
-                            <div className="help-row">
-                                <label>
-                                    <input type="checkbox" /> 로그인 유지
-                                </label>
-                                <span style={{ cursor: 'pointer' }}>비밀번호 찾기</span>
-                            </div>
-
-                            <button className="btn" type="submit" style={{ width: '100%', marginTop: '20px' }}>
-                                로그인
-                            </button>
-                        </form>
-
-                        <div className="auth-divider">간편로그인</div>
-
-                        <div className="social-grid">
-                            <div className="social-btn kakao" onClick={handleKakaoLogin}>카카오</div>
-                            <div className="social-btn naver" onClick={handleNaverLogin}>네이버</div>
-                            <div className="social-btn google" onClick={handleGoogleLogin}>구글</div>
-                        </div>
-
-                        <p className="card-sub" style={{ marginTop: '18px', textAlign: 'center' }}>
-                            계정이 없나요?{' '}
-                            <span
-                                onClick={goToSignup}
-                                style={{ color: 'var(--green)', fontWeight: 800, cursor: 'pointer' }}
-                            >
-                                회원가입
-                            </span>
-                        </p>
-                    </article>
-
-                </section>
-
-            </main>
-
+              <div className="page-actions" style={{ marginTop: '20px' }}>
+                <button className="btn" type="submit" disabled={findingId}>
+                  {findingId ? '조회 중...' : '아이디 찾기'}
+                </button>
+                {foundUserId ? (
+                  <button className="btn-outline" type="button" onClick={closeFindIdModal}>
+                    확인
+                  </button>
+                ) : null}
+              </div>
+            </form>
+          </div>
         </div>
-    );
+      ) : null}
+
+      {isResetPasswordOpen ? (
+        <div className="auth-modal-backdrop" onClick={closeResetPasswordModal}>
+          <div className="auth-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="auth-modal__head">
+              <div>
+                <div className="card-title">비밀번호 찾기</div>
+                <div className="card-sub">네이버 이메일로 임시 비밀번호를 전송합니다.</div>
+              </div>
+              <button className="btn-outline" type="button" onClick={closeResetPasswordModal}>
+                닫기
+              </button>
+            </div>
+
+            <form onSubmit={handleResetPasswordSubmit}>
+              <div className="field">
+                <label>네이버 이메일</label>
+                <input
+                  className="input"
+                  type="email"
+                  name="email"
+                  placeholder="example@naver.com"
+                  value={resetPasswordForm.email}
+                  onChange={handleResetPasswordChange}
+                  required
+                />
+              </div>
+
+              {resetPasswordError ? <div className="notice">{resetPasswordError}</div> : null}
+              {resetPasswordSuccess ? (
+                <div className="auth-result">{resetPasswordSuccess}</div>
+              ) : null}
+
+              <div className="page-actions" style={{ marginTop: '20px' }}>
+                <button className="btn" type="submit" disabled={sendingTemporaryPassword}>
+                  {sendingTemporaryPassword ? '전송 중...' : '임시 비밀번호 받기'}
+                </button>
+                {resetPasswordSuccess ? (
+                  <button className="btn-outline" type="button" onClick={closeResetPasswordModal}>
+                    확인
+                  </button>
+                ) : null}
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 }
