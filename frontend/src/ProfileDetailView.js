@@ -125,27 +125,27 @@ function ProfileDetailView({
 
                     {isEditing ? (
                       <form className="profile-inline-editor" onSubmit={(event) => handleProfileRowSubmit(item.key, event)}>
-                        <div className="profile-inline-editor__field">
-                          <input
-                            name={item.key}
-                            value={profileForm[item.key]}
-                            onChange={onProfileFormChange}
-                            placeholder={`${item.label}을 입력해 주세요.`}
-                          />
-                        </div>
+                        <div className="profile-inline-editor__top">
+                          <div className="profile-inline-editor__field">
+                            <input
+                              name={item.key}
+                              value={profileForm[item.key]}
+                              onChange={onProfileFormChange}
+                              placeholder={`${item.label}을 입력해 주세요.`}
+                            />
+                          </div>
 
-                        {showDuplicateCheck && (
-                          <div className="profile-inline-row__actions">
+                          {showDuplicateCheck && (
                             <button
                               type="button"
-                              className="btn-outline"
+                              className="btn-outline profile-inline-editor__check"
                               disabled={duplicateInfo?.checking}
                               onClick={() => onDuplicateCheck(item.key)}
                             >
                               {duplicateInfo?.checking ? '확인 중...' : '중복 확인'}
                             </button>
-                          </div>
-                        )}
+                          )}
+                        </div>
 
                         {showDuplicateCheck && duplicateInfo?.message && (
                           <div className={`form-error ${duplicateInfo.available ? 'form-error--success' : ''}`}>

@@ -1023,6 +1023,13 @@
   gap: 12px;
 }
 
+.account-app .profile-inline-editor__top{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
 .account-app .profile-inline-editor__field input{
   width: 100%;
   border: 1px solid var(--line);
@@ -1037,6 +1044,11 @@
   outline: none;
   border-color: rgba(21, 154, 85, 0.6);
   box-shadow: 0 0 0 4px rgba(21, 154, 85, 0.08);
+}
+
+.account-app .profile-inline-editor__check{
+  white-space: nowrap;
+  min-width: 116px;
 }
 
 .account-app .profile-inline-editor--password{
@@ -1193,6 +1205,10 @@
 
   .account-app .profile-inline-row,
 .account-app .profile-inline-row.is-editing{
+    grid-template-columns: 1fr;
+  }
+
+  .account-app .profile-inline-editor__top{
     grid-template-columns: 1fr;
   }
 

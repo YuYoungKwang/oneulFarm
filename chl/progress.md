@@ -237,6 +237,7 @@
 - `AccountApp.js`, `MyPageView.js`, `OrdersView.js`, `ProfileDetailView.js`, `AddressModal.js`, `DashboardView.js`, `OrderDetailPanel.js`, `appUtils.js`, `MainNav.js`, `mockData.js` UTF-8 기준으로 재정리
 - 주문관리 상단 히어로 카드 제거로 화면 밀도 완화
 - 마이페이지 찜/리뷰 탭을 `연동 예정` 상태에 맞게 톤다운
+- 상세 개인정보 수정 시 입력창과 중복 확인 버튼을 같은 줄에 배치하도록 인라인 편집 레이아웃 조정
 - `account.css`에 비활성 버튼 스타일 보강
 - `progress.md`, `implementation_plan.md` 재정리 필요 상태 확인
 - `cmd /c npm run build` 통과
