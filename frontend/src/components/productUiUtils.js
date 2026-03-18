@@ -26,12 +26,13 @@ export function formatPercent(value) {
 
 export function parseHash(hash) {
   const normalized = hash.replace(/^#/, '').trim();
+  const [hashPath] = normalized.split('?');
 
-  if (!normalized || normalized === '/') {
+  if (!hashPath || hashPath === '/') {
     return { page: 'products' };
   }
 
-  const segments = normalized.split('/').filter(Boolean);
+  const segments = hashPath.split('/').filter(Boolean);
 
   if (segments[0] === 'cart') {
     return { page: 'cart' };
@@ -39,6 +40,14 @@ export function parseHash(hash) {
 
   if (segments[0] === 'checkout') {
     return { page: 'checkout' };
+  }
+
+  if (segments[0] === 'payment-success') {
+    return { page: 'payment-success' };
+  }
+
+  if (segments[0] === 'payment-fail') {
+    return { page: 'payment-fail' };
   }
 
   if (segments[0] === 'order-complete' && segments[1]) {
@@ -53,6 +62,18 @@ export function parseHash(hash) {
       page: 'orders',
       orderId: segments[1] ? decodeURIComponent(segments[1]) : null,
     };
+  }
+
+  if (segments[0] === 'recipes' && segments[1]) {
+    const recipeNo = Number(segments[1]);
+
+    return Number.isNaN(recipeNo)
+      ? { page: 'recipes' }
+      : { page: 'recipe-detail', recipeNo };
+  }
+
+  if (segments[0] === 'recipes') {
+    return { page: 'recipes' };
   }
 
   if (segments[0] === 'products' && segments[1]) {
@@ -71,11 +92,13 @@ export function navigateToHash(hash) {
 }
 
 export function getSavingAmount(product) {
-  return Math.max(product.priceSnapshot.avgPrice - product.salePrice, 0);
+  const averagePrice = Number(product?.priceSnapshot?.avgPrice || 0);
+  const salePrice = Number(product?.salePrice || 0);
+  return Math.max(averagePrice - salePrice, 0);
 }
 
 export function getDiscountRate(product) {
-  return product.priceMatch.savingRate;
+  return Number(product?.priceMatch?.savingRate || 0);
 }
 
 export function getBadgeLabel(product) {
@@ -119,7 +142,13 @@ export function getPriceRange(price) {
 }
 
 export function isSingleHouseholdFriendly(product) {
-  return product.recommendedFor.includes('1인 가구 추천');
+  if (typeof product?.isSingleFriendly === 'boolean') {
+    return product.isSingleFriendly;
+  }
+
+  return Array.isArray(product?.recommendedFor)
+    ? product.recommendedFor.includes('Single Friendly')
+    : false;
 }
 
 export function applyFilters(products, filters, searchKeyword) {
@@ -183,7 +212,7 @@ export function applyFilters(products, filters, searchKeyword) {
       return new Date(right.createdAt) - new Date(left.createdAt);
     }
 
-    return right.featuredScore - left.featuredScore;
+    return (right.featuredScore || 0) - (left.featuredScore || 0);
   });
 
   return filteredProducts;

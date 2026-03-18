@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cartMapper">
+
+    <sql id="LatestMatchCte">
+        WITH latest_match AS (
+            SELECT
+                ppm.PRODUCT_NO,
+                ps.AVG_PRICE,
+                ppm.SAVING_RATE,
+                ROW_NUMBER() OVER (
+                    PARTITION BY ppm.PRODUCT_NO
+                    ORDER BY ps.SNAPSHOT_DATE DESC, ps.SNAPSHOT_NO DESC
+                ) AS rn
+            FROM OFT_PRODUCT_PRICE_MATCH ppm
+            JOIN OFT_PRICE_SNAPSHOT ps
+                ON ps.SNAPSHOT_NO = ppm.SNAPSHOT_NO
+        )
+    </sql>
+
+    <select id="selectCartNoByUser" parameterType="long" resultType="long">
+        SELECT CART_NO
+        FROM OFT_CART
+        WHERE USER_NO = #{_parameter}
+        FETCH FIRST 1 ROWS ONLY
+    </select>
+
+    <insert id="insertCart" parameterType="long">
+        INSERT INTO OFT_CART (USER_NO)
+        VALUES (#{_parameter})
+    </insert>
+
+    <select id="selectCartItems" parameterType="long" resultType="com.app.dto.CartItemDto">
+        <include refid="LatestMatchCte" />
+        SELECT
+            ci.CART_ITEM_NO AS cartItemNo,
+            c.CART_NO AS cartNo,
+            ci.PRODUCT_NO AS productNo,
+            p.PRODUCT_NAME AS productName,
+            p.SALE_PRICE AS salePrice,
+            p.STOCK_QTY AS stockQty,
+            p.SALE_STATUS AS saleStatus,
+            lm.AVG_PRICE AS avgPrice,
+            lm.SAVING_RATE AS savingRate,
+            GREATEST(NVL(lm.AVG_PRICE, 0) - p.SALE_PRICE, 0) * ci.QUANTITY AS savedAmount,
+            ci.QUANTITY AS quantity
+        FROM OFT_CART c
+        JOIN OFT_CART_ITEM ci
+            ON ci.CART_NO = c.CART_NO
+        JOIN OFT_PRODUCT p
+            ON p.PRODUCT_NO = ci.PRODUCT_NO
+        LEFT JOIN latest_match lm
+            ON lm.PRODUCT_NO = p.PRODUCT_NO
+           AND lm.rn = 1
+        WHERE c.USER_NO = #{_parameter}
+        ORDER BY ci.CREATED_AT ASC, ci.CART_ITEM_NO ASC
+    </select>
+
+    <select id="selectCartItem" parameterType="map" resultType="com.app.dto.CartItemDto">
+        SELECT
+            ci.CART_ITEM_NO AS cartItemNo,
+            c.CART_NO AS cartNo,
+            ci.PRODUCT_NO AS productNo,
+            ci.QUANTITY AS quantity
+        FROM OFT_CART c
+        JOIN OFT_CART_ITEM ci
+            ON ci.CART_NO = c.CART_NO
+        WHERE c.USER_NO = #{userNo}
+          AND ci.PRODUCT_NO = #{productNo}
+    </select>
+
+    <insert id="insertCartItem" parameterType="map">
+        INSERT INTO OFT_CART_ITEM (CART_NO, PRODUCT_NO, QUANTITY)
+        VALUES (#{cartNo}, #{productNo}, #{quantity})
+    </insert>
+
+    <update id="updateCartItemQuantity" parameterType="map">
+        UPDATE OFT_CART_ITEM
+        SET QUANTITY = #{quantity}
+        WHERE CART_NO = #{cartNo}
+          AND PRODUCT_NO = #{productNo}
+    </update>
+
+    <delete id="deleteCartItem" parameterType="map">
+        DELETE FROM OFT_CART_ITEM
+        WHERE CART_NO = #{cartNo}
+          AND PRODUCT_NO = #{productNo}
+    </delete>
+
+    <delete id="deleteAllCartItems" parameterType="long">
+        DELETE FROM OFT_CART_ITEM
+        WHERE CART_NO = #{_parameter}
+    </delete>
+
+</mapper>

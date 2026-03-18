@@ -4,7 +4,7 @@ import { CartIcon, SearchIcon } from './ProductIcons';
 const NAV_ITEMS = [
   { id: 'market', label: '시세분석', hash: '#/dashboard', section: null },
   { id: 'products', label: '상품', hash: '#/products', section: 'products' },
-  { id: 'recipes', label: '레시피', hash: '#/products', section: null },
+  { id: 'recipes', label: '레시피', hash: '#/recipes', section: 'recipes' },
   { id: 'recommend', label: '추천', hash: '#/products', section: null },
   { id: 'dashboard', label: '대시보드', hash: '#/dashboard', section: 'dashboard' },
   { id: 'mypage', label: '마이페이지', hash: '#/mypage', section: 'mypage' },
