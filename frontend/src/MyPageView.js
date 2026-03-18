@@ -78,7 +78,7 @@ function MyPageView({
           <div className="savings-highlight">
             <div className="savings-highlight__label">누적 절약 금액</div>
             <div className="savings-highlight__value">{profileLoading ? '불러오는 중...' : totalSavedAmountLabel}</div>
-            <div className="savings-highlight__sub">오늘의농장에서 시장 평균가 대비 아낀 금액입니다.</div>
+            <div className="savings-highlight__sub">오늘농부에서 시장 평균가 대비 아낀 누적 금액입니다.</div>
           </div>
 
           {recentOrder ? (
@@ -158,57 +158,81 @@ function MyPageView({
       )}
 
       {activeTab === 'reviews' && (
-        <section className="section grid-2">
-          <article className="card">
+        <section className="section review-stack">
+          <article className="card review-panel">
             <div className="section-head">
               <div>
                 <div className="card-title">작성 가능한 리뷰</div>
                 <div className="section-sub">
-                  주문 상품과의 실제 연동 전까지는 준비 상태로 유지합니다.
+                  주문 상품과의 실제 연동 전까지는 준비 상태로 유지됩니다.
                 </div>
               </div>
               <span className="badge green">연동 예정</span>
             </div>
-            <div className="insight-list">
+
+            <div className="review-card-list">
               {writableReviews.map((review) => (
-                <div key={review.name} className="insight-item insight-item--review">
-                  <div className="thumb-mini">{review.emoji}</div>
-                  <div>
-                    <strong>{review.name}</strong>
-                    <span>{review.orderId} / {review.date}</span>
+                <article key={`${review.orderId}-${review.name}`} className="review-card review-card--draft">
+                  <div className="review-card__media">
+                    <div className="thumb-mini">{review.emoji}</div>
                   </div>
-                  <button type="button" className="btn btn-disabled" disabled>
-                    리뷰 작성 예정
-                  </button>
-                </div>
+                  <div className="review-card__body">
+                    <div className="review-card__top">
+                      <div>
+                        <div className="review-card__title">{review.name}</div>
+                        <div className="review-card__meta">{review.orderId} · {review.date}</div>
+                      </div>
+                      <span className="review-status review-status--draft">리뷰 작성 가능</span>
+                    </div>
+                    <p className="review-card__text">
+                      상품 상태와 만족도를 기록할 수 있도록 리뷰 작성 흐름을 준비 중입니다.
+                    </p>
+                  </div>
+                  <div className="review-card__actions">
+                    <button type="button" className="btn btn-disabled" disabled>
+                      리뷰 작성 예정
+                    </button>
+                  </div>
+                </article>
               ))}
             </div>
           </article>
 
-          <article className="card">
+          <article className="card review-panel">
             <div className="section-head">
               <div>
                 <div className="card-title">내가 작성한 리뷰</div>
                 <div className="section-sub">
-                  리뷰 기능과 상품 화면이 정리되면 실제 데이터로 교체됩니다.
+                  리뷰 기능과 상품 화면을 정리하면 실제 데이터로 교체됩니다.
                 </div>
               </div>
               <span className="badge green">연동 예정</span>
             </div>
-            <div className="insight-list">
+
+            <div className="review-card-list">
               {myReviews.map((review) => (
-                <div key={review.name} className="insight-item insight-item--review">
-                  <div className="thumb-mini">{review.emoji}</div>
-                  <div>
-                    <strong>{review.name}</strong>
-                    <span>{review.rating} / {review.date}</span>
-                    <div className="section-sub">{review.content}</div>
+                <article key={`${review.name}-${review.date}`} className="review-card review-card--published">
+                  <div className="review-card__media">
+                    <div className="thumb-mini">{review.emoji}</div>
                   </div>
-                  <div className="review-buttons">
+                  <div className="review-card__body">
+                    <div className="review-card__top">
+                      <div>
+                        <div className="review-card__title">{review.name}</div>
+                        <div className="review-card__meta">{review.date}</div>
+                      </div>
+                      <span className="review-status review-status--published">작성 완료</span>
+                    </div>
+                    <div className="review-rating">{review.rating}</div>
+                    <div className="review-quote">
+                      {review.content}
+                    </div>
+                  </div>
+                  <div className="review-card__actions review-card__actions--stacked">
                     <button type="button" className="btn-outline btn-disabled" disabled>수정 예정</button>
                     <button type="button" className="btn line btn-disabled" disabled>삭제 예정</button>
                   </div>
-                </div>
+                </article>
               ))}
             </div>
           </article>

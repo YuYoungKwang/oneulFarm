@@ -423,6 +423,129 @@
   align-items: flex-start;
 }
 
+.account-app .review-panel{
+  display: grid;
+  gap: 20px;
+}
+
+.account-app .review-stack{
+  display: grid;
+  gap: 18px;
+}
+
+.account-app .review-card-list{
+  display: grid;
+  gap: 16px;
+}
+
+.account-app .review-card{
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(231, 235, 239, 0.9);
+  background: #fafbfc;
+}
+
+.account-app .review-card--draft{
+  background: linear-gradient(180deg, #fffdf6, #fffaf0);
+  border-color: rgba(229, 173, 34, 0.22);
+}
+
+.account-app .review-card--published{
+  background: linear-gradient(180deg, #f7fbf8, #fdfefe);
+  border-color: rgba(21, 154, 85, 0.16);
+}
+
+.account-app .review-card__media{
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.account-app .review-card__body{
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.account-app .review-card__top{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.account-app .review-card__title{
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.account-app .review-card__meta{
+  margin-top: 4px;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.account-app .review-card__text{
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.65;
+  color: #4b5563;
+}
+
+.account-app .review-status{
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.account-app .review-status--draft{
+  background: rgba(229, 173, 34, 0.14);
+  color: #946200;
+}
+
+.account-app .review-status--published{
+  background: rgba(21, 154, 85, 0.12);
+  color: #0f7a42;
+}
+
+.account-app .review-rating{
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #f59e0b;
+}
+
+.account-app .review-quote{
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(231, 235, 239, 0.9);
+  font-size: 16px;
+  line-height: 1.7;
+  color: #334155;
+}
+
+.account-app .review-card__actions{
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.account-app .review-card__actions--stacked{
+  flex-direction: column;
+  align-items: stretch;
+}
+
 .account-app .mini-recipes{
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1306,9 +1429,19 @@
 .account-app .detail-actions,
 .account-app .address-card__top,
 .account-app .profile-summary--spread,
-.account-app .profile-inline-row__actions{
+.account-app .profile-inline-row__actions,
+.account-app .review-card__top,
+.account-app .review-card__actions{
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .account-app .review-card{
+    grid-template-columns: 1fr;
+  }
+
+  .account-app .review-card__actions--stacked{
+    align-items: stretch;
   }
 
   .account-app .form-grid{
