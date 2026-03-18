@@ -64,9 +64,32 @@ public class AddressServiceImpl implements AddressService {
 
         addressDao.clearDefaultAddress(userNo);
         int updatedCount = addressDao.setDefaultAddress(userNo, addressNo);
-
         if (updatedCount == 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "기본 배송지 변경에 실패했습니다.");
+        }
+
+        return addressDao.findMyAddresses(userNo);
+    }
+
+    @Override
+    @Transactional
+    public List<UserAddressDto> deleteAddress(Long userNo, Long addressNo) {
+        UserAddressDto address = addressDao.findMyAddress(userNo, addressNo);
+        if (address == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "배송지 정보를 찾을 수 없습니다.");
+        }
+
+        int addressCount = addressDao.countMyAddresses(userNo);
+        if ("Y".equals(address.getIsDefault()) && addressCount > 1) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "기본 배송지는 바로 삭제할 수 없습니다. 다른 배송지를 먼저 기본 배송지로 변경해 주세요."
+            );
+        }
+
+        int deletedCount = addressDao.deleteAddress(userNo, addressNo);
+        if (deletedCount == 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "배송지 삭제에 실패했습니다.");
         }
 
         return addressDao.findMyAddresses(userNo);
@@ -77,7 +100,10 @@ public class AddressServiceImpl implements AddressService {
             || isBlank(request.getRecipientPhone())
             || isBlank(request.getZipCode())
             || isBlank(request.getAddress1())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "수령인, 연락처, 우편번호, 기본 주소는 필수입니다.");
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "수령인, 연락처, 우편번호, 기본 주소는 필수입니다."
+            );
         }
     }
 

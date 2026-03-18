@@ -168,6 +168,17 @@
   padding: 12px 18px;
 }
 
+.btn.line.btn-danger-line {
+  border-color: #fecaca;
+  color: #b91c1c;
+  background: #fff5f5;
+}
+
+.btn.line.btn-danger-line:hover {
+  border-color: #fca5a5;
+  background: #fee2e2;
+}
+
 .btn-text {
   margin-top: 12px;
   padding: 0;
@@ -839,6 +850,14 @@
   justify-content: space-between;
   gap: 12px;
   align-items: flex-start;
+}
+
+.address-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .address-card__body {

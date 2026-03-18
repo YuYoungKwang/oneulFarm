@@ -80,6 +80,7 @@ function App() {
   const [addressesLoading, setAddressesLoading] = useState(false);
   const [addressesError, setAddressesError] = useState('');
   const [changingAddressNo, setChangingAddressNo] = useState(null);
+  const [deletingAddressNo, setDeletingAddressNo] = useState(null);
   const [addressForm, setAddressForm] = useState(EMPTY_ADDRESS_FORM);
   const [addressFormError, setAddressFormError] = useState('');
   const [addressSubmitting, setAddressSubmitting] = useState(false);
@@ -295,6 +296,7 @@ function App() {
     setIsAddressModalOpen(false);
     setAddressesError('');
     setChangingAddressNo(null);
+    setDeletingAddressNo(null);
     setAddressFormError('');
     setAddressSubmitting(false);
     setIsAddressFormOpen(false);
@@ -366,6 +368,38 @@ function App() {
       setAddressesError(error.message || '기본 배송지 변경에 실패했습니다.');
     } finally {
       setChangingAddressNo(null);
+    }
+  }
+
+  async function handleDeleteAddress(addressNo) {
+    const shouldDelete = window.confirm('이 배송지를 삭제할까요?');
+    if (!shouldDelete) {
+      return;
+    }
+
+    setDeletingAddressNo(addressNo);
+    setAddressesError('');
+
+    try {
+      const response = await fetch(`${ADDRESS_API_BASE}/${addressNo}`, {
+        method: 'DELETE',
+        headers: { 'X-USER-NO': DEMO_USER_NO },
+      });
+
+      const payload = await parseResponse(response, '배송지 삭제에 실패했습니다.');
+      setAddresses(Array.isArray(payload.data) ? payload.data : []);
+
+      const profileResponse = await fetch(`${USER_API_BASE}/me`, {
+        headers: { 'X-USER-NO': DEMO_USER_NO },
+      });
+      const profilePayload = await parseResponse(profileResponse, '회원정보를 불러오지 못했습니다.');
+      if (profilePayload.data) {
+        setProfile({ ...EMPTY_PROFILE, ...profilePayload.data });
+      }
+    } catch (error) {
+      setAddressesError(error.message || '배송지 삭제에 실패했습니다.');
+    } finally {
+      setDeletingAddressNo(null);
     }
   }
 
@@ -465,12 +499,14 @@ function App() {
         loading={addressesLoading}
         error={addressesError}
         changingAddressNo={changingAddressNo}
+        deletingAddressNo={deletingAddressNo}
         isFormOpen={isAddressFormOpen}
         form={addressForm}
         formError={addressFormError}
         submitting={addressSubmitting}
         onClose={closeAddressModal}
         onChangeDefault={handleChangeDefaultAddress}
+        onDeleteAddress={handleDeleteAddress}
         onToggleForm={handleToggleAddressForm}
         onFormChange={handleAddressFormChange}
         onFormSubmit={handleAddressFormSubmit}

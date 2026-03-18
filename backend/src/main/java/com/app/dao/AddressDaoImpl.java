@@ -34,6 +34,14 @@ public class AddressDaoImpl implements AddressDao {
     }
 
     @Override
+    public UserAddressDto findMyAddress(Long userNo, Long addressNo) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("userNo", userNo);
+        params.put("addressNo", addressNo);
+        return sqlSessionTemplate.selectOne(NAMESPACE + "selectMyAddress", params);
+    }
+
+    @Override
     public int countMyAddresses(Long userNo) {
         Integer count = sqlSessionTemplate.selectOne(NAMESPACE + "countMyAddresses", userNo);
         return count == null ? 0 : count;
@@ -65,5 +73,13 @@ public class AddressDaoImpl implements AddressDao {
         params.put("userNo", userNo);
         params.put("addressNo", addressNo);
         return sqlSessionTemplate.update(NAMESPACE + "setDefaultAddress", params);
+    }
+
+    @Override
+    public int deleteAddress(Long userNo, Long addressNo) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("userNo", userNo);
+        params.put("addressNo", addressNo);
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteAddress", params);
     }
 }

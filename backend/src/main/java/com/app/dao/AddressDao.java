@@ -18,4 +18,8 @@ public interface AddressDao {
     int clearDefaultAddress(Long userNo);
 
     int setDefaultAddress(Long userNo, Long addressNo);
+
+    UserAddressDto findMyAddress(Long userNo, Long addressNo);
+
+    int deleteAddress(Long userNo, Long addressNo);
 }

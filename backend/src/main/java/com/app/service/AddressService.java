@@ -12,4 +12,6 @@ public interface AddressService {
     List<UserAddressDto> addAddress(Long userNo, CreateAddressRequestDto request);
 
     List<UserAddressDto> changeDefaultAddress(Long userNo, Long addressNo);
+
+    List<UserAddressDto> deleteAddress(Long userNo, Long addressNo);
 }

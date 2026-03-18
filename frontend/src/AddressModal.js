@@ -4,12 +4,14 @@ function AddressModal({
   loading,
   error,
   changingAddressNo,
+  deletingAddressNo,
   isFormOpen,
   form,
   formError,
   submitting,
   onClose,
   onChangeDefault,
+  onDeleteAddress,
   onToggleForm,
   onFormChange,
   onFormSubmit,
@@ -27,12 +29,12 @@ function AddressModal({
         onClick={(event) => event.stopPropagation()}
       >
         <div className="section-head modal-head modal-head--sticky">
-          <div>
-            <div className="section-title">배송지 관리</div>
-            <div className="section-sub">
-              배송지 목록을 확인하고 기본 배송지를 변경하거나 새 배송지를 등록할 수 있습니다.
+            <div>
+              <div className="section-title">배송지 관리</div>
+              <div className="section-sub">
+              배송지 목록을 확인하고, 기본 배송지를 변경하거나 배송지를 추가 및 삭제할 수 있습니다.
+              </div>
             </div>
-          </div>
           <div className="page-actions">
             {isFormOpen ? (
               <button type="button" className="btn-outline" onClick={onToggleForm}>
@@ -159,18 +161,30 @@ function AddressModal({
                           {address.recipientName} / {address.recipientPhone}
                         </div>
                       </div>
-                      {address.isDefault === 'Y' ? (
-                        <span className="badge green">기본 배송지</span>
-                      ) : (
+                      <div className="address-card__actions">
+                        {address.isDefault === 'Y' ? (
+                          <span className="badge green">기본 배송지</span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn-outline"
+                            disabled={
+                              changingAddressNo === address.addressNo || deletingAddressNo === address.addressNo
+                            }
+                            onClick={() => onChangeDefault(address.addressNo)}
+                          >
+                            {changingAddressNo === address.addressNo ? '변경 중..' : '기본으로 설정'}
+                          </button>
+                        )}
                         <button
                           type="button"
-                          className="btn-outline"
-                          disabled={changingAddressNo === address.addressNo}
-                          onClick={() => onChangeDefault(address.addressNo)}
+                          className="btn line btn-danger-line"
+                          disabled={deletingAddressNo === address.addressNo}
+                          onClick={() => onDeleteAddress(address.addressNo)}
                         >
-                          {changingAddressNo === address.addressNo ? '변경 중..' : '기본으로 설정'}
+                          {deletingAddressNo === address.addressNo ? '삭제 중..' : '삭제'}
                         </button>
-                      )}
+                      </div>
                     </div>
 
                     <div className="address-card__body">

@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -43,11 +44,22 @@ public class AddressController {
     @PatchMapping("/{addressNo}/default")
     public ApiResponse<List<UserAddressDto>> changeDefaultAddress(
         @RequestHeader("X-USER-NO") Long userNo,
-        @PathVariable Long addressNo
+        @PathVariable("addressNo") Long addressNo
     ) {
         return ApiResponse.success(
             addressService.changeDefaultAddress(userNo, addressNo),
             "기본 배송지 변경 성공"
+        );
+    }
+
+    @DeleteMapping("/{addressNo}")
+    public ApiResponse<List<UserAddressDto>> deleteAddress(
+        @RequestHeader("X-USER-NO") Long userNo,
+        @PathVariable("addressNo") Long addressNo
+    ) {
+        return ApiResponse.success(
+            addressService.deleteAddress(userNo, addressNo),
+            "배송지 삭제 성공"
         );
     }
 }
