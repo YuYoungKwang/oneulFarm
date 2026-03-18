@@ -11,9 +11,7 @@ function resolveAppFromHash(hash) {
   }
 
   const [firstSegment] = normalized.split('/');
-  return firstSegment === 'dashboard' || firstSegment === 'mypage'
-    ? 'account'
-    : 'product';
+  return ['dashboard', 'mypage', 'orders'].includes(firstSegment) ? 'account' : 'product';
 }
 
 function resolveActiveSection(hash) {
@@ -23,10 +21,7 @@ function resolveActiveSection(hash) {
     return 'recipes';
   }
 
-  if (
-    normalized.startsWith('orders') ||
-    normalized.startsWith('mypage')
-  ) {
+  if (normalized.startsWith('orders') || normalized.startsWith('mypage')) {
     return 'mypage';
   }
 

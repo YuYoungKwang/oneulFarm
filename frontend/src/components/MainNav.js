@@ -14,11 +14,7 @@ function navigateTo(hash) {
   window.location.hash = hash;
 }
 
-function MainNav({
-  activeSection,
-  cartCount = 0,
-  onOpenCart,
-}) {
+function MainNav({ activeSection, cartCount = 0, onOpenCart }) {
   return (
     <header className="main-nav-shell">
       <div className="main-nav">

@@ -38,23 +38,15 @@ export function formatDateTime(value) {
   });
 }
 
-export function getMonthlyHeight() {
-  return '0%';
-}
-
-export function getProductWidth() {
-  return '0%';
-}
-
 export function getDeliveryBadgeClass(status) {
   return status === 'DELIVERED' ? 'done' : 'ready';
 }
 
 export function getDeliveryLabel(status) {
   const labels = {
-    READY: '배송준비',
-    SHIPPING: '배송중',
-    DELIVERED: '배송완료',
+    READY: '배송 준비',
+    SHIPPING: '배송 중',
+    DELIVERED: '배송 완료',
   };
 
   return labels[status] || status || '-';
@@ -64,7 +56,7 @@ export function getOrderStats(orders) {
   return {
     totalCount: orders.length,
     shippingCount: orders.filter(
-      (order) => order.deliveryStatus === 'SHIPPING' || order.deliveryStatus === 'READY',
+      (order) => order.deliveryStatus === 'SHIPPING' || order.deliveryStatus === 'READY'
     ).length,
     deliveredCount: orders.filter((order) => order.deliveryStatus === 'DELIVERED').length,
     totalSavedAmount: orders.reduce((sum, order) => sum + Number(order.totalSavedAmount || 0), 0),
@@ -81,6 +73,7 @@ export function getScaledHeight(value, items, key = 'value') {
   if (maxValue === 0) {
     return '0%';
   }
+
   return `${(Number(value || 0) / maxValue) * 100}%`;
 }
 
@@ -89,6 +82,7 @@ export function getScaledWidth(value, items, key = 'value') {
   if (maxValue === 0) {
     return '0%';
   }
+
   return `${(Number(value || 0) / maxValue) * 100}%`;
 }
 

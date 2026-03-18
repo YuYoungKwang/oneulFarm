@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import './styles/account.css';
 import DashboardView from './DashboardView';
 import MyPageView from './MyPageView';
+import OrdersView from './OrdersView';
 import ProfileDetailView from './ProfileDetailView';
 import AddressModal from './AddressModal';
 
@@ -86,10 +87,19 @@ const EMPTY_ADDRESS_FORM = {
 const ACCOUNT_ROUTES = {
   dashboard: '#/dashboard',
   mypage: '#/mypage',
+  orders: '#/orders',
 };
 
 function getAccountPageFromHash(hash) {
-  return hash.startsWith(ACCOUNT_ROUTES.dashboard) ? 'dashboard' : 'mypage';
+  if (hash.startsWith(ACCOUNT_ROUTES.dashboard)) {
+    return 'dashboard';
+  }
+
+  if (hash.startsWith(ACCOUNT_ROUTES.orders)) {
+    return 'orders';
+  }
+
+  return 'mypage';
 }
 
 function validateAddressForm(form) {
@@ -126,20 +136,27 @@ function validateAddressForm(form) {
 }
 
 async function parseResponse(response, fallbackMessage) {
-  const payload = await response.json().catch(() => null);
+  const text = await response.text();
+  let payload = null;
 
-  if (!response.ok) {
-    throw new Error(payload?.message || fallbackMessage);
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch (error) {
+    payload = null;
   }
 
-  return payload;
+  if (!response.ok) {
+    throw new Error(payload?.message || text || fallbackMessage);
+  }
+
+  return payload || {};
 }
 
 function AccountApp() {
   const [currentPage, setCurrentPage] = useState(() =>
     getAccountPageFromHash(window.location.hash)
   );
-  const [activeTab, setActiveTab] = useState('orders');
+  const [activeTab, setActiveTab] = useState('wishlist');
 
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
@@ -200,6 +217,12 @@ function AccountApp() {
   }, []);
 
   useEffect(() => {
+    if (currentPage !== 'mypage') {
+      setIsProfileDetailOpen(false);
+    }
+  }, [currentPage]);
+
+  useEffect(() => {
     const controller = new AbortController();
 
     async function fetchOrders() {
@@ -218,10 +241,13 @@ function AccountApp() {
           query.set('dateTo', appliedOrderFilters.dateTo);
         }
 
-        const response = await fetch(`${ORDER_API_BASE}/me${query.toString() ? `?${query.toString()}` : ''}`, {
-          headers: { 'X-USER-NO': DEMO_USER_NO },
-          signal: controller.signal,
-        });
+        const response = await fetch(
+          `${ORDER_API_BASE}/me${query.toString() ? `?${query.toString()}` : ''}`,
+          {
+            headers: { 'X-USER-NO': DEMO_USER_NO },
+            signal: controller.signal,
+          }
+        );
         const payload = await parseResponse(response, '주문 목록을 불러오지 못했습니다.');
         setOrders(Array.isArray(payload.data) ? payload.data : []);
       } catch (error) {
@@ -287,8 +313,8 @@ function AccountApp() {
         ]);
 
         const [monthlyPayload, productPayload, patternsPayload] = await Promise.all([
-          parseResponse(monthlyResponse, '대시보드 월별 데이터를 불러오지 못했습니다.'),
-          parseResponse(productResponse, '대시보드 품목별 데이터를 불러오지 못했습니다.'),
+          parseResponse(monthlyResponse, '대시보드 차트 데이터를 불러오지 못했습니다.'),
+          parseResponse(productResponse, '대시보드 품목 분석 데이터를 불러오지 못했습니다.'),
           parseResponse(patternsResponse, '대시보드 소비 패턴 데이터를 불러오지 못했습니다.'),
         ]);
 
@@ -399,6 +425,7 @@ function AccountApp() {
     setProfileSubmitError('');
     setPasswordError('');
     setWithdrawError('');
+    setDuplicateState(EMPTY_DUPLICATE_STATE);
     setIsProfileDetailOpen(true);
   }
 
@@ -548,10 +575,7 @@ function AccountApp() {
       const currentValue = String(profile[fieldKey] || '').trim();
       const state = duplicateState[fieldKey];
 
-      if (
-        nextValue !== currentValue &&
-        (!state.available || state.checkedValue !== nextValue)
-      ) {
+      if (nextValue !== currentValue && (!state.available || state.checkedValue !== nextValue)) {
         setProfileSubmitError(
           fieldKey === 'email'
             ? '저장 전에 이메일 중복 확인을 완료해 주세요.'
@@ -577,7 +601,7 @@ function AccountApp() {
         setProfile({ ...EMPTY_PROFILE, ...payload.data });
       }
 
-       if (fieldKey === 'email' || fieldKey === 'nickname') {
+      if (fieldKey === 'email' || fieldKey === 'nickname') {
         setDuplicateState((current) => ({
           ...current,
           [fieldKey]: {
@@ -649,7 +673,9 @@ function AccountApp() {
     setWithdrawing(true);
     setWithdrawError('');
 
-    const confirmed = window.confirm('정말 회원 탈퇴하시겠습니까? 탈퇴 후에는 현재 계정으로 마이페이지 기능을 계속 사용할 수 없습니다.');
+    const confirmed = window.confirm(
+      '정말 회원 탈퇴를 진행하시겠습니까? 탈퇴 후에는 현재 계정으로 마이페이지 기능을 계속 사용할 수 없습니다.'
+    );
     if (!confirmed) {
       setWithdrawing(false);
       return false;
@@ -810,7 +836,7 @@ function AccountApp() {
     } catch (error) {
       setAddressFormError(
         error.message ||
-          (isEditMode ? '배송지 수정에 실패했습니다.' : '배송지 등록에 실패했습니다.')
+        (isEditMode ? '배송지 수정에 실패했습니다.' : '배송지 등록에 실패했습니다.')
       );
     } finally {
       setAddressSubmitting(false);
@@ -892,6 +918,30 @@ function AccountApp() {
   return (
     <div className="account-app page-shell">
       <main className="container">
+        <section className="account-local-nav">
+          <button
+            type="button"
+            className={`account-local-nav__link ${currentPage === 'mypage' ? 'is-active' : ''}`}
+            onClick={() => moveToPage('mypage')}
+          >
+            마이페이지
+          </button>
+          <button
+            type="button"
+            className={`account-local-nav__link ${currentPage === 'orders' ? 'is-active' : ''}`}
+            onClick={() => moveToPage('orders')}
+          >
+            주문관리
+          </button>
+          <button
+            type="button"
+            className={`account-local-nav__link ${currentPage === 'dashboard' ? 'is-active' : ''}`}
+            onClick={() => moveToPage('dashboard')}
+          >
+            대시보드
+          </button>
+        </section>
+
         {currentPage === 'mypage' ? (
           isProfileDetailOpen ? (
             <ProfileDetailView
@@ -925,19 +975,6 @@ function AccountApp() {
               activeTab={activeTab}
               setActiveTab={setActiveTab}
               orders={orders}
-              ordersLoading={ordersLoading}
-              ordersError={ordersError}
-              orderFilters={orderFilters}
-              selectedOrderNo={selectedOrderNo}
-              orderDetail={orderDetail}
-              detailLoading={detailLoading}
-              detailError={detailError}
-              onOrderFilterChange={handleOrderFilterChange}
-              onOrderFilterSubmit={handleOrderFilterSubmit}
-              onOrderFilterReset={handleOrderFilterReset}
-              onSelectOrder={handleSelectOrder}
-              summary={summary}
-              summaryLoading={summaryLoading}
               profile={profile}
               profileLoading={profileLoading}
               profileError={profileError}
@@ -945,6 +982,22 @@ function AccountApp() {
               onOpenAddressModal={openAddressModal}
             />
           )
+        ) : currentPage === 'orders' ? (
+          <OrdersView
+            orders={orders}
+            ordersLoading={ordersLoading}
+            ordersError={ordersError}
+            orderFilters={orderFilters}
+            selectedOrderNo={selectedOrderNo}
+            orderDetail={orderDetail}
+            detailLoading={detailLoading}
+            detailError={detailError}
+            onOrderFilterChange={handleOrderFilterChange}
+            onOrderFilterSubmit={handleOrderFilterSubmit}
+            onOrderFilterReset={handleOrderFilterReset}
+            onSelectOrder={handleSelectOrder}
+            onMoveToMypage={() => moveToPage('mypage')}
+          />
         ) : (
           <DashboardView
             onMoveToMypage={() => moveToPage('mypage')}

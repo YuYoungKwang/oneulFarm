@@ -1,38 +1,23 @@
-import { tabs, wishlist, writableReviews, myReviews } from './mockData';
+import { myPageTabs, wishlist, writableReviews, myReviews } from './mockData';
 import {
   formatDate,
   formatPrice,
   getDeliveryBadgeClass,
   getDeliveryLabel,
-  getOrderStats,
   getProfileInitials,
 } from './appUtils';
-import OrderDetailPanel from './OrderDetailPanel';
 
 function MyPageView({
   activeTab,
   setActiveTab,
   orders,
-  ordersLoading,
-  ordersError,
-  orderFilters,
-  selectedOrderNo,
-  orderDetail,
-  detailLoading,
-  detailError,
-  onOrderFilterChange,
-  onOrderFilterSubmit,
-  onOrderFilterReset,
-  onSelectOrder,
-  summary,
-  summaryLoading,
   profile,
   profileLoading,
   profileError,
   onOpenProfileDetail,
   onOpenAddressModal,
 }) {
-  const stats = getOrderStats(orders);
+  const recentOrder = orders[0] || null;
   const accountLabel = profile.userId || 'mypage01';
   const emailLabel = profile.email || '-';
   const phoneLabel = profile.phone || '-';
@@ -44,40 +29,14 @@ function MyPageView({
       <section className="page-head">
         <div>
           <h1>마이페이지</h1>
-          <p>프로필 요약과 주문, 찜, 리뷰를 한 곳에서 관리하는 개인 화면입니다.</p>
-        </div>
-        <div className="page-actions">
-          <button type="button" className="btn" onClick={onOpenAddressModal}>배송지 관리</button>
+          <p>개인 정보와 주소, 최근 주문 흐름을 한눈에 확인하는 요약 허브 화면입니다.</p>
         </div>
       </section>
 
       {profileError && <article className="card feedback-card feedback-card--error">{profileError}</article>}
 
-      <div className="stats-grid">
-        <article className="stat-card">
-          <div className="stat-label">누적 절약 금액</div>
-          <div className="stat-value">{summaryLoading ? '...' : formatPrice(summary.totalSavedAmount)}</div>
-          <div className="section-sub">주문 시점 기준 누적 합계</div>
-        </article>
-        <article className="stat-card">
-          <div className="stat-label">총 주문 건수</div>
-          <div className="stat-value">{summaryLoading ? '...' : `${Number(summary.totalOrderCount || 0)}건`}</div>
-          <div className="section-sub">완료 및 진행 주문 포함</div>
-        </article>
-        <article className="stat-card">
-          <div className="stat-label">기본 배송지</div>
-          <div className="stat-value stat-value--compact">{profileLoading ? '...' : '기본 배송지'}</div>
-          <div className="section-sub">{profileLoading ? '불러오는 중...' : defaultAddressLabel}</div>
-        </article>
-        <article className="stat-card">
-          <div className="stat-label">계정 정보</div>
-          <div className="stat-value stat-value--compact">{profileLoading ? '...' : accountLabel}</div>
-          <div className="section-sub">{profileLoading ? '불러오는 중...' : emailLabel}</div>
-        </article>
-      </div>
-
-      <section className="section mypage-intro">
-        <article className="card profile-summary-card">
+      <section className="section">
+        <article className="card profile-summary-card profile-summary-card--single">
           <div className="profile-summary profile-summary--spread">
             <div className="profile-summary__identity">
               <div className="profile-badge">{getProfileInitials(profile)}</div>
@@ -106,16 +65,35 @@ function MyPageView({
               <span>{profileLoading ? '불러오는 중...' : defaultAddressLabel}</span>
             </div>
             <div className="insight-item">
-              <strong>누적 절약 금액</strong>
-              <span>{summaryLoading ? '불러오는 중...' : formatPrice(summary.totalSavedAmount)}</span>
+              <strong>최근 주문 상태</strong>
+              <span>{recentOrder ? getDeliveryLabel(recentOrder.deliveryStatus) : '주문 없음'}</span>
             </div>
           </div>
+          {recentOrder && (
+            <div className="mypage-recent-order">
+              <div className="mypage-recent-order__label">최근 주문</div>
+              <div className="mypage-recent-order__content">
+                <strong>{recentOrder.displayProductName}</strong>
+                <span>{recentOrder.orderId} · {formatDate(recentOrder.orderedAt)}</span>
+                <span className={`status-pill ${getDeliveryBadgeClass(recentOrder.deliveryStatus)}`}>
+                  {getDeliveryLabel(recentOrder.deliveryStatus)}
+                </span>
+                <span>결제 {formatPrice(recentOrder.finalAmount)}</span>
+              </div>
+            </div>
+          )}
+          {!recentOrder && (
+            <div className="mypage-recent-order mypage-recent-order--empty">
+              <div className="mypage-recent-order__label">최근 주문</div>
+              <div className="section-sub">아직 주문 내역이 없습니다.</div>
+            </div>
+          )}
         </article>
       </section>
 
       <section className="section">
         <div className="tab-row">
-          {tabs.map((tab) => (
+          {myPageTabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
@@ -128,117 +106,12 @@ function MyPageView({
         </div>
       </section>
 
-      {activeTab === 'orders' && (
-        <>
-          <article className="card order-filter-bar">
-            <form className="order-filter-form" onSubmit={onOrderFilterSubmit}>
-              <div className="order-filter-grid">
-                <label className="form-field">
-                  <span>배송 상태</span>
-                  <select name="deliveryStatus" value={orderFilters.deliveryStatus} onChange={onOrderFilterChange}>
-                    <option value="ALL">전체</option>
-                    <option value="READY">배송 준비</option>
-                    <option value="SHIPPING">배송 중</option>
-                    <option value="DELIVERED">배송 완료</option>
-                  </select>
-                </label>
-                <label className="form-field">
-                  <span>시작일</span>
-                  <input type="date" name="dateFrom" value={orderFilters.dateFrom} onChange={onOrderFilterChange} />
-                </label>
-                <label className="form-field">
-                  <span>종료일</span>
-                  <input type="date" name="dateTo" value={orderFilters.dateTo} onChange={onOrderFilterChange} />
-                </label>
-              </div>
-              <div className="order-filter-actions">
-                <button type="button" className="btn-outline" onClick={onOrderFilterReset}>초기화</button>
-                <button type="submit" className="btn">조회</button>
-              </div>
-            </form>
-          </article>
-
-          <div className="quick-grid">
-            <article className="quick-card">
-              <div className="quick-label">총 주문</div>
-              <div className="quick-value">{stats.totalCount}건</div>
-            </article>
-            <article className="quick-card soft-yellow">
-              <div className="quick-label">배송중</div>
-              <div className="quick-value">{stats.shippingCount}건</div>
-            </article>
-            <article className="quick-card soft-green">
-              <div className="quick-label">배송완료</div>
-              <div className="quick-value">{stats.deliveredCount}건</div>
-            </article>
-            <article className="quick-card">
-              <div className="quick-label">주문 목록 절약 합계</div>
-              <div className="quick-value">{formatPrice(stats.totalSavedAmount)}</div>
-            </article>
-          </div>
-
-          {ordersLoading && <article className="card feedback-card">주문 목록을 불러오는 중입니다.</article>}
-          {!ordersLoading && ordersError && <article className="card feedback-card feedback-card--error">{ordersError}</article>}
-          {!ordersLoading && !ordersError && orders.length === 0 && <article className="card feedback-card">주문 내역이 없습니다.</article>}
-
-          {!ordersLoading && !ordersError && orders.length > 0 && (
-            <section className="order-list">
-              {orders.map((order) => (
-                <div key={order.orderNo} className="order-list-entry">
-                  <article className={`order-card ${selectedOrderNo === order.orderNo ? 'is-selected' : ''}`}>
-                    <div className="order-top">
-                      <div>
-                        <div className="card-title order-title">주문번호 {order.orderId}</div>
-                        <div className="section-sub">{formatDate(order.orderedAt)} 주문</div>
-                      </div>
-                      <span className={`status-pill ${getDeliveryBadgeClass(order.deliveryStatus)}`}>
-                        {getDeliveryLabel(order.deliveryStatus)}
-                      </span>
-                    </div>
-
-                    <div className="order-summary-grid">
-                      <div className="order-summary-item">
-                        <strong>대표 상품</strong>
-                        <span>{order.displayProductName}</span>
-                      </div>
-                      <div className="order-summary-item">
-                        <strong>상품 수</strong>
-                        <span>{order.itemCount}건</span>
-                      </div>
-                      <div className="order-summary-item">
-                        <strong>최종 결제금액</strong>
-                        <span>{formatPrice(order.finalAmount)}</span>
-                      </div>
-                      <div className="order-summary-item">
-                        <strong>총 절약금액</strong>
-                        <span>{formatPrice(order.totalSavedAmount)}</span>
-                      </div>
-                    </div>
-
-                    <div className="help-row">
-                      <span>{order.orderStatus} · {getDeliveryLabel(order.deliveryStatus)}</span>
-                      <button type="button" className="btn-outline" onClick={() => onSelectOrder(order.orderNo)}>
-                        주문 상세 보기
-                      </button>
-                    </div>
-                  </article>
-
-                  {selectedOrderNo === order.orderNo && (
-                    <OrderDetailPanel detail={orderDetail} loading={detailLoading} error={detailError} />
-                  )}
-                </div>
-              ))}
-            </section>
-          )}
-        </>
-      )}
-
       {activeTab === 'wishlist' && (
         <section className="section">
           <div className="section-head">
             <div>
               <div className="section-title">찜한 상품</div>
-              <div className="section-sub">관심 상품을 다시 구매하기 쉽게 카드형으로 정리했습니다.</div>
+              <div className="section-sub">현재는 계정 화면 전용 데모 데이터로 구성되어 있습니다.</div>
             </div>
           </div>
 
@@ -256,7 +129,7 @@ function MyPageView({
                 </div>
                 <div className="product-foot">
                   <button type="button" className="btn">장바구니 담기</button>
-                  <a href="/" className="btn-outline">상세</a>
+                  <a href="#/products" className="btn-outline">상세</a>
                 </div>
                 <button type="button" className="btn line">찜 해제</button>
               </article>

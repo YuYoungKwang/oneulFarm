@@ -1,4 +1,10 @@
-import { formatDate, formatMonthLabel, formatPrice, getScaledHeight, getScaledWidth } from './appUtils';
+import {
+  formatDate,
+  formatMonthLabel,
+  formatPrice,
+  getScaledHeight,
+  getScaledWidth,
+} from './appUtils';
 
 function DashboardView({
   onMoveToMypage,
@@ -30,10 +36,12 @@ function DashboardView({
       <section className="page-head">
         <div>
           <h1>대시보드</h1>
-          <p>절약 금액과 소비 패턴을 한 화면으로 정리한 개인 대시보드입니다.</p>
+          <p>절약 금액과 소비 패턴을 한 화면에서 확인하는 개인 대시보드입니다.</p>
         </div>
         <div className="page-actions">
-          <button type="button" className="btn-outline" onClick={onMoveToMypage}>마이페이지 이동</button>
+          <button type="button" className="btn-outline" onClick={onMoveToMypage}>
+            마이페이지로 이동
+          </button>
         </div>
       </section>
 
@@ -60,12 +68,14 @@ function DashboardView({
         </article>
       </div>
 
-      {dashboardError && <article className="card feedback-card feedback-card--error">{dashboardError}</article>}
+      {dashboardError && (
+        <article className="card feedback-card feedback-card--error">{dashboardError}</article>
+      )}
 
       <section className="section grid-2">
         <article className="card">
           <div className="card-title">월별 절약 금액</div>
-          <div className="card-sub">세로 막대 차트로 월별 절약 흐름을 보여줍니다.</div>
+          <div className="card-sub">월별 절약 흐름을 세로 막대 차트로 보여줍니다.</div>
           <div className="chart-shell">
             {dashboardLoading ? (
               <div className="feedback-card">차트 데이터를 불러오는 중입니다.</div>
