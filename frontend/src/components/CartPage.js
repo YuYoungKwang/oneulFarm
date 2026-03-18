@@ -6,6 +6,7 @@ export default function CartPage({
   onDecreaseQuantity,
   onIncreaseQuantity,
   onOpenProduct,
+  onProceedToCheckout,
   onRemoveItem,
   onReturnToProducts,
 }) {
@@ -187,8 +188,8 @@ export default function CartPage({
             단계에서 `OFT_ORDERS`, `OFT_ORDER_ITEM`와 연결하면 됩니다.
           </div>
           <div className="summary-actions">
-            <button className="btn" type="button">
-              주문하기 준비
+            <button className="btn" type="button" onClick={onProceedToCheckout}>
+              주문서 작성하기
             </button>
             <button className="btn-outline" type="button" onClick={onReturnToProducts}>
               상품 더 담기

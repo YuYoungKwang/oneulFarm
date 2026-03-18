@@ -37,8 +37,27 @@ export function parseHash(hash) {
     return { page: 'cart' };
   }
 
+  if (segments[0] === 'checkout') {
+    return { page: 'checkout' };
+  }
+
+  if (segments[0] === 'order-complete' && segments[1]) {
+    return {
+      page: 'order-complete',
+      orderId: decodeURIComponent(segments[1]),
+    };
+  }
+
+  if (segments[0] === 'orders') {
+    return {
+      page: 'orders',
+      orderId: segments[1] ? decodeURIComponent(segments[1]) : null,
+    };
+  }
+
   if (segments[0] === 'products' && segments[1]) {
     const productNo = Number(segments[1]);
+
     return Number.isNaN(productNo)
       ? { page: 'products' }
       : { page: 'product-detail', productNo };
@@ -61,11 +80,11 @@ export function getDiscountRate(product) {
 
 export function getBadgeLabel(product) {
   if (product.priceMatch.badgeType === 'UNDER_AVG') {
-    return `${Math.round(product.priceMatch.savingRate)}%↓`;
+    return `${Math.round(product.priceMatch.savingRate)}% 절약`;
   }
 
   if (product.priceMatch.badgeType === 'HOT_DEAL') {
-    return '특가';
+    return '핫딜';
   }
 
   if (product.isSeasonal === 'Y') {
@@ -122,10 +141,7 @@ export function applyFilters(products, filters, searchKeyword) {
       return false;
     }
 
-    if (
-      filters.category !== 'ALL' &&
-      product.categoryName !== filters.category
-    ) {
+    if (filters.category !== 'ALL' && product.categoryName !== filters.category) {
       return false;
     }
 
@@ -147,10 +163,7 @@ export function applyFilters(products, filters, searchKeyword) {
       return false;
     }
 
-    if (
-      filters.tags.includes('SINGLE') &&
-      !isSingleHouseholdFriendly(product)
-    ) {
+    if (filters.tags.includes('SINGLE') && !isSingleHouseholdFriendly(product)) {
       return false;
     }
 

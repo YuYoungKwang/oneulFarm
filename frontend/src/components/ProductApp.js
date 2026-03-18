@@ -2,8 +2,12 @@ import { startTransition, useEffect, useState } from 'react';
 import { findProductByNo, productCatalog } from '../data/productData';
 import { CartIcon, SearchIcon } from './ProductIcons';
 import CartPage from './CartPage';
+import CheckoutPage from './CheckoutPage';
+import OrderCompletePage from './OrderCompletePage';
+import OrdersPage from './OrdersPage';
 import ProductDetailPage from './ProductDetailPage';
 import ProductListPage from './ProductListPage';
+import { advanceOrderStatus, createOrderFromCart } from './orderUiUtils';
 import {
   DEFAULT_ROUTE,
   defaultFilters,
@@ -20,6 +24,9 @@ export default function ProductApp() {
     readStoredValue('oneulFarmWishlist', [])
   );
   const [cart, setCart] = useState(() => readStoredValue('oneulFarmCart', {}));
+  const [orders, setOrders] = useState(() =>
+    readStoredValue('oneulFarmOrders', [])
+  );
 
   useEffect(() => {
     if (!window.location.hash) {
@@ -49,6 +56,10 @@ export default function ProductApp() {
   }, [cart]);
 
   useEffect(() => {
+    persistValue('oneulFarmOrders', orders);
+  }, [orders]);
+
+  useEffect(() => {
     if (process.env.NODE_ENV === 'test') {
       return;
     }
@@ -56,7 +67,7 @@ export default function ProductApp() {
     if (typeof window.scrollTo === 'function') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [route.page, route.productNo]);
+  }, [route.page, route.productNo, route.orderId]);
 
   const categories = Array.from(
     new Set(productCatalog.map((product) => product.categoryName))
@@ -73,6 +84,10 @@ export default function ProductApp() {
     .filter((item) => item.product);
   const currentProduct =
     route.page === 'product-detail' ? findProductByNo(route.productNo) : null;
+  const currentOrder =
+    route.orderId != null
+      ? orders.find((order) => order.orderId === route.orderId) || null
+      : null;
 
   function updateFilter(key, value) {
     setFilters((previousFilters) => ({
@@ -104,6 +119,16 @@ export default function ProductApp() {
 
   function openCart() {
     navigateToHash('#/cart');
+  }
+
+  function openCheckout() {
+    navigateToHash('#/checkout');
+  }
+
+  function openOrders(orderId) {
+    navigateToHash(
+      orderId ? `#/orders/${encodeURIComponent(orderId)}` : '#/orders'
+    );
   }
 
   function toggleWishlist(productNo) {
@@ -148,9 +173,34 @@ export default function ProductApp() {
     setCart({});
   }
 
+  function submitOrder(checkoutForm) {
+    if (!cartItems.length) {
+      navigateToHash('#/cart');
+      return;
+    }
+
+    const newOrder = createOrderFromCart(cartItems, checkoutForm, orders);
+    setOrders((previousOrders) => [newOrder, ...previousOrders]);
+    clearCart();
+    navigateToHash(`#/order-complete/${encodeURIComponent(newOrder.orderId)}`);
+  }
+
+  function moveOrderToNextStatus(orderId) {
+    setOrders((previousOrders) =>
+      previousOrders.map((order) =>
+        order.orderId === orderId ? advanceOrderStatus(order) : order
+      )
+    );
+  }
+
   return (
     <div className="page-shell">
-      <SiteHeader cartCount={cartCount} onOpenCart={openCart} />
+      <SiteHeader
+        cartCount={cartCount}
+        onOpenCart={openCart}
+        onOpenOrders={() => openOrders()}
+        onOpenProducts={openProductList}
+      />
       <main className="container">
         {route.page === 'cart' ? (
           <CartPage
@@ -169,8 +219,29 @@ export default function ProductApp() {
               );
             }}
             onOpenProduct={openProduct}
+            onProceedToCheckout={openCheckout}
             onRemoveItem={removeFromCart}
             onReturnToProducts={openProductList}
+          />
+        ) : route.page === 'checkout' ? (
+          <CheckoutPage
+            cartItems={cartItems}
+            onBackToCart={openCart}
+            onSubmitOrder={submitOrder}
+          />
+        ) : route.page === 'order-complete' ? (
+          <OrderCompletePage
+            onOpenOrders={() => openOrders(route.orderId)}
+            onReturnToProducts={openProductList}
+            order={currentOrder}
+          />
+        ) : route.page === 'orders' ? (
+          <OrdersPage
+            onAdvanceStatus={moveOrderToNextStatus}
+            onOpenOrder={openOrders}
+            onReturnToProducts={openProductList}
+            orders={orders}
+            selectedOrderId={route.orderId}
           />
         ) : route.page === 'product-detail' ? (
           currentProduct ? (
@@ -206,7 +277,12 @@ export default function ProductApp() {
   );
 }
 
-function SiteHeader({ cartCount, onOpenCart }) {
+function SiteHeader({
+  cartCount,
+  onOpenCart,
+  onOpenOrders,
+  onOpenProducts,
+}) {
   return (
     <header className="top-nav">
       <a className="logo" href={DEFAULT_ROUTE}>
@@ -217,7 +293,7 @@ function SiteHeader({ cartCount, onOpenCart }) {
         <button className="nav-link" type="button">
           시세분석
         </button>
-        <button className="nav-link is-active" type="button">
+        <button className="nav-link is-active" type="button" onClick={onOpenProducts}>
           상품
         </button>
         <button className="nav-link" type="button">
@@ -226,7 +302,7 @@ function SiteHeader({ cartCount, onOpenCart }) {
         <button className="nav-link" type="button">
           추천
         </button>
-        <button className="nav-link" type="button">
+        <button className="nav-link" type="button" onClick={onOpenOrders}>
           마이페이지
         </button>
       </nav>
@@ -257,9 +333,9 @@ function SiteHeader({ cartCount, onOpenCart }) {
 function NotFoundPage({ onBack }) {
   return (
     <section className="empty-state detail-empty">
-      <div className="empty-icon">📦</div>
+      <div className="empty-icon">🔎</div>
       <h1>상품을 찾을 수 없습니다.</h1>
-      <p>삭제되었거나 잘못된 경로입니다. 상품 목록으로 돌아가세요.</p>
+      <p>삭제되었거나 잘못된 경로입니다. 상품 목록으로 돌아가주세요.</p>
       <button className="btn" type="button" onClick={onBack}>
         상품 목록으로 이동
       </button>
