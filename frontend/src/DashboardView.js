@@ -46,15 +46,15 @@ function DashboardView({
       </section>
 
       <div className="stats-grid">
-        <article className="stat-card">
+        <article className="stat-card stat-card--saving">
           <div className="stat-label">누적 절약 금액</div>
-          <div className="stat-value">{summaryLoading ? '...' : totalSavedAmount}</div>
+          <div className="stat-value stat-value--saving">{summaryLoading ? '...' : totalSavedAmount}</div>
           <div className="section-sub">주문 시점 기준 누적 합계</div>
         </article>
-        <article className="stat-card">
+        <article className="stat-card stat-card--saving">
           <div className="stat-label">이번 달 절약 금액</div>
-          <div className="stat-value">{summaryLoading ? '...' : monthlySavedAmount}</div>
-          <div className="section-sub">2026년 3월 기준</div>
+          <div className="stat-value stat-value--saving">{summaryLoading ? '...' : monthlySavedAmount}</div>
+          <div className="section-sub">이번 달에 아낀 금액</div>
         </article>
         <article className="stat-card">
           <div className="stat-label">총 구매 횟수</div>

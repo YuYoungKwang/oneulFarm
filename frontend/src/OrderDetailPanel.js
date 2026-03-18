@@ -62,7 +62,7 @@ function OrderDetailPanel({ detail, loading, error }) {
           <div className="detail-row"><strong>결제금액</strong><span>{formatPrice(detail.paymentInfo.paidAmount)}</span></div>
         </section>
 
-        <section className="detail-block">
+        <section className="detail-block detail-block--saving">
           <h3>금액 요약</h3>
           <div className="detail-row"><strong>총 상품 금액</strong><span>{formatPrice(detail.amountSummary.totalAmount)}</span></div>
           <div className="detail-row"><strong>할인 금액</strong><span>{formatPrice(detail.amountSummary.discountAmount)}</span></div>
@@ -84,7 +84,7 @@ function OrderDetailPanel({ detail, loading, error }) {
               <div className="detail-row"><strong>구매 단가</strong><span>{formatPrice(item.unitPrice)}</span></div>
               <div className="detail-row"><strong>소계</strong><span>{formatPrice(item.subtotal)}</span></div>
               <div className="detail-row"><strong>시장 평균가</strong><span>{formatPrice(item.marketAvgPrice)}</span></div>
-              <div className="detail-row"><strong>절약 금액</strong><span>{formatPrice(item.savedAmount)}</span></div>
+              <div className="detail-row detail-row--saving"><strong>절약 금액</strong><span>{formatPrice(item.savedAmount)}</span></div>
               <div className="detail-row"><strong>절약률</strong><span>{Number(item.savingRate || 0).toFixed(2)}%</span></div>
               <div className="detail-actions">
                 {item.reviewWritable && <button type="button" className="btn">리뷰 작성</button>}

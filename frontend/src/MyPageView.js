@@ -23,6 +23,7 @@ function MyPageView({
   const phoneLabel = profile.phone || '-';
   const defaultAddressLabel = profile.defaultAddress || '등록된 기본 배송지가 없습니다.';
   const profileName = profile.nickname || '마이페이지 사용자';
+  const totalSavedAmountLabel = formatPrice(profile.totalSavedAmount);
 
   return (
     <>
@@ -74,6 +75,12 @@ function MyPageView({
             </div>
           </div>
 
+          <div className="savings-highlight">
+            <div className="savings-highlight__label">누적 절약 금액</div>
+            <div className="savings-highlight__value">{profileLoading ? '불러오는 중...' : totalSavedAmountLabel}</div>
+            <div className="savings-highlight__sub">오늘의농장에서 시장 평균가 대비 아낀 금액입니다.</div>
+          </div>
+
           {recentOrder ? (
             <div className="mypage-recent-order">
               <div className="mypage-recent-order__label">최근 주문</div>
@@ -84,6 +91,7 @@ function MyPageView({
                   {getDeliveryLabel(recentOrder.deliveryStatus)}
                 </span>
                 <span>결제 {formatPrice(recentOrder.finalAmount)}</span>
+                <span className="mypage-recent-order__saving">절약 {formatPrice(recentOrder.totalSavedAmount)}</span>
               </div>
             </div>
           ) : (

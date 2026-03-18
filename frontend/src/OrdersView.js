@@ -75,9 +75,9 @@ function OrdersView({
           <div className="quick-label">배송 완료</div>
           <div className="quick-value">{stats.deliveredCount}건</div>
         </article>
-        <article className="quick-card">
+        <article className="quick-card quick-card--saving">
           <div className="quick-label">절약 금액 합계</div>
-          <div className="quick-value">{formatPrice(stats.totalSavedAmount)}</div>
+          <div className="quick-value quick-value--saving">{formatPrice(stats.totalSavedAmount)}</div>
         </article>
       </div>
 
@@ -120,7 +120,7 @@ function OrdersView({
                       <strong>최종 결제금액</strong>
                       <span>{formatPrice(order.finalAmount)}</span>
                     </div>
-                    <div className="order-summary-item">
+                    <div className="order-summary-item order-summary-item--saving">
                       <strong>총 절약금액</strong>
                       <span>{formatPrice(order.totalSavedAmount)}</span>
                     </div>
