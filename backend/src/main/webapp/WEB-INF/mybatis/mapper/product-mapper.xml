@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="productMapper">
+
+    <sql id="LatestMatchCte">
+        WITH latest_match AS (
+            SELECT
+                ppm.PRODUCT_NO,
+                ppm.MATCH_NO,
+                ppm.COMPARED_PRICE,
+                ppm.PRICE_GAP,
+                ppm.SAVING_RATE,
+                ppm.BADGE_TYPE,
+                ps.SNAPSHOT_NO,
+                ps.ITEM_CODE,
+                ps.ITEM_NAME,
+                ps.MARKET_TYPE,
+                ps.UNIT AS SNAPSHOT_UNIT,
+                ps.AVG_PRICE,
+                ps.MIN_PRICE,
+                ps.MAX_PRICE,
+                ps.CHANGE_RATE,
+                ps.SNAPSHOT_DATE,
+                ps.SOURCE_NAME,
+                ROW_NUMBER() OVER (
+                    PARTITION BY ppm.PRODUCT_NO
+                    ORDER BY ps.SNAPSHOT_DATE DESC, ps.SNAPSHOT_NO DESC
+                ) AS rn
+            FROM OFT_PRODUCT_PRICE_MATCH ppm
+            JOIN OFT_PRICE_SNAPSHOT ps
+                ON ps.SNAPSHOT_NO = ppm.SNAPSHOT_NO
+        ),
+        review_stats AS (
+            SELECT
+                PRODUCT_NO,
+                COUNT(*) AS REVIEW_COUNT,
+                ROUND(AVG(RATING), 1) AS AVERAGE_RATING
+            FROM OFT_REVIEW
+            WHERE PRODUCT_NO IS NOT NULL
+              AND DELETED_AT IS NULL
+            GROUP BY PRODUCT_NO
+        )
+    </sql>
+
+    <resultMap id="ProductResultMap" type="com.app.dto.ProductResponseDto">
+        <result property="productNo" column="productNo" />
+        <result property="categoryNo" column="categoryNo" />
+        <result property="categoryName" column="categoryName" />
+        <result property="productName" column="productName" />
+        <result property="origin" column="origin" />
+        <result property="unit" column="unit" />
+        <result property="packageWeight" column="packageWeight" />
+        <result property="salePrice" column="salePrice" />
+        <result property="stockQty" column="stockQty" />
+        <result property="description" column="description" />
+        <result property="isSeasonal" column="isSeasonal" />
+        <result property="saleStatus" column="saleStatus" />
+        <result property="createdAt" column="createdAt" />
+        <result property="updatedAt" column="updatedAt" />
+        <result property="snapshotNo" column="snapshotNo" />
+        <result property="itemCode" column="itemCode" />
+        <result property="itemName" column="itemName" />
+        <result property="marketType" column="marketType" />
+        <result property="snapshotUnit" column="snapshotUnit" />
+        <result property="avgPrice" column="avgPrice" />
+        <result property="minPrice" column="minPrice" />
+        <result property="maxPrice" column="maxPrice" />
+        <result property="changeRate" column="changeRate" />
+        <result property="snapshotDate" column="snapshotDate" />
+        <result property="sourceName" column="sourceName" />
+        <result property="matchNo" column="matchNo" />
+        <result property="comparedPrice" column="comparedPrice" />
+        <result property="priceGap" column="priceGap" />
+        <result property="savingRate" column="savingRate" />
+        <result property="badgeType" column="badgeType" />
+        <result property="reviewCount" column="reviewCount" />
+        <result property="averageRating" column="averageRating" />
+    </resultMap>
+
+    <select id="selectSellingProducts" resultMap="ProductResultMap">
+        <include refid="LatestMatchCte" />
+        SELECT
+            p.PRODUCT_NO AS productNo,
+            p.CATEGORY_NO AS categoryNo,
+            c.CATEGORY_NAME AS categoryName,
+            p.PRODUCT_NAME AS productName,
+            p.ORIGIN AS origin,
+            p.UNIT AS unit,
+            p.PACKAGE_WEIGHT AS packageWeight,
+            p.SALE_PRICE AS salePrice,
+            p.STOCK_QTY AS stockQty,
+            p.DESCRIPTION AS description,
+            p.IS_SEASONAL AS isSeasonal,
+            p.SALE_STATUS AS saleStatus,
+            p.CREATED_AT AS createdAt,
+            p.UPDATED_AT AS updatedAt,
+            lm.SNAPSHOT_NO AS snapshotNo,
+            lm.ITEM_CODE AS itemCode,
+            lm.ITEM_NAME AS itemName,
+            lm.MARKET_TYPE AS marketType,
+            lm.SNAPSHOT_UNIT AS snapshotUnit,
+            lm.AVG_PRICE AS avgPrice,
+            lm.MIN_PRICE AS minPrice,
+            lm.MAX_PRICE AS maxPrice,
+            lm.CHANGE_RATE AS changeRate,
+            lm.SNAPSHOT_DATE AS snapshotDate,
+            lm.SOURCE_NAME AS sourceName,
+            lm.MATCH_NO AS matchNo,
+            lm.COMPARED_PRICE AS comparedPrice,
+            lm.PRICE_GAP AS priceGap,
+            lm.SAVING_RATE AS savingRate,
+            lm.BADGE_TYPE AS badgeType,
+            NVL(rs.REVIEW_COUNT, 0) AS reviewCount,
+            NVL(rs.AVERAGE_RATING, 0) AS averageRating
+        FROM OFT_PRODUCT p
+        JOIN OFT_PRODUCT_CATEGORY c
+            ON c.CATEGORY_NO = p.CATEGORY_NO
+        LEFT JOIN latest_match lm
+            ON lm.PRODUCT_NO = p.PRODUCT_NO
+           AND lm.rn = 1
+        LEFT JOIN review_stats rs
+            ON rs.PRODUCT_NO = p.PRODUCT_NO
+        WHERE p.SALE_STATUS = 'SELLING'
+        ORDER BY NVL(lm.SAVING_RATE, 0) DESC, p.CREATED_AT DESC, p.PRODUCT_NO DESC
+    </select>
+
+    <select id="selectProduct" parameterType="long" resultMap="ProductResultMap">
+        <include refid="LatestMatchCte" />
+        SELECT
+            p.PRODUCT_NO AS productNo,
+            p.CATEGORY_NO AS categoryNo,
+            c.CATEGORY_NAME AS categoryName,
+            p.PRODUCT_NAME AS productName,
+            p.ORIGIN AS origin,
+            p.UNIT AS unit,
+            p.PACKAGE_WEIGHT AS packageWeight,
+            p.SALE_PRICE AS salePrice,
+            p.STOCK_QTY AS stockQty,
+            p.DESCRIPTION AS description,
+            p.IS_SEASONAL AS isSeasonal,
+            p.SALE_STATUS AS saleStatus,
+            p.CREATED_AT AS createdAt,
+            p.UPDATED_AT AS updatedAt,
+            lm.SNAPSHOT_NO AS snapshotNo,
+            lm.ITEM_CODE AS itemCode,
+            lm.ITEM_NAME AS itemName,
+            lm.MARKET_TYPE AS marketType,
+            lm.SNAPSHOT_UNIT AS snapshotUnit,
+            lm.AVG_PRICE AS avgPrice,
+            lm.MIN_PRICE AS minPrice,
+            lm.MAX_PRICE AS maxPrice,
+            lm.CHANGE_RATE AS changeRate,
+            lm.SNAPSHOT_DATE AS snapshotDate,
+            lm.SOURCE_NAME AS sourceName,
+            lm.MATCH_NO AS matchNo,
+            lm.COMPARED_PRICE AS comparedPrice,
+            lm.PRICE_GAP AS priceGap,
+            lm.SAVING_RATE AS savingRate,
+            lm.BADGE_TYPE AS badgeType,
+            NVL(rs.REVIEW_COUNT, 0) AS reviewCount,
+            NVL(rs.AVERAGE_RATING, 0) AS averageRating
+        FROM OFT_PRODUCT p
+        JOIN OFT_PRODUCT_CATEGORY c
+            ON c.CATEGORY_NO = p.CATEGORY_NO
+        LEFT JOIN latest_match lm
+            ON lm.PRODUCT_NO = p.PRODUCT_NO
+           AND lm.rn = 1
+        LEFT JOIN review_stats rs
+            ON rs.PRODUCT_NO = p.PRODUCT_NO
+        WHERE p.PRODUCT_NO = #{_parameter}
+    </select>
+
+    <select id="selectProductImages" parameterType="long" resultType="com.app.dto.ProductImageDto">
+        SELECT
+            IMAGE_NO AS imageNo,
+            IMAGE_NAME AS imageName,
+            IMAGE_EXT AS imageExt,
+            MIME_TYPE AS mimeType,
+            SORT_ORDER AS sortOrder,
+            IS_MAIN AS isMain
+        FROM OFT_PRODUCT_IMAGE
+        WHERE PRODUCT_NO = #{_parameter}
+        ORDER BY SORT_ORDER ASC, IMAGE_NO ASC
+    </select>
+
+    <select id="selectProductRecipes" parameterType="long" resultType="com.app.dto.ProductRecipeDto">
+        SELECT
+            prm.MAP_NO AS mapNo,
+            r.RECIPE_NO AS recipeNo,
+            r.RECIPE_NAME AS recipeName,
+            r.DESCRIPTION AS description,
+            r.COOK_TIME AS cookTime,
+            r.DIFFICULTY AS difficulty,
+            prm.MATCH_SCORE AS matchScore,
+            r.IMAGE_URL AS imageUrl
+        FROM OFT_PRODUCT_RECIPE_MAP prm
+        JOIN OFT_RECIPE r
+            ON r.RECIPE_NO = prm.RECIPE_NO
+        WHERE prm.PRODUCT_NO = #{_parameter}
+        ORDER BY prm.MATCH_SCORE DESC NULLS LAST, r.RECIPE_NO ASC
+    </select>
+
+    <select id="selectProductReviews" parameterType="long" resultType="com.app.dto.ProductReviewDto">
+        SELECT
+            r.REVIEW_NO AS reviewNo,
+            r.USER_NO AS userNo,
+            u.NICKNAME AS author,
+            r.RATING AS rating,
+            r.CONTENT AS content,
+            r.CREATED_AT AS createdAt
+        FROM OFT_REVIEW r
+        JOIN OFT_USERS u
+            ON u.USER_NO = r.USER_NO
+        WHERE r.PRODUCT_NO = #{_parameter}
+          AND r.DELETED_AT IS NULL
+        ORDER BY r.CREATED_AT DESC, r.REVIEW_NO DESC
+    </select>
+
+</mapper>

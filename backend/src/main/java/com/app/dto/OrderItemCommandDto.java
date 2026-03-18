@@ -7,16 +7,15 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class OrderItemDetailDto {
+public class OrderItemCommandDto {
 
-    private Long orderItemNo;
+    private Long orderNo;
     private Long productNo;
     private String productName;
     private BigDecimal unitPrice;
-    private Long quantity;
+    private Integer quantity;
     private BigDecimal subtotal;
     private BigDecimal marketAvgPrice;
     private BigDecimal savedAmount;
     private BigDecimal savingRate;
-    private Long reviewNo;
 }
