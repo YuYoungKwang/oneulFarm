@@ -60,7 +60,7 @@
             o.ORDER_STATUS AS orderStatus,
             NVL(d.DELIVERY_STATUS, 'READY') AS deliveryStatus,
             CASE
-                WHEN oi.ITEM_COUNT <= 1 THEN oi.FIRST_PRODUCT_NAME
+                WHEN oi.ITEM_COUNT &lt;= 1 THEN oi.FIRST_PRODUCT_NAME
                 ELSE oi.FIRST_PRODUCT_NAME || ' +' || TO_CHAR(oi.ITEM_COUNT - 1)
             END AS displayProductName,
             oi.ITEM_COUNT AS itemCount,
@@ -272,11 +272,11 @@
         UPDATE OFT_PRODUCT
         SET STOCK_QTY = STOCK_QTY - #{quantity},
             SALE_STATUS = CASE
-                WHEN STOCK_QTY - #{quantity} <= 0 THEN 'SOLD_OUT'
+                WHEN STOCK_QTY - #{quantity} &lt;= 0 THEN 'SOLD_OUT'
                 ELSE SALE_STATUS
             END
         WHERE PRODUCT_NO = #{productNo}
-          AND STOCK_QTY >= #{quantity}
+          AND STOCK_QTY &gt;= #{quantity}
     </update>
 
 </mapper>
