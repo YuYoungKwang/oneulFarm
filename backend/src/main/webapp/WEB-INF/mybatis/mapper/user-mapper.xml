@@ -53,11 +53,25 @@
           AND USER_NO != #{userNo}
     ]]></select>
 
+    <select id="countByPassword" parameterType="map" resultType="int"><![CDATA[
+        SELECT COUNT(*)
+        FROM OFT_USERS
+        WHERE USER_NO = #{userNo}
+          AND PASSWORD = #{password}
+    ]]></select>
+
     <update id="updateMyProfile" parameterType="map"><![CDATA[
         UPDATE OFT_USERS
         SET NICKNAME = #{nickname},
             EMAIL = #{email},
             PHONE = #{phone},
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE USER_NO = #{userNo}
+    ]]></update>
+
+    <update id="updatePassword" parameterType="map"><![CDATA[
+        UPDATE OFT_USERS
+        SET PASSWORD = #{newPassword},
             UPDATED_AT = SYSTIMESTAMP
         WHERE USER_NO = #{userNo}
     ]]></update>

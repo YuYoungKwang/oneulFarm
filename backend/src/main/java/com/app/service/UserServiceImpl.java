@@ -5,8 +5,10 @@ import java.math.BigDecimal;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.app.dto.ChangePasswordRequestDto;
 import com.app.dao.UserDao;
 import com.app.dto.DuplicateCheckResponseDto;
 import com.app.dto.UpdateUserProfileRequestDto;
@@ -53,6 +55,21 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
+    public void changePassword(Long userNo, ChangePasswordRequestDto request) {
+        validatePasswordRequest(request);
+
+        if (userDao.countByPassword(userNo, request.getCurrentPassword()) == 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "현재 비밀번호가 일치하지 않습니다.");
+        }
+
+        int updatedCount = userDao.updatePassword(userNo, request);
+        if (updatedCount == 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "비밀번호 변경에 실패했습니다.");
+        }
+    }
+
+    @Override
     public DuplicateCheckResponseDto checkEmail(Long userNo, String email) {
         String normalizedEmail = normalize(email);
         return new DuplicateCheckResponseDto(normalizedEmail, userDao.countByEmail(normalizedEmail, userNo) == 0);
@@ -72,6 +89,28 @@ public class UserServiceImpl implements UserService {
         request.setNickname(normalize(request.getNickname()));
         request.setEmail(normalize(request.getEmail()));
         request.setPhone(normalize(request.getPhone()));
+    }
+
+    private void validatePasswordRequest(ChangePasswordRequestDto request) {
+        if (isBlank(request.getCurrentPassword()) || isBlank(request.getNewPassword()) || isBlank(request.getConfirmPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "현재 비밀번호와 새 비밀번호를 모두 입력해 주세요.");
+        }
+
+        request.setCurrentPassword(request.getCurrentPassword().trim());
+        request.setNewPassword(request.getNewPassword().trim());
+        request.setConfirmPassword(request.getConfirmPassword().trim());
+
+        if (request.getNewPassword().length() < 8) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "새 비밀번호는 8자 이상이어야 합니다.");
+        }
+
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "새 비밀번호와 비밀번호 확인이 일치하지 않습니다.");
+        }
+
+        if (request.getCurrentPassword().equals(request.getNewPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "새 비밀번호는 현재 비밀번호와 달라야 합니다.");
+        }
     }
 
     private String normalize(String value) {

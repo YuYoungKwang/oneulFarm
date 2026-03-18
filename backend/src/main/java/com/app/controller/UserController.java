@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.app.common.ApiResponse;
+import com.app.dto.ChangePasswordRequestDto;
 import com.app.dto.DuplicateCheckResponseDto;
 import com.app.dto.UpdateUserProfileRequestDto;
 import com.app.dto.UserProfileDto;
@@ -36,6 +37,15 @@ public class UserController {
         @RequestBody UpdateUserProfileRequestDto request
     ) {
         return ApiResponse.success(userService.updateMyProfile(userNo, request), "회원정보 수정 성공");
+    }
+
+    @PatchMapping(value = "/me/password", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ApiResponse<Void> changePassword(
+        @RequestHeader("X-USER-NO") Long userNo,
+        @RequestBody ChangePasswordRequestDto request
+    ) {
+        userService.changePassword(userNo, request);
+        return ApiResponse.success(null, "비밀번호 변경 성공");
     }
 
     @GetMapping("/check-email")

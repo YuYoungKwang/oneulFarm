@@ -7,6 +7,7 @@ import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
+import com.app.dto.ChangePasswordRequestDto;
 import com.app.dto.UpdateUserProfileRequestDto;
 import com.app.dto.UserProfileDto;
 
@@ -49,5 +50,22 @@ public class UserDaoImpl implements UserDao {
         params.put("email", request.getEmail());
         params.put("phone", request.getPhone());
         return sqlSessionTemplate.update(NAMESPACE + "updateMyProfile", params);
+    }
+
+    @Override
+    public int countByPassword(Long userNo, String password) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("userNo", userNo);
+        params.put("password", password);
+        Integer count = sqlSessionTemplate.selectOne(NAMESPACE + "countByPassword", params);
+        return count == null ? 0 : count;
+    }
+
+    @Override
+    public int updatePassword(Long userNo, ChangePasswordRequestDto request) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("userNo", userNo);
+        params.put("newPassword", request.getNewPassword());
+        return sqlSessionTemplate.update(NAMESPACE + "updatePassword", params);
     }
 }

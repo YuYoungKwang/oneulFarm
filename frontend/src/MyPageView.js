@@ -25,7 +25,7 @@ function MyPageView({
   profile,
   profileLoading,
   profileError,
-  onOpenProfileEdit,
+  onOpenProfileDetail,
   onOpenAddressModal,
 }) {
   const stats = getOrderStats(orders);
@@ -43,7 +43,6 @@ function MyPageView({
           <p>프로필 요약과 주문, 찜, 리뷰를 한 곳에서 관리하는 개인 화면입니다.</p>
         </div>
         <div className="page-actions">
-          <button type="button" className="btn-outline" onClick={onOpenProfileEdit}>회원정보 수정</button>
           <button type="button" className="btn" onClick={onOpenAddressModal}>배송지 관리</button>
         </div>
       </section>
@@ -75,15 +74,21 @@ function MyPageView({
 
       <section className="section mypage-intro">
         <article className="card profile-summary-card">
-          <div className="profile-summary">
-            <div className="profile-badge">{getProfileInitials(profile)}</div>
-            <div>
-              <div className="card-title">{profileLoading ? '불러오는 중...' : profileName}</div>
-              <div className="card-sub">@{accountLabel}</div>
+          <div className="profile-summary profile-summary--spread">
+            <div className="profile-summary__identity">
+              <div className="profile-badge">{getProfileInitials(profile)}</div>
+              <div>
+                <div className="card-title">{profileLoading ? '불러오는 중...' : profileName}</div>
+                <div className="card-sub">@{accountLabel}</div>
+              </div>
+            </div>
+            <div className="profile-summary__actions">
+              <button type="button" className="btn-outline" onClick={onOpenProfileDetail}>상세 개인정보</button>
+              <button type="button" className="btn" onClick={onOpenAddressModal}>배송지 관리</button>
             </div>
           </div>
 
-          <div className="insight-list">
+          <div className="profile-summary-grid">
             <div className="insight-item">
               <strong>이메일</strong>
               <span>{profileLoading ? '불러오는 중...' : emailLabel}</span>
@@ -95,6 +100,10 @@ function MyPageView({
             <div className="insight-item">
               <strong>기본 배송지</strong>
               <span>{profileLoading ? '불러오는 중...' : defaultAddressLabel}</span>
+            </div>
+            <div className="insight-item">
+              <strong>누적 절약 금액</strong>
+              <span>{summaryLoading ? '불러오는 중...' : formatPrice(summary.totalSavedAmount)}</span>
             </div>
           </div>
         </article>

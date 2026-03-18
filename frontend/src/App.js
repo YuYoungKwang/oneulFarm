@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import './App.css';
 import DashboardView from './DashboardView';
 import MyPageView from './MyPageView';
-import ProfileEditModal from './ProfileEditModal';
+import ProfileDetailView from './ProfileDetailView';
 import AddressModal from './AddressModal';
 import { pageTabs } from './mockData';
 
@@ -33,6 +33,12 @@ const EMPTY_PROFILE_FORM = {
   nickname: '',
   email: '',
   phone: '',
+};
+
+const EMPTY_PASSWORD_FORM = {
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: '',
 };
 
 const EMPTY_ADDRESS_FORM = {
@@ -71,10 +77,12 @@ function App() {
   const [profile, setProfile] = useState(EMPTY_PROFILE);
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState('');
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileForm, setProfileForm] = useState(EMPTY_PROFILE_FORM);
   const [profileSubmitError, setProfileSubmitError] = useState('');
   const [profileSubmitting, setProfileSubmitting] = useState(false);
+  const [passwordForm, setPasswordForm] = useState(EMPTY_PASSWORD_FORM);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSubmitting, setPasswordSubmitting] = useState(false);
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [addresses, setAddresses] = useState([]);
   const [addressesLoading, setAddressesLoading] = useState(false);
@@ -146,34 +154,39 @@ function App() {
     return () => controller.abort();
   }, []);
 
+  async function loadProfile(signal) {
+    setProfileLoading(true);
+    setProfileError('');
+
+    try {
+      const response = await fetch(`${USER_API_BASE}/me`, {
+        headers: { 'X-USER-NO': DEMO_USER_NO },
+        signal,
+      });
+
+      const payload = await parseResponse(response, '회원정보를 불러오지 못했습니다.');
+      if (payload.data) {
+        const nextProfile = { ...EMPTY_PROFILE, ...payload.data };
+        setProfile(nextProfile);
+        setProfileForm({
+          nickname: nextProfile.nickname || '',
+          email: nextProfile.email || '',
+          phone: nextProfile.phone || '',
+        });
+      }
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        return;
+      }
+      setProfileError(error.message || '회원정보를 불러오지 못했습니다.');
+    } finally {
+      setProfileLoading(false);
+    }
+  }
+
   useEffect(() => {
     const controller = new AbortController();
-
-    async function fetchProfile() {
-      setProfileLoading(true);
-      setProfileError('');
-
-      try {
-        const response = await fetch(`${USER_API_BASE}/me`, {
-          headers: { 'X-USER-NO': DEMO_USER_NO },
-          signal: controller.signal,
-        });
-
-        const payload = await parseResponse(response, '회원정보를 불러오지 못했습니다.');
-        if (payload.data) {
-          setProfile({ ...EMPTY_PROFILE, ...payload.data });
-        }
-      } catch (error) {
-        if (error.name === 'AbortError') {
-          return;
-        }
-        setProfileError(error.message || '회원정보를 불러오지 못했습니다.');
-      } finally {
-        setProfileLoading(false);
-      }
-    }
-
-    fetchProfile();
+    loadProfile(controller.signal);
     return () => controller.abort();
   }, []);
 
@@ -213,20 +226,15 @@ function App() {
     return () => controller.abort();
   }, [selectedOrderNo]);
 
-  function openProfileEdit() {
-    setProfileForm({
-      nickname: profile.nickname || '',
-      email: profile.email || '',
-      phone: profile.phone || '',
-    });
+  function openProfileDetail() {
     setProfileSubmitError('');
-    setIsProfileModalOpen(true);
+    setPasswordError('');
+    setPasswordForm(EMPTY_PASSWORD_FORM);
+    setCurrentPage('profile-detail');
   }
 
-  function closeProfileEdit() {
-    setIsProfileModalOpen(false);
-    setProfileSubmitError('');
-    setProfileSubmitting(false);
+  function moveToMypage() {
+    setCurrentPage('mypage');
   }
 
   function handleProfileFormChange(event) {
@@ -255,14 +263,58 @@ function App() {
       const payload = await parseResponse(response, '회원정보를 저장하지 못했습니다.');
 
       if (payload.data) {
-        setProfile({ ...EMPTY_PROFILE, ...payload.data });
+        const nextProfile = { ...EMPTY_PROFILE, ...payload.data };
+        setProfile(nextProfile);
+        setProfileForm({
+          nickname: nextProfile.nickname || '',
+          email: nextProfile.email || '',
+          phone: nextProfile.phone || '',
+        });
       }
-
-      setIsProfileModalOpen(false);
     } catch (error) {
       setProfileSubmitError(error.message || '회원정보를 저장하지 못했습니다.');
     } finally {
       setProfileSubmitting(false);
+    }
+  }
+
+  function handlePasswordFormChange(event) {
+    const { name, value } = event.target;
+    setPasswordForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  }
+
+  async function handlePasswordSubmit(event) {
+    event.preventDefault();
+    setPasswordSubmitting(true);
+    setPasswordError('');
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('새 비밀번호와 비밀번호 확인이 일치하지 않습니다.');
+      setPasswordSubmitting(false);
+      return;
+    }
+
+    try {
+      await parseResponse(
+        await fetch(`${USER_API_BASE}/me/password`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-USER-NO': DEMO_USER_NO,
+          },
+          body: JSON.stringify(passwordForm),
+        }),
+        '비밀번호 변경에 실패했습니다.',
+      );
+
+      setPasswordForm(EMPTY_PASSWORD_FORM);
+    } catch (error) {
+      setPasswordError(error.message || '비밀번호 변경에 실패했습니다.');
+    } finally {
+      setPasswordSubmitting(false);
     }
   }
 
@@ -330,13 +382,7 @@ function App() {
       setAddressForm(EMPTY_ADDRESS_FORM);
       setIsAddressFormOpen(false);
 
-      const profileResponse = await fetch(`${USER_API_BASE}/me`, {
-        headers: { 'X-USER-NO': DEMO_USER_NO },
-      });
-      const profilePayload = await parseResponse(profileResponse, '회원정보를 불러오지 못했습니다.');
-      if (profilePayload.data) {
-        setProfile({ ...EMPTY_PROFILE, ...profilePayload.data });
-      }
+      await loadProfile();
     } catch (error) {
       setAddressFormError(error.message || '배송지 등록에 실패했습니다.');
     } finally {
@@ -357,13 +403,7 @@ function App() {
       const payload = await parseResponse(response, '기본 배송지 변경에 실패했습니다.');
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
 
-      const profileResponse = await fetch(`${USER_API_BASE}/me`, {
-        headers: { 'X-USER-NO': DEMO_USER_NO },
-      });
-      const profilePayload = await parseResponse(profileResponse, '회원정보를 불러오지 못했습니다.');
-      if (profilePayload.data) {
-        setProfile({ ...EMPTY_PROFILE, ...profilePayload.data });
-      }
+      await loadProfile();
     } catch (error) {
       setAddressesError(error.message || '기본 배송지 변경에 실패했습니다.');
     } finally {
@@ -389,13 +429,7 @@ function App() {
       const payload = await parseResponse(response, '배송지 삭제에 실패했습니다.');
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
 
-      const profileResponse = await fetch(`${USER_API_BASE}/me`, {
-        headers: { 'X-USER-NO': DEMO_USER_NO },
-      });
-      const profilePayload = await parseResponse(profileResponse, '회원정보를 불러오지 못했습니다.');
-      if (profilePayload.data) {
-        setProfile({ ...EMPTY_PROFILE, ...profilePayload.data });
-      }
+      await loadProfile();
     } catch (error) {
       setAddressesError(error.message || '배송지 삭제에 실패했습니다.');
     } finally {
@@ -429,7 +463,12 @@ function App() {
             <button
               key={tab.id}
               type="button"
-              className={`nav-link nav-link-button ${currentPage === tab.id ? 'is-active' : ''}`}
+              className={`nav-link nav-link-button ${
+                (tab.id === 'mypage' && (currentPage === 'mypage' || currentPage === 'profile-detail'))
+                || currentPage === tab.id
+                  ? 'is-active'
+                  : ''
+              }`}
               onClick={() => setCurrentPage(tab.id)}
             >
               {tab.label}
@@ -472,7 +511,25 @@ function App() {
             profile={profile}
             profileLoading={profileLoading}
             profileError={profileError}
-            onOpenProfileEdit={openProfileEdit}
+            onOpenProfileDetail={openProfileDetail}
+            onOpenAddressModal={openAddressModal}
+          />
+        ) : currentPage === 'profile-detail' ? (
+          <ProfileDetailView
+            profile={profile}
+            profileLoading={profileLoading}
+            profileError={profileError}
+            profileForm={profileForm}
+            profileSubmitting={profileSubmitting}
+            profileSubmitError={profileSubmitError}
+            onProfileFormChange={handleProfileFormChange}
+            onProfileSubmit={handleProfileSubmit}
+            passwordForm={passwordForm}
+            passwordSubmitting={passwordSubmitting}
+            passwordError={passwordError}
+            onPasswordFormChange={handlePasswordFormChange}
+            onPasswordSubmit={handlePasswordSubmit}
+            onBack={moveToMypage}
             onOpenAddressModal={openAddressModal}
           />
         ) : (
@@ -483,16 +540,6 @@ function App() {
           />
         )}
       </main>
-
-      <ProfileEditModal
-        open={isProfileModalOpen}
-        form={profileForm}
-        onChange={handleProfileFormChange}
-        onClose={closeProfileEdit}
-        onSubmit={handleProfileSubmit}
-        submitting={profileSubmitting}
-        error={profileSubmitError}
-      />
       <AddressModal
         open={isAddressModalOpen}
         addresses={addresses}
