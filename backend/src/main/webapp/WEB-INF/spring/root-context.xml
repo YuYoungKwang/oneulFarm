@@ -14,7 +14,7 @@
 	
 	<bean class="org.apache.commons.dbcp2.BasicDataSource" id="data_source">
 		<property name="driverClassName" value="oracle.jdbc.OracleDriver" />
-		<property name="url" value="jdbc:oracle:thin:@localhost:1521:orcl" />
+		<property name="url" value="jdbc:oracle:thin:@192.168.0.105:1521:orcl" />
 		<property name="username" value="scott" />
 		<property name="password" value="tiger" />
 	</bean>
@@ -30,6 +30,9 @@
 	</bean>
 	
 	<context:property-placeholder location="classpath:api.properties" ignore-resource-not-found="true"/>
+
+	<task:scheduler id="priceSnapshotTaskScheduler" pool-size="1"/>
+	<task:annotation-driven scheduler="priceSnapshotTaskScheduler"/>
 	
 	<context:component-scan	base-package="com.app.service"/>
 	<context:component-scan	base-package="com.app.dao"/>

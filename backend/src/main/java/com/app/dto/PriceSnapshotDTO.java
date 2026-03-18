@@ -2,7 +2,7 @@ package com.app.dto;
 
 import java.math.BigDecimal;
 
-public class PriceSnapshot {
+public class PriceSnapshotDTO {
 
     private Long snapshotNo;
     private String itemCode;
