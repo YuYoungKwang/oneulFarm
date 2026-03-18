@@ -674,7 +674,9 @@
 .account-app .modal-card--address{
   max-height: min(88vh, 920px);
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 18px;
+  overflow: hidden;
 }
 
 .account-app .modal-head--sticky{
@@ -763,10 +765,15 @@
 }
 
 .account-app .address-list-shell{
-  overflow: auto;
+  min-height: 0;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding-right: 4px;
   display: grid;
   gap: 14px;
+  align-content: start;
 }
 
 .account-app .address-card{
