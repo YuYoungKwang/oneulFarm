@@ -29,6 +29,13 @@ const EMPTY_SUMMARY = {
   totalPurchaseAmount: 0,
 };
 
+const EMPTY_DASHBOARD_PATTERNS = {
+  averagePurchaseUnitPrice: 0,
+  averageSavingRate: 0,
+  topPurchasedProducts: [],
+  recentPurchasedProducts: [],
+};
+
 const EMPTY_PROFILE_FORM = {
   nickname: '',
   email: '',
@@ -94,6 +101,11 @@ function App() {
   const [detailError, setDetailError] = useState('');
   const [summary, setSummary] = useState(EMPTY_SUMMARY);
   const [summaryLoading, setSummaryLoading] = useState(true);
+  const [monthlySavings, setMonthlySavings] = useState([]);
+  const [productSavings, setProductSavings] = useState([]);
+  const [dashboardPatterns, setDashboardPatterns] = useState(EMPTY_DASHBOARD_PATTERNS);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState('');
   const [profile, setProfile] = useState(EMPTY_PROFILE);
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState('');
@@ -171,6 +183,58 @@ function App() {
     }
 
     fetchSummary();
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function fetchDashboardDetails() {
+      setDashboardLoading(true);
+      setDashboardError('');
+
+      try {
+        const [monthlyResponse, productResponse, patternResponse] = await Promise.all([
+          fetch(`${DASHBOARD_API_BASE}/monthly-savings`, {
+            headers: { 'X-USER-NO': DEMO_USER_NO },
+            signal: controller.signal,
+          }),
+          fetch(`${DASHBOARD_API_BASE}/product-savings`, {
+            headers: { 'X-USER-NO': DEMO_USER_NO },
+            signal: controller.signal,
+          }),
+          fetch(`${DASHBOARD_API_BASE}/patterns`, {
+            headers: { 'X-USER-NO': DEMO_USER_NO },
+            signal: controller.signal,
+          }),
+        ]);
+
+        const [monthlyPayload, productPayload, patternPayload] = await Promise.all([
+          parseResponse(monthlyResponse, '월별 절약 금액을 불러오지 못했습니다.'),
+          parseResponse(productResponse, '품목별 절약 분석을 불러오지 못했습니다.'),
+          parseResponse(patternResponse, '소비 패턴 데이터를 불러오지 못했습니다.'),
+        ]);
+
+        setMonthlySavings(Array.isArray(monthlyPayload.data) ? monthlyPayload.data : []);
+        setProductSavings(Array.isArray(productPayload.data) ? productPayload.data : []);
+        setDashboardPatterns({
+          ...EMPTY_DASHBOARD_PATTERNS,
+          ...(patternPayload.data || {}),
+        });
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          return;
+        }
+        setDashboardError(error.message || '대시보드 상세 데이터를 불러오지 못했습니다.');
+        setMonthlySavings([]);
+        setProductSavings([]);
+        setDashboardPatterns(EMPTY_DASHBOARD_PATTERNS);
+      } finally {
+        setDashboardLoading(false);
+      }
+    }
+
+    fetchDashboardDetails();
     return () => controller.abort();
   }, []);
 
@@ -576,6 +640,11 @@ function App() {
             onMoveToMypage={() => setCurrentPage('mypage')}
             summary={summary}
             summaryLoading={summaryLoading}
+            monthlySavings={monthlySavings}
+            productSavings={productSavings}
+            patterns={dashboardPatterns}
+            dashboardLoading={dashboardLoading}
+            dashboardError={dashboardError}
           />
         )}
       </main>

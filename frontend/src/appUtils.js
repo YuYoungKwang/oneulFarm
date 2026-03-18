@@ -1,5 +1,3 @@
-import { monthlySavings, productSavings } from './mockData';
-
 export function formatPrice(value) {
   return `${Number(value || 0).toLocaleString('ko-KR')}원`;
 }
@@ -41,13 +39,11 @@ export function formatDateTime(value) {
 }
 
 export function getMonthlyHeight(value) {
-  const maxValue = Math.max(...monthlySavings.map((item) => item.value));
-  return `${(value / maxValue) * 100}%`;
+  return '0%';
 }
 
 export function getProductWidth(value) {
-  const maxValue = Math.max(...productSavings.map((item) => item.value));
-  return `${(value / maxValue) * 100}%`;
+  return '0%';
 }
 
 export function getDeliveryBadgeClass(status) {
@@ -78,4 +74,33 @@ export function getOrderStats(orders) {
 export function getProfileInitials(profile) {
   const source = profile.nickname || profile.userId || 'MY';
   return source.slice(0, 2).toUpperCase();
+}
+
+export function getScaledHeight(value, items, key = 'value') {
+  const maxValue = Math.max(...items.map((item) => Number(item[key] || 0)), 0);
+  if (maxValue === 0) {
+    return '0%';
+  }
+  return `${(Number(value || 0) / maxValue) * 100}%`;
+}
+
+export function getScaledWidth(value, items, key = 'value') {
+  const maxValue = Math.max(...items.map((item) => Number(item[key] || 0)), 0);
+  if (maxValue === 0) {
+    return '0%';
+  }
+  return `${(Number(value || 0) / maxValue) * 100}%`;
+}
+
+export function formatMonthLabel(value) {
+  if (!value) {
+    return '-';
+  }
+
+  const matched = String(value).match(/^(\d{4})-(\d{2})$/);
+  if (!matched) {
+    return value;
+  }
+
+  return `${Number(matched[2])}월`;
 }
