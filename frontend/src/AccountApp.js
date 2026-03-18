@@ -758,7 +758,19 @@ function AccountApp() {
     }
   }
 
-  async function handleDeleteAddress(addressNo) {
+  async function handleDeleteAddress(address) {
+    const addressNo = address?.addressNo;
+    const addressLabel = address?.addressName || address?.recipientName || '선택한 배송지';
+
+    if (!addressNo) {
+      return;
+    }
+
+    const confirmed = window.confirm(`'${addressLabel}' 배송지를 삭제하시겠습니까?`);
+    if (!confirmed) {
+      return;
+    }
+
     setDeletingAddressNo(addressNo);
     setAddressesError('');
 

@@ -222,7 +222,7 @@ function AddressModal({
                             type="button"
                             className="btn line btn-danger-line"
                             disabled={isDeleting || isChanging}
-                            onClick={() => onDeleteAddress(address.addressNo)}
+                            onClick={() => onDeleteAddress(address)}
                           >
                             {isDeleting ? '삭제 중...' : '삭제'}
                           </button>
