@@ -83,6 +83,7 @@ function App() {
   const [addressForm, setAddressForm] = useState(EMPTY_ADDRESS_FORM);
   const [addressFormError, setAddressFormError] = useState('');
   const [addressSubmitting, setAddressSubmitting] = useState(false);
+  const [isAddressFormOpen, setIsAddressFormOpen] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -286,6 +287,7 @@ function App() {
     setIsAddressModalOpen(true);
     setAddressForm(EMPTY_ADDRESS_FORM);
     setAddressFormError('');
+    setIsAddressFormOpen(false);
     fetchAddresses();
   }
 
@@ -295,6 +297,7 @@ function App() {
     setChangingAddressNo(null);
     setAddressFormError('');
     setAddressSubmitting(false);
+    setIsAddressFormOpen(false);
   }
 
   function handleAddressFormChange(event) {
@@ -323,6 +326,7 @@ function App() {
       const payload = await parseResponse(response, '배송지 등록에 실패했습니다.');
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
       setAddressForm(EMPTY_ADDRESS_FORM);
+      setIsAddressFormOpen(false);
 
       const profileResponse = await fetch(`${USER_API_BASE}/me`, {
         headers: { 'X-USER-NO': DEMO_USER_NO },
@@ -363,6 +367,11 @@ function App() {
     } finally {
       setChangingAddressNo(null);
     }
+  }
+
+  function handleToggleAddressForm() {
+    setAddressFormError('');
+    setIsAddressFormOpen((current) => !current);
   }
 
   function handleSelectOrder(orderNo) {
@@ -456,11 +465,13 @@ function App() {
         loading={addressesLoading}
         error={addressesError}
         changingAddressNo={changingAddressNo}
+        isFormOpen={isAddressFormOpen}
         form={addressForm}
         formError={addressFormError}
         submitting={addressSubmitting}
         onClose={closeAddressModal}
         onChangeDefault={handleChangeDefaultAddress}
+        onToggleForm={handleToggleAddressForm}
         onFormChange={handleAddressFormChange}
         onFormSubmit={handleAddressFormSubmit}
       />

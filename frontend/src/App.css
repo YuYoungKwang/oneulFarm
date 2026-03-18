@@ -727,6 +727,20 @@
   width: min(860px, 100%);
 }
 
+.modal-card--address {
+  max-height: min(88vh, 920px);
+  display: grid;
+  gap: 18px;
+}
+
+.modal-head--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface);
+  padding-bottom: 4px;
+}
+
 .profile-form {
   display: grid;
   gap: 18px;
@@ -734,6 +748,10 @@
 
 .address-form-shell {
   margin-bottom: 18px;
+}
+
+.address-form-panel {
+  flex-shrink: 0;
 }
 
 .form-grid {
@@ -796,6 +814,13 @@
 }
 
 .address-list {
+  display: grid;
+  gap: 14px;
+}
+
+.address-list-shell {
+  overflow: auto;
+  padding-right: 4px;
   display: grid;
   gap: 14px;
 }
