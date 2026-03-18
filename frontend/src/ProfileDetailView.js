@@ -8,9 +8,11 @@ function ProfileDetailView({
   profileForm,
   profileSubmitting,
   profileSubmitError,
+  duplicateState,
   onProfileFormChange,
   onProfileSubmit,
   onResetProfileForm,
+  onDuplicateCheck,
   passwordForm,
   passwordSubmitting,
   passwordError,
@@ -43,9 +45,9 @@ function ProfileDetailView({
     },
   ];
 
-  async function handleProfileRowSubmit(event) {
+  async function handleProfileRowSubmit(fieldKey, event) {
     event.preventDefault();
-    const success = await onProfileSubmit(event);
+    const success = await onProfileSubmit(fieldKey, event);
     if (success) {
       setActiveEditor(null);
     }
@@ -97,12 +99,15 @@ function ProfileDetailView({
               const isEditing = activeEditor === item.key;
 
               if (item.key === 'nickname' || item.key === 'email' || item.key === 'phone') {
+                const duplicateInfo = duplicateState?.[item.key];
+                const showDuplicateCheck = item.key === 'nickname' || item.key === 'email';
+
                 return (
                   <div key={item.key} className={`profile-inline-row ${isEditing ? 'is-editing' : ''}`}>
                     <div className="profile-inline-row__label">{item.label}</div>
 
                     {isEditing ? (
-                      <form className="profile-inline-editor" onSubmit={handleProfileRowSubmit}>
+                      <form className="profile-inline-editor" onSubmit={(event) => handleProfileRowSubmit(item.key, event)}>
                         <div className="profile-inline-editor__field">
                           <input
                             name={item.key}
@@ -111,6 +116,23 @@ function ProfileDetailView({
                             placeholder={`${item.label}을 입력해 주세요`}
                           />
                         </div>
+                        {showDuplicateCheck && (
+                          <div className="profile-inline-row__actions">
+                            <button
+                              type="button"
+                              className="btn-outline"
+                              disabled={duplicateInfo?.checking}
+                              onClick={() => onDuplicateCheck(item.key)}
+                            >
+                              {duplicateInfo?.checking ? '확인 중...' : '중복 확인'}
+                            </button>
+                          </div>
+                        )}
+                        {showDuplicateCheck && duplicateInfo?.message && (
+                          <div className={`form-error ${duplicateInfo.available ? 'form-error--success' : ''}`}>
+                            {duplicateInfo.message}
+                          </div>
+                        )}
                         {profileSubmitError && <div className="form-error">{profileSubmitError}</div>}
                         <div className="profile-inline-row__actions">
                           <button type="button" className="btn-outline" onClick={handleCancelProfileEdit}>취소</button>

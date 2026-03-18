@@ -753,6 +753,11 @@
   font-weight: 700;
 }
 
+.account-app .form-error--success{
+  background: #effaf3;
+  color: #166534;
+}
+
 .account-app .modal-actions{
   display: flex;
   justify-content: flex-end;

@@ -47,6 +47,21 @@ const EMPTY_PASSWORD_FORM = {
   confirmPassword: '',
 };
 
+const EMPTY_DUPLICATE_STATE = {
+  email: {
+    checking: false,
+    available: null,
+    message: '',
+    checkedValue: '',
+  },
+  nickname: {
+    checking: false,
+    available: null,
+    message: '',
+    checkedValue: '',
+  },
+};
+
 const EMPTY_ADDRESS_FORM = {
   addressName: '',
   recipientName: '',
@@ -139,6 +154,7 @@ function AccountApp() {
   const [profileForm, setProfileForm] = useState(EMPTY_PROFILE_FORM);
   const [profileSubmitError, setProfileSubmitError] = useState('');
   const [profileSubmitting, setProfileSubmitting] = useState(false);
+  const [duplicateState, setDuplicateState] = useState(EMPTY_DUPLICATE_STATE);
   const [passwordForm, setPasswordForm] = useState(EMPTY_PASSWORD_FORM);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSubmitting, setPasswordSubmitting] = useState(false);
@@ -364,6 +380,18 @@ function AccountApp() {
       ...current,
       [name]: value,
     }));
+
+    if (name === 'email' || name === 'nickname') {
+      setDuplicateState((current) => ({
+        ...current,
+        [name]: {
+          checking: false,
+          available: null,
+          message: '',
+          checkedValue: '',
+        },
+      }));
+    }
   }
 
   function resetProfileForm() {
@@ -373,12 +401,128 @@ function AccountApp() {
       phone: profile.phone || '',
     });
     setProfileSubmitError('');
+    setDuplicateState(EMPTY_DUPLICATE_STATE);
   }
 
-  async function handleProfileSubmit(event) {
+  async function handleDuplicateCheck(fieldKey) {
+    const rawValue = String(profileForm[fieldKey] || '').trim();
+    const currentValue = String(profile[fieldKey] || '').trim();
+
+    if (!rawValue) {
+      setDuplicateState((current) => ({
+        ...current,
+        [fieldKey]: {
+          checking: false,
+          available: false,
+          message: fieldKey === 'email' ? '이메일을 입력해 주세요.' : '닉네임을 입력해 주세요.',
+          checkedValue: '',
+        },
+      }));
+      return;
+    }
+
+    if (fieldKey === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawValue)) {
+      setDuplicateState((current) => ({
+        ...current,
+        email: {
+          checking: false,
+          available: false,
+          message: '올바른 이메일 형식으로 입력해 주세요.',
+          checkedValue: '',
+        },
+      }));
+      return;
+    }
+
+    if (rawValue === currentValue) {
+      setDuplicateState((current) => ({
+        ...current,
+        [fieldKey]: {
+          checking: false,
+          available: true,
+          message: fieldKey === 'email' ? '현재 사용 중인 이메일입니다.' : '현재 사용 중인 닉네임입니다.',
+          checkedValue: rawValue,
+        },
+      }));
+      return;
+    }
+
+    setDuplicateState((current) => ({
+      ...current,
+      [fieldKey]: {
+        ...current[fieldKey],
+        checking: true,
+        message: '',
+      },
+    }));
+
+    try {
+      const queryParam = fieldKey === 'email' ? 'email' : 'nickname';
+      const response = await fetch(
+        `${USER_API_BASE}/check-${fieldKey}?${queryParam}=${encodeURIComponent(rawValue)}`,
+        {
+          headers: { 'X-USER-NO': DEMO_USER_NO },
+        }
+      );
+      const payload = await parseResponse(
+        response,
+        fieldKey === 'email' ? '이메일 중복 확인에 실패했습니다.' : '닉네임 중복 확인에 실패했습니다.'
+      );
+      const available = Boolean(payload.data?.available);
+
+      setDuplicateState((current) => ({
+        ...current,
+        [fieldKey]: {
+          checking: false,
+          available,
+          message: available
+            ? fieldKey === 'email'
+              ? '사용 가능한 이메일입니다.'
+              : '사용 가능한 닉네임입니다.'
+            : fieldKey === 'email'
+              ? '이미 사용 중인 이메일입니다.'
+              : '이미 사용 중인 닉네임입니다.',
+          checkedValue: rawValue,
+        },
+      }));
+    } catch (error) {
+      setDuplicateState((current) => ({
+        ...current,
+        [fieldKey]: {
+          checking: false,
+          available: false,
+          message: error.message || (fieldKey === 'email'
+            ? '이메일 중복 확인에 실패했습니다.'
+            : '닉네임 중복 확인에 실패했습니다.'),
+          checkedValue: '',
+        },
+      }));
+    }
+  }
+
+  async function handleProfileSubmit(fieldKey, event) {
     event.preventDefault();
     setProfileSubmitting(true);
     setProfileSubmitError('');
+
+    if (fieldKey === 'email' || fieldKey === 'nickname') {
+      const nextValue = String(profileForm[fieldKey] || '').trim();
+      const currentValue = String(profile[fieldKey] || '').trim();
+      const state = duplicateState[fieldKey];
+
+      if (
+        nextValue !== currentValue &&
+        (!state.available || state.checkedValue !== nextValue)
+      ) {
+        setProfileSubmitError(
+          fieldKey === 'email'
+            ? '저장 전에 이메일 중복 확인을 완료해 주세요.'
+            : '저장 전에 닉네임 중복 확인을 완료해 주세요.'
+        );
+        setProfileSubmitting(false);
+        return false;
+      }
+    }
 
     try {
       const response = await fetch(`${USER_API_BASE}/me`, {
@@ -393,6 +537,18 @@ function AccountApp() {
 
       if (payload.data) {
         setProfile({ ...EMPTY_PROFILE, ...payload.data });
+      }
+
+       if (fieldKey === 'email' || fieldKey === 'nickname') {
+        setDuplicateState((current) => ({
+          ...current,
+          [fieldKey]: {
+            checking: false,
+            available: true,
+            message: fieldKey === 'email' ? '이메일이 저장되었습니다.' : '닉네임이 저장되었습니다.',
+            checkedValue: String(profileForm[fieldKey] || '').trim(),
+          },
+        }));
       }
 
       return true;
@@ -637,9 +793,11 @@ function AccountApp() {
               profileForm={profileForm}
               profileSubmitting={profileSubmitting}
               profileSubmitError={profileSubmitError}
+              duplicateState={duplicateState}
               onProfileFormChange={handleProfileFormChange}
               onProfileSubmit={handleProfileSubmit}
               onResetProfileForm={resetProfileForm}
+              onDuplicateCheck={handleDuplicateCheck}
               passwordForm={passwordForm}
               passwordSubmitting={passwordSubmitting}
               passwordError={passwordError}
