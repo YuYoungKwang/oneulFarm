@@ -2,13 +2,18 @@ import { formatDate, formatMonthLabel, formatPrice, getScaledHeight, getScaledWi
 
 function DashboardView({
   onMoveToMypage,
-  summary,
-  summaryLoading,
-  monthlySavings,
-  productSavings,
-  patterns,
-  dashboardLoading,
-  dashboardError,
+  summary = {},
+  summaryLoading = false,
+  monthlySavings = [],
+  productSavings = [],
+  patterns = {
+    averagePurchaseUnitPrice: 0,
+    averageSavingRate: 0,
+    topPurchasedProducts: [],
+    recentPurchasedProducts: [],
+  },
+  dashboardLoading = false,
+  dashboardError = '',
 }) {
   const totalSavedAmount = formatPrice(summary.totalSavedAmount);
   const monthlySavedAmount = formatPrice(summary.monthlySavedAmount);
