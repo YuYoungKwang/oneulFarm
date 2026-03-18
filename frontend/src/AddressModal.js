@@ -186,7 +186,10 @@ function AddressModal({
                   const isDeleting = deletingAddressNo === address.addressNo;
 
                   return (
-                    <article key={address.addressNo} className="address-card">
+                    <article
+                      key={address.addressNo}
+                      className={`address-card ${address.isDefault === 'Y' ? 'address-card--default' : ''}`}
+                    >
                       <div className="address-card__top">
                         <div>
                           <div className="card-title">{address.addressName || '배송지'}</div>

@@ -785,6 +785,12 @@
   gap: 14px;
 }
 
+.account-app .address-card--default{
+  border-color: rgba(21, 154, 85, 0.35);
+  background: #f8fcf8;
+  box-shadow: 0 12px 24px rgba(21, 154, 85, 0.08);
+}
+
 .account-app .address-card__top{
   display: flex;
   justify-content: space-between;
