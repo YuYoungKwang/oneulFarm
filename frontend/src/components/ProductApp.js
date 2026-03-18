@@ -1,7 +1,6 @@
 import { startTransition, useEffect, useState } from 'react';
 import '../styles/product.css';
 import { findProductByNo, productCatalog } from '../data/productData';
-import { CartIcon, SearchIcon } from './ProductIcons';
 import CartPage from './CartPage';
 import CheckoutPage from './CheckoutPage';
 import OrderCompletePage from './OrderCompletePage';
@@ -72,10 +71,6 @@ export default function ProductApp() {
 
   const categories = Array.from(
     new Set(productCatalog.map((product) => product.categoryName))
-  );
-  const cartCount = Object.values(cart).reduce(
-    (sum, quantity) => sum + quantity,
-    0
   );
   const cartItems = Object.entries(cart)
     .map(([productNo, quantity]) => ({
@@ -196,12 +191,6 @@ export default function ProductApp() {
 
   return (
     <div className="product-app page-shell">
-      <SiteHeader
-        cartCount={cartCount}
-        onOpenCart={openCart}
-        onOpenOrders={() => openOrders()}
-        onOpenProducts={openProductList}
-      />
       <main className="container">
         {route.page === 'cart' ? (
           <CartPage
@@ -275,59 +264,6 @@ export default function ProductApp() {
       </main>
       <SiteFooter />
     </div>
-  );
-}
-
-function SiteHeader({
-  cartCount,
-  onOpenCart,
-  onOpenOrders,
-  onOpenProducts,
-}) {
-  return (
-    <header className="top-nav">
-      <a className="logo" href={DEFAULT_ROUTE}>
-        <span className="logo-mark" />
-        <span>oneulFarm</span>
-      </a>
-      <nav className="nav-links" aria-label="주요 메뉴">
-        <button className="nav-link" type="button">
-          시세분석
-        </button>
-        <button className="nav-link is-active" type="button" onClick={onOpenProducts}>
-          상품
-        </button>
-        <button className="nav-link" type="button">
-          레시피
-        </button>
-        <button className="nav-link" type="button">
-          추천
-        </button>
-        <button className="nav-link" type="button" onClick={onOpenOrders}>
-          마이페이지
-        </button>
-      </nav>
-      <div className="nav-actions">
-        <button className="icon-btn" type="button" aria-label="검색">
-          <SearchIcon />
-        </button>
-        <button
-          className="icon-btn cart-icon"
-          type="button"
-          aria-label="장바구니"
-          onClick={onOpenCart}
-        >
-          <CartIcon />
-          {cartCount > 0 ? <span className="cart-badge">{cartCount}</span> : null}
-        </button>
-        <button className="btn-outline" type="button">
-          로그인
-        </button>
-        <button className="btn" type="button">
-          가입
-        </button>
-      </div>
-    </header>
   );
 }
 

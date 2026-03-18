@@ -1,117 +1,16 @@
 .account-app{
-  --page-gutter: 88px;
+  --media-glow: rgba(243, 200, 91, 0.24);
+  --media-soft: #eef5ef;
 }
 
 .account-app.page-shell{
+  min-height: 100vh;
   padding: 0 0 48px;
 }
 
 .account-app .container{
   width: var(--container);
   margin: 0 auto;
-}
-
-.account-app .top-nav{
-  position: sticky;
-  top: 16px;
-  z-index: 20;
-  width: var(--container);
-  margin: 16px auto 22px;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 28px;
-  box-shadow: var(--shadow);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 18px 24px;
-}
-
-.account-app .top-nav .logo{
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-weight: 800;
-  font-size: 20px;
-  color: var(--green-dark);
-  flex-shrink: 0;
-}
-
-.account-app .logo-button,
-.account-app .nav-link-button{
-  appearance: none;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  font: inherit;
-  cursor: pointer;
-}
-
-.account-app .logo-mark{
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
-  background: var(--green);
-  display: inline-block;
-  flex: 0 0 28px;
-}
-
-.account-app .nav-links{
-  display: flex;
-  align-items: center;
-  gap: 28px;
-  flex-wrap: wrap;
-  color: #374151;
-  font-weight: 700;
-}
-
-.account-app .nav-link{
-  position: relative;
-  font-size: 15px;
-  color: #374151;
-  font-weight: 700;
-}
-
-.account-app .nav-link.is-active{
-  color: var(--green-dark);
-}
-
-.account-app .nav-link.is-active::after{
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -12px;
-  height: 3px;
-  border-radius: 999px;
-  background: var(--green);
-}
-
-.account-app .nav-actions{
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.account-app .icon-btn{
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  border: 1px solid var(--line);
-  background: #fff;
-  color: #4b5563;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.account-app .icon-btn svg{
-  width: 20px;
-  height: 20px;
-  stroke: #475569;
 }
 
 .account-app .btn,
@@ -135,8 +34,20 @@
   box-shadow: var(--shadow-soft);
 }
 
+.account-app .btn,
+.account-app .btn-outline,
+.account-app .btn-chip{
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
 .account-app .btn:hover{
   background: var(--green-dark);
+  transform: translateY(-1px);
 }
 
 .account-app .btn-outline{
@@ -144,6 +55,11 @@
   border: 1px solid var(--line);
   color: var(--green-dark);
   padding: 12px 18px;
+}
+
+.account-app .btn-outline:hover,
+.account-app .btn-chip:hover{
+  transform: translateY(-1px);
 }
 
 .account-app .btn.line{
@@ -188,8 +104,10 @@
 }
 
 .account-app .page-head h1{
-  font-size: 42px;
-  margin: 0 0 10px;
+  font-size: 56px;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  margin: 18px 0 12px;
 }
 
 .account-app .page-head p,
@@ -237,9 +155,10 @@
 .account-app .stat-card,
 .account-app .quick-card{
   background: var(--surface);
-  border-radius: 24px;
+  border-radius: 28px;
   padding: 20px 22px;
-  box-shadow: var(--shadow-soft);
+  border: 1px solid rgba(231, 235, 239, 0.7);
+  box-shadow: var(--shadow);
 }
 
 .account-app .quick-card.soft-green{
@@ -286,14 +205,14 @@
 
 .account-app .card{
   background: var(--surface);
-  border-radius: 32px;
+  border-radius: 28px;
   padding: 24px;
-  border: 1px solid rgba(231, 235, 239, 0.65);
+  border: 1px solid rgba(231, 235, 239, 0.7);
   box-shadow: var(--shadow);
 }
 
 .account-app .card-title{
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 800;
   margin-bottom: 6px;
 }
@@ -502,7 +421,7 @@
   border-radius: 28px;
   padding: 16px;
   box-shadow: var(--shadow);
-  border: 1px solid rgba(231, 235, 239, 0.65);
+  border: 1px solid rgba(231, 235, 239, 0.7);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -510,11 +429,14 @@
 }
 
 .account-app .product-media{
-  height: 150px;
+  height: 198px;
   border-radius: 22px;
-  display: grid;
-  place-items: center;
-  background: #f2f5ef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at top right, var(--media-glow), transparent 30%),
+    linear-gradient(135deg, var(--media-soft), #ffffff 100%);
   position: relative;
   overflow: hidden;
 }
@@ -544,7 +466,7 @@
 }
 
 .account-app .product-name{
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 800;
 }
 
@@ -556,9 +478,10 @@
 }
 
 .account-app .price{
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 900;
   color: var(--green-dark);
+  white-space: nowrap;
 }
 
 .account-app .avg{
@@ -812,7 +735,7 @@
 
 .account-app .address-card{
   border: 1px solid var(--line);
-  border-radius: 22px;
+  border-radius: 28px;
   padding: 18px;
   background: #fafbfc;
   display: grid;
@@ -846,7 +769,7 @@
 
 .account-app .detail-block{
   background: #fafbfc;
-  border-radius: 20px;
+  border-radius: 24px;
   padding: 18px;
   display: grid;
   gap: 12px;
@@ -891,7 +814,7 @@
 
 .account-app .detail-item-card{
   border: 1px solid var(--line);
-  border-radius: 22px;
+  border-radius: 28px;
   padding: 18px;
   display: grid;
   gap: 12px;
@@ -931,29 +854,9 @@
   }
 }
 
-@media (max-width: 820px){.account-app{
-    --page-gutter: 24px;
-  }
-
-  .account-app .top-nav{
-    padding: 14px 16px;
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .account-app .nav-links{
-    width: 100%;
-    overflow: auto;
-    gap: 20px;
-  }
-
-  .account-app .nav-actions{
-    width: 100%;
-    justify-content: flex-end;
-  }
-
+@media (max-width: 820px){
   .account-app .page-head h1{
-    font-size: 32px;
+    font-size: 42px;
   }
 
   .account-app .product-grid,

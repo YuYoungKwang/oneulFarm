@@ -4,7 +4,6 @@ import DashboardView from './DashboardView';
 import MyPageView from './MyPageView';
 import ProfileEditModal from './ProfileEditModal';
 import AddressModal from './AddressModal';
-import { pageTabs } from './mockData';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
 const ORDER_API_BASE = `${API_BASE_URL}/api/orders`;
@@ -408,52 +407,6 @@ function AccountApp() {
 
   return (
     <div className="account-app page-shell">
-      <header className="top-nav">
-        <button
-          type="button"
-          className="logo logo-button"
-          onClick={() => moveToPage('mypage')}
-        >
-          <span className="logo-mark" />
-          <span>oneulFarm</span>
-        </button>
-
-        <nav className="nav-links">
-          <a className="nav-link" href="#/products">메인</a>
-          <a className="nav-link" href="#/dashboard">시세분석</a>
-          <a className="nav-link" href="#/products">상품</a>
-          <a className="nav-link" href="#/products">레시피</a>
-          {pageTabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              className={`nav-link nav-link-button ${currentPage === tab.id ? 'is-active' : ''}`}
-              onClick={() => moveToPage(tab.id)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-
-        <div className="nav-actions">
-          <button type="button" className="icon-btn" aria-label="검색">
-            <svg viewBox="0 0 24 24" fill="none" strokeWidth="2">
-              <circle cx="11" cy="11" r="7" />
-              <path d="M20 20l-3.5-3.5" />
-            </svg>
-          </button>
-          <button type="button" className="icon-btn" aria-label="알림">
-            <svg viewBox="0 0 24 24" fill="none" strokeWidth="2">
-              <path d="M15 17H5l1.4-1.6A2 2 0 0 0 7 14V10a5 5 0 1 1 10 0v4a2 2 0 0 0 .6 1.4L19 17h-4" />
-              <path d="M10 19a2 2 0 0 0 4 0" />
-            </svg>
-          </button>
-          <button type="button" className="btn-outline">
-            로그아웃
-          </button>
-        </div>
-      </header>
-
       <main className="container">
         {currentPage === 'mypage' ? (
           <MyPageView

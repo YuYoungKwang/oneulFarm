@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { findProductByNo } from './data/productData';
 import App from './App';
 import { createOrderFromCart } from './components/orderUiUtils';
@@ -39,6 +39,37 @@ describe('App', () => {
 
     expect(screen.getAllByText('양파 1kg').length).toBeGreaterThan(0);
     expect(screen.getByText('상품 정보')).toBeInTheDocument();
+  });
+
+  test('상품 화면의 마이페이지 네비는 마이페이지 경로로 이동한다', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: '마이페이지' }));
+
+    expect(window.location.hash).toBe('#/mypage');
+  });
+
+  test('대시보드에서 상품으로 이동해도 같은 네비 구성을 유지한다', () => {
+    window.location.hash = '#/dashboard';
+
+    render(<App />);
+
+    const navigation = screen.getByRole('navigation', { name: '주요 메뉴' });
+    const beforeLabels = within(navigation)
+      .getAllByRole('button')
+      .map((button) => button.textContent);
+
+    fireEvent.click(within(navigation).getByRole('button', { name: '상품' }));
+
+    const nextNavigation = screen.getByRole('navigation', { name: '주요 메뉴' });
+    const afterLabels = within(nextNavigation)
+      .getAllByRole('button')
+      .map((button) => button.textContent);
+
+    expect(window.location.hash).toBe('#/products');
+    expect(afterLabels).toEqual(beforeLabels);
+    expect(afterLabels).toContain('대시보드');
+    expect(afterLabels).toContain('마이페이지');
   });
 
   test('장바구니 페이지에서 수량 변경과 삭제가 가능하다', () => {

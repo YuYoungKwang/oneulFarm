@@ -19,7 +19,8 @@
 }
 
 .product-app{
-  --page-gutter: 64px;
+  --media-glow: rgba(243, 200, 91, 0.24);
+  --media-soft: #eef5ef;
 }
 
 .product-app.page-shell{
@@ -30,118 +31,6 @@
 .product-app .container{
   width: var(--container);
   margin: 0 auto;
-}
-
-.product-app .top-nav{
-  position: sticky;
-  top: 16px;
-  z-index: 20;
-  width: var(--container);
-  margin: 16px auto 22px;
-  padding: 18px 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid var(--line);
-  border-radius: 28px;
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(14px);
-}
-
-.product-app .logo{
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-weight: 800;
-  font-size: 20px;
-  color: var(--green-dark);
-  flex-shrink: 0;
-}
-
-.product-app .logo-mark{
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
-  background: linear-gradient(135deg, var(--green), #f3c85b);
-}
-
-.product-app .nav-links{
-  display: flex;
-  align-items: center;
-  gap: 28px;
-  flex-wrap: wrap;
-}
-
-.product-app .nav-link{
-  position: relative;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: #374151;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.product-app .nav-link.is-active{
-  color: var(--green-dark);
-}
-
-.product-app .nav-link.is-active::after{
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -12px;
-  height: 3px;
-  border-radius: 999px;
-  background: var(--green);
-}
-
-.product-app .nav-actions{
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.product-app .icon-btn,
-.product-app .icon-circle{
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  border: 1px solid var(--line);
-  background: #fff;
-  color: #4b5563;
-}
-
-.product-app .icon-btn{
-  position: relative;
-}
-
-.product-app .cart-icon{
-  color: var(--green-dark);
-}
-
-.product-app .cart-badge{
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 5px;
-  border-radius: 999px;
-  background: var(--green);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 800;
-  display: grid;
-  place-items: center;
 }
 
 .product-app .btn,
@@ -285,7 +174,7 @@
 .product-app .review-card,
 .product-app .sidebar-card{
   background: var(--surface);
-  border-radius: 28px;
+  border-radius: var(--radius-panel);
   border: 1px solid rgba(231, 235, 239, 0.7);
   box-shadow: var(--shadow);
 }
@@ -312,10 +201,11 @@
 
 .product-app .quick-value{
   margin-top: 8px;
-  font-size: 26px;
+  font-size: 21px;
   font-weight: 900;
   letter-spacing: -0.03em;
   color: var(--green-dark);
+  white-space: nowrap;
 }
 
 .product-app .layout-sidebar{
@@ -517,7 +407,7 @@
 
 .product-app .product-name,
 .product-app .recipe-card h3{
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 800;
   letter-spacing: -0.02em;
   margin: 0;
@@ -533,16 +423,20 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: nowrap;
 }
 
 .product-app .price{
-  font-size: 28px;
+  flex-shrink: 0;
+  font-size: 22px;
   font-weight: 900;
   color: var(--green-dark);
   letter-spacing: -0.03em;
+  white-space: nowrap;
 }
 
 .product-app .discount-copy{
+  min-width: 0;
   font-size: 13px;
   color: var(--green-dark);
   font-weight: 700;
@@ -665,8 +559,9 @@
 }
 
 .product-app .cart-price-meta strong{
-  font-size: 18px;
+  font-size: 16px;
   color: var(--green-dark);
+  white-space: nowrap;
 }
 
 .product-app .cart-summary{
@@ -944,9 +839,10 @@
 }
 
 .product-app .summary-total strong{
-  font-size: 28px;
+  font-size: 22px;
   color: var(--green-dark);
   letter-spacing: -0.03em;
+  white-space: nowrap;
 }
 
 .product-app .summary-actions{
@@ -1068,16 +964,17 @@
 
 .product-app .detail-title{
   margin: 18px 0 8px;
-  font-size: 34px;
+  font-size: 30px;
   letter-spacing: -0.03em;
 }
 
 .product-app .price-large{
   margin: 20px 0 10px;
-  font-size: 42px;
+  font-size: 32px;
   font-weight: 900;
   color: var(--green-dark);
   letter-spacing: -0.04em;
+  white-space: nowrap;
 }
 
 .product-app .qty-row{
@@ -1162,7 +1059,7 @@
 
 .product-app .card-title{
   margin: 18px 0 6px;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 800;
   letter-spacing: -0.02em;
 }
@@ -1325,7 +1222,8 @@
   color: inherit;
 }
 
-@media (max-width: 1180px){.product-app .product-grid{
+@media (max-width: 1180px){
+  .product-app .product-grid{
     grid-template-columns: repeat(3, 1fr);
   }
 
@@ -1350,14 +1248,7 @@
   }
 }
 
-@media (max-width: 900px){.product-app .top-nav{
-    padding: 16px 18px;
-  }
-
-  .product-app .nav-links{
-    display: none;
-  }
-
+@media (max-width: 900px){
   .product-app .product-grid,
 .product-app .recipe-grid{
     grid-template-columns: repeat(2, 1fr);
@@ -1393,24 +1284,7 @@
   }
 }
 
-@media (max-width: 640px){.product-app{
-    --page-gutter: 28px;
-  }
-
-  .product-app .top-nav{
-    gap: 14px;
-    padding: 14px;
-  }
-
-  .product-app .nav-actions{
-    gap: 8px;
-  }
-
-  .product-app .nav-actions .btn,
-.product-app .nav-actions .btn-outline{
-    display: none;
-  }
-
+@media (max-width: 640px){
   .product-app .quick-grid,
 .product-app .product-grid,
 .product-app .recipe-grid{

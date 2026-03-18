@@ -201,6 +201,11 @@ export function readStoredValue(key, fallbackValue) {
 export function persistValue(key, value) {
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
+    window.dispatchEvent(
+      new CustomEvent('oneulFarm:storage-change', {
+        detail: { key },
+      })
+    );
   } catch (error) {
     // Ignore storage failures in local preview.
   }
