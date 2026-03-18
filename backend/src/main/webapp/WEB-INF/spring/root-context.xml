@@ -30,6 +30,9 @@
 	</bean>
 	
 	<context:property-placeholder location="classpath:api.properties" ignore-resource-not-found="true"/>
+
+	<task:scheduler id="priceSnapshotTaskScheduler" pool-size="1"/>
+	<task:annotation-driven scheduler="priceSnapshotTaskScheduler"/>
 	
 	<context:component-scan	base-package="com.app.service"/>
 	<context:component-scan	base-package="com.app.dao"/>

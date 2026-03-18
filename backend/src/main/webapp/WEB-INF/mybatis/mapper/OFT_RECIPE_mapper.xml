@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.app.dao.RecipeDAO">
+
+    <resultMap id="recipeResultMap" type="RecipeDTO">
+        <id property="recipeNo" column="recipeNo"/>
+        <result property="externalRecipeId" column="externalRecipeId"/>
+        <result property="recipeName" column="recipeName"/>
+        <result property="description" column="description"/>
+        <result property="cookTime" column="cookTime"/>
+        <result property="difficulty" column="difficulty"/>
+        <result property="calories" column="calories"/>
+        <result property="imageUrl" column="imageUrl"/>
+        <result property="sourceName" column="sourceName"/>
+    </resultMap>
+
+    <resultMap id="recipeIngredientResultMap" type="RecipeIngredientDTO">
+        <id property="ingredientNo" column="ingredientNo"/>
+        <result property="recipeNo" column="recipeNo"/>
+        <result property="ingredientName" column="ingredientName"/>
+        <result property="amount" column="amount"/>
+    </resultMap>
+
+    <resultMap id="recipeStepResultMap" type="RecipeStepDTO">
+        <id property="stepNo" column="stepNo"/>
+        <result property="recipeNo" column="recipeNo"/>
+        <result property="stepSeq" column="stepSeq"/>
+        <result property="description" column="description"/>
+    </resultMap>
+
+    <resultMap id="recipeStepImageResultMap" type="RecipeStepImageDTO">
+        <id property="stepImageNo" column="stepImageNo"/>
+        <result property="stepNo" column="stepNo"/>
+        <result property="imageUrl" column="imageUrl"/>
+        <result property="sortOrder" column="sortOrder"/>
+    </resultMap>
+
+    <insert id="mergeRecipe" parameterType="RecipeDTO">
+        MERGE INTO OFT_RECIPE target
+        USING (
+            SELECT
+                #{externalRecipeId} AS EXTERNAL_RECIPE_ID,
+                #{recipeName} AS RECIPE_NAME,
+                #{description} AS DESCRIPTION,
+                #{cookTime} AS COOK_TIME,
+                #{difficulty} AS DIFFICULTY,
+                #{calories} AS CALORIES,
+                #{imageUrl} AS IMAGE_URL,
+                #{sourceName} AS SOURCE_NAME
+            FROM DUAL
+        ) source
+        ON (target.EXTERNAL_RECIPE_ID = source.EXTERNAL_RECIPE_ID)
+        WHEN MATCHED THEN
+            UPDATE SET
+                target.RECIPE_NAME = source.RECIPE_NAME,
+                target.DESCRIPTION = source.DESCRIPTION,
+                target.COOK_TIME = source.COOK_TIME,
+                target.DIFFICULTY = source.DIFFICULTY,
+                target.CALORIES = source.CALORIES,
+                target.IMAGE_URL = source.IMAGE_URL,
+                target.SOURCE_NAME = source.SOURCE_NAME
+        WHEN NOT MATCHED THEN
+            INSERT (
+                EXTERNAL_RECIPE_ID,
+                RECIPE_NAME,
+                DESCRIPTION,
+                COOK_TIME,
+                DIFFICULTY,
+                CALORIES,
+                IMAGE_URL,
+                SOURCE_NAME
+            )
+            VALUES (
+                source.EXTERNAL_RECIPE_ID,
+                source.RECIPE_NAME,
+                source.DESCRIPTION,
+                source.COOK_TIME,
+                source.DIFFICULTY,
+                source.CALORIES,
+                source.IMAGE_URL,
+                source.SOURCE_NAME
+            )
+        <selectKey keyProperty="recipeNo" resultType="long" order="AFTER">
+            SELECT RECIPE_NO
+            FROM OFT_RECIPE
+            WHERE EXTERNAL_RECIPE_ID = #{externalRecipeId}
+        </selectKey>
+    </insert>
+
+    <delete id="deleteRecipeIngredientByRecipeNo" parameterType="long">
+        DELETE FROM OFT_RECIPE_INGREDIENT
+        WHERE RECIPE_NO = #{value}
+    </delete>
+
+    <delete id="deleteRecipeStepImageByRecipeNo" parameterType="long">
+        DELETE FROM OFT_RECIPE_STEP_IMAGE
+        WHERE STEP_NO IN (
+            SELECT STEP_NO
+            FROM OFT_RECIPE_STEP
+            WHERE RECIPE_NO = #{value}
+        )
+    </delete>
+
+    <delete id="deleteRecipeStepByRecipeNo" parameterType="long">
+        DELETE FROM OFT_RECIPE_STEP
+        WHERE RECIPE_NO = #{value}
+    </delete>
+
+    <insert id="insertRecipeIngredient" parameterType="RecipeIngredientDTO">
+        INSERT INTO OFT_RECIPE_INGREDIENT (
+            RECIPE_NO,
+            INGREDIENT_NAME,
+            AMOUNT
+        )
+        VALUES (
+            #{recipeNo},
+            #{ingredientName},
+            #{amount}
+        )
+    </insert>
+
+    <insert id="insertRecipeStep" parameterType="RecipeStepDTO">
+        INSERT INTO OFT_RECIPE_STEP (
+            RECIPE_NO,
+            STEP_SEQ,
+            DESCRIPTION
+        )
+        VALUES (
+            #{recipeNo},
+            #{stepSeq},
+            #{description}
+        )
+        <selectKey keyProperty="stepNo" resultType="long" order="AFTER">
+            SELECT STEP_NO
+            FROM OFT_RECIPE_STEP
+            WHERE RECIPE_NO = #{recipeNo}
+              AND STEP_SEQ = #{stepSeq}
+        </selectKey>
+    </insert>
+
+    <insert id="insertRecipeStepImage" parameterType="RecipeStepImageDTO">
+        INSERT INTO OFT_RECIPE_STEP_IMAGE (
+            STEP_NO,
+            IMAGE_URL,
+            SORT_ORDER
+        )
+        VALUES (
+            #{stepNo},
+            #{imageUrl},
+            #{sortOrder}
+        )
+    </insert>
+
+    <select id="selectRecipeList" parameterType="map" resultMap="recipeResultMap">
+        SELECT *
+        FROM (
+            SELECT
+                RECIPE_NO AS recipeNo,
+                EXTERNAL_RECIPE_ID AS externalRecipeId,
+                RECIPE_NAME AS recipeName,
+                DESCRIPTION AS description,
+                COOK_TIME AS cookTime,
+                DIFFICULTY AS difficulty,
+                CALORIES AS calories,
+                IMAGE_URL AS imageUrl,
+                SOURCE_NAME AS sourceName
+            FROM OFT_RECIPE
+            WHERE 1 = 1
+            <if test="keyword != null and keyword != ''">
+                AND UPPER(RECIPE_NAME) LIKE '%' || UPPER(#{keyword}) || '%'
+            </if>
+            ORDER BY RECIPE_NO DESC
+        )
+        WHERE ROWNUM &lt;= #{limit}
+    </select>
+
+    <select id="selectRecipeByRecipeNo" parameterType="long" resultMap="recipeResultMap">
+        SELECT
+            RECIPE_NO AS recipeNo,
+            EXTERNAL_RECIPE_ID AS externalRecipeId,
+            RECIPE_NAME AS recipeName,
+            DESCRIPTION AS description,
+            COOK_TIME AS cookTime,
+            DIFFICULTY AS difficulty,
+            CALORIES AS calories,
+            IMAGE_URL AS imageUrl,
+            SOURCE_NAME AS sourceName
+        FROM OFT_RECIPE
+        WHERE RECIPE_NO = #{value}
+    </select>
+
+    <select id="selectRecipeIngredientList" parameterType="long" resultMap="recipeIngredientResultMap">
+        SELECT
+            INGREDIENT_NO AS ingredientNo,
+            RECIPE_NO AS recipeNo,
+            INGREDIENT_NAME AS ingredientName,
+            AMOUNT AS amount
+        FROM OFT_RECIPE_INGREDIENT
+        WHERE RECIPE_NO = #{value}
+        ORDER BY INGREDIENT_NO ASC
+    </select>
+
+    <select id="selectRecipeStepList" parameterType="long" resultMap="recipeStepResultMap">
+        SELECT
+            STEP_NO AS stepNo,
+            RECIPE_NO AS recipeNo,
+            STEP_SEQ AS stepSeq,
+            DESCRIPTION AS description
+        FROM OFT_RECIPE_STEP
+        WHERE RECIPE_NO = #{value}
+        ORDER BY STEP_SEQ ASC
+    </select>
+
+    <select id="selectRecipeStepImageList" parameterType="long" resultMap="recipeStepImageResultMap">
+        SELECT
+            imageTable.STEP_IMAGE_NO AS stepImageNo,
+            imageTable.STEP_NO AS stepNo,
+            imageTable.IMAGE_URL AS imageUrl,
+            imageTable.SORT_ORDER AS sortOrder
+        FROM OFT_RECIPE_STEP_IMAGE imageTable
+        INNER JOIN OFT_RECIPE_STEP stepTable
+            ON stepTable.STEP_NO = imageTable.STEP_NO
+        WHERE stepTable.RECIPE_NO = #{value}
+        ORDER BY stepTable.STEP_SEQ ASC, imageTable.SORT_ORDER ASC
+    </select>
+
+</mapper>
