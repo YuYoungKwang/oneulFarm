@@ -10,7 +10,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class ProductResponseDto {
+public class ProductDto {
 
     private Long productNo;
     private Long categoryNo;

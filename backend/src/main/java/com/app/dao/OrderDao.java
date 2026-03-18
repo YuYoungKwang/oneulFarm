@@ -2,33 +2,30 @@ package com.app.dao;
 
 import java.util.List;
 
-import com.app.dto.DeliveryCommandDto;
-import com.app.dto.OrderCreateCommandDto;
-import com.app.dto.OrderItemCommandDto;
-import com.app.dto.OrderDetailResponseDto;
-import com.app.dto.OrderItemResponseDto;
-import com.app.dto.OrderListResponseDto;
-import com.app.dto.PaymentCommandDto;
+import com.app.dto.DeliveryDto;
+import com.app.dto.OrderDto;
+import com.app.dto.OrderItemDto;
+import com.app.dto.PaymentDto;
 
 public interface OrderDao {
 
-    List<OrderListResponseDto> findMyOrders(Long userNo);
+    List<OrderDto> findMyOrders(Long userNo);
 
-    OrderDetailResponseDto findOrderDetail(Long userNo, Long orderNo);
+    OrderDto findOrderDetail(Long userNo, Long orderNo);
 
-    List<OrderItemResponseDto> findOrderItems(Long orderNo);
+    List<OrderItemDto> findOrderItems(Long orderNo);
 
     int countOrdersByOrderIdPrefix(String orderIdPrefix);
 
-    int insertOrder(OrderCreateCommandDto command);
+    int insertOrder(OrderDto order);
 
     Long findOrderNoByOrderId(String orderId);
 
-    int insertOrderItem(OrderItemCommandDto command);
+    int insertOrderItem(OrderItemDto item);
 
-    int insertPayment(PaymentCommandDto command);
+    int insertPayment(PaymentDto payment);
 
-    int insertDelivery(DeliveryCommandDto command);
+    int insertDelivery(DeliveryDto delivery);
 
     int updateOrderStatus(Long orderNo, String orderStatus);
 

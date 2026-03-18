@@ -3,7 +3,7 @@
     "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="orderMapper">
 
-    <resultMap id="OrderListResultMap" type="com.app.dto.OrderListResponseDto">
+    <resultMap id="OrderListResultMap" type="com.app.dto.OrderDto">
         <result property="orderNo" column="orderNo" />
         <result property="orderId" column="orderId" />
         <result property="orderedAt" column="orderedAt" />
@@ -15,7 +15,7 @@
         <result property="totalSavedAmount" column="totalSavedAmount" />
     </resultMap>
 
-    <resultMap id="OrderDetailResultMap" type="com.app.dto.OrderDetailResponseDto">
+    <resultMap id="OrderDetailResultMap" type="com.app.dto.OrderDto">
         <result property="orderNo" column="orderNo" />
         <result property="orderId" column="orderId" />
         <result property="orderedAt" column="orderedAt" />
@@ -39,7 +39,7 @@
         <result property="finalAmount" column="finalAmount" />
     </resultMap>
 
-    <resultMap id="OrderItemResultMap" type="com.app.dto.OrderItemResponseDto">
+    <resultMap id="OrderItemResultMap" type="com.app.dto.OrderItemDto">
         <result property="orderItemNo" column="orderItemNo" />
         <result property="productNo" column="productNo" />
         <result property="productName" column="productName" />
@@ -151,7 +151,7 @@
         WHERE ORDER_ID LIKE #{_parameter} || '%'
     </select>
 
-    <insert id="insertOrder" parameterType="com.app.dto.OrderCreateCommandDto">
+    <insert id="insertOrder" parameterType="com.app.dto.OrderDto">
         INSERT INTO OFT_ORDERS (
             USER_NO,
             ORDER_ID,
@@ -187,7 +187,7 @@
         WHERE ORDER_ID = #{_parameter}
     </select>
 
-    <insert id="insertOrderItem" parameterType="com.app.dto.OrderItemCommandDto">
+    <insert id="insertOrderItem" parameterType="com.app.dto.OrderItemDto">
         INSERT INTO OFT_ORDER_ITEM (
             ORDER_NO,
             PRODUCT_NO,
@@ -211,7 +211,7 @@
         )
     </insert>
 
-    <insert id="insertPayment" parameterType="com.app.dto.PaymentCommandDto">
+    <insert id="insertPayment" parameterType="com.app.dto.PaymentDto">
         INSERT INTO OFT_PAYMENT (
             ORDER_NO,
             PAYMENT_METHOD,
@@ -229,7 +229,7 @@
         )
     </insert>
 
-    <insert id="insertDelivery" parameterType="com.app.dto.DeliveryCommandDto">
+    <insert id="insertDelivery" parameterType="com.app.dto.DeliveryDto">
         INSERT INTO OFT_DELIVERY (
             ORDER_NO,
             COURIER_NAME,

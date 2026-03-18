@@ -43,7 +43,7 @@
         )
     </sql>
 
-    <resultMap id="ProductResultMap" type="com.app.dto.ProductResponseDto">
+    <resultMap id="ProductResultMap" type="com.app.dto.ProductDto">
         <result property="productNo" column="productNo" />
         <result property="categoryNo" column="categoryNo" />
         <result property="categoryName" column="categoryName" />

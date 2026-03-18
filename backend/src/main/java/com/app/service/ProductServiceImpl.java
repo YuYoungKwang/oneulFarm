@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.app.dao.ProductDao;
-import com.app.dto.ProductResponseDto;
+import com.app.dto.ProductDto;
 
 @Service
 public class ProductServiceImpl implements ProductService {
@@ -18,9 +18,9 @@ public class ProductServiceImpl implements ProductService {
     private ProductDao productDao;
 
     @Override
-    public List<ProductResponseDto> getProducts() {
-        List<ProductResponseDto> products = productDao.findSellingProducts();
-        for (ProductResponseDto product : products) {
+    public List<ProductDto> getProducts() {
+        List<ProductDto> products = productDao.findSellingProducts();
+        for (ProductDto product : products) {
             product.setImages(Collections.emptyList());
             product.setRecipes(Collections.emptyList());
             product.setReviews(Collections.emptyList());
@@ -29,8 +29,8 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public ProductResponseDto getProduct(Long productNo) {
-        ProductResponseDto product = productDao.findProduct(productNo);
+    public ProductDto getProduct(Long productNo) {
+        ProductDto product = productDao.findProduct(productNo);
         if (product == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found.");
         }

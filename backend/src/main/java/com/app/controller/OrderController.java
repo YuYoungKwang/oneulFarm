@@ -15,9 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.app.common.ApiResponse;
-import com.app.dto.CreateOrderRequestDto;
-import com.app.dto.OrderDetailResponseDto;
-import com.app.dto.OrderListResponseDto;
+import com.app.dto.OrderDto;
 import com.app.service.OrderService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -33,7 +31,7 @@ public class OrderController {
     private OrderService orderService;
 
     @GetMapping("/me")
-    public ApiResponse<List<OrderListResponseDto>> getMyOrders(
+    public ApiResponse<List<OrderDto>> getMyOrders(
         @RequestHeader("X-USER-NO") Long userNo
     ) {
         return ApiResponse.success(orderService.getMyOrders(userNo), "Orders loaded.");
@@ -44,21 +42,21 @@ public class OrderController {
         @RequestHeader("X-USER-NO") Long userNo,
         @PathVariable("orderNo") Long orderNo
     ) throws Exception {
-        ApiResponse<OrderDetailResponseDto> response =
+        ApiResponse<OrderDto> response =
             ApiResponse.success(orderService.getMyOrderDetail(userNo, orderNo), "Order detail loaded.");
         return ResponseEntity.ok(OBJECT_MAPPER.writeValueAsString(response));
     }
 
     @PostMapping(value = "/me", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ApiResponse<OrderDetailResponseDto> createMyOrder(
+    public ApiResponse<OrderDto> createMyOrder(
         @RequestHeader("X-USER-NO") Long userNo,
-        @RequestBody CreateOrderRequestDto request
+        @RequestBody OrderDto request
     ) {
         return ApiResponse.success(orderService.createOrder(userNo, request), "Order created.");
     }
 
     @PatchMapping("/me/{orderNo}/advance")
-    public ApiResponse<OrderDetailResponseDto> advanceMyOrderStatus(
+    public ApiResponse<OrderDto> advanceMyOrderStatus(
         @RequestHeader("X-USER-NO") Long userNo,
         @PathVariable("orderNo") Long orderNo
     ) {

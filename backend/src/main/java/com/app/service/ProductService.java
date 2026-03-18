@@ -2,11 +2,11 @@ package com.app.service;
 
 import java.util.List;
 
-import com.app.dto.ProductResponseDto;
+import com.app.dto.ProductDto;
 
 public interface ProductService {
 
-    List<ProductResponseDto> getProducts();
+    List<ProductDto> getProducts();
 
-    ProductResponseDto getProduct(Long productNo);
+    ProductDto getProduct(Long productNo);
 }

@@ -8,10 +8,10 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class CartResponseDto {
+public class CartDto {
 
     private Long cartNo;
-    private List<CartItemResponseDto> items;
+    private List<CartItemDto> items;
     private Integer totalQuantity;
     private BigDecimal totalAmount;
 }

@@ -13,9 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.app.common.ApiResponse;
-import com.app.dto.CartResponseDto;
-import com.app.dto.CreateCartItemRequestDto;
-import com.app.dto.UpdateCartItemRequestDto;
+import com.app.dto.CartDto;
+import com.app.dto.CartItemDto;
 import com.app.service.CartService;
 
 @RestController
@@ -26,16 +25,16 @@ public class CartController {
     private CartService cartService;
 
     @GetMapping("/me")
-    public ApiResponse<CartResponseDto> getMyCart(
+    public ApiResponse<CartDto> getMyCart(
         @RequestHeader("X-USER-NO") Long userNo
     ) {
         return ApiResponse.success(cartService.getMyCart(userNo), "Cart loaded.");
     }
 
     @PostMapping(value = "/me/items", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ApiResponse<CartResponseDto> addCartItem(
+    public ApiResponse<CartDto> addCartItem(
         @RequestHeader("X-USER-NO") Long userNo,
-        @RequestBody CreateCartItemRequestDto request
+        @RequestBody CartItemDto request
     ) {
         return ApiResponse.success(
             cartService.addCartItem(userNo, request.getProductNo(), request.getQuantity()),
@@ -44,10 +43,10 @@ public class CartController {
     }
 
     @PatchMapping(value = "/me/items/{productNo}", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ApiResponse<CartResponseDto> updateCartItem(
+    public ApiResponse<CartDto> updateCartItem(
         @RequestHeader("X-USER-NO") Long userNo,
         @PathVariable Long productNo,
-        @RequestBody UpdateCartItemRequestDto request
+        @RequestBody CartItemDto request
     ) {
         return ApiResponse.success(
             cartService.updateCartItem(userNo, productNo, request.getQuantity()),
@@ -56,7 +55,7 @@ public class CartController {
     }
 
     @DeleteMapping("/me/items/{productNo}")
-    public ApiResponse<CartResponseDto> removeCartItem(
+    public ApiResponse<CartDto> removeCartItem(
         @RequestHeader("X-USER-NO") Long userNo,
         @PathVariable Long productNo
     ) {
@@ -64,7 +63,7 @@ public class CartController {
     }
 
     @DeleteMapping("/me/items")
-    public ApiResponse<CartResponseDto> clearCart(
+    public ApiResponse<CartDto> clearCart(
         @RequestHeader("X-USER-NO") Long userNo
     ) {
         return ApiResponse.success(cartService.clearCart(userNo), "Cart cleared.");
