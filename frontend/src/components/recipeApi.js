@@ -1,4 +1,6 @@
-const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || '').replace(/\/+$/, '');
+import { requestAuthApi } from '../auth';
+
+const RECIPE_API_PATH = '/api/recipes';
 
 function buildQueryString(params) {
   const searchParams = new URLSearchParams();
@@ -15,24 +17,23 @@ function buildQueryString(params) {
   return queryString ? `?${queryString}` : '';
 }
 
-async function requestRecipeApi(url) {
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
+async function requestRecipeApi(path) {
+  const payload = await requestAuthApi(
+    path,
+    {
+      headers: {
+        Accept: 'application/json',
+      },
     },
-  });
+    '레시피 데이터를 불러오지 못했습니다.'
+  );
 
-  const body = await response.json().catch(() => null);
-  if (!response.ok || !body?.success) {
-    throw new Error(body?.message || '레시피 데이터를 불러오지 못했습니다.');
-  }
-
-  return body.data;
+  return payload.data;
 }
 
 export function fetchRecipeList({ keyword, ingredientKeyword, sort, limit }) {
   return requestRecipeApi(
-    `${API_BASE_URL}/api/recipes${buildQueryString({
+    `${RECIPE_API_PATH}${buildQueryString({
       keyword,
       ingredientKeyword,
       sort,
@@ -42,5 +43,5 @@ export function fetchRecipeList({ keyword, ingredientKeyword, sort, limit }) {
 }
 
 export function fetchRecipeDetail(recipeNo) {
-  return requestRecipeApi(`${API_BASE_URL}/api/recipes/${recipeNo}`);
+  return requestRecipeApi(`${RECIPE_API_PATH}/${recipeNo}`);
 }

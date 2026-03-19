@@ -14,7 +14,15 @@ function navigateTo(hash) {
   window.location.hash = hash;
 }
 
-function MainNav({ activeSection, cartCount = 0, onOpenCart }) {
+function MainNav({
+  activeSection,
+  authUser,
+  cartCount = 0,
+  onOpenCart,
+  onOpenLogin,
+  onOpenSignup,
+  onLogout,
+}) {
   return (
     <header className="main-nav-shell">
       <div className="main-nav">
@@ -53,14 +61,41 @@ function MainNav({ activeSection, cartCount = 0, onOpenCart }) {
             onClick={onOpenCart || (() => navigateTo('#/cart'))}
           >
             <CartIcon />
-            {cartCount > 0 ? <span className="main-nav__cart-badge">{cartCount}</span> : null}
+            {cartCount > 0 ? (
+              <span className="main-nav__cart-badge">{cartCount}</span>
+            ) : null}
           </button>
-          <button className="main-nav__btn-outline" type="button">
-            로그인
-          </button>
-          <button className="main-nav__btn" type="button">
-            가입
-          </button>
+          {authUser ? (
+            <>
+              <button
+                className="main-nav__btn-outline"
+                type="button"
+                onClick={() => navigateTo('#/mypage')}
+              >
+                {authUser.nickname || authUser.userId}
+              </button>
+              <button className="main-nav__btn" type="button" onClick={onLogout}>
+                로그아웃
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                className="main-nav__btn-outline"
+                type="button"
+                onClick={onOpenLogin}
+              >
+                로그인
+              </button>
+              <button
+                className="main-nav__btn"
+                type="button"
+                onClick={onOpenSignup}
+              >
+                가입하기
+              </button>
+            </>
+          )}
         </div>
       </div>
     </header>

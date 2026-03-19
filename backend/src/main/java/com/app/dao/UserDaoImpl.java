@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import com.app.dto.ChangePasswordRequestDto;
 import com.app.dto.CurrentPasswordRequestDto;
 import com.app.dto.UpdateUserProfileRequestDto;
+import com.app.dto.UserDto;
 import com.app.dto.UserProfileDto;
 
 @Repository
@@ -19,6 +20,40 @@ public class UserDaoImpl implements UserDao {
 
     @Autowired
     private SqlSessionTemplate sqlSessionTemplate;
+
+    @Override
+    public UserDto findByUserIdOrEmail(String keyword) {
+        return sqlSessionTemplate.selectOne(NAMESPACE + "selectByUserIdOrEmail", keyword);
+    }
+
+    @Override
+    public UserDto findByEmailAndPhone(String email, String phone) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("email", email);
+        params.put("phone", phone);
+        return sqlSessionTemplate.selectOne(NAMESPACE + "selectByEmailAndPhone", params);
+    }
+
+    @Override
+    public UserDto findByEmail(String email) {
+        return sqlSessionTemplate.selectOne(NAMESPACE + "selectByEmail", email);
+    }
+
+    @Override
+    public UserDto findByUserNo(Long userNo) {
+        return sqlSessionTemplate.selectOne(NAMESPACE + "selectByUserNo", userNo);
+    }
+
+    @Override
+    public int countByUserId(String userId) {
+        Integer count = sqlSessionTemplate.selectOne(NAMESPACE + "countByUserId", userId);
+        return count == null ? 0 : count;
+    }
+
+    @Override
+    public int insertUser(UserDto request) {
+        return sqlSessionTemplate.insert(NAMESPACE + "insertUser", request);
+    }
 
     @Override
     public UserProfileDto findMyProfile(Long userNo) {
@@ -76,5 +111,21 @@ public class UserDaoImpl implements UserDao {
         params.put("userNo", userNo);
         params.put("currentPassword", request.getCurrentPassword());
         return sqlSessionTemplate.update(NAMESPACE + "updateStatusToWithdrawn", params);
+    }
+
+    @Override
+    public int updateTemporaryPassword(Long userNo, String encodedPassword) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("userNo", userNo);
+        params.put("password", encodedPassword);
+        return sqlSessionTemplate.update(NAMESPACE + "updateTemporaryPassword", params);
+    }
+
+    @Override
+    public int updatePasswordAndClearTemporary(Long userNo, String encodedPassword) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("userNo", userNo);
+        params.put("password", encodedPassword);
+        return sqlSessionTemplate.update(NAMESPACE + "updatePasswordAndClearTemporary", params);
     }
 }
