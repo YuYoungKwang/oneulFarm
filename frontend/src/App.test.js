@@ -174,7 +174,21 @@ describe('App', () => {
     jest.clearAllMocks();
   });
 
+  test('\uAE30\uBCF8 \uBA54\uC778 \uD398\uC774\uC9C0\uC5D0\uC11C\uB294 \uD65C\uC131 \uB124\uBE44\uAC00 \uC5C6\uB2E4', async () => {
+    render(<App />);
+
+    const navigation = screen.getByRole('navigation', {
+      name: '\uC8FC\uC694 \uBA54\uB274',
+    });
+
+    await waitFor(() => {
+      expect(navigation.querySelectorAll('.main-nav__link.is-active')).toHaveLength(0);
+    });
+  });
+
   test('\uC0C1\uD488 \uBAA9\uB85D \uD654\uBA74\uC774 \uB80C\uB354\uB9C1\uB41C\uB2E4', async () => {
+    window.location.hash = '#/products';
+
     render(<App />);
 
     expect(await screen.findByText('\uC591\uD30C 1kg')).toBeInTheDocument();
