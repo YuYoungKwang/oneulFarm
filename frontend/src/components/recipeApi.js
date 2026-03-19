@@ -1,4 +1,4 @@
-const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || '/backend').replace(/\/+$/, '');
+const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || '').replace(/\/+$/, '');
 
 function buildQueryString(params) {
   const searchParams = new URLSearchParams();
