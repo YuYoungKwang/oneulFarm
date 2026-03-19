@@ -25,7 +25,7 @@ function MainNav({
         <button
           type="button"
           className="main-nav__logo"
-          onClick={() => navigateTo('#/products')}
+          onClick={() => navigateTo('#/Mainpage')}
         >
           <span className="main-nav__logo-mark" />
           <span>oneulFarm</span>
