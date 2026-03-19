@@ -95,7 +95,10 @@ function DashboardView({
                     <div className="bar-chart__track">
                       <div
                         className="bar-chart__fill"
-                        style={{ height: getScaledHeight(item.savedAmount, monthlySavings, 'savedAmount') }}
+                        style={{
+                          height: getScaledHeight(item.savedAmount, monthlySavings, 'savedAmount'),
+                          animationDelay: `${100 + monthlySavings.indexOf(item) * 120}ms`,
+                        }}
                       />
                     </div>
                     <strong>{formatPrice(item.savedAmount)}</strong>
@@ -130,6 +133,7 @@ function DashboardView({
                       style={{
                         width: getScaledWidth(item.savedAmount, productSavings, 'savedAmount'),
                         background: 'var(--green)',
+                        animationDelay: `${140 + productSavings.indexOf(item) * 100}ms`,
                       }}
                     />
                   </div>
