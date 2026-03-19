@@ -4,7 +4,7 @@
 
 <mapper namespace="com.app.dao.ProductPriceMatchDAO">
 
-    <resultMap id="productPriceCodeMapResultMap" type="ProductPriceCodeMapDTO">
+    <resultMap id="productPriceCodeMapResultMap" type="com.app.dto.ProductPriceCodeMapDTO">
         <id property="mapNo" column="mapNo"/>
         <result property="productNo" column="productNo"/>
         <result property="productName" column="productName"/>
@@ -106,7 +106,7 @@
         ORDER BY p.PRODUCT_NO ASC, pcm.MAP_NO ASC
     </select>
 
-    <insert id="insertProductPriceMatch" parameterType="ProductPriceCodeMapDTO">
+    <insert id="insertProductPriceMatch" parameterType="com.app.dto.ProductPriceCodeMapDTO">
         INSERT INTO OFT_PRODUCT_PRICE_MATCH (
             PRODUCT_NO,
             SNAPSHOT_NO,

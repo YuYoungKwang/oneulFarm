@@ -6,7 +6,7 @@ import MyPageView from './MyPageView';
 import ProfileEditModal from './ProfileEditModal';
 import AddressModal from './AddressModal';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '/backend';
 const ORDER_API_BASE = `${API_BASE_URL}/api/orders`;
 const DASHBOARD_API_BASE = `${API_BASE_URL}/api/dashboard`;
 const USER_API_BASE = `${API_BASE_URL}/api/users`;

@@ -29,7 +29,7 @@ function MainNav({
         <button
           type="button"
           className="main-nav__logo"
-          onClick={() => navigateTo('#/products')}
+          onClick={() => navigateTo('#/')}
         >
           <span className="main-nav__logo-mark" />
           <span>oneulFarm</span>
@@ -40,7 +40,9 @@ function MainNav({
             <button
               key={item.id}
               type="button"
-              className={`main-nav__link ${item.section === activeSection ? 'is-active' : ''}`}
+              className={`main-nav__link ${
+                item.section && item.section === activeSection ? 'is-active' : ''
+              }`}
               onClick={() => navigateTo(item.hash)}
             >
               {item.label}

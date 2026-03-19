@@ -4,36 +4,93 @@ import { clearAuthUser, getAuthUser } from './auth';
 import MainNav from './components/MainNav';
 import PasswordChangeRequiredPage from './components/PasswordChangeRequiredPage';
 import ProductApp from './components/ProductApp';
+import MainPage from './components/Mainpage';
+import SiteFooter from './components/SiteFooter';
 
-function resolveAppFromHash(hash) {
-  const normalized = hash.replace(/^#\/?/, '').trim();
+const MAIN_ROUTE_SEGMENTS = new Set(['', 'main', 'mainpage', 'home']);
+const PRODUCT_ROUTE_SEGMENTS = new Set([
+  'productapp',
+  'products',
+  'cart',
+  'checkout',
+  'recipes',
+  'orders',
+  'order-complete',
+  'payment-success',
+  'payment-fail',
+]);
+const ACCOUNT_ROUTE_SEGMENTS = new Set(['dashboard', 'mypage']);
 
+function getFirstSegment(hash) {
+  const normalized = hash.replace(/^#\/?/, '').trim().toLowerCase();
   if (!normalized) {
-    return 'product';
+    const normalizedPathname = (window.location.pathname || '')
+      .replace(/^\/+|\/+$/g, '')
+      .trim()
+      .toLowerCase();
+
+    if (!normalizedPathname) {
+      return '';
+    }
+
+    const [pathnameSegment] = normalizedPathname.split('/');
+    return pathnameSegment;
   }
 
   const [firstSegment] = normalized.split('/');
-  return firstSegment === 'dashboard' || firstSegment === 'mypage'
-    ? 'account'
-    : 'product';
+  return firstSegment;
+}
+
+function resolveAppFromHash(hash) {
+  const firstSegment = getFirstSegment(hash);
+
+  if (MAIN_ROUTE_SEGMENTS.has(firstSegment)) {
+    return 'main';
+  }
+
+  if (ACCOUNT_ROUTE_SEGMENTS.has(firstSegment)) {
+    return 'account';
+  }
+
+  if (PRODUCT_ROUTE_SEGMENTS.has(firstSegment)) {
+    return 'product';
+  }
+
+  return 'main';
 }
 
 function resolveActiveSection(hash) {
-  const normalized = hash.replace(/^#\/?/, '').trim();
+  const firstSegment = getFirstSegment(hash);
 
-  if (normalized.startsWith('recipes')) {
+  if (MAIN_ROUTE_SEGMENTS.has(firstSegment)) {
+    return null;
+  }
+
+  if (firstSegment === 'recipes') {
     return 'recipes';
   }
 
   if (
-    normalized.startsWith('orders') ||
-    normalized.startsWith('mypage')
+    firstSegment === 'orders' ||
+    firstSegment === 'order-complete' ||
+    firstSegment === 'mypage'
   ) {
     return 'mypage';
   }
 
-  if (normalized.startsWith('dashboard')) {
+  if (firstSegment === 'dashboard') {
     return 'dashboard';
+  }
+
+  if (
+    firstSegment === 'productapp' ||
+    firstSegment === 'products' ||
+    firstSegment === 'cart' ||
+    firstSegment === 'checkout' ||
+    firstSegment === 'payment-success' ||
+    firstSegment === 'payment-fail'
+  ) {
+    return 'products';
   }
 
   return 'products';
@@ -89,25 +146,11 @@ function App() {
 
   return (
     <>
-      <MainNav
-        activeSection={activeSection}
-        authUser={authUser}
-        cartCount={cartCount}
-        onOpenLogin={() => navigateTo('#/login')}
-        onOpenSignup={() => navigateTo('#/signup')}
-        onOpenCart={() => navigateTo('#/cart')}
-        onLogout={() => {
-          clearAuthUser();
-          navigateTo('#/products');
-        }}
-      />
-      {authUser?.passwordChangeRequired ? (
-        <PasswordChangeRequiredPage authUser={authUser} />
-      ) : currentApp === 'account' ? (
-        <AccountApp />
-      ) : (
-        <ProductApp authUser={authUser} />
-      )}
+      <MainNav activeSection={activeSection} cartCount={cartCount} />
+      {currentApp === 'main' && <MainPage />}
+      {currentApp === 'product' && <ProductApp />}
+      {currentApp === 'account' && <AccountApp />}
+      {currentApp === 'main' && <SiteFooter />}
     </>
   );
 }

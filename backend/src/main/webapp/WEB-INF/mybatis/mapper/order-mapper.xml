@@ -276,7 +276,7 @@
                 ELSE SALE_STATUS
             END
         WHERE PRODUCT_NO = #{productNo}
-          AND STOCK_QTY >= #{quantity}
+          AND STOCK_QTY &gt;= #{quantity}
     </update>
 
 </mapper>
