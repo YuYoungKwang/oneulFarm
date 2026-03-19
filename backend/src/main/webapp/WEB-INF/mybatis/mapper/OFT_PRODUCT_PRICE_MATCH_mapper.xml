@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.app.dao.ProductPriceMatchDAO">
+
+    <resultMap id="productPriceCodeMapResultMap" type="com.app.dto.ProductPriceCodeMapDTO">
+        <id property="mapNo" column="mapNo"/>
+        <result property="productNo" column="productNo"/>
+        <result property="productName" column="productName"/>
+        <result property="productUnit" column="productUnit"/>
+        <result property="packageWeight" column="packageWeight"/>
+        <result property="salePrice" column="salePrice"/>
+        <result property="saleStatus" column="saleStatus"/>
+        <result property="marketType" column="marketType"/>
+        <result property="itemCategoryCode" column="itemCategoryCode"/>
+        <result property="itemCode" column="itemCode"/>
+        <result property="kindCode" column="kindCode"/>
+        <result property="productRankCode" column="productRankCode"/>
+        <result property="countryCode" column="countryCode"/>
+        <result property="convertKgYn" column="convertKgYn"/>
+        <result property="itemNameHint" column="itemNameHint"/>
+        <result property="unitHint" column="unitHint"/>
+        <result property="snapshotNo" column="snapshotNo"/>
+        <result property="snapshotItemCode" column="snapshotItemCode"/>
+        <result property="snapshotItemName" column="snapshotItemName"/>
+        <result property="snapshotUnit" column="snapshotUnit"/>
+        <result property="avgPrice" column="avgPrice"/>
+        <result property="snapshotDate" column="snapshotDate"/>
+    </resultMap>
+
+    <delete id="deleteProductPriceMatchForSellingProducts">
+        DELETE FROM OFT_PRODUCT_PRICE_MATCH
+        WHERE PRODUCT_NO IN (
+            SELECT PRODUCT_NO
+            FROM OFT_PRODUCT
+            WHERE SALE_STATUS = 'SELLING'
+        )
+    </delete>
+
+    <select id="selectActiveProductPriceCodeMapList" resultMap="productPriceCodeMapResultMap">
+        WITH latest_snapshot AS (
+            SELECT
+                SNAPSHOT_NO,
+                ITEM_CODE,
+                ITEM_NAME,
+                MARKET_TYPE,
+                UNIT,
+                AVG_PRICE,
+                SNAPSHOT_DATE
+            FROM (
+                SELECT
+                    ps.SNAPSHOT_NO,
+                    ps.ITEM_CODE,
+                    ps.ITEM_NAME,
+                    ps.MARKET_TYPE,
+                    ps.UNIT,
+                    ps.AVG_PRICE,
+                    ps.SNAPSHOT_DATE,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY ps.ITEM_CODE, ps.MARKET_TYPE
+                        ORDER BY ps.SNAPSHOT_DATE DESC, ps.SNAPSHOT_NO DESC
+                    ) AS rn
+                FROM OFT_PRICE_SNAPSHOT ps
+            )
+            WHERE rn = 1
+        )
+        SELECT
+            pcm.MAP_NO AS mapNo,
+            p.PRODUCT_NO AS productNo,
+            p.PRODUCT_NAME AS productName,
+            p.UNIT AS productUnit,
+            p.PACKAGE_WEIGHT AS packageWeight,
+            p.SALE_PRICE AS salePrice,
+            p.SALE_STATUS AS saleStatus,
+            pcm.MARKET_TYPE AS marketType,
+            pcm.ITEM_CATEGORY_CODE AS itemCategoryCode,
+            pcm.ITEM_CODE AS itemCode,
+            pcm.KIND_CODE AS kindCode,
+            pcm.PRODUCT_RANK_CODE AS productRankCode,
+            pcm.COUNTRY_CODE AS countryCode,
+            pcm.CONVERT_KG_YN AS convertKgYn,
+            pcm.ITEM_NAME_HINT AS itemNameHint,
+            pcm.UNIT_HINT AS unitHint,
+            ls.SNAPSHOT_NO AS snapshotNo,
+            ls.ITEM_CODE AS snapshotItemCode,
+            ls.ITEM_NAME AS snapshotItemName,
+            ls.UNIT AS snapshotUnit,
+            ls.AVG_PRICE AS avgPrice,
+            TO_CHAR(ls.SNAPSHOT_DATE, 'YYYY-MM-DD') AS snapshotDate
+        FROM OFT_PRODUCT_PRICE_CODE_MAP pcm
+        JOIN OFT_PRODUCT p
+            ON p.PRODUCT_NO = pcm.PRODUCT_NO
+        LEFT JOIN latest_snapshot ls
+            ON ls.MARKET_TYPE = pcm.MARKET_TYPE
+           AND ls.ITEM_CODE =
+                pcm.MARKET_TYPE || '_' ||
+                pcm.ITEM_CATEGORY_CODE || '_' ||
+                pcm.ITEM_CODE || '_' ||
+                REPLACE(REPLACE(REPLACE(TRIM(pcm.KIND_CODE), '|', '-'), ',', '-'), ' ', '') || '_' ||
+                pcm.PRODUCT_RANK_CODE || '_' ||
+                pcm.COUNTRY_CODE || '_' ||
+                pcm.CONVERT_KG_YN
+        WHERE pcm.IS_ACTIVE = 'Y'
+          AND p.SALE_STATUS = 'SELLING'
+        ORDER BY p.PRODUCT_NO ASC, pcm.MAP_NO ASC
+    </select>
+
+    <insert id="insertProductPriceMatch" parameterType="com.app.dto.ProductPriceCodeMapDTO">
+        INSERT INTO OFT_PRODUCT_PRICE_MATCH (
+            PRODUCT_NO,
+            SNAPSHOT_NO,
+            COMPARED_PRICE,
+            PRICE_GAP,
+            SAVING_RATE,
+            BADGE_TYPE
+        )
+        VALUES (
+            #{productNo},
+            #{snapshotNo},
+            #{comparedPrice},
+            #{priceGap},
+            #{savingRate},
+            #{badgeType}
+        )
+    </insert>
+
+</mapper>

@@ -2,31 +2,101 @@ import { startTransition, useEffect, useState } from 'react';
 import AccountApp from './AccountApp';
 import MainNav from './components/MainNav';
 import ProductApp from './components/ProductApp';
+import MainPage from './components/Mainpage';
+import SiteFooter from './components/SiteFooter';
 
-function resolveAppFromHash(hash) {
-  const normalized = hash.replace(/^#\/?/, '').trim();
+const MAIN_ROUTE_SEGMENTS = new Set(['', 'main', 'mainpage', 'home']);
+const PRODUCT_ROUTE_SEGMENTS = new Set([
+  'productapp',
+  'products',
+  'cart',
+  'checkout',
+  'recipes',
+  'orders',
+  'order-complete',
+  'payment-success',
+  'payment-fail',
+]);
+const ACCOUNT_ROUTE_SEGMENTS = new Set(['dashboard', 'mypage']);
 
+function getFirstSegment(hash) {
+  const normalized = hash.replace(/^#\/?/, '').trim().toLowerCase();
   if (!normalized) {
-    return 'product';
+    const normalizedPathname = (window.location.pathname || '')
+      .replace(/^\/+|\/+$/g, '')
+      .trim()
+      .toLowerCase();
+
+    if (!normalizedPathname) {
+      return '';
+    }
+
+    const [pathnameSegment] = normalizedPathname.split('/');
+    return pathnameSegment;
   }
 
   const [firstSegment] = normalized.split('/');
+<<<<<<< HEAD
   return ['dashboard', 'mypage', 'orders'].includes(firstSegment) ? 'account' : 'product';
+=======
+  return firstSegment;
+}
+
+function resolveAppFromHash(hash) {
+  const firstSegment = getFirstSegment(hash);
+
+  if (MAIN_ROUTE_SEGMENTS.has(firstSegment)) {
+    return 'main';
+  }
+
+  if (ACCOUNT_ROUTE_SEGMENTS.has(firstSegment)) {
+    return 'account';
+  }
+
+  if (PRODUCT_ROUTE_SEGMENTS.has(firstSegment)) {
+    return 'product';
+  }
+
+  return 'main';
+>>>>>>> c1ce7f3d5ca667c168464efa8eef94efb630eb28
 }
 
 function resolveActiveSection(hash) {
-  const normalized = hash.replace(/^#\/?/, '').trim();
+  const firstSegment = getFirstSegment(hash);
 
-  if (normalized.startsWith('recipes')) {
+  if (MAIN_ROUTE_SEGMENTS.has(firstSegment)) {
+    return null;
+  }
+
+  if (firstSegment === 'recipes') {
     return 'recipes';
   }
 
+<<<<<<< HEAD
   if (normalized.startsWith('orders') || normalized.startsWith('mypage')) {
+=======
+  if (
+    firstSegment === 'orders' ||
+    firstSegment === 'order-complete' ||
+    firstSegment === 'mypage'
+  ) {
+>>>>>>> c1ce7f3d5ca667c168464efa8eef94efb630eb28
     return 'mypage';
   }
 
-  if (normalized.startsWith('dashboard')) {
+  if (firstSegment === 'dashboard') {
     return 'dashboard';
+  }
+
+  if (
+    firstSegment === 'productapp' ||
+    firstSegment === 'products' ||
+    firstSegment === 'cart' ||
+    firstSegment === 'checkout' ||
+    firstSegment === 'payment-success' ||
+    firstSegment === 'payment-fail'
+  ) {
+    return 'products';
   }
 
   return 'products';
@@ -77,7 +147,10 @@ function App() {
   return (
     <>
       <MainNav activeSection={activeSection} cartCount={cartCount} />
-      {currentApp === 'account' ? <AccountApp /> : <ProductApp />}
+      {currentApp === 'main' && <MainPage />}
+      {currentApp === 'product' && <ProductApp />}
+      {currentApp === 'account' && <AccountApp />}
+      {currentApp === 'main' && <SiteFooter />}
     </>
   );
 }

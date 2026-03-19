@@ -1,3 +1,5 @@
+const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || '/backend').replace(/\/+$/, '');
+
 function buildQueryString(params) {
   const searchParams = new URLSearchParams();
 
@@ -30,7 +32,7 @@ async function requestRecipeApi(url) {
 
 export function fetchRecipeList({ keyword, ingredientKeyword, sort, limit }) {
   return requestRecipeApi(
-    `/api/recipes${buildQueryString({
+    `${API_BASE_URL}/api/recipes${buildQueryString({
       keyword,
       ingredientKeyword,
       sort,
@@ -40,5 +42,5 @@ export function fetchRecipeList({ keyword, ingredientKeyword, sort, limit }) {
 }
 
 export function fetchRecipeDetail(recipeNo) {
-  return requestRecipeApi(`/api/recipes/${recipeNo}`);
+  return requestRecipeApi(`${API_BASE_URL}/api/recipes/${recipeNo}`);
 }

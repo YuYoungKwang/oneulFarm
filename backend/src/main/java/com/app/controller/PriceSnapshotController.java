@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.app.dto.PriceSnapshotBackfillItemDTO;
 import com.app.dto.PriceSnapshotDTO;
 import com.app.service.PriceSnapshotService;
+import com.app.service.ProductPriceMatchService;
+import com.app.service.ProductPriceMatchService.ProductPriceMatchRefreshResult;
 
 @RestController
 @RequestMapping("/api")
@@ -31,9 +33,14 @@ public class PriceSnapshotController {
     private static final int DEFAULT_BACKFILL_DAYS = 365;
 
     private final PriceSnapshotService priceSnapshotService;
+    private final ProductPriceMatchService productPriceMatchService;
 
-    public PriceSnapshotController(PriceSnapshotService priceSnapshotService) {
+    public PriceSnapshotController(
+        PriceSnapshotService priceSnapshotService,
+        ProductPriceMatchService productPriceMatchService
+    ) {
         this.priceSnapshotService = priceSnapshotService;
+        this.productPriceMatchService = productPriceMatchService;
     }
 
     @GetMapping("/prices")
@@ -51,11 +58,11 @@ public class PriceSnapshotController {
             data.put("snapshotDate", priceSnapshotList.isEmpty() ? snapshotDate : priceSnapshotList.get(0).getSnapshotDate());
             data.put("prices", priceSnapshotList);
 
-            return success(data, "시세 목록 조회 성공");
+            return success(data, "Price snapshot list retrieved.");
         } catch (IllegalArgumentException exception) {
             return error(HttpStatus.BAD_REQUEST, "INVALID_PRICE_REQUEST", exception.getMessage());
         } catch (Exception exception) {
-            return error(HttpStatus.INTERNAL_SERVER_ERROR, "PRICE_LIST_ERROR", "시세 목록 조회 중 오류가 발생했습니다.");
+            return error(HttpStatus.INTERNAL_SERVER_ERROR, "PRICE_LIST_ERROR", "Price snapshot list retrieval failed.");
         }
     }
 
@@ -74,11 +81,11 @@ public class PriceSnapshotController {
             data.put("marketType", marketType == null || marketType.isBlank() ? MARKET_TYPE_RETAIL : marketType);
             data.put("trend", priceSnapshotTrend);
 
-            return success(data, "시세 추이 조회 성공");
+            return success(data, "Price trend retrieved.");
         } catch (IllegalArgumentException exception) {
             return error(HttpStatus.BAD_REQUEST, "INVALID_PRICE_TREND_REQUEST", exception.getMessage());
         } catch (Exception exception) {
-            return error(HttpStatus.INTERNAL_SERVER_ERROR, "PRICE_TREND_ERROR", "시세 추이 조회 중 오류가 발생했습니다.");
+            return error(HttpStatus.INTERNAL_SERVER_ERROR, "PRICE_TREND_ERROR", "Price trend retrieval failed.");
         }
     }
 
@@ -86,16 +93,20 @@ public class PriceSnapshotController {
     public ResponseEntity<Map<String, Object>> syncPriceSnapshot() {
         try {
             int processedCount = priceSnapshotService.syncPriceSnapshot();
+            ProductPriceMatchRefreshResult refreshResult = productPriceMatchService.refreshProductPriceMatch();
 
             Map<String, Object> data = new LinkedHashMap<String, Object>();
             data.put("processedCount", processedCount);
             data.put("latestSnapshotDate", priceSnapshotService.getLatestSnapshotDate());
+            data.put("matchProcessedCount", refreshResult.getProcessedCount());
+            data.put("badgeCount", refreshResult.getBadgeCount());
+            data.put("skippedProductCount", refreshResult.getSkippedCount());
 
-            return success(data, "시세 수집 및 저장 성공");
+            return success(data, "Price sync completed.");
         } catch (IllegalArgumentException exception) {
             return error(HttpStatus.BAD_REQUEST, "INVALID_PRICE_SYNC_REQUEST", exception.getMessage());
         } catch (Exception exception) {
-            return error(HttpStatus.INTERNAL_SERVER_ERROR, "PRICE_SYNC_ERROR", "시세 수집 및 저장 중 오류가 발생했습니다.");
+            return error(HttpStatus.INTERNAL_SERVER_ERROR, "PRICE_SYNC_ERROR", "Price sync failed.");
         }
     }
 
@@ -129,6 +140,7 @@ public class PriceSnapshotController {
                 resolvedStartDate,
                 resolvedEndDate
             );
+            ProductPriceMatchRefreshResult refreshResult = productPriceMatchService.refreshProductPriceMatch();
 
             Map<String, Object> data = new LinkedHashMap<String, Object>();
             data.put("processedCount", processedCount);
@@ -151,12 +163,15 @@ public class PriceSnapshotController {
                 resolvedConvertKgYn
             ));
             data.put("latestSnapshotDate", priceSnapshotService.getLatestSnapshotDate());
+            data.put("matchProcessedCount", refreshResult.getProcessedCount());
+            data.put("badgeCount", refreshResult.getBadgeCount());
+            data.put("skippedProductCount", refreshResult.getSkippedCount());
 
-            return success(data, "시세 1년 백필 성공");
+            return success(data, "Price backfill completed.");
         } catch (IllegalArgumentException exception) {
             return error(HttpStatus.BAD_REQUEST, "INVALID_PRICE_BACKFILL_REQUEST", exception.getMessage());
         } catch (Exception exception) {
-            return error(HttpStatus.INTERNAL_SERVER_ERROR, "PRICE_BACKFILL_ERROR", "시세 기간 백필 중 오류가 발생했습니다.");
+            return error(HttpStatus.INTERNAL_SERVER_ERROR, "PRICE_BACKFILL_ERROR", "Price backfill failed.");
         }
     }
 
@@ -183,6 +198,8 @@ public class PriceSnapshotController {
                 }
             }
 
+            ProductPriceMatchRefreshResult refreshResult = productPriceMatchService.refreshProductPriceMatch();
+
             Map<String, Object> data = new LinkedHashMap<String, Object>();
             data.put("startDate", resolvedStartDate);
             data.put("endDate", resolvedEndDate);
@@ -192,12 +209,15 @@ public class PriceSnapshotController {
             data.put("processedCount", processedCount);
             data.put("items", resultItemList);
             data.put("latestSnapshotDate", priceSnapshotService.getLatestSnapshotDate());
+            data.put("matchProcessedCount", refreshResult.getProcessedCount());
+            data.put("badgeCount", refreshResult.getBadgeCount());
+            data.put("skippedProductCount", refreshResult.getSkippedCount());
 
-            return success(data, "기본 시세 품목 세트 백필 성공");
+            return success(data, "Default price backfill completed.");
         } catch (IllegalArgumentException exception) {
             return error(HttpStatus.BAD_REQUEST, "INVALID_PRICE_DEFAULT_BACKFILL_REQUEST", exception.getMessage());
         } catch (Exception exception) {
-            return error(HttpStatus.INTERNAL_SERVER_ERROR, "PRICE_DEFAULT_BACKFILL_ERROR", "기본 시세 품목 세트 백필 중 오류가 발생했습니다.");
+            return error(HttpStatus.INTERNAL_SERVER_ERROR, "PRICE_DEFAULT_BACKFILL_ERROR", "Default price backfill failed.");
         }
     }
 
@@ -227,7 +247,7 @@ public class PriceSnapshotController {
             return normalizedValue;
         }
 
-        throw new IllegalArgumentException("marketType은 RETAIL 또는 WHOLESALE 이어야 합니다.");
+        throw new IllegalArgumentException("marketType must be RETAIL or WHOLESALE.");
     }
 
     private String normalizeCountryCode(String countryCode) {
@@ -247,7 +267,7 @@ public class PriceSnapshotController {
             return normalizedValue;
         }
 
-        throw new IllegalArgumentException("convertKgYn은 Y 또는 N 이어야 합니다.");
+        throw new IllegalArgumentException("convertKgYn must be Y or N.");
     }
 
     private String resolveEndDate(String endDate) {
@@ -268,7 +288,7 @@ public class PriceSnapshotController {
         try {
             return LocalDate.parse(value.trim(), DateTimeFormatter.ISO_LOCAL_DATE);
         } catch (DateTimeParseException exception) {
-            throw new IllegalArgumentException("날짜는 yyyy-MM-dd 형식이어야 합니다.", exception);
+            throw new IllegalArgumentException("Date must use yyyy-MM-dd format.", exception);
         }
     }
 

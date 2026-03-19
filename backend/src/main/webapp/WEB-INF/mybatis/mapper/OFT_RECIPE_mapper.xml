@@ -3,7 +3,7 @@
     "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="recipeMapper">
 
-    <resultMap id="RecipeResultMap" type="RecipeDTO">
+    <resultMap id="RecipeResultMap" type="com.app.dto.RecipeDTO">
         <id property="recipeNo" column="recipeNo" />
         <result property="externalRecipeId" column="externalRecipeId" />
         <result property="recipeName" column="recipeName" />
@@ -15,7 +15,7 @@
         <result property="sourceName" column="sourceName" />
     </resultMap>
 
-    <resultMap id="RecipeDetailResultMap" type="RecipeDetailDTO">
+    <resultMap id="RecipeDetailResultMap" type="com.app.dto.RecipeDetailDTO">
         <id property="recipeNo" column="recipeNo" />
         <result property="externalRecipeId" column="externalRecipeId" />
         <result property="recipeName" column="recipeName" />
@@ -27,28 +27,28 @@
         <result property="sourceName" column="sourceName" />
     </resultMap>
 
-    <resultMap id="RecipeIngredientResultMap" type="RecipeIngredientDTO">
+    <resultMap id="RecipeIngredientResultMap" type="com.app.dto.RecipeIngredientDTO">
         <id property="ingredientNo" column="ingredientNo" />
         <result property="recipeNo" column="recipeNo" />
         <result property="ingredientName" column="ingredientName" />
         <result property="amount" column="amount" />
     </resultMap>
 
-    <resultMap id="RecipeStepResultMap" type="RecipeStepDTO">
+    <resultMap id="RecipeStepResultMap" type="com.app.dto.RecipeStepDTO">
         <id property="stepNo" column="stepNo" />
         <result property="recipeNo" column="recipeNo" />
         <result property="stepSeq" column="stepSeq" />
         <result property="description" column="description" />
     </resultMap>
 
-    <resultMap id="RecipeStepImageResultMap" type="RecipeStepImageDTO">
+    <resultMap id="RecipeStepImageResultMap" type="com.app.dto.RecipeStepImageDTO">
         <id property="stepImageNo" column="stepImageNo" />
         <result property="stepNo" column="stepNo" />
         <result property="imageUrl" column="imageUrl" />
         <result property="sortOrder" column="sortOrder" />
     </resultMap>
 
-    <insert id="mergeRecipe" parameterType="RecipeDTO">
+    <insert id="mergeRecipe" parameterType="com.app.dto.RecipeDTO">
         MERGE INTO OFT_RECIPE target
         USING (
             SELECT
@@ -119,7 +119,7 @@
         WHERE RECIPE_NO = #{value}
     </delete>
 
-    <insert id="insertRecipeIngredient" parameterType="RecipeIngredientDTO">
+    <insert id="insertRecipeIngredient" parameterType="com.app.dto.RecipeIngredientDTO">
         INSERT INTO OFT_RECIPE_INGREDIENT (
             RECIPE_NO,
             INGREDIENT_NAME,
@@ -132,7 +132,7 @@
         )
     </insert>
 
-    <insert id="insertRecipeStep" parameterType="RecipeStepDTO">
+    <insert id="insertRecipeStep" parameterType="com.app.dto.RecipeStepDTO">
         INSERT INTO OFT_RECIPE_STEP (
             RECIPE_NO,
             STEP_SEQ,
@@ -151,7 +151,7 @@
         </selectKey>
     </insert>
 
-    <insert id="insertRecipeStepImage" parameterType="RecipeStepImageDTO">
+    <insert id="insertRecipeStepImage" parameterType="com.app.dto.RecipeStepImageDTO">
         INSERT INTO OFT_RECIPE_STEP_IMAGE (
             STEP_NO,
             IMAGE_URL,

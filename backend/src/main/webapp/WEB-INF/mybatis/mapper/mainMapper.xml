@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="mainMapper">
+
+    <!-- ========================= -->
+    <!-- 배너 조회 -->
+    <!-- ========================= -->
+    <select id="selectMainBanners" resultType="com.app.dto.main.BannerDto">
+        SELECT
+            BANNER_NO AS bannerNo,
+            TITLE AS title,
+            LINK_URL AS linkUrl
+        FROM OFT_MAIN_BANNER
+        WHERE IS_ACTIVE = 'Y'
+        ORDER BY SORT_ORDER ASC
+    </select>
+
+    <!-- ========================= -->
+    <!-- 상품 조회 -->
+    <!-- ========================= -->
+    <select id="selectMainProducts" resultType="com.app.dto.main.ProductDto">
+        SELECT
+            P.PRODUCT_NO AS productNo,
+            P.PRODUCT_NAME AS productName,
+            P.SALE_PRICE AS salePrice,
+            PI.IMAGE_NO AS imageNo
+        FROM OFT_PRODUCT P
+        JOIN OFT_PRODUCT_IMAGE PI
+            ON P.PRODUCT_NO = PI.PRODUCT_NO
+        WHERE PI.IS_MAIN = 'Y'
+          AND P.SALE_STATUS = 'SELLING'
+        ORDER BY P.CREATED_AT DESC
+    </select>
+
+</mapper>

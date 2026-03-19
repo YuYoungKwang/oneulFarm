@@ -21,7 +21,7 @@ function MainNav({ activeSection, cartCount = 0, onOpenCart }) {
         <button
           type="button"
           className="main-nav__logo"
-          onClick={() => navigateTo('#/products')}
+          onClick={() => navigateTo('#/')}
         >
           <span className="main-nav__logo-mark" />
           <span>oneulFarm</span>
@@ -32,7 +32,9 @@ function MainNav({ activeSection, cartCount = 0, onOpenCart }) {
             <button
               key={item.id}
               type="button"
-              className={`main-nav__link ${item.section === activeSection ? 'is-active' : ''}`}
+              className={`main-nav__link ${
+                item.section && item.section === activeSection ? 'is-active' : ''
+              }`}
               onClick={() => navigateTo(item.hash)}
             >
               {item.label}
