@@ -33,7 +33,7 @@ function buildApiBasePrefixes(explicitBaseUrl) {
     return [normalizedBaseUrl];
   }
 
-  return ['', '/backend'];
+  return ['/backend'];
 }
 
 function normalizeBaseUrl(value) {

@@ -30,12 +30,15 @@ function buildProfileImageCandidates(imageUrl) {
     return [normalizedUrl];
   }
 
-  const nextCandidates = [normalizedUrl];
-  if (normalizedUrl.startsWith('/')) {
-    nextCandidates.push(`/backend${normalizedUrl}`);
+  if (normalizedUrl.startsWith('/backend/')) {
+    return [normalizedUrl];
   }
 
-  return Array.from(new Set(nextCandidates));
+  if (normalizedUrl.startsWith('/')) {
+    return [`/backend${normalizedUrl}`];
+  }
+
+  return [normalizedUrl];
 }
 
 function formatCountdown(totalSeconds) {
