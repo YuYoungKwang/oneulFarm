@@ -785,6 +785,51 @@
   font-size: 14px;
 }
 
+.product-app .toss-status-card{
+  margin-top: 16px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(231, 235, 239, 0.9);
+  background: #f8faf8;
+}
+
+.product-app .toss-status-card.ready{
+  border-color: rgba(53, 127, 89, 0.24);
+  background: rgba(236, 247, 239, 0.9);
+}
+
+.product-app .toss-status-card.pending{
+  border-color: rgba(245, 195, 72, 0.32);
+  background: rgba(255, 250, 233, 0.95);
+}
+
+.product-app .toss-status-head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.product-app .toss-status-head strong{
+  font-size: 15px;
+}
+
+.product-app .toss-status-head span{
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green-dark);
+}
+
+.product-app .toss-status-card.pending .toss-status-head span{
+  color: #8a6100;
+}
+
+.product-app .summary-actions button:disabled{
+  opacity: 0.72;
+  cursor: wait;
+}
+
 .product-app .order-actions{
   display: flex;
   gap: 10px;

@@ -139,5 +139,6 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/windows,eclipse,java,maven
-설정에서 퀵메뉴를 다시 켤 수 있습니다.
-바로가기
+
+# Local API credentials
+src/main/resources/api.properties

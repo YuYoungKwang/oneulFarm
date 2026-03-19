@@ -4,7 +4,7 @@
 
 <mapper namespace="com.app.dao.PriceSnapshotDAO">
 
-    <resultMap id="priceSnapshotResultMap" type="PriceSnapshot">
+    <resultMap id="priceSnapshotResultMap" type="PriceSnapshotDTO">
         <id property="snapshotNo" column="snapshotNo"/>
         <result property="itemCode" column="itemCode"/>
         <result property="itemName" column="itemName"/>
@@ -18,7 +18,7 @@
         <result property="sourceName" column="sourceName"/>
     </resultMap>
 
-    <update id="mergePriceSnapshot" parameterType="PriceSnapshot">
+    <update id="mergePriceSnapshot" parameterType="PriceSnapshotDTO">
         MERGE INTO OFT_PRICE_SNAPSHOT target
         USING (
             SELECT
@@ -35,10 +35,8 @@
             FROM DUAL
         ) source
         ON (
-            NVL(UPPER(TRIM(target.ITEM_CODE)), UPPER(TRIM(target.ITEM_NAME))) =
-            NVL(UPPER(TRIM(source.ITEM_CODE)), UPPER(TRIM(source.ITEM_NAME)))
+            target.ITEM_CODE = source.ITEM_CODE
             AND target.MARKET_TYPE = source.MARKET_TYPE
-            AND UPPER(TRIM(target.UNIT)) = UPPER(TRIM(source.UNIT))
             AND target.SNAPSHOT_DATE = source.SNAPSHOT_DATE
             AND UPPER(TRIM(target.SOURCE_NAME)) = UPPER(TRIM(source.SOURCE_NAME))
         )

@@ -8,10 +8,13 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class OrderPaymentInfoDto {
+public class PaymentDto {
 
+    private Long paymentNo;
+    private Long orderNo;
     private String paymentMethod;
     private String paymentStatus;
-    private LocalDateTime paidAt;
+    private String paymentKey;
     private BigDecimal paidAmount;
+    private LocalDateTime paidAt;
 }
