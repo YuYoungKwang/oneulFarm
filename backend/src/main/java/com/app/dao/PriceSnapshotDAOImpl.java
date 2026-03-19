@@ -7,7 +7,7 @@ import java.util.Map;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.stereotype.Repository;
 
-import com.app.dto.PriceSnapshot;
+import com.app.dto.PriceSnapshotDTO;
 
 @Repository
 public class PriceSnapshotDAOImpl implements PriceSnapshotDAO {
@@ -21,8 +21,8 @@ public class PriceSnapshotDAOImpl implements PriceSnapshotDAO {
     }
 
     @Override
-    public int mergePriceSnapshot(PriceSnapshot priceSnapshot) {
-        return sqlSessionTemplate.update(NAMESPACE + "mergePriceSnapshot", priceSnapshot);
+    public int mergePriceSnapshot(PriceSnapshotDTO priceSnapshotDTO) {
+        return sqlSessionTemplate.update(NAMESPACE + "mergePriceSnapshot", priceSnapshotDTO);
     }
 
     @Override
@@ -31,7 +31,7 @@ public class PriceSnapshotDAOImpl implements PriceSnapshotDAO {
     }
 
     @Override
-    public List<PriceSnapshot> selectPriceSnapshotList(String itemName, String marketType, String snapshotDate, int limit) {
+    public List<PriceSnapshotDTO> selectPriceSnapshotList(String itemName, String marketType, String snapshotDate, int limit) {
         Map<String, Object> parameterMap = new HashMap<String, Object>();
         parameterMap.put("itemName", itemName);
         parameterMap.put("marketType", marketType);
@@ -41,7 +41,7 @@ public class PriceSnapshotDAOImpl implements PriceSnapshotDAO {
     }
 
     @Override
-    public List<PriceSnapshot> selectPriceSnapshotTrend(String itemCode, String marketType, int limit) {
+    public List<PriceSnapshotDTO> selectPriceSnapshotTrend(String itemCode, String marketType, int limit) {
         Map<String, Object> parameterMap = new HashMap<String, Object>();
         parameterMap.put("itemCode", itemCode);
         parameterMap.put("marketType", marketType);

@@ -4,14 +4,14 @@ import java.util.List;
 
 import com.app.dto.ProductImageDto;
 import com.app.dto.ProductRecipeDto;
-import com.app.dto.ProductResponseDto;
+import com.app.dto.ProductDto;
 import com.app.dto.ProductReviewDto;
 
 public interface ProductDao {
 
-    List<ProductResponseDto> findSellingProducts();
+    List<ProductDto> findSellingProducts();
 
-    ProductResponseDto findProduct(Long productNo);
+    ProductDto findProduct(Long productNo);
 
     List<ProductImageDto> findProductImages(Long productNo);
 

@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import com.app.dto.ProductImageDto;
 import com.app.dto.ProductRecipeDto;
-import com.app.dto.ProductResponseDto;
+import com.app.dto.ProductDto;
 import com.app.dto.ProductReviewDto;
 
 @Repository
@@ -20,12 +20,12 @@ public class ProductDaoImpl implements ProductDao {
     private SqlSessionTemplate sqlSessionTemplate;
 
     @Override
-    public List<ProductResponseDto> findSellingProducts() {
+    public List<ProductDto> findSellingProducts() {
         return sqlSessionTemplate.selectList(NAMESPACE + "selectSellingProducts");
     }
 
     @Override
-    public ProductResponseDto findProduct(Long productNo) {
+    public ProductDto findProduct(Long productNo) {
         return sqlSessionTemplate.selectOne(NAMESPACE + "selectProduct", productNo);
     }
 

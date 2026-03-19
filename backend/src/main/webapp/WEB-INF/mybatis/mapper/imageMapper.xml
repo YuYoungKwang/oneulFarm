@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="imageMapper">
+
+    <!-- 배너 이미지 -->
+    <select id="selectBannerImage" parameterType="long" resultType="byte[]">
+        SELECT IMAGE_DATA
+        FROM OFT_MAIN_BANNER
+        WHERE BANNER_NO = #{bannerNo}
+    </select>
+
+    <select id="selectBannerMimeType" parameterType="long" resultType="string">
+        SELECT MIME_TYPE
+        FROM OFT_MAIN_BANNER
+        WHERE BANNER_NO = #{bannerNo}
+    </select>
+
+    <!-- 상품 이미지 -->
+    <select id="selectProductImage" parameterType="long" resultType="byte[]">
+        SELECT IMAGE_DATA
+        FROM OFT_PRODUCT_IMAGE
+        WHERE IMAGE_NO = #{imageNo}
+    </select>
+
+    <select id="selectProductMimeType" parameterType="long" resultType="string">
+        SELECT MIME_TYPE
+        FROM OFT_PRODUCT_IMAGE
+        WHERE IMAGE_NO = #{imageNo}
+    </select>
+
+</mapper>

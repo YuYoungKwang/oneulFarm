@@ -7,8 +7,9 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class DeliveryCommandDto {
+public class DeliveryDto {
 
+    private Long deliveryNo;
     private Long orderNo;
     private String courierName;
     private String trackingNo;

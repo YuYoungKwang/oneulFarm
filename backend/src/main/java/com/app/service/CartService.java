@@ -1,16 +1,16 @@
 package com.app.service;
 
-import com.app.dto.CartResponseDto;
+import com.app.dto.CartDto;
 
 public interface CartService {
 
-    CartResponseDto getMyCart(Long userNo);
+    CartDto getMyCart(Long userNo);
 
-    CartResponseDto addCartItem(Long userNo, Long productNo, Integer quantity);
+    CartDto addCartItem(Long userNo, Long productNo, Integer quantity);
 
-    CartResponseDto updateCartItem(Long userNo, Long productNo, Integer quantity);
+    CartDto updateCartItem(Long userNo, Long productNo, Integer quantity);
 
-    CartResponseDto removeCartItem(Long userNo, Long productNo);
+    CartDto removeCartItem(Long userNo, Long productNo);
 
-    CartResponseDto clearCart(Long userNo);
+    CartDto clearCart(Long userNo);
 }

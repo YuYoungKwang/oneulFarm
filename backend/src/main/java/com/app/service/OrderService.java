@@ -2,17 +2,15 @@ package com.app.service;
 
 import java.util.List;
 
-import com.app.dto.CreateOrderRequestDto;
-import com.app.dto.OrderDetailResponseDto;
-import com.app.dto.OrderListResponseDto;
+import com.app.dto.OrderDto;
 
 public interface OrderService {
 
-    List<OrderListResponseDto> getMyOrders(Long userNo);
+    List<OrderDto> getMyOrders(Long userNo);
 
-    OrderDetailResponseDto getMyOrderDetail(Long userNo, Long orderNo);
+    OrderDto getMyOrderDetail(Long userNo, Long orderNo);
 
-    OrderDetailResponseDto createOrder(Long userNo, CreateOrderRequestDto request);
+    OrderDto createOrder(Long userNo, OrderDto request);
 
-    OrderDetailResponseDto advanceOrderStatus(Long userNo, Long orderNo);
+    OrderDto advanceOrderStatus(Long userNo, Long orderNo);
 }

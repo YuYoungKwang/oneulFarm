@@ -8,13 +8,10 @@ import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
-import com.app.dto.DeliveryCommandDto;
-import com.app.dto.OrderCreateCommandDto;
-import com.app.dto.OrderItemCommandDto;
-import com.app.dto.OrderDetailResponseDto;
-import com.app.dto.OrderItemResponseDto;
-import com.app.dto.OrderListResponseDto;
-import com.app.dto.PaymentCommandDto;
+import com.app.dto.DeliveryDto;
+import com.app.dto.OrderDto;
+import com.app.dto.OrderItemDto;
+import com.app.dto.PaymentDto;
 
 @Repository
 public class OrderDaoImpl implements OrderDao {
@@ -25,12 +22,12 @@ public class OrderDaoImpl implements OrderDao {
     private SqlSessionTemplate sqlSessionTemplate;
 
     @Override
-    public List<OrderListResponseDto> findMyOrders(Long userNo) {
+    public List<OrderDto> findMyOrders(Long userNo) {
         return sqlSessionTemplate.selectList(NAMESPACE + "selectMyOrders", userNo);
     }
 
     @Override
-    public OrderDetailResponseDto findOrderDetail(Long userNo, Long orderNo) {
+    public OrderDto findOrderDetail(Long userNo, Long orderNo) {
         Map<String, Object> params = new HashMap<>();
         params.put("userNo", userNo);
         params.put("orderNo", orderNo);
@@ -38,7 +35,7 @@ public class OrderDaoImpl implements OrderDao {
     }
 
     @Override
-    public List<OrderItemResponseDto> findOrderItems(Long orderNo) {
+    public List<OrderItemDto> findOrderItems(Long orderNo) {
         return sqlSessionTemplate.selectList(NAMESPACE + "selectOrderItems", orderNo);
     }
 
@@ -49,8 +46,8 @@ public class OrderDaoImpl implements OrderDao {
     }
 
     @Override
-    public int insertOrder(OrderCreateCommandDto command) {
-        return sqlSessionTemplate.insert(NAMESPACE + "insertOrder", command);
+    public int insertOrder(OrderDto order) {
+        return sqlSessionTemplate.insert(NAMESPACE + "insertOrder", order);
     }
 
     @Override
@@ -59,18 +56,18 @@ public class OrderDaoImpl implements OrderDao {
     }
 
     @Override
-    public int insertOrderItem(OrderItemCommandDto command) {
-        return sqlSessionTemplate.insert(NAMESPACE + "insertOrderItem", command);
+    public int insertOrderItem(OrderItemDto item) {
+        return sqlSessionTemplate.insert(NAMESPACE + "insertOrderItem", item);
     }
 
     @Override
-    public int insertPayment(PaymentCommandDto command) {
-        return sqlSessionTemplate.insert(NAMESPACE + "insertPayment", command);
+    public int insertPayment(PaymentDto payment) {
+        return sqlSessionTemplate.insert(NAMESPACE + "insertPayment", payment);
     }
 
     @Override
-    public int insertDelivery(DeliveryCommandDto command) {
-        return sqlSessionTemplate.insert(NAMESPACE + "insertDelivery", command);
+    public int insertDelivery(DeliveryDto delivery) {
+        return sqlSessionTemplate.insert(NAMESPACE + "insertDelivery", delivery);
     }
 
     @Override

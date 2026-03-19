@@ -10,10 +10,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.app.dao.CartDao;
 import com.app.dao.ProductDao;
-import com.app.dto.CartItemResponseDto;
-import com.app.dto.CartProductItemDto;
-import com.app.dto.CartResponseDto;
-import com.app.dto.ProductResponseDto;
+import com.app.dto.CartDto;
+import com.app.dto.CartItemDto;
+import com.app.dto.ProductDto;
 
 @Service
 public class CartServiceImpl implements CartService {
@@ -25,20 +24,20 @@ public class CartServiceImpl implements CartService {
     private ProductDao productDao;
 
     @Override
-    public CartResponseDto getMyCart(Long userNo) {
+    public CartDto getMyCart(Long userNo) {
         Long cartNo = getOrCreateCartNo(userNo);
         return buildCartResponse(cartNo, userNo);
     }
 
     @Override
-    public CartResponseDto addCartItem(Long userNo, Long productNo, Integer quantity) {
+    public CartDto addCartItem(Long userNo, Long productNo, Integer quantity) {
         int safeQuantity = quantity == null ? 1 : quantity;
         if (safeQuantity < 1) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quantity must be at least 1.");
         }
 
-        ProductResponseDto product = requireProduct(productNo);
-        CartItemResponseDto existingItem = cartDao.findCartItem(userNo, productNo);
+        ProductDto product = requireProduct(productNo);
+        CartItemDto existingItem = cartDao.findCartItem(userNo, productNo);
         Long cartNo = getOrCreateCartNo(userNo);
         int nextQuantity = safeQuantity;
 
@@ -58,7 +57,7 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
-    public CartResponseDto updateCartItem(Long userNo, Long productNo, Integer quantity) {
+    public CartDto updateCartItem(Long userNo, Long productNo, Integer quantity) {
         Long cartNo = getOrCreateCartNo(userNo);
         if (quantity == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quantity is required.");
@@ -69,21 +68,21 @@ public class CartServiceImpl implements CartService {
             return buildCartResponse(cartNo, userNo);
         }
 
-        ProductResponseDto product = requireProduct(productNo);
+        ProductDto product = requireProduct(productNo);
         validateStock(product, quantity);
         cartDao.updateCartItemQuantity(cartNo, productNo, quantity);
         return buildCartResponse(cartNo, userNo);
     }
 
     @Override
-    public CartResponseDto removeCartItem(Long userNo, Long productNo) {
+    public CartDto removeCartItem(Long userNo, Long productNo) {
         Long cartNo = getOrCreateCartNo(userNo);
         cartDao.deleteCartItem(cartNo, productNo);
         return buildCartResponse(cartNo, userNo);
     }
 
     @Override
-    public CartResponseDto clearCart(Long userNo) {
+    public CartDto clearCart(Long userNo) {
         Long cartNo = getOrCreateCartNo(userNo);
         cartDao.deleteAllCartItems(cartNo);
         return buildCartResponse(cartNo, userNo);
@@ -103,36 +102,35 @@ public class CartServiceImpl implements CartService {
         return createdCartNo;
     }
 
-    private ProductResponseDto requireProduct(Long productNo) {
-        ProductResponseDto product = productDao.findProduct(productNo);
+    private ProductDto requireProduct(Long productNo) {
+        ProductDto product = productDao.findProduct(productNo);
         if (product == null || !"SELLING".equals(product.getSaleStatus())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Product is not available.");
         }
         return product;
     }
 
-    private void validateStock(ProductResponseDto product, int quantity) {
+    private void validateStock(ProductDto product, int quantity) {
         long stockQty = product.getStockQty() == null ? 0L : product.getStockQty();
         if (quantity > stockQty) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not enough stock.");
         }
     }
 
-    private CartResponseDto buildCartResponse(Long cartNo, Long userNo) {
-        List<CartItemResponseDto> items = cartDao.findCartItems(userNo);
-        List<CartProductItemDto> cartProducts = cartDao.findCartProducts(userNo);
+    private CartDto buildCartResponse(Long cartNo, Long userNo) {
+        List<CartItemDto> items = cartDao.findCartItems(userNo);
 
         int totalQuantity = 0;
         BigDecimal totalAmount = BigDecimal.ZERO;
-        for (CartProductItemDto cartProduct : cartProducts) {
-            int quantity = cartProduct.getQuantity() == null ? 0 : cartProduct.getQuantity();
+        for (CartItemDto item : items) {
+            int quantity = item.getQuantity() == null ? 0 : item.getQuantity();
             totalQuantity += quantity;
             totalAmount = totalAmount.add(
-                safe(cartProduct.getSalePrice()).multiply(BigDecimal.valueOf(quantity))
+                safe(item.getSalePrice()).multiply(BigDecimal.valueOf(quantity))
             );
         }
 
-        CartResponseDto response = new CartResponseDto();
+        CartDto response = new CartDto();
         response.setCartNo(cartNo);
         response.setItems(items);
         response.setTotalQuantity(totalQuantity);

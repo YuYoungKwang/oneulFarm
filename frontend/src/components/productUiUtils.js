@@ -64,6 +64,18 @@ export function parseHash(hash) {
     };
   }
 
+  if (segments[0] === 'recipes' && segments[1]) {
+    const recipeNo = Number(segments[1]);
+
+    return Number.isNaN(recipeNo)
+      ? { page: 'recipes' }
+      : { page: 'recipe-detail', recipeNo };
+  }
+
+  if (segments[0] === 'recipes') {
+    return { page: 'recipes' };
+  }
+
   if (segments[0] === 'products' && segments[1]) {
     const productNo = Number(segments[1]);
 

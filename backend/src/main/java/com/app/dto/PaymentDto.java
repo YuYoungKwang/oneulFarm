@@ -8,8 +8,9 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class PaymentCommandDto {
+public class PaymentDto {
 
+    private Long paymentNo;
     private Long orderNo;
     private String paymentMethod;
     private String paymentStatus;

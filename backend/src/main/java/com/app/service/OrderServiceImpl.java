@@ -14,15 +14,11 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.app.dao.CartDao;
 import com.app.dao.OrderDao;
-import com.app.dto.CartProductItemDto;
-import com.app.dto.CreateOrderRequestDto;
-import com.app.dto.DeliveryCommandDto;
-import com.app.dto.OrderCreateCommandDto;
-import com.app.dto.OrderDetailResponseDto;
-import com.app.dto.OrderItemCommandDto;
-import com.app.dto.OrderItemResponseDto;
-import com.app.dto.OrderListResponseDto;
-import com.app.dto.PaymentCommandDto;
+import com.app.dto.CartItemDto;
+import com.app.dto.DeliveryDto;
+import com.app.dto.OrderDto;
+import com.app.dto.OrderItemDto;
+import com.app.dto.PaymentDto;
 
 @Service
 public class OrderServiceImpl implements OrderService {
@@ -34,10 +30,10 @@ public class OrderServiceImpl implements OrderService {
     private CartDao cartDao;
 
     @Override
-    public List<OrderListResponseDto> getMyOrders(Long userNo) {
-        List<OrderListResponseDto> responses = orderDao.findMyOrders(userNo);
+    public List<OrderDto> getMyOrders(Long userNo) {
+        List<OrderDto> responses = orderDao.findMyOrders(userNo);
 
-        for (OrderListResponseDto response : responses) {
+        for (OrderDto response : responses) {
             response.setFinalAmount(defaultAmount(response.getFinalAmount()));
             response.setTotalSavedAmount(defaultAmount(response.getTotalSavedAmount()));
         }
@@ -46,15 +42,15 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public OrderDetailResponseDto getMyOrderDetail(Long userNo, Long orderNo) {
-        OrderDetailResponseDto response = orderDao.findOrderDetail(userNo, orderNo);
+    public OrderDto getMyOrderDetail(Long userNo, Long orderNo) {
+        OrderDto response = orderDao.findOrderDetail(userNo, orderNo);
         if (response == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found.");
         }
 
-        List<OrderItemResponseDto> itemResponses = orderDao.findOrderItems(orderNo);
+        List<OrderItemDto> itemResponses = orderDao.findOrderItems(orderNo);
 
-        for (OrderItemResponseDto itemResponse : itemResponses) {
+        for (OrderItemDto itemResponse : itemResponses) {
             itemResponse.setUnitPrice(defaultAmount(itemResponse.getUnitPrice()));
             itemResponse.setSubtotal(defaultAmount(itemResponse.getSubtotal()));
             itemResponse.setMarketAvgPrice(defaultAmount(itemResponse.getMarketAvgPrice()));
@@ -76,16 +72,16 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public OrderDetailResponseDto createOrder(Long userNo, CreateOrderRequestDto request) {
+    public OrderDto createOrder(Long userNo, OrderDto request) {
         validateCreateOrderRequest(request);
 
-        List<CartProductItemDto> cartItems = cartDao.findCartProducts(userNo);
+        List<CartItemDto> cartItems = cartDao.findCartItems(userNo);
         if (cartItems.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cart is empty.");
         }
 
         BigDecimal totalAmount = BigDecimal.ZERO;
-        for (CartProductItemDto cartItem : cartItems) {
+        for (CartItemDto cartItem : cartItems) {
             validateCartItem(cartItem);
             BigDecimal lineAmount = defaultAmount(cartItem.getSalePrice())
                 .multiply(BigDecimal.valueOf(cartItem.getQuantity()));
@@ -97,58 +93,58 @@ public class OrderServiceImpl implements OrderService {
             orderId = buildOrderId();
         }
 
-        OrderCreateCommandDto orderCommand = new OrderCreateCommandDto();
-        orderCommand.setUserNo(userNo);
-        orderCommand.setOrderId(orderId);
-        orderCommand.setOrderStatus("PAID");
-        orderCommand.setTotalAmount(totalAmount);
-        orderCommand.setDiscountAmount(BigDecimal.ZERO);
-        orderCommand.setDeliveryFee(BigDecimal.ZERO);
-        orderCommand.setFinalAmount(totalAmount);
-        orderCommand.setRecipientName(request.getRecipientName().trim());
-        orderCommand.setRecipientPhone(request.getRecipientPhone().trim());
-        orderCommand.setZipCode(request.getZipCode().trim());
-        orderCommand.setAddress1(request.getAddress1().trim());
-        orderCommand.setAddress2(trimToNull(request.getAddress2()));
-        orderDao.insertOrder(orderCommand);
+        OrderDto order = new OrderDto();
+        order.setUserNo(userNo);
+        order.setOrderId(orderId);
+        order.setOrderStatus("PAID");
+        order.setTotalAmount(totalAmount);
+        order.setDiscountAmount(BigDecimal.ZERO);
+        order.setDeliveryFee(BigDecimal.ZERO);
+        order.setFinalAmount(totalAmount);
+        order.setRecipientName(request.getRecipientName().trim());
+        order.setRecipientPhone(request.getRecipientPhone().trim());
+        order.setZipCode(request.getZipCode().trim());
+        order.setAddress1(request.getAddress1().trim());
+        order.setAddress2(trimToNull(request.getAddress2()));
+        orderDao.insertOrder(order);
 
         Long orderNo = orderDao.findOrderNoByOrderId(orderId);
         if (orderNo == null) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to create order.");
         }
 
-        for (CartProductItemDto cartItem : cartItems) {
-            OrderItemCommandDto itemCommand = new OrderItemCommandDto();
-            itemCommand.setOrderNo(orderNo);
-            itemCommand.setProductNo(cartItem.getProductNo());
-            itemCommand.setProductName(cartItem.getProductName());
-            itemCommand.setUnitPrice(defaultAmount(cartItem.getSalePrice()));
-            itemCommand.setQuantity(cartItem.getQuantity());
-            itemCommand.setSubtotal(
+        for (CartItemDto cartItem : cartItems) {
+            OrderItemDto item = new OrderItemDto();
+            item.setOrderNo(orderNo);
+            item.setProductNo(cartItem.getProductNo());
+            item.setProductName(cartItem.getProductName());
+            item.setUnitPrice(defaultAmount(cartItem.getSalePrice()));
+            item.setQuantity(cartItem.getQuantity());
+            item.setSubtotal(
                 defaultAmount(cartItem.getSalePrice()).multiply(BigDecimal.valueOf(cartItem.getQuantity()))
             );
-            itemCommand.setMarketAvgPrice(defaultAmount(cartItem.getAvgPrice()));
-            itemCommand.setSavedAmount(defaultAmount(cartItem.getSavedAmount()));
-            itemCommand.setSavingRate(defaultAmount(cartItem.getSavingRate()));
-            orderDao.insertOrderItem(itemCommand);
+            item.setMarketAvgPrice(defaultAmount(cartItem.getAvgPrice()));
+            item.setSavedAmount(defaultAmount(cartItem.getSavedAmount()));
+            item.setSavingRate(defaultAmount(cartItem.getSavingRate()));
+            orderDao.insertOrderItem(item);
             orderDao.decreaseProductStock(cartItem.getProductNo(), cartItem.getQuantity());
         }
 
-        PaymentCommandDto paymentCommand = new PaymentCommandDto();
-        paymentCommand.setOrderNo(orderNo);
-        paymentCommand.setPaymentMethod(request.getPaymentMethod().trim());
-        paymentCommand.setPaymentStatus("SUCCESS");
-        paymentCommand.setPaymentKey(resolvePaymentKey(request.getPaymentKey(), orderId));
-        paymentCommand.setPaidAmount(totalAmount);
-        paymentCommand.setPaidAt(LocalDateTime.now());
-        orderDao.insertPayment(paymentCommand);
+        PaymentDto payment = new PaymentDto();
+        payment.setOrderNo(orderNo);
+        payment.setPaymentMethod(request.getPaymentMethod().trim());
+        payment.setPaymentStatus("SUCCESS");
+        payment.setPaymentKey(resolvePaymentKey(request.getPaymentKey(), orderId));
+        payment.setPaidAmount(totalAmount);
+        payment.setPaidAt(LocalDateTime.now());
+        orderDao.insertPayment(payment);
 
-        DeliveryCommandDto deliveryCommand = new DeliveryCommandDto();
-        deliveryCommand.setOrderNo(orderNo);
-        deliveryCommand.setCourierName("oneulFarm");
-        deliveryCommand.setTrackingNo(null);
-        deliveryCommand.setDeliveryStatus("READY");
-        orderDao.insertDelivery(deliveryCommand);
+        DeliveryDto delivery = new DeliveryDto();
+        delivery.setOrderNo(orderNo);
+        delivery.setCourierName("oneulFarm");
+        delivery.setTrackingNo(null);
+        delivery.setDeliveryStatus("READY");
+        orderDao.insertDelivery(delivery);
 
         Long cartNo = cartDao.findCartNoByUser(userNo);
         if (cartNo != null) {
@@ -160,8 +156,8 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public OrderDetailResponseDto advanceOrderStatus(Long userNo, Long orderNo) {
-        OrderDetailResponseDto currentOrder = getMyOrderDetail(userNo, orderNo);
+    public OrderDto advanceOrderStatus(Long userNo, Long orderNo) {
+        OrderDto currentOrder = getMyOrderDetail(userNo, orderNo);
         String currentStatus = currentOrder.getOrderStatus();
 
         if ("PAID".equals(currentStatus)) {
@@ -187,15 +183,15 @@ public class OrderServiceImpl implements OrderService {
         return amount == null ? BigDecimal.ZERO : amount;
     }
 
-    private BigDecimal sumTotalSavedAmount(List<OrderItemResponseDto> items) {
+    private BigDecimal sumTotalSavedAmount(List<OrderItemDto> items) {
         BigDecimal totalSavedAmount = BigDecimal.ZERO;
-        for (OrderItemResponseDto item : items) {
+        for (OrderItemDto item : items) {
             totalSavedAmount = totalSavedAmount.add(defaultAmount(item.getSavedAmount()));
         }
         return totalSavedAmount;
     }
 
-    private void validateCreateOrderRequest(CreateOrderRequestDto request) {
+    private void validateCreateOrderRequest(OrderDto request) {
         if (request == null
             || isBlank(request.getRecipientName())
             || isBlank(request.getRecipientPhone())
@@ -212,7 +208,7 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
-    private void validateCartItem(CartProductItemDto cartItem) {
+    private void validateCartItem(CartItemDto cartItem) {
         if (!"SELLING".equals(cartItem.getSaleStatus())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Product is not available for order.");
         }

@@ -8,8 +8,7 @@ import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
-import com.app.dto.CartItemResponseDto;
-import com.app.dto.CartProductItemDto;
+import com.app.dto.CartItemDto;
 
 @Repository
 public class CartDaoImpl implements CartDao {
@@ -30,17 +29,12 @@ public class CartDaoImpl implements CartDao {
     }
 
     @Override
-    public List<CartItemResponseDto> findCartItems(Long userNo) {
+    public List<CartItemDto> findCartItems(Long userNo) {
         return sqlSessionTemplate.selectList(NAMESPACE + "selectCartItems", userNo);
     }
 
     @Override
-    public List<CartProductItemDto> findCartProducts(Long userNo) {
-        return sqlSessionTemplate.selectList(NAMESPACE + "selectCartProducts", userNo);
-    }
-
-    @Override
-    public CartItemResponseDto findCartItem(Long userNo, Long productNo) {
+    public CartItemDto findCartItem(Long userNo, Long productNo) {
         Map<String, Object> params = new HashMap<>();
         params.put("userNo", userNo);
         params.put("productNo", productNo);
