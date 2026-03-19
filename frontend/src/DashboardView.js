@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import {
   formatDate,
   formatMonthLabel,
@@ -11,6 +12,44 @@ function formatPercent(value) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}%`;
+}
+
+function AnimatedValue({ value = 0, formatter = (currentValue) => String(currentValue) }) {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    const targetValue = Math.max(0, Number(value || 0));
+
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setDisplayValue(targetValue);
+      return undefined;
+    }
+
+    let frameId;
+    const startedAt = performance.now();
+    const duration = 950;
+
+    function animate(now) {
+      const progress = Math.min((now - startedAt) / duration, 1);
+      const easedProgress = 1 - Math.pow(1 - progress, 3);
+      setDisplayValue(targetValue * easedProgress);
+
+      if (progress < 1) {
+        frameId = window.requestAnimationFrame(animate);
+      }
+    }
+
+    setDisplayValue(0);
+    frameId = window.requestAnimationFrame(animate);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [value]);
+
+  return (
+    <span>{formatter(displayValue)}</span>
+  );
 }
 
 function DashboardView({
@@ -27,8 +66,6 @@ function DashboardView({
   dashboardLoading = false,
   dashboardError = '',
 }) {
-  const totalSavedAmount = formatPrice(summary.totalSavedAmount);
-  const monthlySavedAmount = formatPrice(summary.monthlySavedAmount);
   const totalOrderCount = `${Number(summary.totalOrderCount || 0)}건`;
   const totalPurchaseAmount = formatPrice(summary.totalPurchaseAmount);
   const averageSavingRate = formatPercent(patterns.averageSavingRate);
@@ -46,13 +83,17 @@ function DashboardView({
         <article className="stat-card stat-card--saving dashboard-kpi-card dashboard-kpi-card--primary">
           <div className="dashboard-kpi-eyebrow">핵심 절약 지표</div>
           <div className="stat-label">누적 절약 금액</div>
-          <div className="stat-value stat-value--saving">{summaryLoading ? '...' : totalSavedAmount}</div>
+          <div className="stat-value stat-value--saving">
+            {summaryLoading ? '...' : <AnimatedValue value={summary.totalSavedAmount} formatter={(currentValue) => formatPrice(Math.round(currentValue))} />}
+          </div>
           <div className="dashboard-kpi-note">서비스 이용 전체 기준으로 시장 평균가 대비 아낀 금액입니다.</div>
         </article>
         <article className="stat-card stat-card--saving dashboard-kpi-card dashboard-kpi-card--primary">
           <div className="dashboard-kpi-eyebrow">이번 달 체감</div>
           <div className="stat-label">이번 달 절약 금액</div>
-          <div className="stat-value stat-value--saving">{summaryLoading ? '...' : monthlySavedAmount}</div>
+          <div className="stat-value stat-value--saving">
+            {summaryLoading ? '...' : <AnimatedValue value={summary.monthlySavedAmount} formatter={(currentValue) => formatPrice(Math.round(currentValue))} />}
+          </div>
           <div className="dashboard-kpi-note">이번 달 주문에서 바로 체감한 절약 효과를 보여줍니다.</div>
         </article>
         <article className="stat-card dashboard-kpi-card dashboard-kpi-card--secondary">
