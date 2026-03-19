@@ -17,7 +17,6 @@ import {
   removeCartItemFromApi,
   updateCartItemOnApi,
 } from '../api/productApi';
-import { findProductByNo, productCatalog } from '../data/productData';
 import {
   clearPendingTossPayment,
   createTossPaymentDraft,
@@ -53,8 +52,12 @@ export default function ProductApp() {
   const [orders, setOrders] = useState(() =>
     readStoredValue('oneulFarmOrders', [])
   );
-  const [products, setProducts] = useState(productCatalog);
+  const [products, setProducts] = useState([]);
+  const [productsStatus, setProductsStatus] = useState('loading');
+  const [productsError, setProductsError] = useState('');
+  const [productReloadToken, setProductReloadToken] = useState(0);
   const [productDetails, setProductDetails] = useState({});
+  const [productDetailStates, setProductDetailStates] = useState({});
   const [tossConfig, setTossConfig] = useState(DEFAULT_TOSS_CONFIG);
   const [paymentFlowState, setPaymentFlowState] = useState({
     status: 'idle',
@@ -94,6 +97,40 @@ export default function ProductApp() {
   }, [orders]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadProducts() {
+      try {
+        if (!cancelled) {
+          setProductsStatus('loading');
+          setProductsError('');
+        }
+
+        const nextProducts = await fetchProductsFromApi();
+        if (!cancelled) {
+          setProducts(nextProducts);
+          setProductsStatus('success');
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setProducts([]);
+          setProductDetails({});
+          setProductsStatus('error');
+          setProductsError(
+            error?.message ||
+              '상품 목록을 불러오지 못했습니다. 백엔드와 DB 연결 상태를 확인해 주세요.'
+          );
+        }
+      }
+    }
+
+    loadProducts();
+    return () => {
+      cancelled = true;
+    };
+  }, [productReloadToken]);
+
+  useEffect(() => {
     if (process.env.NODE_ENV === 'test') {
       return;
     }
@@ -101,14 +138,6 @@ export default function ProductApp() {
     let cancelled = false;
 
     async function loadInitialData() {
-      try {
-        const nextProducts = await fetchProductsFromApi();
-        if (!cancelled) {
-          setProducts(nextProducts);
-        }
-      } catch (error) {
-        // Keep mock catalog as fallback.
-      }
 
       try {
         const nextCart = await fetchCartFromApi();
@@ -154,7 +183,12 @@ export default function ProductApp() {
     }
 
     const existingDetail = productDetails[route.productNo];
-    if (existingDetail?.recipes?.length || existingDetail?.reviews?.length) {
+    const detailState = productDetailStates[route.productNo];
+    if (
+      existingDetail?.recipes?.length ||
+      existingDetail?.reviews?.length ||
+      detailState === 'loading'
+    ) {
       return;
     }
 
@@ -162,6 +196,11 @@ export default function ProductApp() {
 
     async function loadProductDetail() {
       try {
+        setProductDetailStates((previousStates) => ({
+          ...previousStates,
+          [route.productNo]: 'loading',
+        }));
+
         const detailProduct = await fetchProductDetailFromApi(route.productNo);
         if (cancelled) {
           return;
@@ -174,8 +213,17 @@ export default function ProductApp() {
         setProducts((previousProducts) =>
           mergeProducts(previousProducts, detailProduct)
         );
+        setProductDetailStates((previousStates) => ({
+          ...previousStates,
+          [detailProduct.productNo]: 'success',
+        }));
       } catch (error) {
-        // Keep local detail as fallback.
+        if (!cancelled) {
+          setProductDetailStates((previousStates) => ({
+            ...previousStates,
+            [route.productNo]: 'error',
+          }));
+        }
       }
     }
 
@@ -183,7 +231,7 @@ export default function ProductApp() {
     return () => {
       cancelled = true;
     };
-  }, [productDetails, route.page, route.productNo]);
+  }, [productDetailStates, productDetails, route.page, route.productNo]);
 
   useEffect(() => {
     if (process.env.NODE_ENV === 'test') {
@@ -321,6 +369,13 @@ export default function ProductApp() {
     route.orderId != null
       ? orders.find((order) => order.orderId === route.orderId) || null
       : null;
+  const currentDetailState =
+    route.productNo != null ? productDetailStates[route.productNo] : '';
+  const routeNeedsProducts =
+    route.page === 'cart' ||
+    route.page === 'checkout' ||
+    route.page === 'product-detail' ||
+    route.page === 'products';
 
   function updateFilter(key, value) {
     setFilters((previousFilters) => ({
@@ -340,6 +395,10 @@ export default function ProductApp() {
 
   function resetFilters() {
     setFilters(defaultFilters);
+  }
+
+  function retryProductLoad() {
+    setProductReloadToken((previousToken) => previousToken + 1);
   }
 
   function openProduct(productNo) {
@@ -532,7 +591,15 @@ export default function ProductApp() {
   return (
     <div className="product-app page-shell">
       <main className="container">
-        {route.page === 'cart' ? (
+        {routeNeedsProducts && productsStatus === 'loading' ? (
+          <ProductsLoadingPage />
+        ) : routeNeedsProducts && productsStatus === 'error' ? (
+          <ProductsErrorPage
+            message={productsError}
+            onRetry={retryProductLoad}
+            onReturnToProducts={openProductList}
+          />
+        ) : route.page === 'cart' ? (
           <CartPage
             cartItems={cartItems}
             onClearCart={clearCart}
@@ -606,6 +673,8 @@ export default function ProductApp() {
               onToggleWishlist={toggleWishlist}
               product={currentProduct}
             />
+          ) : currentDetailState === 'loading' ? (
+            <ProductsLoadingPage />
           ) : (
             <NotFoundPage onBack={openProductList} />
           )
@@ -634,7 +703,7 @@ function findProduct(products, productDetails, productNo) {
   return (
     productDetails[productNo] ||
     products.find((product) => product.productNo === productNo) ||
-    findProductByNo(productNo)
+    null
   );
 }
 
@@ -714,6 +783,39 @@ function PaymentFlowPage({
       ) : null}
       <button className="btn-outline" type="button" onClick={onSecondaryAction}>
         {secondaryLabel}
+      </button>
+    </section>
+  );
+}
+
+function ProductsLoadingPage() {
+  return (
+    <section className="empty-state detail-empty">
+      <div className="empty-icon">DB</div>
+      <h1>{'\uC0C1\uD488 \uB370\uC774\uD130\uB97C \uBD88\uB7EC\uC624\uB294 \uC911\uC785\uB2C8\uB2E4.'}</h1>
+      <p>
+        {
+          '\uC2E4\uC81C DB\uC5D0 \uC800\uC7A5\uB41C \uC0C1\uD488 \uBAA9\uB85D\uC744 \uAC00\uC838\uC624\uACE0 \uC788\uC2B5\uB2C8\uB2E4.'
+        }
+      </p>
+    </section>
+  );
+}
+
+function ProductsErrorPage({ message, onRetry, onReturnToProducts }) {
+  return (
+    <section className="empty-state detail-empty">
+      <div className="empty-icon">API</div>
+      <h1>{'\uC0C1\uD488 \uBAA9\uB85D\uC744 \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.'}</h1>
+      <p>
+        {message ||
+          '\uBC31\uC5D4\uB4DC \uC11C\uBC84\uC640 DB \uC5F0\uB3D9 \uC0C1\uD0DC\uB97C \uD655\uC778\uD55C \uB4A4 \uB2E4\uC2DC \uC2DC\uB3C4\uD574 \uC8FC\uC138\uC694.'}
+      </p>
+      <button className="btn" type="button" onClick={onRetry}>
+        {'\uB2E4\uC2DC \uBD88\uB7EC\uC624\uAE30'}
+      </button>
+      <button className="btn-outline" type="button" onClick={onReturnToProducts}>
+        {'\uC0C1\uD488 \uBAA9\uB85D\uC73C\uB85C \uC774\uB3D9'}
       </button>
     </section>
   );
