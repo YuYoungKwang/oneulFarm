@@ -202,6 +202,10 @@
   gap: 16px;
 }
 
+.account-app .dashboard-kpi-grid{
+  align-items: stretch;
+}
+
 .account-app .quick-grid{
   margin: 0 0 32px;
 }
@@ -277,6 +281,44 @@
 
 .account-app .stat-value--compact{
   font-size: 26px;
+}
+
+.account-app .dashboard-kpi-card{
+  display: grid;
+  gap: 10px;
+}
+
+.account-app .dashboard-kpi-card--primary{
+  min-height: 212px;
+  padding-top: 24px;
+}
+
+.account-app .dashboard-kpi-card--secondary{
+  background: linear-gradient(180deg, #ffffff, #fbfcfd);
+}
+
+.account-app .dashboard-kpi-eyebrow{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(21, 154, 85, 0.12);
+  color: #0f7a42;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.account-app .dashboard-kpi-eyebrow--neutral{
+  background: rgba(148, 163, 184, 0.12);
+  color: #526173;
+}
+
+.account-app .dashboard-kpi-note{
+  font-size: 15px;
+  line-height: 1.6;
+  color: #64748b;
 }
 
 .account-app .quick-value{
@@ -962,6 +1004,144 @@
 
 .account-app .dashboard-bottom{
   align-items: start;
+}
+
+.account-app .dashboard-pattern-grid{
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.account-app .dashboard-pattern-card{
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.account-app .dashboard-pattern-card--saving{
+  border-color: rgba(21, 154, 85, 0.22);
+  background: linear-gradient(180deg, rgba(240, 250, 244, 0.94), #ffffff);
+}
+
+.account-app .dashboard-pattern-value{
+  font-size: 34px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: #0f7a42;
+}
+
+.account-app .dashboard-pattern-copy{
+  font-size: 16px;
+  line-height: 1.65;
+  color: #64748b;
+}
+
+.account-app .dashboard-section-head{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 8px;
+}
+
+.account-app .dashboard-section-badge{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(21, 154, 85, 0.12);
+  color: #0f7a42;
+  font-size: 14px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.account-app .dashboard-section-badge--warm{
+  background: rgba(229, 173, 34, 0.14);
+  color: #8a6500;
+}
+
+.account-app .dashboard-section-side{
+  color: #64748b;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.account-app .dashboard-list{
+  display: grid;
+  gap: 12px;
+}
+
+.account-app .dashboard-list-item{
+  display: grid;
+  gap: 8px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  background: #fafbfc;
+  border: 1px solid rgba(231, 235, 239, 0.85);
+}
+
+.account-app .dashboard-list-item__head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.account-app .dashboard-list-item__title-row{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.account-app .dashboard-list-item__head strong{
+  font-size: 18px;
+  color: var(--text);
+}
+
+.account-app .dashboard-rank-badge{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(21, 154, 85, 0.12);
+  color: #0f7a42;
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.account-app .dashboard-rank-badge--recent{
+  background: rgba(14, 165, 233, 0.12);
+  color: #0369a1;
+}
+
+.account-app .dashboard-list-item__badge{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(21, 154, 85, 0.12);
+  color: #0f7a42;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.account-app .dashboard-list-item__meta{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 15px;
+  color: #64748b;
 }
 
 .account-app .chart-shell{
@@ -1683,6 +1863,17 @@
 
   .account-app .review-card{
     grid-template-columns: 1fr;
+  }
+
+  .account-app .dashboard-pattern-grid{
+    grid-template-columns: 1fr;
+  }
+
+  .account-app .dashboard-section-head,
+  .account-app .dashboard-list-item__head,
+  .account-app .dashboard-list-item__meta{
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .account-app .review-card__actions--stacked{
