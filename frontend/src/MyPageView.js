@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { formatPrice } from './appUtils';
+import InlineInfoTip from './components/InlineInfoTip';
 
 const EMPTY_EMAIL_AUTH = {
   requested: false,
@@ -167,10 +168,12 @@ function MyPageView({
       editable: false,
     },
   ];
+
   const profileInitial = String(profile.nickname || profile.userId || '?')
     .trim()
     .charAt(0)
     .toUpperCase();
+
   const profileImageCandidates = buildProfileImageCandidates(profile.profileImageUrl);
   const profileImageSrc = profileImageCandidates[profileImageCandidateIndex] || '';
 
@@ -248,7 +251,7 @@ function MyPageView({
       const nextValue = String(profileForm[fieldKey] || '').trim();
 
       if (nextValue === currentValue) {
-        setProfileGuardError('변경된 내용이 없습니다. 값을 수정한 뒤 저장해 주세요.');
+        setProfileGuardError('변경된 내용이 없습니다. 값을 수정한 뒤 다시 저장해 주세요.');
         setActiveEditor(fieldKey);
         return false;
       }
@@ -348,7 +351,7 @@ function MyPageView({
       code: '',
       remainingSeconds: 300,
       tone: 'info',
-      message: '인증번호를 전송했습니다. 아래에서 인증번호를 입력하고 확인을 진행해 주세요.',
+      message: '인증번호를 보냈습니다. 아래에서 인증번호를 입력하고 확인해 주세요.',
     });
   }
 
@@ -438,7 +441,7 @@ function MyPageView({
       code: '',
       remainingSeconds: 300,
       tone: 'info',
-      message: '인증번호를 전송했습니다. 아래에서 인증번호를 입력하고 확인을 진행해 주세요.',
+      message: '인증번호를 보냈습니다. 아래에서 인증번호를 입력하고 확인해 주세요.',
     });
   }
 
@@ -531,8 +534,10 @@ function MyPageView({
     <>
       <section className="page-head">
         <div>
-          <h1>개인정보 관리</h1>
-          <p>계정 정보와 기본 배송지를 확인하고, 수정 가능한 항목은 이 페이지에서 바로 변경할 수 있습니다.</p>
+          <div className="page-title-row">
+            <h1>개인정보 관리</h1>
+            <InlineInfoTip content="계정 정보와 기본 배송지를 확인하고, 수정 가능한 항목은 이 화면에서 바로 변경할 수 있습니다." />
+          </div>
         </div>
       </section>
 
@@ -559,7 +564,7 @@ function MyPageView({
                   {profileLoading ? '불러오는 중..' : (profile.nickname || profile.userId || '-')}
                 </div>
                 <div className="section-sub">
-                  수정 가능한 항목은 각 행에서 바로 편집하고, 계정 정보는 같은 목록 안에서 한 번에 확인할 수 있습니다.
+                  수정 가능한 항목은 각 줄에서 바로 편집할 수 있습니다.
                 </div>
               </div>
             </div>
@@ -575,16 +580,6 @@ function MyPageView({
                 {profileImageUploading ? '사진 업로드 중..' : '사진 변경'}
               </label>
               {profileImageError && <div className="form-error">{profileImageError}</div>}
-            </div>
-          </div>
-          <div className="section-head">
-            <div>
-              <div className="section-title">
-                {profileLoading ? '불러오는 중..' : (profile.nickname || profile.userId || '-')}
-              </div>
-              <div className="section-sub">
-                수정 가능한 항목은 각 행에서 바로 편집하고, 읽기 전용 정보는 같은 목록 안에서 한 번에 확인할 수 있습니다.
-              </div>
             </div>
           </div>
 
@@ -605,14 +600,14 @@ function MyPageView({
                   ? (!isChanged || emailAuth.verified)
                   : item.key === 'phone'
                     ? (!isChanged || phoneAuth.verified)
-                  : true;
+                    : true;
               const saveBlockedMessage = item.key === 'nickname'
                 ? '닉네임 중복 확인을 완료하면 저장할 수 있습니다.'
                 : item.key === 'email'
                   ? '이메일 인증을 완료하면 저장할 수 있습니다.'
                   : item.key === 'phone'
                     ? '연락처 인증을 완료하면 저장할 수 있습니다.'
-                  : '';
+                    : '';
               const saveButtonDisabled = profileSubmitting || !isChanged || !canSaveField;
 
               if (isProfileField) {
@@ -660,7 +655,7 @@ function MyPageView({
                             </div>
 
                             <div className="profile-inline-verify__sub">
-                              변경한 이메일로 인증번호를 받아 입력한 뒤 인증 확인을 진행해 주세요.
+                              변경한 이메일로 받은 인증번호를 입력하고 확인해 주세요.
                             </div>
 
                             {emailAuth.requested && (
@@ -685,11 +680,7 @@ function MyPageView({
                             )}
 
                             {emailAuth.message && (
-                              <div
-                                className={`form-error ${
-                                  emailAuth.tone === 'success' ? 'form-error--success' : ''
-                                }`}
-                              >
+                              <div className={`form-error ${emailAuth.tone === 'success' ? 'form-error--success' : ''}`}>
                                 {emailAuth.message}
                               </div>
                             )}
@@ -706,7 +697,7 @@ function MyPageView({
                             </div>
 
                             <div className="profile-inline-verify__sub">
-                              변경한 연락처로 인증번호를 받아 입력한 뒤 인증 확인을 진행해 주세요.
+                              변경한 연락처로 받은 인증번호를 입력하고 확인해 주세요.
                             </div>
 
                             {phoneAuth.requested && (
@@ -731,11 +722,7 @@ function MyPageView({
                             )}
 
                             {phoneAuth.message && (
-                              <div
-                                className={`form-error ${
-                                  phoneAuth.tone === 'success' ? 'form-error--success' : ''
-                                }`}
-                              >
+                              <div className={`form-error ${phoneAuth.tone === 'success' ? 'form-error--success' : ''}`}>
                                 {phoneAuth.message}
                               </div>
                             )}
@@ -743,7 +730,7 @@ function MyPageView({
                         )}
 
                         {!isChanged && !profileGuardError && !profileSubmitError && (
-                          <div className="form-error form-error--soft">변경 후 저장할 수 있습니다.</div>
+                          <div className="form-error form-error--soft">변경 후에만 저장할 수 있습니다.</div>
                         )}
 
                         {!canSaveField && isChanged && saveBlockedMessage && !profileGuardError && !profileSubmitError && (
@@ -870,8 +857,10 @@ function MyPageView({
         <article className="card withdraw-card">
           <div className="section-head">
             <div>
-              <div className="section-title">회원 탈퇴</div>
-              <div className="section-sub">탈퇴 이후에는 현재 계정 정보로 마이페이지 기능을 계속 사용할 수 없습니다.</div>
+              <div className="section-title-row">
+                <div className="section-title">회원 탈퇴</div>
+                <InlineInfoTip content="탈퇴를 진행하면 현재 계정으로 마이페이지 기능을 계속 사용할 수 없습니다." />
+              </div>
             </div>
           </div>
 

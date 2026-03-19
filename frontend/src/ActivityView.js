@@ -1,4 +1,5 @@
 import { formatDate, formatPrice } from './appUtils';
+import InlineInfoTip from './components/InlineInfoTip';
 
 const myPageTabs = [
   { id: 'wishlist', label: '찜한 상품' },
@@ -39,19 +40,17 @@ function ActivityView({
     <>
       <section className="page-head">
         <div>
-          <h1>관심 활동</h1>
-          <p>찜한 상품과 리뷰처럼 상품 콘텐츠와 연결되는 활동을 모아서 보는 화면입니다.</p>
+          <div className="page-title-row">
+            <h1>관심 활동</h1>
+            <InlineInfoTip content="찜한 상품과 리뷰처럼 상품 탐색과 연결되는 활동을 한곳에서 관리하는 화면입니다." />
+          </div>
         </div>
       </section>
 
       <section className="section">
         <div className="mypage-section-header mypage-section-header--activity">
           <div>
-            <span className="badge green">콘텐츠 영역</span>
-            <div className="mypage-section-header__title">관심 활동</div>
-            <div className="section-sub">
-              찜한 상품은 상품 화면과 같은 기준으로, 리뷰 관리는 실제 주문/리뷰 데이터 기준으로 연결했습니다.
-            </div>
+            <div className="section-sub">찜한 상품과 리뷰를 탭으로 나눠 확인하세요.</div>
           </div>
           <div className="tab-row">
             {myPageTabs.map((tab) => (
@@ -72,12 +71,11 @@ function ActivityView({
             <section className="activity-panel-block">
               <div className="section-head">
                 <div>
-                  <div className="section-title">찜한 상품</div>
-                  <div className="section-sub">
-                    상품 화면에서 찜한 상품을 그대로 불러오고, 여기서 바로 장바구니 담기와 찜 해제가 가능합니다.
+                  <div className="section-title-row">
+                    <div className="section-title">찜한 상품</div>
+                    <InlineInfoTip content="상품 화면에서 찜한 항목을 모아 보고, 바로 장바구니에 담거나 상품 상세로 이동할 수 있습니다." />
                   </div>
                 </div>
-                <span className="badge green">실데이터 연동</span>
               </div>
 
               {wishlistLoading && (
@@ -121,7 +119,7 @@ function ActivityView({
                           onClick={() => onAddWishlistItemToCart(item.productNo)}
                           disabled={wishlistActionProductNo === item.productNo}
                         >
-                          {wishlistActionProductNo === item.productNo ? '담는 중...' : '장바구니 담기'}
+                          {wishlistActionProductNo === item.productNo ? '담는 중..' : '장바구니 담기'}
                         </button>
                         <a href={`#/products/${item.productNo}`} className="btn-outline">상품 보러가기</a>
                       </div>
@@ -145,8 +143,9 @@ function ActivityView({
                 <article className="card review-editor-card">
                   <div className="section-head">
                     <div>
-                      <div className="card-title">
-                        {reviewEditor.mode === 'edit' ? '리뷰 수정' : '리뷰 작성'}
+                      <div className="section-title-row">
+                        <div className="card-title">{reviewEditor.mode === 'edit' ? '리뷰 수정' : '리뷰 작성'}</div>
+                        <InlineInfoTip content="평점과 리뷰 내용을 수정하면 관심 활동과 상품 리뷰 영역에 함께 반영됩니다." />
                       </div>
                       <div className="section-sub">
                         {reviewEditor.productName}
@@ -176,7 +175,7 @@ function ActivityView({
                         value={reviewForm.content}
                         onChange={onReviewFormChange}
                         rows={5}
-                        placeholder="상품 상태, 가격 만족도, 재구매 의사 등을 자유롭게 남겨 주세요."
+                        placeholder="상품 상태, 가격 만족도, 다시 구매하고 싶은 이유를 자유롭게 적어 주세요."
                       />
                     </label>
                     {reviewFormError && <div className="form-error">{reviewFormError}</div>}
@@ -186,7 +185,7 @@ function ActivityView({
                       </button>
                       <button type="submit" className="btn" disabled={reviewSubmitting}>
                         {reviewSubmitting
-                          ? (reviewEditor.mode === 'edit' ? '수정 중...' : '작성 중...')
+                          ? (reviewEditor.mode === 'edit' ? '수정 중..' : '작성 중..')
                           : (reviewEditor.mode === 'edit' ? '리뷰 수정' : '리뷰 등록')}
                       </button>
                     </div>
@@ -206,9 +205,9 @@ function ActivityView({
                   <article className="card review-panel">
                     <div className="section-head">
                       <div>
-                        <div className="card-title">작성 가능한 리뷰</div>
-                        <div className="section-sub">
-                          배송 완료된 주문 상품 중 아직 리뷰를 작성하지 않은 항목입니다.
+                        <div className="section-title-row">
+                          <div className="card-title">작성 가능한 리뷰</div>
+                          <InlineInfoTip content="배송이 끝난 주문 중 아직 리뷰를 작성하지 않은 상품입니다." />
                         </div>
                       </div>
                       <span className="badge green">{writableReviews.length}건</span>
@@ -234,7 +233,7 @@ function ActivityView({
                                 <span className="review-status review-status--draft">리뷰 작성 가능</span>
                               </div>
                               <p className="review-card__text">
-                                상품 만족도와 실제 받은 상태를 남기면 상품 상세 리뷰에도 함께 반영됩니다.
+                                상품 상태나 만족도를 남기면 다음 구매 때도 비교하기 쉬워집니다.
                               </p>
                             </div>
                             <div className="review-card__actions">
@@ -251,9 +250,9 @@ function ActivityView({
                   <article className="card review-panel">
                     <div className="section-head">
                       <div>
-                        <div className="card-title">내가 작성한 리뷰</div>
-                        <div className="section-sub">
-                          작성한 리뷰를 수정하거나 삭제할 수 있습니다.
+                        <div className="section-title-row">
+                          <div className="card-title">내가 작성한 리뷰</div>
+                          <InlineInfoTip content="이미 등록한 리뷰를 다시 확인하고, 필요하면 수정하거나 삭제할 수 있습니다." />
                         </div>
                       </div>
                       <span className="badge green">{myReviews.length}건</span>
@@ -266,7 +265,7 @@ function ActivityView({
                         {myReviews.map((review) => (
                           <article key={review.reviewNo} className="review-card review-card--published">
                             <div className="review-card__media">
-                              <div className="thumb-mini">⭐</div>
+                              <div className="thumb-mini">★</div>
                             </div>
                             <div className="review-card__body">
                               <div className="review-card__top">
@@ -287,11 +286,11 @@ function ActivityView({
                               </button>
                               <button
                                 type="button"
-                                className="btn line"
+                                className="btn-outline review-delete-btn"
                                 onClick={() => onDeleteReview(review.reviewNo)}
                                 disabled={deletingReviewNo === review.reviewNo}
                               >
-                                {deletingReviewNo === review.reviewNo ? '삭제 중...' : '삭제'}
+                                {deletingReviewNo === review.reviewNo ? '삭제 중..' : '삭제'}
                               </button>
                             </div>
                           </article>

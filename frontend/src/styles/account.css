@@ -83,17 +83,6 @@
   color: #94a3b8 !important;
 }
 
-.account-app .btn.line.btn-danger-line{
-  border-color: #fecaca;
-  color: #b91c1c;
-  background: #fff5f5;
-}
-
-.account-app .btn.line.btn-danger-line:hover{
-  border-color: #fca5a5;
-  background: #fee2e2;
-}
-
 .account-app .btn-text{
   margin-top: 12px;
   padding: 0;
@@ -126,6 +115,14 @@
   justify-content: space-between;
   gap: 18px;
   margin: 18px 0 24px;
+}
+
+.account-app .page-title-row,
+.account-app .section-title-row{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .account-app .account-local-nav{
@@ -193,6 +190,64 @@
   font-size: 26px;
   font-weight: 800;
   letter-spacing: -0.02em;
+}
+
+.account-app .account-info-tip{
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+}
+
+.account-app .account-info-tip__trigger{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.14);
+  color: #475569;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: help;
+}
+
+.account-app .account-info-tip__content{
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 10px);
+  z-index: 5;
+  width: 240px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.94);
+  color: #f8fafc;
+  font-size: 14px;
+  line-height: 1.55;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.18);
+  transform: translateX(-50%) translateY(6px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.account-app .account-info-tip__content::before{
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -6px;
+  width: 12px;
+  height: 12px;
+  background: rgba(15, 23, 42, 0.94);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.account-app .account-info-tip:hover .account-info-tip__content,
+.account-app .account-info-tip:focus-within .account-info-tip__content{
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .account-app .stats-grid,
@@ -1195,6 +1250,44 @@
   border-color: rgba(239, 68, 68, 0.34);
   background: linear-gradient(180deg, #fff1f1, #fee2e2);
   color: #991b1b;
+}
+
+.account-app .review-delete-btn{
+  border-color: rgba(239, 68, 68, 0.22);
+  background: linear-gradient(180deg, #fff7f7, #fff1f1);
+  color: #b91c1c;
+  font-weight: 800;
+}
+
+.account-app .review-delete-btn:hover{
+  border-color: rgba(239, 68, 68, 0.34);
+  background: linear-gradient(180deg, #fff1f1, #fee2e2);
+  color: #991b1b;
+}
+
+.account-app .review-delete-btn:disabled{
+  border-color: rgba(254, 202, 202, 0.9);
+  background: #fff5f5;
+  color: #f87171;
+}
+
+.account-app .address-delete-btn{
+  border-color: rgba(239, 68, 68, 0.22);
+  background: linear-gradient(180deg, #fff7f7, #fff1f1);
+  color: #b91c1c;
+  font-weight: 800;
+}
+
+.account-app .address-delete-btn:hover{
+  border-color: rgba(239, 68, 68, 0.34);
+  background: linear-gradient(180deg, #fff1f1, #fee2e2);
+  color: #991b1b;
+}
+
+.account-app .address-delete-btn:disabled{
+  border-color: rgba(254, 202, 202, 0.9);
+  background: #fff5f5;
+  color: #f87171;
 }
 
 .account-app .stack{
@@ -2248,13 +2341,28 @@
     transform: translateY(6px);
   }
 
+  .account-app .account-info-tip__content{
+    left: 0;
+    transform: translateY(6px);
+  }
+
   .account-app .dashboard-tooltip__content::before{
+    left: 18px;
+    transform: rotate(45deg);
+  }
+
+  .account-app .account-info-tip__content::before{
     left: 18px;
     transform: rotate(45deg);
   }
 
   .account-app .dashboard-tooltip:hover .dashboard-tooltip__content,
   .account-app .dashboard-tooltip:focus-within .dashboard-tooltip__content{
+    transform: translateY(0);
+  }
+
+  .account-app .account-info-tip:hover .account-info-tip__content,
+  .account-app .account-info-tip:focus-within .account-info-tip__content{
     transform: translateY(0);
   }
 

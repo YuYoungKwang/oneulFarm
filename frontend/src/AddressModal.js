@@ -220,7 +220,7 @@ function AddressModal({
                           </button>
                           <button
                             type="button"
-                            className="btn line btn-danger-line"
+                            className="btn-outline address-delete-btn"
                             disabled={isDeleting || isChanging}
                             onClick={() => onDeleteAddress(address)}
                           >
