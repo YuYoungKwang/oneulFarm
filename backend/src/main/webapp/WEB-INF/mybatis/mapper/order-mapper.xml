@@ -3,19 +3,19 @@
     "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="orderMapper">
 
-    <resultMap id="OrderListItemResultMap" type="com.app.dto.OrderListItemDto">
+    <resultMap id="OrderListResultMap" type="com.app.dto.OrderDto">
         <result property="orderNo" column="orderNo" />
         <result property="orderId" column="orderId" />
         <result property="orderedAt" column="orderedAt" />
         <result property="orderStatus" column="orderStatus" />
         <result property="deliveryStatus" column="deliveryStatus" />
-        <result property="firstProductName" column="firstProductName" />
+        <result property="displayProductName" column="displayProductName" />
         <result property="itemCount" column="itemCount" />
         <result property="finalAmount" column="finalAmount" />
         <result property="totalSavedAmount" column="totalSavedAmount" />
     </resultMap>
 
-    <resultMap id="OrderDetailInfoResultMap" type="com.app.dto.OrderDetailInfoDto">
+    <resultMap id="OrderDetailResultMap" type="com.app.dto.OrderDto">
         <result property="orderNo" column="orderNo" />
         <result property="orderId" column="orderId" />
         <result property="orderedAt" column="orderedAt" />
@@ -39,7 +39,7 @@
         <result property="finalAmount" column="finalAmount" />
     </resultMap>
 
-    <resultMap id="OrderItemDetailResultMap" type="com.app.dto.OrderItemDetailDto">
+    <resultMap id="OrderItemResultMap" type="com.app.dto.OrderItemDto">
         <result property="orderItemNo" column="orderItemNo" />
         <result property="productNo" column="productNo" />
         <result property="productName" column="productName" />
@@ -52,14 +52,17 @@
         <result property="reviewNo" column="reviewNo" />
     </resultMap>
 
-    <select id="selectMyOrders" parameterType="java.lang.Long" resultMap="OrderListItemResultMap">
+    <select id="selectMyOrders" parameterType="java.lang.Long" resultMap="OrderListResultMap">
         SELECT
             o.ORDER_NO AS orderNo,
             o.ORDER_ID AS orderId,
             o.ORDERED_AT AS orderedAt,
             o.ORDER_STATUS AS orderStatus,
             NVL(d.DELIVERY_STATUS, 'READY') AS deliveryStatus,
-            oi.FIRST_PRODUCT_NAME AS firstProductName,
+            CASE
+                WHEN oi.ITEM_COUNT &lt;= 1 THEN oi.FIRST_PRODUCT_NAME
+                ELSE oi.FIRST_PRODUCT_NAME || ' +' || TO_CHAR(oi.ITEM_COUNT - 1)
+            END AS displayProductName,
             oi.ITEM_COUNT AS itemCount,
             o.FINAL_AMOUNT AS finalAmount,
             oi.TOTAL_SAVED_AMOUNT AS totalSavedAmount
@@ -85,11 +88,11 @@
                 ON firstItem.ORDER_ITEM_NO = agg.FIRST_ORDER_ITEM_NO
         ) oi
             ON oi.ORDER_NO = o.ORDER_NO
-        WHERE o.USER_NO = #{userNo}
+        WHERE o.USER_NO = #{_parameter}
         ORDER BY o.ORDERED_AT DESC
     </select>
 
-    <select id="selectOrderDetailInfo" parameterType="map" resultMap="OrderDetailInfoResultMap">
+    <select id="selectOrderDetail" parameterType="map" resultMap="OrderDetailResultMap">
         SELECT
             o.ORDER_NO AS orderNo,
             o.ORDER_ID AS orderId,
@@ -121,7 +124,7 @@
           AND o.ORDER_NO = #{orderNo}
     </select>
 
-    <select id="selectOrderItems" parameterType="java.lang.Long" resultMap="OrderItemDetailResultMap">
+    <select id="selectOrderItems" parameterType="java.lang.Long" resultMap="OrderItemResultMap">
         SELECT
             oi.ORDER_ITEM_NO AS orderItemNo,
             oi.PRODUCT_NO AS productNo,
@@ -138,8 +141,142 @@
             ON r.ORDER_ITEM_NO = oi.ORDER_ITEM_NO
            AND r.PRODUCT_NO = oi.PRODUCT_NO
            AND r.DELETED_AT IS NULL
-        WHERE oi.ORDER_NO = #{orderNo}
+        WHERE oi.ORDER_NO = #{_parameter}
         ORDER BY oi.ORDER_ITEM_NO ASC
     </select>
+
+    <select id="countOrdersByOrderIdPrefix" parameterType="string" resultType="int">
+        SELECT COUNT(*)
+        FROM OFT_ORDERS
+        WHERE ORDER_ID LIKE #{_parameter} || '%'
+    </select>
+
+    <insert id="insertOrder" parameterType="com.app.dto.OrderDto">
+        INSERT INTO OFT_ORDERS (
+            USER_NO,
+            ORDER_ID,
+            ORDER_STATUS,
+            TOTAL_AMOUNT,
+            DISCOUNT_AMOUNT,
+            DELIVERY_FEE,
+            FINAL_AMOUNT,
+            RECIPIENT_NAME,
+            RECIPIENT_PHONE,
+            ZIP_CODE,
+            ADDRESS1,
+            ADDRESS2
+        ) VALUES (
+            #{userNo},
+            #{orderId},
+            #{orderStatus},
+            #{totalAmount},
+            #{discountAmount},
+            #{deliveryFee},
+            #{finalAmount},
+            #{recipientName},
+            #{recipientPhone},
+            #{zipCode},
+            #{address1},
+            #{address2}
+        )
+    </insert>
+
+    <select id="selectOrderNoByOrderId" parameterType="string" resultType="long">
+        SELECT ORDER_NO
+        FROM OFT_ORDERS
+        WHERE ORDER_ID = #{_parameter}
+    </select>
+
+    <insert id="insertOrderItem" parameterType="com.app.dto.OrderItemDto">
+        INSERT INTO OFT_ORDER_ITEM (
+            ORDER_NO,
+            PRODUCT_NO,
+            PRODUCT_NAME,
+            UNIT_PRICE,
+            QUANTITY,
+            SUBTOTAL,
+            MARKET_AVG_PRICE,
+            SAVED_AMOUNT,
+            SAVING_RATE
+        ) VALUES (
+            #{orderNo},
+            #{productNo},
+            #{productName},
+            #{unitPrice},
+            #{quantity},
+            #{subtotal},
+            #{marketAvgPrice},
+            #{savedAmount},
+            #{savingRate}
+        )
+    </insert>
+
+    <insert id="insertPayment" parameterType="com.app.dto.PaymentDto">
+        INSERT INTO OFT_PAYMENT (
+            ORDER_NO,
+            PAYMENT_METHOD,
+            PAYMENT_STATUS,
+            PAYMENT_KEY,
+            PAID_AMOUNT,
+            PAID_AT
+        ) VALUES (
+            #{orderNo},
+            #{paymentMethod},
+            #{paymentStatus},
+            #{paymentKey},
+            #{paidAmount},
+            #{paidAt}
+        )
+    </insert>
+
+    <insert id="insertDelivery" parameterType="com.app.dto.DeliveryDto">
+        INSERT INTO OFT_DELIVERY (
+            ORDER_NO,
+            COURIER_NAME,
+            TRACKING_NO,
+            DELIVERY_STATUS,
+            SHIPPED_AT,
+            DELIVERED_AT
+        ) VALUES (
+            #{orderNo},
+            #{courierName},
+            #{trackingNo},
+            #{deliveryStatus},
+            #{shippedAt},
+            #{deliveredAt}
+        )
+    </insert>
+
+    <update id="updateOrderStatus" parameterType="map">
+        UPDATE OFT_ORDERS
+        SET ORDER_STATUS = #{orderStatus}
+        WHERE ORDER_NO = #{orderNo}
+    </update>
+
+    <update id="updateDeliveryForShipping" parameterType="map">
+        UPDATE OFT_DELIVERY
+        SET DELIVERY_STATUS = 'SHIPPING',
+            TRACKING_NO = NVL(TRACKING_NO, #{trackingNo}),
+            SHIPPED_AT = NVL(SHIPPED_AT, SYSTIMESTAMP)
+        WHERE ORDER_NO = #{orderNo}
+    </update>
+
+    <update id="updateDeliveryForDelivered" parameterType="long">
+        UPDATE OFT_DELIVERY
+        SET DELIVERY_STATUS = 'DELIVERED',
+            DELIVERED_AT = NVL(DELIVERED_AT, SYSTIMESTAMP)
+        WHERE ORDER_NO = #{_parameter}
+    </update>
+
+    <update id="decreaseProductStock" parameterType="map">
+        UPDATE OFT_PRODUCT
+        SET STOCK_QTY = STOCK_QTY - #{quantity},
+            SALE_STATUS = CASE
+                WHEN STOCK_QTY - #{quantity} &lt;= 0 THEN 'SOLD_OUT'
+                ELSE SALE_STATUS
+            END
+        WHERE PRODUCT_NO = #{productNo}
+          AND STOCK_QTY >= #{quantity}
+    </update>
 
 </mapper>

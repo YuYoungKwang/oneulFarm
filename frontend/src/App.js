@@ -28,6 +28,10 @@ function resolveAppFromHash(hash) {
 function resolveActiveSection(hash) {
   const normalized = hash.replace(/^#\/?/, '').trim();
 
+  if (normalized.startsWith('recipes')) {
+    return 'recipes';
+  }
+
   if (
     normalized.startsWith('orders') ||
     normalized.startsWith('mypage')
