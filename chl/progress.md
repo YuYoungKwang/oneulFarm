@@ -12,7 +12,7 @@
 
 ## 2. 최신 반영일
 
-- 2026-03-18
+- 2026-03-19
 
 ## 3. 현재 전체 상태 요약
 
@@ -35,8 +35,7 @@
 
 아직 미연동 또는 데모 상태:
 
-- 찜한 상품
-- 리뷰 관리
+- 없음
 
 ## 4. 기능별 상세 진행 현황
 
@@ -133,14 +132,14 @@
 현재 상태:
 
 - 허브 역할 기준으로 정리 완료
-- 찜/리뷰는 아직 데모 성격이므로 버튼을 약하게 처리하고 `연동 예정`으로 표시
+- 관심 활동은 별도 탭으로 분리 완료
 
 관련 파일:
 
 - [MyPageView.js](d:/study/oneulFarm/frontend/src/MyPageView.js)
+- [ActivityView.js](d:/study/oneulFarm/frontend/src/ActivityView.js)
 - [AccountApp.js](d:/study/oneulFarm/frontend/src/AccountApp.js)
 - [account.css](d:/study/oneulFarm/frontend/src/styles/account.css)
-- [mockData.js](d:/study/oneulFarm/frontend/src/mockData.js)
 
 ### 4.4 상세 개인정보
 
@@ -215,6 +214,44 @@
 - 배송지가 1개뿐이면 기본 배송지 해제 불가
 - 현재 기본 배송지를 일반 배송지로 바꾸는 수정 차단
 
+### 4.6 관심 활동
+
+백엔드 완료:
+
+- `GET /api/reviews/me/writable`
+- `GET /api/reviews/me`
+- `POST /api/reviews`
+- `PATCH /api/reviews/{reviewNo}`
+- `DELETE /api/reviews/{reviewNo}`
+
+프론트 완료:
+
+- 찜한 상품을 `oneulFarmWishlist` + 상품 API 기준으로 실제 렌더링
+- 찜한 상품에서 장바구니 담기 / 상품 보러가기 / 찜 해제 연결
+- 작성 가능한 리뷰 목록 실제 렌더링
+- 내가 작성한 리뷰 목록 실제 렌더링
+- 리뷰 작성 / 수정 / 삭제 인라인 폼 연결
+
+관련 파일:
+
+- [ReviewController.java](d:/study/oneulFarm/backend/src/main/java/com/app/controller/ReviewController.java)
+- [ReviewService.java](d:/study/oneulFarm/backend/src/main/java/com/app/service/ReviewService.java)
+- [ReviewServiceImpl.java](d:/study/oneulFarm/backend/src/main/java/com/app/service/ReviewServiceImpl.java)
+- [ReviewDao.java](d:/study/oneulFarm/backend/src/main/java/com/app/dao/ReviewDao.java)
+- [ReviewDaoImpl.java](d:/study/oneulFarm/backend/src/main/java/com/app/dao/ReviewDaoImpl.java)
+- [review-mapper.xml](d:/study/oneulFarm/backend/src/main/webapp/WEB-INF/mybatis/mapper/review-mapper.xml)
+- [ActivityReviewDto.java](d:/study/oneulFarm/backend/src/main/java/com/app/dto/ActivityReviewDto.java)
+- [ReviewRequestDto.java](d:/study/oneulFarm/backend/src/main/java/com/app/dto/ReviewRequestDto.java)
+- [ActivityView.js](d:/study/oneulFarm/frontend/src/ActivityView.js)
+- [AccountApp.js](d:/study/oneulFarm/frontend/src/AccountApp.js)
+- [account.css](d:/study/oneulFarm/frontend/src/styles/account.css)
+
+현재 상태:
+
+- 관심 활동 더미 제거 완료
+- 실제 데이터 기준으로 동작
+- 새 리뷰 API는 톰캣 재시작 후 최종 확인 필요
+
 ## 5. DTO 정리 메모
 
 정리 완료:
@@ -230,6 +267,14 @@
 - 역할이 다르면 같은 테이블이어도 분리 유지
 
 ## 6. 최근 수정 사항
+
+### 2026-03-19
+
+- 관심 활동의 찜한 상품 / 리뷰 관리를 실제 데이터로 연동
+- 계정 화면 API 경로를 `/api` 기준으로 다시 통일
+- 레시피 API 경로를 `/api/recipes` 기준으로 수정
+- `orders` 라우트를 계정용 주문관리 경로로 복구
+- 상품 앱 주문 날짜 포맷 함수가 배열 날짜 응답을 처리하도록 보강
 
 ### 2026-03-18
 
@@ -299,6 +344,6 @@
 
 현재 다음 후보:
 
-- 찜한 상품 연동
-- 리뷰 관리 연동
+- 관심 활동 실제 사용 흐름 검증
 - 계정 화면 마감 다듬기
+- 모바일 최종 점검

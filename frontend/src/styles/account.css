@@ -475,6 +475,23 @@
   gap: 18px;
 }
 
+.account-app .review-editor-card{
+  display: grid;
+  gap: 18px;
+}
+
+.account-app .review-editor-form{
+  display: grid;
+  gap: 14px;
+}
+
+.account-app .review-editor-actions{
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .account-app .review-card-list{
   display: grid;
   gap: 16px;
@@ -1128,6 +1145,18 @@
   background: #fff;
 }
 
+.account-app .form-field textarea{
+  width: 100%;
+  min-height: 132px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 16px;
+  font: inherit;
+  color: var(--text);
+  background: #fff;
+}
+
 .account-app .form-field select{
   width: 100%;
   border: 1px solid var(--line);
@@ -1139,6 +1168,12 @@
 }
 
 .account-app .form-field input:focus{
+  outline: none;
+  border-color: rgba(21, 154, 85, 0.6);
+  box-shadow: 0 0 0 4px rgba(21, 154, 85, 0.08);
+}
+
+.account-app .form-field textarea:focus{
   outline: none;
   border-color: rgba(21, 154, 85, 0.6);
   box-shadow: 0 0 0 4px rgba(21, 154, 85, 0.08);

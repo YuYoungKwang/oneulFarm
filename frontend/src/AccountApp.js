@@ -5,13 +5,18 @@ import MyPageView from './MyPageView';
 import ActivityView from './ActivityView';
 import OrdersView from './OrdersView';
 import AddressModal from './AddressModal';
+import { addCartItemToApi, fetchProductsFromApi } from './api/productApi';
+import { persistValue, readStoredValue } from './components/productUiUtils';
 
 const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || '').replace(/\/+$/, '');
 const ORDER_API_BASE = `${API_BASE_URL}/api/orders`;
 const DASHBOARD_API_BASE = `${API_BASE_URL}/api/dashboard`;
 const USER_API_BASE = `${API_BASE_URL}/api/users`;
 const ADDRESS_API_BASE = `${USER_API_BASE}/me/addresses`;
+const REVIEW_API_BASE = `${API_BASE_URL}/api/reviews`;
 const DEMO_USER_NO = '1';
+const WISHLIST_STORAGE_KEY = 'oneulFarmWishlist';
+const CART_STORAGE_KEY = 'oneulFarmCart';
 
 const EMPTY_PROFILE = {
   userId: '',
@@ -82,6 +87,12 @@ const EMPTY_ADDRESS_FORM = {
   address2: '',
   deliveryMessage: '',
   isDefault: 'N',
+};
+
+const EMPTY_REVIEW_FORM = {
+  orderItemNo: '',
+  rating: 5,
+  content: '',
 };
 
 const ACCOUNT_ROUTES = {
@@ -187,6 +198,42 @@ function toProfileForm(profile) {
   };
 }
 
+function buildWishlistBadge(product) {
+  if (product?.badgeType === 'UNDER_AVG') {
+    return '평균가 이하';
+  }
+
+  if (product?.isSeasonal === 'Y') {
+    return '제철 추천';
+  }
+
+  if (product?.isSingleFriendly) {
+    return '1인 추천';
+  }
+
+  return '관심 상품';
+}
+
+function buildWishlistSummary(product) {
+  const savingRate = Number(product?.priceMatch?.savingRate ?? product?.savingRate ?? 0);
+  const reviewCount = Number(product?.reviewCount || 0);
+  const averageRating = Number(product?.averageRating || 0);
+
+  if (savingRate > 0) {
+    return `평균가보다 ${Math.round(savingRate)}% 절약`;
+  }
+
+  if (reviewCount > 0) {
+    return `평점 ${averageRating.toFixed(1)} · 리뷰 ${reviewCount}건`;
+  }
+
+  if (product?.origin) {
+    return `${product.origin}${product.unit ? ` · ${product.unit}` : ''}`;
+  }
+
+  return '상품 상세에서 가격과 리뷰를 확인해 보세요.';
+}
+
 function AccountApp() {
   const [currentPage, setCurrentPage] = useState(() =>
     getAccountPageFromHash(window.location.hash)
@@ -236,6 +283,52 @@ function AccountApp() {
   const [addressFormError, setAddressFormError] = useState('');
   const [addressSubmitting, setAddressSubmitting] = useState(false);
   const [isAddressFormOpen, setIsAddressFormOpen] = useState(false);
+  const [wishlistProductNos, setWishlistProductNos] = useState(() =>
+    readStoredValue(WISHLIST_STORAGE_KEY, [])
+  );
+  const [wishlistItems, setWishlistItems] = useState([]);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [wishlistError, setWishlistError] = useState('');
+  const [wishlistActionProductNo, setWishlistActionProductNo] = useState(null);
+  const [writableReviews, setWritableReviews] = useState([]);
+  const [myReviews, setMyReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewsError, setReviewsError] = useState('');
+  const [reviewEditor, setReviewEditor] = useState(null);
+  const [reviewForm, setReviewForm] = useState(EMPTY_REVIEW_FORM);
+  const [reviewFormError, setReviewFormError] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [deletingReviewNo, setDeletingReviewNo] = useState(null);
+
+  async function loadReviewsData() {
+    setReviewsLoading(true);
+    setReviewsError('');
+
+    try {
+      const [writableResponse, myReviewsResponse] = await Promise.all([
+        fetch(`${REVIEW_API_BASE}/me/writable`, {
+          headers: { 'X-USER-NO': DEMO_USER_NO },
+        }),
+        fetch(`${REVIEW_API_BASE}/me`, {
+          headers: { 'X-USER-NO': DEMO_USER_NO },
+        }),
+      ]);
+
+      const [writablePayload, myReviewsPayload] = await Promise.all([
+        parseResponse(writableResponse, '작성 가능한 리뷰 목록을 불러오지 못했습니다.'),
+        parseResponse(myReviewsResponse, '내 리뷰 목록을 불러오지 못했습니다.'),
+      ]);
+
+      setWritableReviews(Array.isArray(writablePayload.data) ? writablePayload.data : []);
+      setMyReviews(Array.isArray(myReviewsPayload.data) ? myReviewsPayload.data : []);
+    } catch (error) {
+      setWritableReviews([]);
+      setMyReviews([]);
+      setReviewsError(error.message || '리뷰 목록을 불러오지 못했습니다.');
+    } finally {
+      setReviewsLoading(false);
+    }
+  }
 
   useEffect(() => {
     const syncPage = () => {
@@ -253,6 +346,70 @@ function AccountApp() {
     return () => {
       window.removeEventListener('hashchange', syncPage);
     };
+  }, []);
+
+  useEffect(() => {
+    const syncWishlist = () => {
+      setWishlistProductNos(readStoredValue(WISHLIST_STORAGE_KEY, []));
+    };
+
+    syncWishlist();
+    window.addEventListener('storage', syncWishlist);
+    window.addEventListener('oneulFarm:storage-change', syncWishlist);
+
+    return () => {
+      window.removeEventListener('storage', syncWishlist);
+      window.removeEventListener('oneulFarm:storage-change', syncWishlist);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchWishlistItems() {
+      setWishlistLoading(true);
+      setWishlistError('');
+
+      try {
+        const products = await fetchProductsFromApi();
+        if (cancelled) {
+          return;
+        }
+
+        const productMap = new Map(products.map((product) => [Number(product.productNo), product]));
+        const nextItems = wishlistProductNos
+          .map((productNo) => productMap.get(Number(productNo)))
+          .filter(Boolean)
+          .map((product) => ({
+            productNo: product.productNo,
+            name: product.productName,
+            price: product.salePrice,
+            avg: buildWishlistSummary(product),
+            badge: buildWishlistBadge(product),
+            emoji: product.display?.symbol || '🛒',
+          }));
+
+        setWishlistItems(nextItems);
+      } catch (error) {
+        if (!cancelled) {
+          setWishlistItems([]);
+          setWishlistError(error.message || '찜한 상품을 불러오지 못했습니다.');
+        }
+      } finally {
+        if (!cancelled) {
+          setWishlistLoading(false);
+        }
+      }
+    }
+
+    fetchWishlistItems();
+    return () => {
+      cancelled = true;
+    };
+  }, [wishlistProductNos]);
+
+  useEffect(() => {
+    loadReviewsData();
   }, []);
 
   useEffect(() => {
@@ -924,6 +1081,145 @@ function AccountApp() {
     setAppliedOrderFilters(EMPTY_ORDER_FILTERS);
   }
 
+  async function handleAddWishlistItemToCart(productNo) {
+    setWishlistActionProductNo(productNo);
+    setWishlistError('');
+
+    try {
+      const nextCart = await addCartItemToApi(productNo, 1);
+      persistValue(CART_STORAGE_KEY, nextCart);
+    } catch (error) {
+      setWishlistError(error.message || '장바구니 담기에 실패했습니다.');
+    } finally {
+      setWishlistActionProductNo(null);
+    }
+  }
+
+  function handleRemoveWishlistItem(productNo) {
+    const nextWishlist = wishlistProductNos.filter(
+      (currentProductNo) => Number(currentProductNo) !== Number(productNo)
+    );
+    persistValue(WISHLIST_STORAGE_KEY, nextWishlist);
+    setWishlistProductNos(nextWishlist);
+  }
+
+  function handleStartCreateReview(review) {
+    setReviewEditor({
+      mode: 'create',
+      reviewNo: null,
+      productName: review.productName,
+      orderId: review.orderId,
+    });
+    setReviewForm({
+      orderItemNo: review.orderItemNo,
+      rating: 5,
+      content: '',
+    });
+    setReviewFormError('');
+  }
+
+  function handleStartEditReview(review) {
+    setReviewEditor({
+      mode: 'edit',
+      reviewNo: review.reviewNo,
+      productName: review.productName,
+      orderId: review.orderId,
+    });
+    setReviewForm({
+      orderItemNo: review.orderItemNo,
+      rating: Number(review.rating || 5),
+      content: review.content || '',
+    });
+    setReviewFormError('');
+  }
+
+  function handleCancelReviewEditor() {
+    setReviewEditor(null);
+    setReviewForm(EMPTY_REVIEW_FORM);
+    setReviewFormError('');
+  }
+
+  function handleReviewFormChange(event) {
+    const { name, value } = event.target;
+    setReviewFormError('');
+    setReviewForm((current) => ({
+      ...current,
+      [name]: name === 'rating' ? Number(value) : value,
+    }));
+  }
+
+  async function handleReviewSubmit(event) {
+    event.preventDefault();
+    setReviewSubmitting(true);
+    setReviewFormError('');
+
+    if (!String(reviewForm.content || '').trim()) {
+      setReviewFormError('리뷰 내용을 입력해 주세요.');
+      setReviewSubmitting(false);
+      return false;
+    }
+
+    try {
+      const isEditMode = reviewEditor?.mode === 'edit' && reviewEditor?.reviewNo;
+      const response = await fetch(
+        isEditMode ? `${REVIEW_API_BASE}/${reviewEditor.reviewNo}` : REVIEW_API_BASE,
+        {
+          method: isEditMode ? 'PATCH' : 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-USER-NO': DEMO_USER_NO,
+          },
+          body: JSON.stringify(reviewForm),
+        }
+      );
+
+      await parseResponse(
+        response,
+        isEditMode ? '리뷰 수정에 실패했습니다.' : '리뷰 작성에 실패했습니다.'
+      );
+
+      await loadReviewsData();
+      handleCancelReviewEditor();
+      return true;
+    } catch (error) {
+      setReviewFormError(
+        error.message || (reviewEditor?.mode === 'edit'
+          ? '리뷰 수정에 실패했습니다.'
+          : '리뷰 작성에 실패했습니다.')
+      );
+      return false;
+    } finally {
+      setReviewSubmitting(false);
+    }
+  }
+
+  async function handleDeleteReview(reviewNo) {
+    const confirmed = window.confirm('이 리뷰를 삭제하시겠습니까?');
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingReviewNo(reviewNo);
+    setReviewsError('');
+
+    try {
+      const response = await fetch(`${REVIEW_API_BASE}/${reviewNo}`, {
+        method: 'DELETE',
+        headers: { 'X-USER-NO': DEMO_USER_NO },
+      });
+      await parseResponse(response, '리뷰 삭제에 실패했습니다.');
+      await loadReviewsData();
+
+      if (reviewEditor?.mode === 'edit' && reviewEditor.reviewNo === reviewNo) {
+        handleCancelReviewEditor();
+      }
+    } catch (error) {
+      setReviewsError(error.message || '리뷰 삭제에 실패했습니다.');
+    } finally {
+      setDeletingReviewNo(null);
+    }
+  }
+
   return (
     <div className="account-app page-shell">
       <main className="container">
@@ -989,6 +1285,27 @@ function AccountApp() {
           <ActivityView
             activeTab={activeTab}
             setActiveTab={setActiveTab}
+            wishlistItems={wishlistItems}
+            wishlistLoading={wishlistLoading}
+            wishlistError={wishlistError}
+            wishlistActionProductNo={wishlistActionProductNo}
+            onAddWishlistItemToCart={handleAddWishlistItemToCart}
+            onRemoveWishlistItem={handleRemoveWishlistItem}
+            writableReviews={writableReviews}
+            myReviews={myReviews}
+            reviewsLoading={reviewsLoading}
+            reviewsError={reviewsError}
+            reviewEditor={reviewEditor}
+            reviewForm={reviewForm}
+            reviewFormError={reviewFormError}
+            reviewSubmitting={reviewSubmitting}
+            deletingReviewNo={deletingReviewNo}
+            onStartCreateReview={handleStartCreateReview}
+            onStartEditReview={handleStartEditReview}
+            onCancelReviewEditor={handleCancelReviewEditor}
+            onReviewFormChange={handleReviewFormChange}
+            onReviewSubmit={handleReviewSubmit}
+            onDeleteReview={handleDeleteReview}
           />
         ) : currentPage === 'orders' ? (
           <OrdersView

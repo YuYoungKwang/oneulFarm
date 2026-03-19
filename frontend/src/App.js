@@ -12,12 +12,11 @@ const PRODUCT_ROUTE_SEGMENTS = new Set([
   'cart',
   'checkout',
   'recipes',
-  'orders',
   'order-complete',
   'payment-success',
   'payment-fail',
 ]);
-const ACCOUNT_ROUTE_SEGMENTS = new Set(['dashboard', 'mypage']);
+const ACCOUNT_ROUTE_SEGMENTS = new Set(['dashboard', 'mypage', 'orders']);
 
 function getFirstSegment(hash) {
   const normalized = hash.replace(/^#\/?/, '').trim().toLowerCase();
