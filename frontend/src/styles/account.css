@@ -901,11 +901,45 @@
   gap: 12px;
 }
 
+.account-app .wishlist-price-block{
+  display: grid;
+  gap: 4px;
+}
+
+.account-app .wishlist-price-label{
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
 .account-app .price{
   font-size: 22px;
   font-weight: 900;
   color: var(--green-dark);
   white-space: nowrap;
+}
+
+.account-app .wishlist-saving-rate{
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(21, 154, 85, 0.12);
+  color: #0f7a42;
+  font-size: 15px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.account-app .wishlist-saving-rate__arrow{
+  font-size: 16px;
+  line-height: 1;
+}
+
+.account-app .wishlist-saving-rate strong{
+  font-size: 18px;
+  font-weight: 900;
 }
 
 .account-app .avg{

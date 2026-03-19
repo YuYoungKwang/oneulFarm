@@ -234,6 +234,16 @@ function buildWishlistSummary(product) {
   return '상품 상세에서 가격과 리뷰를 확인해 보세요.';
 }
 
+function buildWishlistSavingRate(product) {
+  const savingRate = Number(product?.priceMatch?.savingRate ?? product?.savingRate ?? 0);
+
+  if (!Number.isFinite(savingRate) || savingRate <= 0) {
+    return 0;
+  }
+
+  return Math.round(savingRate);
+}
+
 function AccountApp() {
   const [currentPage, setCurrentPage] = useState(() =>
     getAccountPageFromHash(window.location.hash)
@@ -385,6 +395,7 @@ function AccountApp() {
             name: product.productName,
             price: product.salePrice,
             avg: buildWishlistSummary(product),
+            savingRate: buildWishlistSavingRate(product),
             badge: buildWishlistBadge(product),
             emoji: product.display?.symbol || '🛒',
           }));

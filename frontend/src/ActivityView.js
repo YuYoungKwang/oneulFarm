@@ -100,8 +100,19 @@ function ActivityView({
                       </div>
                       <div className="product-name">{item.name}</div>
                       <div className="price-row">
-                        <div className="price">{formatPrice(item.price)}</div>
-                        <div className="avg">{item.avg}</div>
+                        <div className="wishlist-price-block">
+                          <div className="wishlist-price-label">현재가</div>
+                          <div className="price">{formatPrice(item.price)}</div>
+                        </div>
+                        {item.savingRate > 0 ? (
+                          <div className="wishlist-saving-rate" aria-label={`절약률 ${item.savingRate}%`}>
+                            <span className="wishlist-saving-rate__arrow">↓</span>
+                            <strong>{item.savingRate}%</strong>
+                            <span>절약</span>
+                          </div>
+                        ) : (
+                          <div className="avg">{item.avg}</div>
+                        )}
                       </div>
                       <div className="product-foot">
                         <button
