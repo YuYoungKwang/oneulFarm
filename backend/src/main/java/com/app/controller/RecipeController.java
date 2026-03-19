@@ -1,6 +1,7 @@
 package com.app.controller;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
@@ -14,8 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.app.common.ApiResponse;
-import com.app.dto.RecipeDetailDTO;
-import com.app.dto.RecipeListResponseDTO;
+import com.app.dto.RecipeDTO;
 import com.app.service.RecipeService;
 
 @RestController
@@ -29,16 +29,22 @@ public class RecipeController {
     }
 
     @GetMapping("/recipes")
-    public ApiResponse<RecipeListResponseDTO> getRecipeList(
+    public ApiResponse<Map<String, Object>> getRecipeList(
         @RequestParam(value = "keyword", required = false) String keyword,
         @RequestParam(value = "ingredientKeyword", required = false) String ingredientKeyword,
         @RequestParam(value = "sort", required = false) String sort,
         @RequestParam(value = "limit", required = false) Integer limit
     ) {
-        return ApiResponse.success(
-            recipeService.getRecipeList(keyword, ingredientKeyword, sort, limit),
-            "레시피 목록 조회 성공"
-        );
+        List<RecipeDTO> recipeList = recipeService.getRecipeList(keyword, ingredientKeyword, sort, limit);
+
+        Map<String, Object> data = new LinkedHashMap<String, Object>();
+        data.put("count", Integer.valueOf(recipeList.size()));
+        data.put("keyword", keyword);
+        data.put("ingredientKeyword", ingredientKeyword);
+        data.put("sort", sort);
+        data.put("recipeList", recipeList);
+
+        return ApiResponse.success(data, "레시피 목록 조회 성공");
     }
 
     @PostMapping("/admin/recipes/sync")
@@ -67,14 +73,14 @@ public class RecipeController {
     }
 
     @GetMapping("/recipes/{recipeNo}")
-    public ResponseEntity<ApiResponse<RecipeDetailDTO>> getRecipeDetail(@PathVariable Long recipeNo) {
-        RecipeDetailDTO recipeDetailDTO = recipeService.getRecipeDetail(recipeNo);
-        if (recipeDetailDTO == null) {
+    public ResponseEntity<ApiResponse<RecipeDTO>> getRecipeDetail(@PathVariable Long recipeNo) {
+        RecipeDTO recipeDTO = recipeService.getRecipeDetail(recipeNo);
+        if (recipeDTO == null) {
             return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.failure("레시피를 찾을 수 없습니다."));
         }
 
-        return ResponseEntity.ok(ApiResponse.success(recipeDetailDTO, "레시피 상세 조회 성공"));
+        return ResponseEntity.ok(ApiResponse.success(recipeDTO, "레시피 상세 조회 성공"));
     }
 }

@@ -9,6 +9,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,11 +23,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriUtils;
 
+import com.app.dao.ProductDao;
 import com.app.dao.RecipeDAO;
+import com.app.dto.ProductDto;
 import com.app.dto.RecipeDTO;
-import com.app.dto.RecipeDetailDTO;
 import com.app.dto.RecipeIngredientDTO;
-import com.app.dto.RecipeListResponseDTO;
 import com.app.dto.RecipeStepDTO;
 import com.app.dto.RecipeStepImageDTO;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -41,9 +45,13 @@ public class RecipeServiceImpl implements RecipeService {
     private static final int MAX_RECIPE_API_BATCH_SIZE = 100;
     private static final int DEFAULT_LIMIT = 12;
     private static final int MAX_LIMIT = 60;
+    private static final int RECOMMEND_PRODUCT_LIMIT = 6;
 
     @Autowired
     private RecipeDAO recipeDAO;
+
+    @Autowired
+    private ProductDao productDao;
 
     @Value("${foodsafetykorea.baseUrl:https://openapi.foodsafetykorea.go.kr/api}")
     private String foodsafetyKoreaBaseUrl;
@@ -100,36 +108,28 @@ public class RecipeServiceImpl implements RecipeService {
     }
 
     @Override
-    public RecipeListResponseDTO getRecipeList(String keyword, String ingredientKeyword, String sort, Integer limit) {
+    public List<RecipeDTO> getRecipeList(String keyword, String ingredientKeyword, String sort, Integer limit) {
         String resolvedKeyword = trimToNull(keyword);
         String resolvedIngredientKeyword = trimToNull(ingredientKeyword);
         String resolvedSort = normalizeSort(sort);
         int resolvedLimit = resolveLimit(limit);
 
-        List<RecipeDTO> recipeList = recipeDAO.selectRecipeList(
+        return recipeDAO.selectRecipeList(
             resolvedKeyword,
             resolvedIngredientKeyword,
             resolvedSort,
             resolvedLimit
         );
-
-        RecipeListResponseDTO responseDTO = new RecipeListResponseDTO();
-        responseDTO.setCount(recipeList.size());
-        responseDTO.setKeyword(resolvedKeyword);
-        responseDTO.setIngredientKeyword(resolvedIngredientKeyword);
-        responseDTO.setSort(resolvedSort);
-        responseDTO.setRecipeList(recipeList);
-        return responseDTO;
     }
 
     @Override
-    public RecipeDetailDTO getRecipeDetail(Long recipeNo) {
+    public RecipeDTO getRecipeDetail(Long recipeNo) {
         if (recipeNo == null || recipeNo.longValue() <= 0L) {
             throw new IllegalArgumentException("recipeNo는 필수입니다.");
         }
 
-        RecipeDetailDTO recipeDetailDTO = recipeDAO.selectRecipeDetail(recipeNo);
-        if (recipeDetailDTO == null) {
+        RecipeDTO recipeDTO = recipeDAO.selectRecipeDetail(recipeNo);
+        if (recipeDTO == null) {
             return null;
         }
 
@@ -153,9 +153,126 @@ public class RecipeServiceImpl implements RecipeService {
             stepDTO.setPrimaryImageUrl(imageList.isEmpty() ? null : imageList.get(0).getImageUrl());
         }
 
-        recipeDetailDTO.setIngredientList(ingredientList);
-        recipeDetailDTO.setStepList(stepList);
-        return recipeDetailDTO;
+        recipeDTO.setIngredientList(ingredientList);
+        recipeDTO.setStepList(stepList);
+        recipeDTO.setRecommendedProductList(
+            buildRecommendedProductList(ingredientList, productDao.findSellingProducts(), RECOMMEND_PRODUCT_LIMIT)
+        );
+        return recipeDTO;
+    }
+
+    private List<ProductDto> buildRecommendedProductList(
+        List<RecipeIngredientDTO> ingredientList,
+        List<ProductDto> sellingProductList,
+        int limit
+    ) {
+        if (ingredientList == null || ingredientList.isEmpty() || sellingProductList == null || sellingProductList.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Map<Long, Integer> bestScoreMap = new HashMap<Long, Integer>();
+        Map<Long, ProductDto> matchedProductMap = new LinkedHashMap<Long, ProductDto>();
+        Set<String> ingredientTokenSet = new LinkedHashSet<String>();
+        for (RecipeIngredientDTO ingredientDTO : ingredientList) {
+            String ingredientName = normalizeIngredientToken(ingredientDTO.getIngredientName());
+            if (ingredientName != null) {
+                ingredientTokenSet.add(ingredientName);
+            }
+        }
+
+        for (ProductDto product : sellingProductList) {
+            if (product == null || product.getProductNo() == null) {
+                continue;
+            }
+
+            String normalizedProductName = normalizeIngredientToken(product.getProductName());
+            if (normalizedProductName == null) {
+                continue;
+            }
+
+            int bestScore = 0;
+            for (String ingredientToken : ingredientTokenSet) {
+                int score = calculateMatchScore(normalizedProductName, ingredientToken);
+                if (score > bestScore) {
+                    bestScore = score;
+                }
+            }
+
+            if (bestScore <= 0) {
+                continue;
+            }
+
+            Long productNo = product.getProductNo();
+            Integer existingScore = bestScoreMap.get(productNo);
+            if (existingScore == null || bestScore > existingScore.intValue()) {
+                bestScoreMap.put(productNo, Integer.valueOf(bestScore));
+                matchedProductMap.put(productNo, product);
+            }
+        }
+
+        List<ProductDto> candidateList = new ArrayList<ProductDto>(matchedProductMap.values());
+        candidateList.sort(
+            Comparator
+                .comparing((ProductDto product) -> bestScoreMap.get(product.getProductNo()), Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(ProductDto::getSavingRate, Comparator.nullsLast(Comparator.reverseOrder()))
+        );
+
+        if (candidateList.size() > limit) {
+            return candidateList.subList(0, limit);
+        }
+
+        return candidateList;
+    }
+
+    private String normalizeIngredientToken(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String normalized = value
+            .toLowerCase(Locale.ROOT)
+            .replaceAll("\\([^)]*\\)", " ")
+            .replaceAll("\\[[^\\]]*\\]", " ")
+            .replaceAll("[^a-z0-9가-힣\\s]", " ")
+            .replaceAll("\\s+", " ")
+            .trim();
+
+        if (normalized.isEmpty()) {
+            return null;
+        }
+
+        return normalized;
+    }
+
+    private int calculateMatchScore(String productName, String ingredientToken) {
+        if (productName == null || ingredientToken == null) {
+            return 0;
+        }
+
+        if (productName.equals(ingredientToken)) {
+            return 100;
+        }
+
+        if (productName.contains(ingredientToken)) {
+            return 80 + Math.min(ingredientToken.length(), 10);
+        }
+
+        if (ingredientToken.contains(productName)) {
+            return 60 + Math.min(productName.length(), 10);
+        }
+
+        int tokenScore = 0;
+        String[] tokenParts = ingredientToken.split(" ");
+        for (String tokenPart : tokenParts) {
+            if (tokenPart.length() < 2) {
+                continue;
+            }
+            if (productName.contains(tokenPart)) {
+                tokenScore += 10;
+            }
+        }
+
+        return tokenScore;
     }
 
     private int syncRecipeNodeList(List<JsonNode> recipeNodeList) {

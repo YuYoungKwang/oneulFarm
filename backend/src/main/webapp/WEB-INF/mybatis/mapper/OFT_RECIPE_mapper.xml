@@ -15,18 +15,6 @@
         <result property="sourceName" column="sourceName" />
     </resultMap>
 
-    <resultMap id="RecipeDetailResultMap" type="RecipeDetailDTO">
-        <id property="recipeNo" column="recipeNo" />
-        <result property="externalRecipeId" column="externalRecipeId" />
-        <result property="recipeName" column="recipeName" />
-        <result property="description" column="description" />
-        <result property="cookTime" column="cookTime" />
-        <result property="difficulty" column="difficulty" />
-        <result property="calories" column="calories" />
-        <result property="imageUrl" column="imageUrl" />
-        <result property="sourceName" column="sourceName" />
-    </resultMap>
-
     <resultMap id="RecipeIngredientResultMap" type="RecipeIngredientDTO">
         <id property="ingredientNo" column="ingredientNo" />
         <result property="recipeNo" column="recipeNo" />
@@ -221,7 +209,7 @@
         WHERE ROWNUM &lt;= #{limit}
     </select>
 
-    <select id="selectRecipeDetail" parameterType="java.lang.Long" resultMap="RecipeDetailResultMap"><![CDATA[
+    <select id="selectRecipeDetail" parameterType="java.lang.Long" resultMap="RecipeResultMap"><![CDATA[
         SELECT
             r.RECIPE_NO AS recipeNo,
             r.EXTERNAL_RECIPE_ID AS externalRecipeId,

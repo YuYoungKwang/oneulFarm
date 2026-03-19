@@ -1,13 +1,14 @@
 package com.app.service;
 
-import com.app.dto.RecipeDetailDTO;
-import com.app.dto.RecipeListResponseDTO;
+import java.util.List;
+
+import com.app.dto.RecipeDTO;
 
 public interface RecipeService {
 
     int syncRecipe(String keyword, Integer limit);
 
-    RecipeListResponseDTO getRecipeList(String keyword, String ingredientKeyword, String sort, Integer limit);
+    List<RecipeDTO> getRecipeList(String keyword, String ingredientKeyword, String sort, Integer limit);
 
-    RecipeDetailDTO getRecipeDetail(Long recipeNo);
+    RecipeDTO getRecipeDetail(Long recipeNo);
 }

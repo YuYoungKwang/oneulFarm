@@ -9,7 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import com.app.dto.RecipeDTO;
-import com.app.dto.RecipeDetailDTO;
 import com.app.dto.RecipeIngredientDTO;
 import com.app.dto.RecipeStepDTO;
 import com.app.dto.RecipeStepImageDTO;
@@ -68,7 +67,7 @@ public class RecipeDAOImpl implements RecipeDAO {
     }
 
     @Override
-    public RecipeDetailDTO selectRecipeDetail(Long recipeNo) {
+    public RecipeDTO selectRecipeDetail(Long recipeNo) {
         return sqlSessionTemplate.selectOne(NAMESPACE + "selectRecipeDetail", recipeNo);
     }
 

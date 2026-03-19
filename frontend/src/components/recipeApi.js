@@ -28,12 +28,11 @@ async function requestRecipeApi(url) {
   return body.data;
 }
 
-export function fetchRecipeList({ keyword, ingredientKeyword, sort, limit }) {
+export function fetchRecipeList({ keyword, ingredientKeyword, limit }) {
   return requestRecipeApi(
     `/api/recipes${buildQueryString({
       keyword,
       ingredientKeyword,
-      sort,
       limit,
     })}`
   );
