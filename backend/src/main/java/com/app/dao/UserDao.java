@@ -1,6 +1,5 @@
 package com.app.dao;
 
-import com.app.dto.SignupRequestDto;
 import com.app.dto.UpdateUserProfileRequestDto;
 import com.app.dto.UserDto;
 import com.app.dto.UserProfileDto;
@@ -17,7 +16,7 @@ public interface UserDao {
 
     int countByUserId(String userId);
 
-    int insertUser(SignupRequestDto request);
+    int insertUser(UserDto request);
 
     UserProfileDto findMyProfile(Long userNo);
 

@@ -1,29 +1,24 @@
 package com.app.service;
 
-import com.app.dto.ChangePasswordRequestDto;
-import com.app.dto.DuplicateCheckResponseDto;
-import com.app.dto.FindUserIdRequestDto;
-import com.app.dto.FindUserIdResponseDto;
-import com.app.dto.LoginRequestDto;
-import com.app.dto.LoginResponseDto;
-import com.app.dto.ResetPasswordRequestDto;
-import com.app.dto.SignupRequestDto;
+import java.util.Map;
+
+import com.app.dto.UserDto;
 
 public interface AuthService {
 
-    void signup(SignupRequestDto request);
+    Map<String, Object> signup(UserDto request);
 
-    LoginResponseDto login(LoginRequestDto request);
+    Map<String, Object> login(UserDto request);
 
-    FindUserIdResponseDto findUserId(FindUserIdRequestDto request);
+    Map<String, Object> findUserId(UserDto request);
 
-    void sendTemporaryPassword(ResetPasswordRequestDto request);
+    void sendTemporaryPassword(UserDto request);
 
-    LoginResponseDto changePassword(Long userNo, ChangePasswordRequestDto request);
+    Map<String, Object> changePassword(Long userNo, Map<String, String> request);
 
-    DuplicateCheckResponseDto checkUserId(String userId);
+    Map<String, Object> checkUserId(String userId);
 
-    DuplicateCheckResponseDto checkEmail(String email);
+    Map<String, Object> checkEmail(String email);
 
-    DuplicateCheckResponseDto checkNickname(String nickname);
+    Map<String, Object> checkNickname(String nickname);
 }

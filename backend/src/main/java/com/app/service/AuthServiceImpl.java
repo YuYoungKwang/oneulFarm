@@ -1,102 +1,114 @@
 package com.app.service;
 
 import java.security.SecureRandom;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.app.dao.UserDao;
-import com.app.dto.ChangePasswordRequestDto;
-import com.app.dto.DuplicateCheckResponseDto;
-import com.app.dto.FindUserIdRequestDto;
-import com.app.dto.FindUserIdResponseDto;
-import com.app.dto.LoginRequestDto;
-import com.app.dto.LoginResponseDto;
-import com.app.dto.ResetPasswordRequestDto;
-import com.app.dto.SignupRequestDto;
 import com.app.dto.UserDto;
 
 @Service
 public class AuthServiceImpl implements AuthService {
 
-    private static final String TEMP_PASSWORD_SOURCE = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+    private static final String TEMP_PASSWORD_SOURCE =
+        "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
     private static final int TEMP_PASSWORD_LENGTH = 10;
 
     private final UserDao userDao;
     private final MailService mailService;
+    private final JwtTokenService jwtTokenService;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
     private final SecureRandom secureRandom = new SecureRandom();
 
-    public AuthServiceImpl(UserDao userDao, MailService mailService) {
+    public AuthServiceImpl(UserDao userDao, MailService mailService, JwtTokenService jwtTokenService) {
         this.userDao = userDao;
         this.mailService = mailService;
+        this.jwtTokenService = jwtTokenService;
     }
 
     @Override
-    public void signup(SignupRequestDto request) {
+    @Transactional
+    public Map<String, Object> signup(UserDto request) {
         validateSignupRequest(request);
+        String rawPassword = request.getPassword();
 
         if (userDao.countByUserId(request.getUserId()) > 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 사용 중인 아이디입니다.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User ID is already in use.");
         }
 
         if (userDao.countByEmail(request.getEmail(), -1L) > 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 사용 중인 이메일입니다.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is already in use.");
         }
 
         if (userDao.countByNickname(request.getNickname(), -1L) > 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 사용 중인 닉네임입니다.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nickname is already in use.");
         }
 
-        request.setPassword(passwordEncoder.encode(request.getPassword()));
+        request.setPassword(passwordEncoder.encode(rawPassword));
         userDao.insertUser(request);
+
+        UserDto createdUser = userDao.findByUserIdOrEmail(request.getUserId());
+        if (createdUser == null) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to complete signup.");
+        }
+
+        return buildAuthPayload(createdUser);
     }
 
     @Override
-    public LoginResponseDto login(LoginRequestDto request) {
+    public Map<String, Object> login(UserDto request) {
         validateLoginRequest(request);
 
         UserDto user = userDao.findByUserIdOrEmail(request.getUserId());
         if (user == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "아이디 또는 이메일이 올바르지 않습니다.");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User ID or email is incorrect.");
         }
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "비밀번호가 올바르지 않습니다.");
+        if (!matchesStoredPassword(request.getPassword(), user.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Password is incorrect.");
         }
 
         if (!"ACTIVE".equalsIgnoreCase(user.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "활성 상태의 계정만 로그인할 수 있습니다.");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only active users can sign in.");
         }
 
-        return LoginResponseDto.from(user);
+        return buildAuthPayload(user);
     }
 
     @Override
-    public FindUserIdResponseDto findUserId(FindUserIdRequestDto request) {
+    public Map<String, Object> findUserId(UserDto request) {
         validateFindUserIdRequest(request);
 
         UserDto user = userDao.findByEmailAndPhone(request.getEmail(), request.getPhone());
         if (user == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "일치하는 회원 정보를 찾을 수 없습니다.");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No matching user was found.");
         }
 
-        return new FindUserIdResponseDto(user.getUserId());
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("userId", user.getUserId());
+        return response;
     }
 
     @Override
-    public void sendTemporaryPassword(ResetPasswordRequestDto request) {
+    public void sendTemporaryPassword(UserDto request) {
         validateResetPasswordRequest(request);
 
         UserDto user = userDao.findByEmail(request.getEmail());
         if (user == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "가입된 이메일을 찾을 수 없습니다.");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No user found for that email.");
         }
 
         if (!"ACTIVE".equalsIgnoreCase(user.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "활성 상태의 계정만 임시 비밀번호를 발급할 수 있습니다.");
+            throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "Only active users can receive a temporary password."
+            );
         }
 
         String temporaryPassword = generateTemporaryPassword();
@@ -107,59 +119,65 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public LoginResponseDto changePassword(Long userNo, ChangePasswordRequestDto request) {
-        validateChangePasswordRequest(request);
+    public Map<String, Object> changePassword(Long userNo, Map<String, String> request) {
+        Map<String, String> normalizedRequest = validateChangePasswordRequest(request);
 
         UserDto user = userDao.findByUserNo(userNo);
         if (user == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다.");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User was not found.");
         }
 
-        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "현재 비밀번호가 올바르지 않습니다.");
+        String currentPassword = normalizedRequest.get("currentPassword");
+        String newPassword = normalizedRequest.get("newPassword");
+
+        if (!matchesStoredPassword(currentPassword, user.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Current password is incorrect.");
         }
 
-        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "새 비밀번호는 현재 비밀번호와 다르게 입력해 주세요.");
+        if (matchesStoredPassword(newPassword, user.getPassword())) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "New password must be different from the current password."
+            );
         }
 
-        String encodedPassword = passwordEncoder.encode(request.getNewPassword());
+        String encodedPassword = passwordEncoder.encode(newPassword);
         userDao.updatePasswordAndClearTemporary(userNo, encodedPassword);
 
         UserDto updatedUser = userDao.findByUserNo(userNo);
-        return LoginResponseDto.from(updatedUser);
+        return buildAuthPayload(updatedUser);
     }
 
     @Override
-    public DuplicateCheckResponseDto checkUserId(String userId) {
+    public Map<String, Object> checkUserId(String userId) {
         String normalizedUserId = normalize(userId);
         if (isBlank(normalizedUserId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "아이디를 입력해 주세요.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User ID is required.");
         }
-        return new DuplicateCheckResponseDto(normalizedUserId, userDao.countByUserId(normalizedUserId) == 0);
+        return buildDuplicatePayload(normalizedUserId, userDao.countByUserId(normalizedUserId) == 0);
     }
 
     @Override
-    public DuplicateCheckResponseDto checkEmail(String email) {
+    public Map<String, Object> checkEmail(String email) {
         String normalizedEmail = normalize(email);
         if (isBlank(normalizedEmail)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이메일을 입력해 주세요.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is required.");
         }
-        return new DuplicateCheckResponseDto(normalizedEmail, userDao.countByEmail(normalizedEmail, -1L) == 0);
+        return buildDuplicatePayload(normalizedEmail, userDao.countByEmail(normalizedEmail, -1L) == 0);
     }
 
     @Override
-    public DuplicateCheckResponseDto checkNickname(String nickname) {
+    public Map<String, Object> checkNickname(String nickname) {
         String normalizedNickname = normalize(nickname);
         if (isBlank(normalizedNickname)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "닉네임을 입력해 주세요.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nickname is required.");
         }
-        return new DuplicateCheckResponseDto(normalizedNickname, userDao.countByNickname(normalizedNickname, -1L) == 0);
+        return buildDuplicatePayload(normalizedNickname, userDao.countByNickname(normalizedNickname, -1L) == 0);
     }
 
-    private void validateSignupRequest(SignupRequestDto request) {
+    private void validateSignupRequest(UserDto request) {
         if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "회원가입 정보가 비어 있습니다.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Signup request is empty.");
         }
 
         request.setUserId(normalize(request.getUserId()));
@@ -168,70 +186,85 @@ public class AuthServiceImpl implements AuthService {
         request.setNickname(normalize(request.getNickname()));
         request.setPhone(normalize(request.getPhone()));
 
-        if (isBlank(request.getUserId()) || isBlank(request.getEmail()) || isBlank(request.getPassword())
-            || isBlank(request.getNickname()) || isBlank(request.getPhone())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "아이디, 이메일, 비밀번호, 닉네임, 연락처는 필수입니다.");
+        if (isBlank(request.getUserId())
+            || isBlank(request.getEmail())
+            || isBlank(request.getPassword())
+            || isBlank(request.getNickname())
+            || isBlank(request.getPhone())) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "User ID, email, password, nickname, and phone are required."
+            );
         }
     }
 
-    private void validateLoginRequest(LoginRequestDto request) {
+    private void validateLoginRequest(UserDto request) {
         if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "로그인 정보가 비어 있습니다.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Login request is empty.");
         }
 
         request.setUserId(normalize(request.getUserId()));
         request.setPassword(normalize(request.getPassword()));
 
         if (isBlank(request.getUserId()) || isBlank(request.getPassword())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "아이디와 비밀번호를 입력해 주세요.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User ID and password are required.");
         }
     }
 
-    private void validateFindUserIdRequest(FindUserIdRequestDto request) {
+    private void validateFindUserIdRequest(UserDto request) {
         if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "아이디 찾기 정보가 비어 있습니다.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User ID lookup request is empty.");
         }
 
         request.setEmail(normalize(request.getEmail()));
         request.setPhone(normalize(request.getPhone()));
 
         if (isBlank(request.getEmail()) || isBlank(request.getPhone())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이메일과 연락처를 입력해 주세요.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email and phone are required.");
         }
     }
 
-    private void validateResetPasswordRequest(ResetPasswordRequestDto request) {
+    private void validateResetPasswordRequest(UserDto request) {
         if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "비밀번호 찾기 정보가 비어 있습니다.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Reset password request is empty.");
         }
 
         request.setEmail(normalize(request.getEmail()));
 
         if (isBlank(request.getEmail())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이메일을 입력해 주세요.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is required.");
         }
 
         if (!request.getEmail().toLowerCase().endsWith("@naver.com")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "네이버 이메일만 사용할 수 있습니다.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only @naver.com is allowed.");
         }
     }
 
-    private void validateChangePasswordRequest(ChangePasswordRequestDto request) {
+    private Map<String, String> validateChangePasswordRequest(Map<String, String> request) {
         if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "비밀번호 변경 정보가 비어 있습니다.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Change password request is empty.");
         }
 
-        request.setCurrentPassword(normalize(request.getCurrentPassword()));
-        request.setNewPassword(normalize(request.getNewPassword()));
-        request.setNewPasswordConfirm(normalize(request.getNewPasswordConfirm()));
+        String currentPassword = normalize(request.get("currentPassword"));
+        String newPassword = normalize(request.get("newPassword"));
+        String newPasswordConfirm = normalize(request.get("newPasswordConfirm"));
 
-        if (isBlank(request.getCurrentPassword()) || isBlank(request.getNewPassword()) || isBlank(request.getNewPasswordConfirm())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "현재 비밀번호와 새 비밀번호를 모두 입력해 주세요.");
+        if (isBlank(currentPassword) || isBlank(newPassword) || isBlank(newPasswordConfirm)) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Current password, new password, and password confirmation are required."
+            );
         }
 
-        if (!request.getNewPassword().equals(request.getNewPasswordConfirm())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "새 비밀번호 확인이 일치하지 않습니다.");
+        if (!newPassword.equals(newPasswordConfirm)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password confirmation does not match.");
         }
+
+        Map<String, String> normalizedRequest = new LinkedHashMap<>();
+        normalizedRequest.put("currentPassword", currentPassword);
+        normalizedRequest.put("newPassword", newPassword);
+        normalizedRequest.put("newPasswordConfirm", newPasswordConfirm);
+        return normalizedRequest;
     }
 
     private String generateTemporaryPassword() {
@@ -241,6 +274,44 @@ public class AuthServiceImpl implements AuthService {
             builder.append(TEMP_PASSWORD_SOURCE.charAt(randomIndex));
         }
         return builder.toString();
+    }
+
+    private Map<String, Object> buildAuthPayload(UserDto user) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("userNo", user.getUserNo());
+        payload.put("userId", user.getUserId());
+        payload.put("email", user.getEmail());
+        payload.put("nickname", user.getNickname());
+        payload.put("phone", user.getPhone());
+        payload.put("role", user.getRole());
+        payload.put("status", user.getStatus());
+        payload.put("accessToken", jwtTokenService.generateAccessToken(user));
+        payload.put("passwordChangeRequired", "Y".equalsIgnoreCase(user.getTempPasswordYn()));
+        return payload;
+    }
+
+    private Map<String, Object> buildDuplicatePayload(String value, boolean available) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("value", value);
+        payload.put("available", available);
+        return payload;
+    }
+
+    private boolean matchesStoredPassword(String rawPassword, String storedPassword) {
+        if (isBlank(rawPassword) || isBlank(storedPassword)) {
+            return false;
+        }
+
+        if (isBcryptPassword(storedPassword)) {
+            return passwordEncoder.matches(rawPassword, storedPassword);
+        }
+
+        return rawPassword.equals(storedPassword);
+    }
+
+    private boolean isBcryptPassword(String password) {
+        return password != null
+            && (password.startsWith("$2a$") || password.startsWith("$2b$") || password.startsWith("$2y$"));
     }
 
     private String normalize(String value) {

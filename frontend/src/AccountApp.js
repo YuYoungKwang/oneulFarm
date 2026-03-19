@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getAuthUser, parseApiResponse } from './auth';
+import { buildAuthHeaders, getAuthUser, isAuthenticated, parseApiResponse } from './auth';
 import './styles/account.css';
 import DashboardView from './DashboardView';
 import MyPageView from './MyPageView';
@@ -49,6 +49,14 @@ const ACCOUNT_ROUTES = {
   dashboard: '#/dashboard',
   mypage: '#/mypage',
 };
+
+function accountHeaders(authUser, includeJson = false) {
+  return buildAuthHeaders({
+    includeJson,
+    includeUserNo: false,
+    user: authUser,
+  });
+}
 
 function getAccountPageFromHash(hash) {
   return hash.startsWith(ACCOUNT_ROUTES.dashboard) ? 'dashboard' : 'mypage';
@@ -105,7 +113,7 @@ function AccountApp() {
   }, []);
 
   useEffect(() => {
-    if (!authUser?.userNo) {
+    if (!isAuthenticated(authUser)) {
       setOrders([]);
       setOrdersLoading(false);
       setOrdersError('');
@@ -120,7 +128,7 @@ function AccountApp() {
 
       try {
         const response = await fetch(`${ORDER_API_BASE}/me`, {
-          headers: { 'X-USER-NO': String(authUser.userNo) },
+          headers: accountHeaders(authUser),
           signal: controller.signal,
         });
 
@@ -140,7 +148,7 @@ function AccountApp() {
   }, [authUser]);
 
   useEffect(() => {
-    if (!authUser?.userNo) {
+    if (!isAuthenticated(authUser)) {
       setSummary(EMPTY_SUMMARY);
       setSummaryLoading(false);
       return undefined;
@@ -153,7 +161,7 @@ function AccountApp() {
 
       try {
         const response = await fetch(`${DASHBOARD_API_BASE}/summary`, {
-          headers: { 'X-USER-NO': String(authUser.userNo) },
+          headers: accountHeaders(authUser),
           signal: controller.signal,
         });
 
@@ -173,7 +181,7 @@ function AccountApp() {
   }, [authUser]);
 
   useEffect(() => {
-    if (!authUser?.userNo) {
+    if (!isAuthenticated(authUser)) {
       setProfile(EMPTY_PROFILE);
       setProfileLoading(false);
       setProfileError('');
@@ -188,7 +196,7 @@ function AccountApp() {
 
       try {
         const response = await fetch(`${USER_API_BASE}/me`, {
-          headers: { 'X-USER-NO': String(authUser.userNo) },
+          headers: accountHeaders(authUser),
           signal: controller.signal,
         });
 
@@ -208,7 +216,7 @@ function AccountApp() {
   }, [authUser]);
 
   useEffect(() => {
-    if (!authUser?.userNo || !selectedOrderNo) {
+    if (!isAuthenticated(authUser) || !selectedOrderNo) {
       setOrderDetail(null);
       setDetailError('');
       return undefined;
@@ -222,7 +230,7 @@ function AccountApp() {
 
       try {
         const response = await fetch(`${ORDER_API_BASE}/me/${selectedOrderNo}`, {
-          headers: { 'X-USER-NO': String(authUser.userNo) },
+          headers: accountHeaders(authUser),
           signal: controller.signal,
         });
 
@@ -274,10 +282,7 @@ function AccountApp() {
     try {
       const response = await fetch(`${USER_API_BASE}/me`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-USER-NO': String(authUser.userNo),
-        },
+        headers: accountHeaders(authUser, true),
         body: JSON.stringify(profileForm),
       });
 
@@ -299,7 +304,7 @@ function AccountApp() {
 
     try {
       const response = await fetch(ADDRESS_API_BASE, {
-        headers: { 'X-USER-NO': String(authUser.userNo) },
+        headers: accountHeaders(authUser),
       });
 
       const payload = await parseApiResponse(response, '배송지 목록을 불러오지 못했습니다.');
@@ -338,7 +343,7 @@ function AccountApp() {
 
   async function refreshProfile() {
     const profileResponse = await fetch(`${USER_API_BASE}/me`, {
-      headers: { 'X-USER-NO': String(authUser.userNo) },
+      headers: accountHeaders(authUser),
     });
     const profilePayload = await parseApiResponse(profileResponse, '회원 정보를 불러오지 못했습니다.');
     if (profilePayload.data) {
@@ -354,10 +359,7 @@ function AccountApp() {
     try {
       const response = await fetch(ADDRESS_API_BASE, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-USER-NO': String(authUser.userNo),
-        },
+        headers: accountHeaders(authUser, true),
         body: JSON.stringify(addressForm),
       });
 
@@ -380,7 +382,7 @@ function AccountApp() {
     try {
       const response = await fetch(`${ADDRESS_API_BASE}/${addressNo}/default`, {
         method: 'PATCH',
-        headers: { 'X-USER-NO': String(authUser.userNo) },
+        headers: accountHeaders(authUser),
       });
 
       const payload = await parseApiResponse(response, '기본 배송지 변경에 실패했습니다.');
@@ -409,7 +411,7 @@ function AccountApp() {
   return (
     <div className="account-app page-shell">
       <main className="container">
-        {!authUser?.userNo ? (
+        {!isAuthenticated(authUser) ? (
           <section className="card">
             <div className="page-head" style={{ marginBottom: '8px' }}>
               <div>

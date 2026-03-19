@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
-import { parseApiResponse, setAuthUser } from '../auth';
+import { requestAuthApi, setAuthUser } from '../auth';
 import '../styles/user.css';
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
-const AUTH_API_BASE = `${API_BASE_URL}/api/auth`;
 
 const INITIAL_FORM = {
   userId: '',
@@ -21,7 +18,7 @@ const INITIAL_DUPLICATE_STATUS = {
   nickname: { checked: false, available: false, message: '' },
 };
 
-export default function SignupPage() {
+function SignupPage() {
   const [form, setForm] = useState(INITIAL_FORM);
   const [duplicateStatus, setDuplicateStatus] = useState(INITIAL_DUPLICATE_STATUS);
   const [error, setError] = useState('');
@@ -44,31 +41,35 @@ export default function SignupPage() {
 
   async function checkDuplicate(field) {
     const value = form[field]?.trim();
-    if (!value) {
-      return false;
-    }
-
-    const queryKey =
-      field === 'userId' ? 'userId' : field === 'email' ? 'email' : 'nickname';
+    const label = field === 'userId' ? '아이디' : field === 'email' ? '이메일' : '닉네임';
     const endpoint =
       field === 'userId' ? 'check-userid' : field === 'email' ? 'check-email' : 'check-nickname';
 
+    if (!value) {
+      const message = `${label}을(를) 입력해 주세요.`;
+      setDuplicateStatus((current) => ({
+        ...current,
+        [field]: { checked: true, available: false, message },
+      }));
+      return false;
+    }
+
     try {
-      const response = await fetch(
-        `${AUTH_API_BASE}/${endpoint}?${new URLSearchParams({ [queryKey]: value }).toString()}`
+      const payload = await requestAuthApi(
+        `/api/auth/${endpoint}?${new URLSearchParams({ [field]: value }).toString()}`,
+        { method: 'GET' },
+        '중복 확인에 실패했습니다.'
       );
-      const payload = await parseApiResponse(response, '중복 확인에 실패했습니다.');
+
       const available = Boolean(payload.data?.available);
-      const nextMessage = available
-        ? '사용 가능한 값입니다.'
-        : `${field === 'userId' ? '아이디' : field === 'email' ? '이메일' : '닉네임'}가 이미 사용 중입니다.`;
+      const message = available ? '사용 가능한 값입니다.' : `${label}이 이미 사용 중입니다.`;
 
       setDuplicateStatus((current) => ({
         ...current,
         [field]: {
           checked: true,
           available,
-          message: nextMessage,
+          message,
         },
       }));
 
@@ -91,20 +92,14 @@ export default function SignupPage() {
     const fields = ['userId', 'email', 'nickname'];
 
     for (const field of fields) {
-      const currentValue = form[field]?.trim();
-      if (!currentValue) {
-        setError('아이디, 이메일, 닉네임을 모두 입력해 주세요.');
+      const value = form[field]?.trim();
+      if (!value) {
+        setError(`${field === 'userId' ? '아이디' : field === 'email' ? '이메일' : '닉네임'}를 입력해 주세요.`);
         return false;
       }
 
-      if (!duplicateStatus[field].checked) {
-        const available = await checkDuplicate(field);
-        if (!available) {
-          setError(duplicateStatus[field].message || '중복된 값이 있습니다.');
-          return false;
-        }
-      } else if (!duplicateStatus[field].available) {
-        setError(duplicateStatus[field].message || '중복된 값이 있습니다.');
+      const available = await checkDuplicate(field);
+      if (!available) {
         return false;
       }
     }
@@ -117,7 +112,7 @@ export default function SignupPage() {
     setError('');
 
     if (form.password !== form.passwordConfirm) {
-      setError('비밀번호 확인이 일치하지 않습니다.');
+      setError('비밀번호와 비밀번호 확인이 일치하지 않습니다.');
       return;
     }
 
@@ -134,39 +129,30 @@ export default function SignupPage() {
     setSubmitting(true);
 
     try {
-      const signupResponse = await fetch(`${AUTH_API_BASE}/signup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const signupPayload = await requestAuthApi(
+        '/api/auth/signup',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: form.userId.trim(),
+            email: form.email.trim(),
+            password: form.password,
+            nickname: form.nickname.trim(),
+            phone: form.phone.trim(),
+          }),
         },
-        body: JSON.stringify({
-          userId: form.userId.trim(),
-          email: form.email.trim(),
-          password: form.password,
-          nickname: form.nickname.trim(),
-          phone: form.phone.trim(),
-        }),
-      });
+        '회원가입에 실패했습니다.'
+      );
 
-      await parseApiResponse(signupResponse, '회원가입에 실패했습니다.');
-
-      const loginResponse = await fetch(`${AUTH_API_BASE}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: form.userId.trim(),
-          password: form.password,
-        }),
-      });
-
-      const loginPayload = await parseApiResponse(loginResponse, '회원가입 후 로그인에 실패했습니다.');
-      if (loginPayload.data) {
-        setAuthUser(loginPayload.data);
+      if (signupPayload.data) {
+        setAuthUser(signupPayload.data);
+        window.location.hash = signupPayload.data.passwordChangeRequired
+          ? '#/password-change'
+          : '#/mypage';
       }
-
-      window.location.hash = '#/mypage';
     } catch (requestError) {
       setError(requestError.message || '회원가입에 실패했습니다.');
     } finally {
@@ -201,30 +187,32 @@ export default function SignupPage() {
           <article className="auth-brand">
             <span className="eyebrow">oneulFarm 회원가입</span>
             <h1>
-              절약 리포트를
+              오늘의 식생활,
               <br />
-              <span className="accent">지금 바로 시작하세요</span>
+              <span className="accent">지금 바로 시작해 보세요</span>
             </h1>
 
             <p className="muted">
-              가입 후 구매 데이터와 주문 정보를 바탕으로 절약 금액과 추천 상품을 바로 확인할 수 있습니다.
+              가입 후에는 구매 이력, 장바구니, 시세 비교 추천까지 한 번에 이용할 수 있습니다.
             </p>
 
             <div className="quick-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: '28px' }}>
               <div className="quick-card soft-green">
-                <div className="quick-label">절약 대시보드</div>
-                <div className="quick-value">자동 집계</div>
+                <div className="quick-label">시세 비교</div>
+                <div className="quick-value">상품별 저렴함 확인</div>
               </div>
 
               <div className="quick-card soft-yellow">
                 <div className="quick-label">맞춤 추천</div>
-                <div className="quick-value">구매 이력 기반</div>
+                <div className="quick-value">레시피 기반 상품 추천</div>
               </div>
             </div>
           </article>
 
           <article className="auth-form">
-            <div className="card-title" style={{ fontSize: '28px' }}>회원가입</div>
+            <div className="card-title" style={{ fontSize: '28px' }}>
+              회원가입
+            </div>
 
             <form onSubmit={handleSubmit}>
               <div className="field">
@@ -273,7 +261,7 @@ export default function SignupPage() {
               </div>
 
               <div className="field">
-                <label>휴대폰 번호</label>
+                <label>연락처</label>
                 <input
                   className="input"
                   type="tel"
@@ -306,7 +294,7 @@ export default function SignupPage() {
                   name="passwordConfirm"
                   value={form.passwordConfirm}
                   onChange={handleChange}
-                  placeholder="비밀번호를 다시 입력해 주세요"
+                  placeholder="비밀번호를 한 번 더 입력해 주세요"
                   required
                 />
               </div>
@@ -325,8 +313,13 @@ export default function SignupPage() {
 
               {error ? <div className="notice">{error}</div> : null}
 
-              <button className="btn" type="submit" style={{ width: '100%', marginTop: '18px' }} disabled={submitting}>
-                {submitting ? '가입 처리 중...' : '가입하기'}
+              <button
+                className="btn"
+                type="submit"
+                style={{ width: '100%', marginTop: '18px' }}
+                disabled={submitting}
+              >
+                {submitting ? '회원가입 처리 중...' : '회원가입'}
               </button>
             </form>
 
@@ -345,3 +338,5 @@ export default function SignupPage() {
     </div>
   );
 }
+
+export default SignupPage;

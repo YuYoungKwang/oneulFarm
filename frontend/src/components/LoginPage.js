@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
-import { parseApiResponse, setAuthUser } from '../auth';
+import { requestAuthApi, setAuthUser } from '../auth';
 import '../styles/user.css';
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
-const AUTH_API_BASE = `${API_BASE_URL}/api/auth`;
 
 const INITIAL_FIND_ID_FORM = {
   email: '',
@@ -14,7 +11,7 @@ const INITIAL_RESET_PASSWORD_FORM = {
   email: '',
 };
 
-export default function LoginPage() {
+function LoginPage() {
   const [form, setForm] = useState({
     userId: '',
     password: '',
@@ -64,18 +61,23 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const response = await fetch(`${AUTH_API_BASE}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const payload = await requestAuthApi(
+        '/api/auth/login',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(form),
         },
-        body: JSON.stringify(form),
-      });
+        '로그인에 실패했습니다.'
+      );
 
-      const payload = await parseApiResponse(response, '로그인에 실패했습니다.');
       if (payload.data) {
         setAuthUser(payload.data);
-        window.location.hash = '#/mypage';
+        window.location.hash = payload.data.passwordChangeRequired
+          ? '#/password-change'
+          : '#/mypage';
       }
     } catch (requestError) {
       setError(requestError.message || '로그인에 실패했습니다.');
@@ -91,17 +93,19 @@ export default function LoginPage() {
     setFoundUserId('');
 
     try {
-      const response = await fetch(`${AUTH_API_BASE}/find-userid`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const payload = await requestAuthApi(
+        '/api/auth/find-userid',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(findIdForm),
         },
-        body: JSON.stringify(findIdForm),
-      });
+        '아이디를 찾지 못했습니다.'
+      );
 
-      const payload = await parseApiResponse(response, '아이디를 찾지 못했습니다.');
       const resolvedUserId = payload?.data?.userId || '';
-
       setFoundUserId(resolvedUserId);
       setForm((current) => ({
         ...current,
@@ -121,17 +125,20 @@ export default function LoginPage() {
     setResetPasswordSuccess('');
 
     try {
-      const response = await fetch(`${AUTH_API_BASE}/reset-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      await requestAuthApi(
+        '/api/auth/reset-password',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(resetPasswordForm),
         },
-        body: JSON.stringify(resetPasswordForm),
-      });
+        '임시 비밀번호를 전송하지 못했습니다.'
+      );
 
-      await parseApiResponse(response, '임시 비밀번호를 전송하지 못했습니다.');
       setResetPasswordSuccess(
-        '입력한 네이버 이메일로 임시 비밀번호를 전송했습니다. 이메일 또는 아이디와 임시 비밀번호로 로그인해 주세요.'
+        '입력하신 이메일로 임시 비밀번호를 전송했습니다. 이메일에서 임시 비밀번호로 로그인해 주세요.'
       );
       setForm((current) => ({
         ...current,
@@ -177,15 +184,15 @@ export default function LoginPage() {
     window.location.hash = '#/signup';
   }
 
-  function redirectToSocialLogin(url) {
-    window.location.href = url;
-  }
-
   function handleKakaoLogin() {
-    const restApiKey =
-      process.env.REACT_APP_KAKAO_REST_API_KEY || '여기에_카카오_REST_API_KEY';
+    const restApiKey = process.env.REACT_APP_KAKAO_REST_API_KEY || '';
     const redirectUri =
       process.env.REACT_APP_KAKAO_REDIRECT_URI || 'http://localhost:3000/kakao/callback';
+
+    if (!restApiKey) {
+      window.alert('카카오 로그인 설정이 아직 없습니다.');
+      return;
+    }
 
     const kakaoUrl =
       'https://kauth.kakao.com/oauth/authorize' +
@@ -193,15 +200,19 @@ export default function LoginPage() {
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
       '&response_type=code';
 
-    redirectToSocialLogin(kakaoUrl);
+    window.location.href = kakaoUrl;
   }
 
   function handleNaverLogin() {
-    const clientId =
-      process.env.REACT_APP_NAVER_CLIENT_ID || '네이버_CLIENT_ID';
+    const clientId = process.env.REACT_APP_NAVER_CLIENT_ID || '';
     const redirectUri =
       process.env.REACT_APP_NAVER_REDIRECT_URI || 'http://localhost:3000/naver/callback';
     const state = Math.random().toString(36).slice(2);
+
+    if (!clientId) {
+      window.alert('네이버 로그인 설정이 아직 없습니다.');
+      return;
+    }
 
     const naverUrl =
       'https://nid.naver.com/oauth2.0/authorize' +
@@ -209,14 +220,18 @@ export default function LoginPage() {
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
       `&state=${state}`;
 
-    redirectToSocialLogin(naverUrl);
+    window.location.href = naverUrl;
   }
 
   function handleGoogleLogin() {
-    const clientId =
-      process.env.REACT_APP_GOOGLE_CLIENT_ID || '구글_CLIENT_ID';
+    const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || '';
     const redirectUri =
       process.env.REACT_APP_GOOGLE_REDIRECT_URI || 'http://localhost:3000/google/callback';
+
+    if (!clientId) {
+      window.alert('구글 로그인 설정이 아직 없습니다.');
+      return;
+    }
 
     const googleUrl =
       'https://accounts.google.com/o/oauth2/v2/auth' +
@@ -225,7 +240,7 @@ export default function LoginPage() {
       '&response_type=code' +
       `&scope=${encodeURIComponent('openid email profile')}`;
 
-    redirectToSocialLogin(googleUrl);
+    window.location.href = googleUrl;
   }
 
   return (
@@ -235,23 +250,20 @@ export default function LoginPage() {
           <article className="auth-brand">
             <span className="eyebrow">oneulFarm 로그인</span>
             <h1>
-              오늘 장보기를
+              오늘의 식재료,
               <br />
-              <span className="accent">계속 이어가세요</span>
+              <span className="accent">더 똑똑하게 비교해요</span>
             </h1>
             <p className="muted">
-              로그인하면 주문 내역, 절약 금액, 추천 상품을 한곳에서 확인할 수 있습니다.
+              로그인하면 장바구니, 주문 내역, 비밀번호 재설정 흐름을 한 번에 관리할 수
+              있습니다.
             </p>
 
             <ul>
-              <li>절약 금액 자동 집계</li>
-              <li>주문 및 배송 상태 확인</li>
-              <li>구매 이력 기반 맞춤 추천</li>
+              <li>장바구니와 주문 내역 확인</li>
+              <li>임시 비밀번호 발급 및 변경</li>
+              <li>구매 이력 기반 맞춤 추천 준비</li>
             </ul>
-
-            <div className="empty-illustration" style={{ marginTop: '24px' }}>
-              오늘의 장보기 흐름을 이어서 확인해보세요
-            </div>
           </article>
 
           <article className="auth-form">
@@ -287,31 +299,14 @@ export default function LoginPage() {
               </div>
 
               <div className="help-row">
-                <span
-                  className="help-link"
-                  onClick={openFindIdModal}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      openFindIdModal();
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
-                >
+                <span className="help-link" role="button" tabIndex={0} onClick={openFindIdModal}>
                   아이디 찾기
                 </span>
                 <span
                   className="help-link"
-                  onClick={openResetPasswordModal}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      openResetPasswordModal();
-                    }
-                  }}
                   role="button"
                   tabIndex={0}
+                  onClick={openResetPasswordModal}
                 >
                   비밀번호 찾기
                 </span>
@@ -329,7 +324,7 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <div className="auth-divider">간편로그인</div>
+            <div className="auth-divider">간편 로그인</div>
 
             <div className="social-grid">
               <button className="social-btn kakao" type="button" onClick={handleKakaoLogin}>
@@ -362,7 +357,7 @@ export default function LoginPage() {
             <div className="auth-modal__head">
               <div>
                 <div className="card-title">아이디 찾기</div>
-                <div className="card-sub">가입한 이메일과 연락처를 입력해 주세요.</div>
+                <div className="card-sub">이메일과 연락처를 입력해 주세요</div>
               </div>
               <button className="btn-outline" type="button" onClick={closeFindIdModal}>
                 닫기
@@ -376,7 +371,7 @@ export default function LoginPage() {
                   className="input"
                   type="email"
                   name="email"
-                  placeholder="가입한 이메일"
+                  placeholder="example@naver.com"
                   value={findIdForm.email}
                   onChange={handleFindIdChange}
                   required
@@ -389,7 +384,7 @@ export default function LoginPage() {
                   className="input"
                   type="text"
                   name="phone"
-                  placeholder="가입한 연락처"
+                  placeholder="010-0000-0000"
                   value={findIdForm.phone}
                   onChange={handleFindIdChange}
                   required
@@ -400,7 +395,7 @@ export default function LoginPage() {
 
               {foundUserId ? (
                 <div className="auth-result">
-                  찾은 아이디: <strong>{foundUserId}</strong>
+                  찾은 아이디 <strong>{foundUserId}</strong>
                 </div>
               ) : null}
 
@@ -425,7 +420,7 @@ export default function LoginPage() {
             <div className="auth-modal__head">
               <div>
                 <div className="card-title">비밀번호 찾기</div>
-                <div className="card-sub">네이버 이메일로 임시 비밀번호를 전송합니다.</div>
+                <div className="card-sub">이메일로 임시 비밀번호를 발급합니다</div>
               </div>
               <button className="btn-outline" type="button" onClick={closeResetPasswordModal}>
                 닫기
@@ -434,7 +429,7 @@ export default function LoginPage() {
 
             <form onSubmit={handleResetPasswordSubmit}>
               <div className="field">
-                <label>네이버 이메일</label>
+                <label>이메일</label>
                 <input
                   className="input"
                   type="email"
@@ -468,3 +463,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+export default LoginPage;

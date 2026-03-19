@@ -45,6 +45,7 @@ import {
   persistValue,
   readStoredValue,
 } from './productUiUtils';
+import { isAuthenticated } from '../auth';
 
 export default function ProductApp({ authUser }) {
   const [route, setRoute] = useState(() => parseHash(window.location.hash));
@@ -68,6 +69,7 @@ export default function ProductApp({ authUser }) {
     title: '',
     description: '',
   });
+  const isLoggedIn = isAuthenticated(authUser);
 
   useEffect(() => {
     if (!window.location.hash) {
@@ -139,6 +141,12 @@ export default function ProductApp({ authUser }) {
       return;
     }
 
+    if (!isLoggedIn) {
+      setCart({});
+      setOrders([]);
+      return;
+    }
+
     let cancelled = false;
 
     async function loadInitialData() {
@@ -175,7 +183,7 @@ export default function ProductApp({ authUser }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isLoggedIn]);
 
   useEffect(() => {
     if (process.env.NODE_ENV === 'test') {
@@ -422,14 +430,29 @@ export default function ProductApp({ authUser }) {
   }
 
   function openCart() {
+    if (!isLoggedIn) {
+      navigateToHash('#/login');
+      return;
+    }
+
     navigateToHash('#/cart');
   }
 
   function openCheckout() {
+    if (!isLoggedIn) {
+      navigateToHash('#/login');
+      return;
+    }
+
     navigateToHash('#/checkout');
   }
 
   function openOrders(orderId) {
+    if (!isLoggedIn) {
+      navigateToHash('#/login');
+      return;
+    }
+
     navigateToHash(
       orderId ? `#/orders/${encodeURIComponent(orderId)}` : '#/orders'
     );
@@ -444,6 +467,11 @@ export default function ProductApp({ authUser }) {
   }
 
   async function addToCart(productNo, quantity = 1) {
+    if (!isLoggedIn) {
+      navigateToHash('#/login');
+      return;
+    }
+
     if (process.env.NODE_ENV !== 'test') {
       try {
         const nextCart = await addCartItemToApi(productNo, quantity);
@@ -518,6 +546,11 @@ export default function ProductApp({ authUser }) {
   }
 
   async function submitOrder(checkoutForm) {
+    if (!isLoggedIn) {
+      navigateToHash('#/login');
+      return;
+    }
+
     if (!cartItems.length) {
       navigateToHash('#/cart');
       return;
@@ -603,7 +636,11 @@ export default function ProductApp({ authUser }) {
   return (
     <div className="product-app page-shell">
       <main className="container">
-        {routeNeedsProducts && productsStatus === 'loading' ? (
+        {route.page === 'login' ? (
+          <LoginPage />
+        ) : route.page === 'signup' ? (
+          <SignupPage />
+        ) : routeNeedsProducts && productsStatus === 'loading' ? (
           <ProductsLoadingPage />
         ) : routeNeedsProducts && productsStatus === 'error' ? (
           <ProductsErrorPage
@@ -612,33 +649,47 @@ export default function ProductApp({ authUser }) {
             onReturnToProducts={openProductList}
           />
         ) : route.page === 'cart' ? (
-          <CartPage
-            cartItems={cartItems}
-            onClearCart={clearCart}
-            onDecreaseQuantity={(productNo) =>
-              updateCartQuantity(productNo, (cart[productNo] || 1) - 1)
-            }
-            onIncreaseQuantity={(productNo) => {
-              const product = findProduct(products, productDetails, productNo);
-              const nextQuantity = (cart[productNo] || 0) + 1;
+          isLoggedIn ? (
+            <CartPage
+              cartItems={cartItems}
+              onClearCart={clearCart}
+              onDecreaseQuantity={(productNo) =>
+                updateCartQuantity(productNo, (cart[productNo] || 1) - 1)
+              }
+              onIncreaseQuantity={(productNo) => {
+                const product = findProduct(products, productDetails, productNo);
+                const nextQuantity = (cart[productNo] || 0) + 1;
 
-              updateCartQuantity(
-                productNo,
-                Math.min(product?.stockQty || nextQuantity, nextQuantity)
-              );
-            }}
-            onOpenProduct={openProduct}
-            onProceedToCheckout={openCheckout}
-            onRemoveItem={removeFromCart}
-            onReturnToProducts={openProductList}
-          />
+                updateCartQuantity(
+                  productNo,
+                  Math.min(product?.stockQty || nextQuantity, nextQuantity)
+                );
+              }}
+              onOpenProduct={openProduct}
+              onProceedToCheckout={openCheckout}
+              onRemoveItem={removeFromCart}
+              onReturnToProducts={openProductList}
+            />
+          ) : (
+            <LoginRequiredCartNotice
+              title="濡쒓렇?몄씠 ?꾩슂?⑸땲??"
+              description="?λ컮援щ땲??濡쒓렇?????댁슜?????덉뒿?덈떎."
+            />
+          )
         ) : route.page === 'checkout' ? (
-          <CheckoutPage
-            cartItems={cartItems}
-            onBackToCart={openCart}
-            onSubmitOrder={submitOrder}
-            tossConfig={tossConfig}
-          />
+          isLoggedIn ? (
+            <CheckoutPage
+              cartItems={cartItems}
+              onBackToCart={openCart}
+              onSubmitOrder={submitOrder}
+              tossConfig={tossConfig}
+            />
+          ) : (
+            <LoginRequiredCartNotice
+              title="二쇰Ц ???꾪븳 濡쒓렇?몄씠 ?꾩슂?⑸땲??"
+              description="寃곗젣瑜??꾪븯硫?癒쇱? 濡쒓렇?명빐 二쇱꽭??"
+            />
+          )
         ) : route.page === 'payment-success' || route.page === 'payment-fail' ? (
           <PaymentFlowPage
             description={
@@ -668,13 +719,20 @@ export default function ProductApp({ authUser }) {
             order={currentOrder}
           />
         ) : route.page === 'orders' ? (
-          <OrdersPage
-            onAdvanceStatus={moveOrderToNextStatus}
-            onOpenOrder={openOrders}
-            onReturnToProducts={openProductList}
-            orders={orders}
-            selectedOrderId={route.orderId}
-          />
+          isLoggedIn ? (
+            <OrdersPage
+              onAdvanceStatus={moveOrderToNextStatus}
+              onOpenOrder={openOrders}
+              onReturnToProducts={openProductList}
+              orders={orders}
+              selectedOrderId={route.orderId}
+            />
+          ) : (
+            <LoginRequiredCartNotice
+              title="二쇰Ц ?댁뿭 議고쉶瑜??꾪빐 濡쒓렇?명빐 二쇱꽭??"
+              description="二쇰Ц ?댁뿭? 濡쒓렇?????뺤씤?????덉뒿?덈떎."
+            />
+          )
         ) : route.page === 'recipe-detail' ? (
           <RecipeDetailPage recipeNo={route.recipeNo} onBack={openRecipeList} />
         ) : route.page === 'recipes' ? (

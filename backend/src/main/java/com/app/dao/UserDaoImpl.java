@@ -7,7 +7,6 @@ import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
-import com.app.dto.SignupRequestDto;
 import com.app.dto.UpdateUserProfileRequestDto;
 import com.app.dto.UserDto;
 import com.app.dto.UserProfileDto;
@@ -50,7 +49,7 @@ public class UserDaoImpl implements UserDao {
     }
 
     @Override
-    public int insertUser(SignupRequestDto request) {
+    public int insertUser(UserDto request) {
         return sqlSessionTemplate.insert(NAMESPACE + "insertUser", request);
     }
 

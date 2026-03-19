@@ -1,5 +1,7 @@
 package com.app.controller;
 
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,14 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.app.common.ApiResponse;
-import com.app.dto.ChangePasswordRequestDto;
-import com.app.dto.DuplicateCheckResponseDto;
-import com.app.dto.FindUserIdRequestDto;
-import com.app.dto.FindUserIdResponseDto;
-import com.app.dto.LoginRequestDto;
-import com.app.dto.LoginResponseDto;
-import com.app.dto.ResetPasswordRequestDto;
-import com.app.dto.SignupRequestDto;
+import com.app.dto.UserDto;
 import com.app.service.AuthService;
 
 @RestController
@@ -30,47 +25,46 @@ public class AuthController {
     private AuthService authService;
 
     @PostMapping(value = "/signup", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ApiResponse<String> signup(@RequestBody SignupRequestDto request) {
-        authService.signup(request);
-        return ApiResponse.success("OK", "회원가입 성공");
+    public ApiResponse<Map<String, Object>> signup(@RequestBody UserDto request) {
+        return ApiResponse.success(authService.signup(request), "Signup completed.");
     }
 
     @PostMapping(value = "/login", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ApiResponse<LoginResponseDto> login(@RequestBody LoginRequestDto request) {
-        return ApiResponse.success(authService.login(request), "로그인 성공");
+    public ApiResponse<Map<String, Object>> login(@RequestBody UserDto request) {
+        return ApiResponse.success(authService.login(request), "Login completed.");
     }
 
     @PostMapping(value = "/find-userid", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ApiResponse<FindUserIdResponseDto> findUserId(@RequestBody FindUserIdRequestDto request) {
-        return ApiResponse.success(authService.findUserId(request), "아이디 찾기 성공");
+    public ApiResponse<Map<String, Object>> findUserId(@RequestBody UserDto request) {
+        return ApiResponse.success(authService.findUserId(request), "User ID lookup completed.");
     }
 
     @PostMapping(value = "/reset-password", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ApiResponse<String> resetPassword(@RequestBody ResetPasswordRequestDto request) {
+    public ApiResponse<String> resetPassword(@RequestBody UserDto request) {
         authService.sendTemporaryPassword(request);
-        return ApiResponse.success("OK", "임시 비밀번호를 이메일로 전송했습니다.");
+        return ApiResponse.success("OK", "Temporary password sent.");
     }
 
     @PatchMapping(value = "/password", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ApiResponse<LoginResponseDto> changePassword(
+    public ApiResponse<Map<String, Object>> changePassword(
         @RequestHeader("X-USER-NO") Long userNo,
-        @RequestBody ChangePasswordRequestDto request
+        @RequestBody Map<String, String> request
     ) {
-        return ApiResponse.success(authService.changePassword(userNo, request), "비밀번호 변경 성공");
+        return ApiResponse.success(authService.changePassword(userNo, request), "Password changed.");
     }
 
     @GetMapping("/check-userid")
-    public ApiResponse<DuplicateCheckResponseDto> checkUserId(@RequestParam String userId) {
-        return ApiResponse.success(authService.checkUserId(userId), "아이디 중복 확인 성공");
+    public ApiResponse<Map<String, Object>> checkUserId(@RequestParam String userId) {
+        return ApiResponse.success(authService.checkUserId(userId), "User ID check completed.");
     }
 
     @GetMapping("/check-email")
-    public ApiResponse<DuplicateCheckResponseDto> checkEmail(@RequestParam String email) {
-        return ApiResponse.success(authService.checkEmail(email), "이메일 중복 확인 성공");
+    public ApiResponse<Map<String, Object>> checkEmail(@RequestParam String email) {
+        return ApiResponse.success(authService.checkEmail(email), "Email check completed.");
     }
 
     @GetMapping("/check-nickname")
-    public ApiResponse<DuplicateCheckResponseDto> checkNickname(@RequestParam String nickname) {
-        return ApiResponse.success(authService.checkNickname(nickname), "닉네임 중복 확인 성공");
+    public ApiResponse<Map<String, Object>> checkNickname(@RequestParam String nickname) {
+        return ApiResponse.success(authService.checkNickname(nickname), "Nickname check completed.");
     }
 }

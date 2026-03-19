@@ -139,7 +139,7 @@
         WHERE UPPER(TRIM(USER_ID)) = UPPER(TRIM(#{value}))
     ]]></select>
 
-    <insert id="insertUser" parameterType="com.app.dto.SignupRequestDto"><![CDATA[
+    <insert id="insertUser" parameterType="com.app.dto.UserDto"><![CDATA[
         INSERT INTO OFT_USERS (
             USER_ID,
             EMAIL,

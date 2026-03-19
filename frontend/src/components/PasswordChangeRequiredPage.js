@@ -1,9 +1,6 @@
 import { useState } from 'react';
-import { clearAuthUser, parseApiResponse, setAuthUser } from '../auth';
+import { buildAuthHeaders, clearAuthUser, requestAuthApi, setAuthUser } from '../auth';
 import '../styles/user.css';
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
-const AUTH_API_BASE = `${API_BASE_URL}/api/auth`;
 
 export default function PasswordChangeRequiredPage({ authUser }) {
   const [form, setForm] = useState({
@@ -28,16 +25,15 @@ export default function PasswordChangeRequiredPage({ authUser }) {
     setError('');
 
     try {
-      const response = await fetch(`${AUTH_API_BASE}/password`, {
+      const payload = await requestAuthApi('/api/auth/password', {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-USER-NO': String(authUser.userNo),
-        },
+        headers: buildAuthHeaders({
+          includeJson: true,
+          includeUserNo: false,
+          user: authUser,
+        }),
         body: JSON.stringify(form),
-      });
-
-      const payload = await parseApiResponse(response, '비밀번호를 변경하지 못했습니다.');
+      }, '비밀번호를 변경하지 못했습니다.');
       if (payload.data) {
         setAuthUser(payload.data);
         window.location.hash = '#/mypage';
