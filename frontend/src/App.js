@@ -36,9 +36,6 @@ function getFirstSegment(hash) {
   }
 
   const [firstSegment] = normalized.split('/');
-<<<<<<< HEAD
-  return ['dashboard', 'mypage', 'orders'].includes(firstSegment) ? 'account' : 'product';
-=======
   return firstSegment;
 }
 
@@ -58,7 +55,6 @@ function resolveAppFromHash(hash) {
   }
 
   return 'main';
->>>>>>> c1ce7f3d5ca667c168464efa8eef94efb630eb28
 }
 
 function resolveActiveSection(hash) {
@@ -72,15 +68,11 @@ function resolveActiveSection(hash) {
     return 'recipes';
   }
 
-<<<<<<< HEAD
-  if (normalized.startsWith('orders') || normalized.startsWith('mypage')) {
-=======
   if (
     firstSegment === 'orders' ||
     firstSegment === 'order-complete' ||
     firstSegment === 'mypage'
   ) {
->>>>>>> c1ce7f3d5ca667c168464efa8eef94efb630eb28
     return 'mypage';
   }
 
