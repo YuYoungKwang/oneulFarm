@@ -17,7 +17,7 @@ import com.app.dto.UserDto;
 public class AuthServiceImpl implements AuthService {
 
     private static final String TEMP_PASSWORD_SOURCE =
-        "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+        "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
     private static final int TEMP_PASSWORD_LENGTH = 10;
 
     private final UserDao userDao;
@@ -233,10 +233,6 @@ public class AuthServiceImpl implements AuthService {
 
         if (isBlank(request.getEmail())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is required.");
-        }
-
-        if (!request.getEmail().toLowerCase().endsWith("@naver.com")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only @naver.com is allowed.");
         }
     }
 

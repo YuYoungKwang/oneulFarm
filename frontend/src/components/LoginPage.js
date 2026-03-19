@@ -371,7 +371,7 @@ function LoginPage() {
                   className="input"
                   type="email"
                   name="email"
-                  placeholder="example@naver.com"
+                  placeholder="example@domain.com"
                   value={findIdForm.email}
                   onChange={handleFindIdChange}
                   required
@@ -434,7 +434,7 @@ function LoginPage() {
                   className="input"
                   type="email"
                   name="email"
-                  placeholder="example@naver.com"
+                  placeholder="example@domain.com"
                   value={resetPasswordForm.email}
                   onChange={handleResetPasswordChange}
                   required
