@@ -11,6 +11,7 @@ import PasswordChangeRequiredPage from './components/PasswordChangeRequiredPage'
 import ProductApp from './components/ProductApp';
 import MainPage from './components/Mainpage';
 import SiteFooter from './components/SiteFooter';
+import RecommendPage from './components/RecommendPage'; // 추가
 
 const MAIN_ROUTE_SEGMENTS = new Set(['', 'main', 'mainpage', 'home']);
 const PRODUCT_ROUTE_SEGMENTS = new Set([
@@ -51,6 +52,10 @@ function getFirstSegment(hash) {
 function resolveAppFromHash(hash) {
   const firstSegment = getFirstSegment(hash);
 
+      if (firstSegment === 'recommend') {
+    return 'recommend';   // ✅ 추가
+  }
+
   if (MAIN_ROUTE_SEGMENTS.has(firstSegment)) {
     return 'main';
   }
@@ -62,6 +67,7 @@ function resolveAppFromHash(hash) {
   if (PRODUCT_ROUTE_SEGMENTS.has(firstSegment)) {
     return 'product';
   }
+
 
   return 'main';
 }
@@ -77,6 +83,9 @@ function resolveActiveSection(hash) {
     return 'recipes';
   }
 
+  if (firstSegment === 'recommend') {
+  return 'recommend';
+}
   if (
     firstSegment === 'orders' ||
     firstSegment === 'order-complete' ||
@@ -88,6 +97,7 @@ function resolveActiveSection(hash) {
   if (firstSegment === 'dashboard') {
     return 'dashboard';
   }
+
 
   if (
     firstSegment === 'productapp' ||
@@ -179,6 +189,7 @@ function App() {
           {currentApp === 'main' && <MainPage />}
           {currentApp === 'product' && <ProductApp authUser={authUser} />}
           {currentApp === 'account' && <AccountApp authUser={authUser} />}
+          {currentApp === 'recommend' && <RecommendPage authUser={authUser} />}
           {currentApp === 'main' && <SiteFooter />}
         </>
       )}
