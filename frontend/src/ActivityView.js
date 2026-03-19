@@ -127,7 +127,7 @@ function ActivityView({
                       </div>
                       <button
                         type="button"
-                        className="btn line"
+                        className="btn-outline wishlist-remove-btn"
                         onClick={() => onRemoveWishlistItem(item.productNo)}
                       >
                         찜 해제

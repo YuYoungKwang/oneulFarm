@@ -797,7 +797,7 @@ function MyPageView({
             {withdrawError && <div className="form-error">{withdrawError}</div>}
 
             <div className="withdraw-actions">
-              <button type="submit" className="btn line btn-danger-line" disabled={withdrawing}>
+              <button type="submit" className="btn withdraw-submit-btn" disabled={withdrawing}>
                 {withdrawing ? '탈퇴 처리 중..' : '회원 탈퇴'}
               </button>
             </div>

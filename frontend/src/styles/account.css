@@ -1182,6 +1182,21 @@
   margin-top: auto;
 }
 
+.account-app .wishlist-remove-btn{
+  width: 100%;
+  margin-top: 12px;
+  border-color: rgba(239, 68, 68, 0.22);
+  background: linear-gradient(180deg, #fff7f7, #fff1f1);
+  color: #b91c1c;
+  font-weight: 800;
+}
+
+.account-app .wishlist-remove-btn:hover{
+  border-color: rgba(239, 68, 68, 0.34);
+  background: linear-gradient(180deg, #fff1f1, #fee2e2);
+  color: #991b1b;
+}
+
 .account-app .stack{
   display: grid;
   gap: 18px;
@@ -1914,6 +1929,17 @@
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.account-app .withdraw-submit-btn{
+  min-width: 148px;
+  background: linear-gradient(180deg, #dc2626, #b91c1c);
+  color: #fff;
+  box-shadow: 0 14px 28px rgba(185, 28, 28, 0.18);
+}
+
+.account-app .withdraw-submit-btn:hover{
+  background: linear-gradient(180deg, #b91c1c, #991b1b);
 }
 
 .account-app .detail-shell{
