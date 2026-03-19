@@ -19,6 +19,25 @@ const EMPTY_PHONE_AUTH = {
   message: '',
 };
 
+function buildProfileImageCandidates(imageUrl) {
+  const normalizedUrl = String(imageUrl || '').trim();
+
+  if (!normalizedUrl) {
+    return [];
+  }
+
+  if (/^https?:\/\//i.test(normalizedUrl) || normalizedUrl.startsWith('data:')) {
+    return [normalizedUrl];
+  }
+
+  const nextCandidates = [normalizedUrl];
+  if (normalizedUrl.startsWith('/')) {
+    nextCandidates.push(`/backend${normalizedUrl}`);
+  }
+
+  return Array.from(new Set(nextCandidates));
+}
+
 function formatCountdown(totalSeconds) {
   const safeSeconds = Math.max(0, totalSeconds);
   const minutes = String(Math.floor(safeSeconds / 60)).padStart(2, '0');
@@ -34,9 +53,12 @@ function MyPageView({
   profileForm,
   profileSubmitting,
   profileSubmitError,
+  profileImageUploading,
+  profileImageError,
   duplicateState,
   onProfileFormChange,
   onProfileSubmit,
+  onProfileImageUpload,
   onResetProfileForm,
   onDuplicateCheck,
   passwordForm,
@@ -56,6 +78,7 @@ function MyPageView({
   const [emailAuth, setEmailAuth] = useState(EMPTY_EMAIL_AUTH);
   const [phoneAuth, setPhoneAuth] = useState(EMPTY_PHONE_AUTH);
   const [profileGuardError, setProfileGuardError] = useState('');
+  const [profileImageCandidateIndex, setProfileImageCandidateIndex] = useState(0);
 
   useEffect(() => {
     if (activeEditor !== 'email' || !emailAuth.requested || emailAuth.verified || emailAuth.remainingSeconds <= 0) {
@@ -141,6 +164,16 @@ function MyPageView({
       editable: false,
     },
   ];
+  const profileInitial = String(profile.nickname || profile.userId || '?')
+    .trim()
+    .charAt(0)
+    .toUpperCase();
+  const profileImageCandidates = buildProfileImageCandidates(profile.profileImageUrl);
+  const profileImageSrc = profileImageCandidates[profileImageCandidateIndex] || '';
+
+  useEffect(() => {
+    setProfileImageCandidateIndex(0);
+  }, [profile.profileImageUrl]);
 
   function resetEmailAuth() {
     setEmailAuth(EMPTY_EMAIL_AUTH);
@@ -148,6 +181,26 @@ function MyPageView({
 
   function resetPhoneAuth() {
     setPhoneAuth(EMPTY_PHONE_AUTH);
+  }
+
+  async function handleProfileImageChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    await onProfileImageUpload(file);
+    event.target.value = '';
+  }
+
+  function handleProfileImageLoadError() {
+    setProfileImageCandidateIndex((currentIndex) => {
+      if (currentIndex >= profileImageCandidates.length - 1) {
+        return currentIndex;
+      }
+
+      return currentIndex + 1;
+    });
   }
 
   function handleStartEdit(fieldKey) {
@@ -484,6 +537,43 @@ function MyPageView({
 
       <section className="section">
         <article className="card profile-inline-card">
+          <div className="profile-inline-card__head">
+            <div className="profile-inline-card__identity">
+              <div className="profile-inline-avatar" aria-hidden="true">
+                {profile.profileImageUrl ? (
+                  <img
+                    src={profileImageSrc}
+                    alt=""
+                    className="profile-inline-avatar__image"
+                    onError={handleProfileImageLoadError}
+                  />
+                ) : (
+                  <span className="profile-inline-avatar__fallback">{profileInitial || '?'}</span>
+                )}
+              </div>
+              <div className="profile-inline-card__intro">
+                <div className="section-title">
+                  {profileLoading ? '불러오는 중..' : (profile.nickname || profile.userId || '-')}
+                </div>
+                <div className="section-sub">
+                  수정 가능한 항목은 각 행에서 바로 편집하고, 계정 정보는 같은 목록 안에서 한 번에 확인할 수 있습니다.
+                </div>
+              </div>
+            </div>
+            <div className="profile-inline-card__photo-actions">
+              <label className={`btn-outline profile-image-upload-btn ${profileImageUploading ? 'is-uploading' : ''}`}>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="profile-image-upload-btn__input"
+                  onChange={handleProfileImageChange}
+                  disabled={profileImageUploading}
+                />
+                {profileImageUploading ? '사진 업로드 중..' : '사진 변경'}
+              </label>
+              {profileImageError && <div className="form-error">{profileImageError}</div>}
+            </div>
+          </div>
           <div className="section-head">
             <div>
               <div className="section-title">

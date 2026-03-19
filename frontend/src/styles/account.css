@@ -1747,6 +1747,83 @@
   border-radius: 28px;
 }
 
+.account-app .profile-inline-card > .section-head{
+  display: none;
+}
+
+.account-app .profile-inline-card__head{
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(231, 235, 239, 0.92);
+}
+
+.account-app .profile-inline-card__identity{
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+}
+
+.account-app .profile-inline-card__intro{
+  display: grid;
+  gap: 6px;
+}
+
+.account-app .profile-inline-card__photo-actions{
+  display: grid;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.account-app .profile-inline-avatar{
+  width: 84px;
+  height: 84px;
+  border-radius: 26px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #e8f5ea, #f8fbf8);
+  border: 1px solid rgba(21, 154, 85, 0.16);
+  box-shadow: 0 16px 28px rgba(21, 154, 85, 0.08);
+}
+
+.account-app .profile-inline-avatar__image{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.account-app .profile-inline-avatar__fallback{
+  font-size: 32px;
+  font-weight: 900;
+  color: #0f7a42;
+  letter-spacing: -0.03em;
+}
+
+.account-app .profile-image-upload-btn{
+  position: relative;
+  overflow: hidden;
+  min-width: 124px;
+  justify-content: center;
+}
+
+.account-app .profile-image-upload-btn__input{
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.account-app .profile-image-upload-btn.is-uploading{
+  border-color: rgba(148, 163, 184, 0.9);
+  background: #f8fafc;
+  color: #64748b;
+}
+
 .account-app .profile-inline-list{
   display: grid;
   gap: 14px;
@@ -2105,6 +2182,17 @@
   .account-app .profile-inline-row,
 .account-app .profile-inline-row.is-editing{
     grid-template-columns: 1fr;
+  }
+
+  .account-app .profile-inline-card__head,
+  .account-app .profile-inline-card__identity{
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .account-app .profile-inline-card__photo-actions{
+    margin-left: 0;
+    width: 100%;
   }
 
   .account-app .profile-inline-editor__top{

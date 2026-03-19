@@ -246,6 +246,8 @@ function AccountApp({ authUser: initialAuthUser }) {
   const [profileForm, setProfileForm] = useState(EMPTY_PROFILE_FORM);
   const [profileSubmitError, setProfileSubmitError] = useState('');
   const [profileSubmitting, setProfileSubmitting] = useState(false);
+  const [profileImageUploading, setProfileImageUploading] = useState(false);
+  const [profileImageError, setProfileImageError] = useState('');
   const [duplicateState, setDuplicateState] = useState(EMPTY_DUPLICATE_STATE);
   const [passwordForm, setPasswordForm] = useState(EMPTY_PASSWORD_FORM);
   const [passwordError, setPasswordError] = useState('');
@@ -679,6 +681,38 @@ function AccountApp({ authUser: initialAuthUser }) {
     setProfileForm(toProfileForm(profile));
     setProfileSubmitError('');
     setDuplicateState(EMPTY_DUPLICATE_STATE);
+  }
+
+  async function handleProfileImageUpload(file) {
+    if (!file) {
+      return false;
+    }
+
+    setProfileImageUploading(true);
+    setProfileImageError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('profileImage', file);
+
+      await requestAuthApi(
+        `${USER_API_PATH}/me/profile-image`,
+        {
+          method: 'PATCH',
+          headers: accountHeaders(authUser),
+          body: formData,
+        },
+        '프로필 사진 변경에 실패했습니다.'
+      );
+
+      await refreshProfile();
+      return true;
+    } catch (error) {
+      setProfileImageError(error.message || '프로필 사진 변경에 실패했습니다.');
+      return false;
+    } finally {
+      setProfileImageUploading(false);
+    }
   }
 
   async function handleDuplicateCheck(fieldKey) {
@@ -1355,9 +1389,12 @@ function AccountApp({ authUser: initialAuthUser }) {
             profileForm={profileForm}
             profileSubmitting={profileSubmitting}
             profileSubmitError={profileSubmitError}
+            profileImageUploading={profileImageUploading}
+            profileImageError={profileImageError}
             duplicateState={duplicateState}
             onProfileFormChange={handleProfileFormChange}
             onProfileSubmit={handleProfileSubmit}
+            onProfileImageUpload={handleProfileImageUpload}
             onResetProfileForm={resetProfileForm}
             onDuplicateCheck={handleDuplicateCheck}
             passwordForm={passwordForm}
