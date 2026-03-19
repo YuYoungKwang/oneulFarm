@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import './styles/account.css';
 import DashboardView from './DashboardView';
 import MyPageView from './MyPageView';
+import ActivityView from './ActivityView';
 import OrdersView from './OrdersView';
-import ProfileDetailView from './ProfileDetailView';
 import AddressModal from './AddressModal';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
@@ -87,12 +87,21 @@ const EMPTY_ADDRESS_FORM = {
 const ACCOUNT_ROUTES = {
   dashboard: '#/dashboard',
   mypage: '#/mypage',
+  activity: '#/mypage/activity',
   orders: '#/orders',
 };
 
 function getAccountPageFromHash(hash) {
   if (hash.startsWith(ACCOUNT_ROUTES.dashboard)) {
     return 'dashboard';
+  }
+
+  if (hash.startsWith(ACCOUNT_ROUTES.activity)) {
+    return 'activity';
+  }
+
+  if (hash.startsWith('#/activity')) {
+    return 'activity';
   }
 
   if (hash.startsWith(ACCOUNT_ROUTES.orders)) {
@@ -135,6 +144,24 @@ function validateAddressForm(form) {
   return '';
 }
 
+function extractHtmlErrorMessage(text) {
+  if (!text || !text.includes('<html')) {
+    return '';
+  }
+
+  const messageMatch = text.match(/<p><b>메시지<\/b>\s*([^<]+)<\/p>/i);
+  if (messageMatch?.[1]) {
+    return messageMatch[1].trim();
+  }
+
+  const titleMatch = text.match(/<h1>([^<]+)<\/h1>/i);
+  if (titleMatch?.[1]) {
+    return titleMatch[1].trim();
+  }
+
+  return '';
+}
+
 async function parseResponse(response, fallbackMessage) {
   const text = await response.text();
   let payload = null;
@@ -146,10 +173,18 @@ async function parseResponse(response, fallbackMessage) {
   }
 
   if (!response.ok) {
-    throw new Error(payload?.message || text || fallbackMessage);
+    throw new Error(payload?.message || extractHtmlErrorMessage(text) || text || fallbackMessage);
   }
 
   return payload || {};
+}
+
+function toProfileForm(profile) {
+  return {
+    nickname: profile.nickname || '',
+    email: profile.email || '',
+    phone: profile.phone || '',
+  };
 }
 
 function AccountApp() {
@@ -179,7 +214,6 @@ function AccountApp() {
   const [profile, setProfile] = useState(EMPTY_PROFILE);
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState('');
-  const [isProfileDetailOpen, setIsProfileDetailOpen] = useState(false);
   const [profileForm, setProfileForm] = useState(EMPTY_PROFILE_FORM);
   const [profileSubmitError, setProfileSubmitError] = useState('');
   const [profileSubmitting, setProfileSubmitting] = useState(false);
@@ -205,6 +239,11 @@ function AccountApp() {
 
   useEffect(() => {
     const syncPage = () => {
+      if (window.location.hash.startsWith('#/activity')) {
+        window.location.replace(`${window.location.pathname}${window.location.search}${ACCOUNT_ROUTES.activity}`);
+        return;
+      }
+
       setCurrentPage(getAccountPageFromHash(window.location.hash));
     };
 
@@ -215,12 +254,6 @@ function AccountApp() {
       window.removeEventListener('hashchange', syncPage);
     };
   }, []);
-
-  useEffect(() => {
-    if (currentPage !== 'mypage') {
-      setIsProfileDetailOpen(false);
-    }
-  }, [currentPage]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -354,7 +387,9 @@ function AccountApp() {
           signal: controller.signal,
         });
         const payload = await parseResponse(response, '회원정보를 불러오지 못했습니다.');
-        setProfile(payload.data ? { ...EMPTY_PROFILE, ...payload.data } : EMPTY_PROFILE);
+        const nextProfile = payload.data ? { ...EMPTY_PROFILE, ...payload.data } : EMPTY_PROFILE;
+        setProfile(nextProfile);
+        setProfileForm(toProfileForm(nextProfile));
       } catch (error) {
         if (error.name !== 'AbortError') {
           setProfileError(error.message || '회원정보를 불러오지 못했습니다.');
@@ -414,33 +449,9 @@ function AccountApp() {
     window.location.hash = ACCOUNT_ROUTES[page] || ACCOUNT_ROUTES.mypage;
   }
 
-  function openProfileDetail() {
-    setProfileForm({
-      nickname: profile.nickname || '',
-      email: profile.email || '',
-      phone: profile.phone || '',
-    });
-    setPasswordForm(EMPTY_PASSWORD_FORM);
-    setWithdrawForm(EMPTY_WITHDRAW_FORM);
-    setProfileSubmitError('');
-    setPasswordError('');
-    setWithdrawError('');
-    setDuplicateState(EMPTY_DUPLICATE_STATE);
-    setIsProfileDetailOpen(true);
-  }
-
-  function closeProfileDetail() {
-    setIsProfileDetailOpen(false);
-    setProfileSubmitError('');
-    setPasswordError('');
-    setWithdrawError('');
-    setProfileSubmitting(false);
-    setPasswordSubmitting(false);
-    setWithdrawing(false);
-  }
-
   function handleProfileFormChange(event) {
     const { name, value } = event.target;
+    setProfileSubmitError('');
     setProfileForm((current) => ({
       ...current,
       [name]: value,
@@ -460,11 +471,7 @@ function AccountApp() {
   }
 
   function resetProfileForm() {
-    setProfileForm({
-      nickname: profile.nickname || '',
-      email: profile.email || '',
-      phone: profile.phone || '',
-    });
+    setProfileForm(toProfileForm(profile));
     setProfileSubmitError('');
     setDuplicateState(EMPTY_DUPLICATE_STATE);
   }
@@ -570,20 +577,18 @@ function AccountApp() {
     setProfileSubmitting(true);
     setProfileSubmitError('');
 
-    if (fieldKey === 'email' || fieldKey === 'nickname') {
+    if (fieldKey === 'nickname') {
       const nextValue = String(profileForm[fieldKey] || '').trim();
       const currentValue = String(profile[fieldKey] || '').trim();
       const state = duplicateState[fieldKey];
 
-      if (nextValue !== currentValue && (!state.available || state.checkedValue !== nextValue)) {
-        setProfileSubmitError(
-          fieldKey === 'email'
-            ? '저장 전에 이메일 중복 확인을 완료해 주세요.'
-            : '저장 전에 닉네임 중복 확인을 완료해 주세요.'
-        );
-        setProfileSubmitting(false);
-        return false;
-      }
+        if (nextValue !== currentValue && (!state.available || state.checkedValue !== nextValue)) {
+          setProfileSubmitError(
+          '저장에 실패했습니다. 닉네임 중복 확인을 완료해 주세요.'
+          );
+          setProfileSubmitting(false);
+          return false;
+        }
     }
 
     try {
@@ -598,7 +603,9 @@ function AccountApp() {
       const payload = await parseResponse(response, '회원정보를 저장하지 못했습니다.');
 
       if (payload.data) {
-        setProfile({ ...EMPTY_PROFILE, ...payload.data });
+        const nextProfile = { ...EMPTY_PROFILE, ...payload.data };
+        setProfile(nextProfile);
+        setProfileForm(toProfileForm(nextProfile));
       }
 
       if (fieldKey === 'email' || fieldKey === 'nickname') {
@@ -708,7 +715,9 @@ function AccountApp() {
     });
     const payload = await parseResponse(response, '회원정보를 불러오지 못했습니다.');
     if (payload.data) {
-      setProfile({ ...EMPTY_PROFILE, ...payload.data });
+      const nextProfile = { ...EMPTY_PROFILE, ...payload.data };
+      setProfile(nextProfile);
+      setProfileForm(toProfileForm(nextProfile));
     }
   }
 
@@ -924,7 +933,14 @@ function AccountApp() {
             className={`account-local-nav__link ${currentPage === 'mypage' ? 'is-active' : ''}`}
             onClick={() => moveToPage('mypage')}
           >
-            마이페이지
+            개인정보 관리
+          </button>
+          <button
+            type="button"
+            className={`account-local-nav__link ${currentPage === 'activity' ? 'is-active' : ''}`}
+            onClick={() => moveToPage('activity')}
+          >
+            관심 활동
           </button>
           <button
             type="button"
@@ -943,45 +959,37 @@ function AccountApp() {
         </section>
 
         {currentPage === 'mypage' ? (
-          isProfileDetailOpen ? (
-            <ProfileDetailView
-              profile={profile}
-              profileLoading={profileLoading}
-              profileError={profileError}
-              profileForm={profileForm}
-              profileSubmitting={profileSubmitting}
-              profileSubmitError={profileSubmitError}
-              duplicateState={duplicateState}
-              onProfileFormChange={handleProfileFormChange}
-              onProfileSubmit={handleProfileSubmit}
-              onResetProfileForm={resetProfileForm}
-              onDuplicateCheck={handleDuplicateCheck}
-              passwordForm={passwordForm}
-              passwordSubmitting={passwordSubmitting}
-              passwordError={passwordError}
-              onPasswordFormChange={handlePasswordFormChange}
-              onPasswordSubmit={handlePasswordSubmit}
-              onResetPasswordForm={resetPasswordForm}
-              withdrawForm={withdrawForm}
-              withdrawing={withdrawing}
-              withdrawError={withdrawError}
-              onWithdrawFormChange={handleWithdrawFormChange}
-              onWithdrawSubmit={handleWithdrawSubmit}
-              onBack={closeProfileDetail}
-              onOpenAddressModal={openAddressModal}
-            />
-          ) : (
-            <MyPageView
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              orders={orders}
-              profile={profile}
-              profileLoading={profileLoading}
-              profileError={profileError}
-              onOpenProfileDetail={openProfileDetail}
-              onOpenAddressModal={openAddressModal}
-            />
-          )
+          <MyPageView
+            orders={orders}
+            profile={profile}
+            profileLoading={profileLoading}
+            profileError={profileError}
+            profileForm={profileForm}
+            profileSubmitting={profileSubmitting}
+            profileSubmitError={profileSubmitError}
+            duplicateState={duplicateState}
+            onProfileFormChange={handleProfileFormChange}
+            onProfileSubmit={handleProfileSubmit}
+            onResetProfileForm={resetProfileForm}
+            onDuplicateCheck={handleDuplicateCheck}
+            passwordForm={passwordForm}
+            passwordSubmitting={passwordSubmitting}
+            passwordError={passwordError}
+            onPasswordFormChange={handlePasswordFormChange}
+            onPasswordSubmit={handlePasswordSubmit}
+            onResetPasswordForm={resetPasswordForm}
+            withdrawForm={withdrawForm}
+            withdrawing={withdrawing}
+            withdrawError={withdrawError}
+            onWithdrawFormChange={handleWithdrawFormChange}
+            onWithdrawSubmit={handleWithdrawSubmit}
+            onOpenAddressModal={openAddressModal}
+          />
+        ) : currentPage === 'activity' ? (
+          <ActivityView
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+          />
         ) : currentPage === 'orders' ? (
           <OrdersView
             orders={orders}

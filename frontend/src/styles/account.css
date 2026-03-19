@@ -289,6 +289,48 @@
   margin-top: 34px;
 }
 
+.account-app .mypage-section-header{
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 0 0 14px;
+  border-bottom: 1px solid rgba(231, 235, 239, 0.95);
+}
+
+.account-app .mypage-section-header--manage{
+  border-bottom-color: rgba(21, 154, 85, 0.22);
+}
+
+.account-app .mypage-section-header--activity{
+  border-bottom-color: rgba(229, 173, 34, 0.24);
+}
+
+.account-app .mypage-section-header__title{
+  margin: 10px 0 6px;
+  font-size: 27px;
+  line-height: 1.18;
+  letter-spacing: -0.03em;
+  font-weight: 900;
+  color: var(--text);
+}
+
+.account-app .activity-panel-surface{
+  display: grid;
+  gap: 18px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.account-app .activity-panel-block{
+  display: grid;
+  gap: 18px;
+}
+
 .account-app .grid-2{
   display: grid;
   grid-template-columns: 1.3fr 0.8fr;
@@ -815,6 +857,10 @@
   align-items: center;
 }
 
+.account-app .activity-panel-block .product-card{
+  background: linear-gradient(180deg, #fffefb, #ffffff);
+}
+
 .account-app .badge.green{
   background: var(--green-soft);
   color: var(--green-dark);
@@ -1099,6 +1145,11 @@
   color: #166534;
 }
 
+.account-app .form-error--soft{
+  background: #f8fafb;
+  color: #64748b;
+}
+
 .account-app .modal-actions{
   display: flex;
   justify-content: flex-end;
@@ -1169,11 +1220,12 @@
 }
 
 .account-app .profile-inline-row{
+  position: relative;
   display: grid;
-  grid-template-columns: 140px minmax(0, 1fr) auto;
+  grid-template-columns: 150px minmax(0, 1fr) auto;
   gap: 16px;
   align-items: center;
-  padding: 18px 0;
+  padding: 18px 0 18px 18px;
   border-top: 1px solid var(--line);
 }
 
@@ -1203,8 +1255,34 @@
 }
 
 .account-app .profile-inline-row.is-editing{
-  grid-template-columns: 140px minmax(0, 1fr);
+  grid-template-columns: 150px minmax(0, 1fr);
   align-items: start;
+}
+
+.account-app .profile-inline-row--saving{
+  padding: 18px 0 18px 18px;
+  background: rgba(241, 249, 244, 0.5);
+}
+
+.account-app .profile-inline-row--saving::before{
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 18px;
+  bottom: 18px;
+  width: 4px;
+  border-radius: 999px;
+  background: rgba(21, 154, 85, 0.38);
+}
+
+.account-app .profile-inline-row--saving .profile-inline-row__label{
+  color: #3f6c52;
+}
+
+.account-app .profile-inline-row--saving .profile-inline-row__value{
+  color: #0f7a42;
+  font-size: 22px;
+  font-weight: 900;
 }
 
 .account-app .profile-inline-editor{
@@ -1242,6 +1320,65 @@
 
 .account-app .profile-inline-editor--password{
   gap: 16px;
+}
+
+.account-app .profile-inline-verify{
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: #f8fafb;
+  border: 1px solid rgba(231, 235, 239, 0.9);
+}
+
+.account-app .profile-inline-verify__head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.account-app .profile-inline-verify__title{
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.account-app .profile-inline-verify__sub{
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.account-app .profile-inline-verify__timer{
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f7a42;
+  white-space: nowrap;
+}
+
+.account-app .profile-inline-verify__code{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.account-app .profile-inline-verify__code input{
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 16px;
+  font: inherit;
+  color: var(--text);
+  background: #fff;
+}
+
+.account-app .profile-inline-verify__code input:focus{
+  outline: none;
+  border-color: rgba(21, 154, 85, 0.6);
+  box-shadow: 0 0 0 4px rgba(21, 154, 85, 0.08);
 }
 
 .account-app .withdraw-card{
@@ -1383,11 +1520,12 @@
     grid-template-columns: 1fr;
   }
 
-  .account-app .page-head,
+.account-app .page-head,
 .account-app .order-top,
 .account-app .help-row,
 .account-app .section-head,
-.account-app .mypage-preview-card__head{
+.account-app .mypage-preview-card__head,
+.account-app .mypage-section-header{
     align-items: flex-start;
     flex-direction: column;
   }
@@ -1408,6 +1546,10 @@
   }
 
   .account-app .profile-inline-editor__top{
+    grid-template-columns: 1fr;
+  }
+
+  .account-app .profile-inline-verify__code{
     grid-template-columns: 1fr;
   }
 
