@@ -288,6 +288,144 @@
   gap: 10px;
 }
 
+.account-app .page-head--dashboard{
+  margin-bottom: 18px;
+}
+
+.account-app .dashboard-hero{
+  display: grid;
+  grid-template-columns: 1.35fr 0.95fr;
+  gap: 18px;
+  align-items: stretch;
+}
+
+.account-app .dashboard-hero-card,
+.account-app .dashboard-panel{
+  display: grid;
+  gap: 18px;
+}
+
+.account-app .dashboard-hero-card--saving{
+  background:
+    radial-gradient(circle at top right, rgba(21, 154, 85, 0.14), transparent 32%),
+    linear-gradient(180deg, rgba(241, 250, 244, 0.98), rgba(255, 255, 255, 0.98));
+}
+
+.account-app .dashboard-hero-card--summary{
+  background: linear-gradient(180deg, #ffffff, #f8fbfc);
+}
+
+.account-app .dashboard-panel-head{
+  display: grid;
+  gap: 8px;
+}
+
+.account-app .dashboard-panel-title{
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+
+.account-app .dashboard-panel-copy{
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #64748b;
+}
+
+.account-app .dashboard-savings-grid{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.account-app .dashboard-savings-tile{
+  display: grid;
+  gap: 10px;
+  min-height: 196px;
+  padding: 22px 22px 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(231, 235, 239, 0.85);
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.account-app .dashboard-savings-tile--primary{
+  border-color: rgba(21, 154, 85, 0.24);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(242, 251, 245, 0.98));
+}
+
+.account-app .dashboard-savings-tile--secondary{
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.98));
+}
+
+.account-app .dashboard-savings-copy{
+  margin: 0;
+  font-size: 15px;
+  color: #64748b;
+}
+
+.account-app .dashboard-summary-list{
+  display: grid;
+  gap: 12px;
+}
+
+.account-app .dashboard-summary-item{
+  display: grid;
+  gap: 10px;
+  padding: 18px 18px 16px;
+  border-radius: 22px;
+  border: 1px solid rgba(231, 235, 239, 0.88);
+  background: #f8fafb;
+}
+
+.account-app .dashboard-summary-item--accent{
+  border-color: rgba(21, 154, 85, 0.2);
+  background: linear-gradient(180deg, rgba(241, 250, 244, 0.94), rgba(249, 252, 250, 0.98));
+}
+
+.account-app .dashboard-summary-item__label{
+  font-size: 15px;
+  font-weight: 800;
+  color: #64748b;
+}
+
+.account-app .dashboard-summary-item__value{
+  font-size: 28px;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+
+.account-app .dashboard-summary-item--accent .dashboard-summary-item__value{
+  color: #0f7a42;
+}
+
+.account-app .dashboard-main-grid{
+  display: grid;
+  grid-template-columns: 1.3fr 0.9fr;
+  gap: 18px;
+  margin-top: 34px;
+  align-items: start;
+}
+
+.account-app .dashboard-side-stack{
+  display: grid;
+  gap: 18px;
+}
+
+.account-app .dashboard-panel--chart{
+  min-height: 100%;
+}
+
+.account-app .dashboard-panel--focus{
+  background: linear-gradient(180deg, rgba(252, 254, 252, 0.98), rgba(247, 251, 248, 0.98));
+}
+
+.account-app .dashboard-panel--analysis{
+  background: linear-gradient(180deg, #ffffff, #fbfcfd);
+}
+
 .account-app .dashboard-kpi-card--primary{
   min-height: 212px;
   padding-top: 24px;
@@ -1178,11 +1316,45 @@
 }
 
 .account-app .chart-shell{
-  margin-top: 16px;
-  padding: 18px;
+  margin-top: 0;
+  padding: 20px 18px 18px;
   border-radius: 24px;
   border: 1px solid var(--line);
   background: #fcfcfb;
+}
+
+.account-app .dashboard-summary-strip{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.account-app .dashboard-summary-strip__item{
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(231, 235, 239, 0.88);
+  background: #f8fafb;
+}
+
+.account-app .dashboard-summary-strip__label{
+  font-size: 14px;
+  font-weight: 800;
+  color: #64748b;
+}
+
+.account-app .dashboard-summary-strip__value{
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+
+.account-app .dashboard-summary-strip__meta{
+  font-size: 14px;
+  color: #64748b;
 }
 
 .account-app .bar-chart{
@@ -1842,6 +2014,11 @@
     grid-template-columns: repeat(2, 1fr);
   }
 
+  .account-app .dashboard-hero,
+  .account-app .dashboard-main-grid{
+    grid-template-columns: 1fr;
+  }
+
   .account-app .grid-2{
     grid-template-columns: 1fr;
   }
@@ -1882,6 +2059,14 @@
   }
 
   .account-app .order-item{
+    grid-template-columns: 1fr;
+  }
+
+  .account-app .dashboard-savings-grid{
+    grid-template-columns: 1fr;
+  }
+
+  .account-app .dashboard-summary-strip{
     grid-template-columns: 1fr;
   }
 
