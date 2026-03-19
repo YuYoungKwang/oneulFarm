@@ -825,6 +825,18 @@
   color: var(--text);
 }
 
+.account-app .review-product-link{
+  color: var(--text);
+  font-size: 19px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.account-app .review-product-link:hover{
+  color: var(--green-dark);
+  text-decoration: underline;
+}
+
 .account-app .review-card__meta{
   margin-top: 4px;
   font-size: 15px;

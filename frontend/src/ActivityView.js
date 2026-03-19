@@ -225,7 +225,13 @@ function ActivityView({
                             <div className="review-card__body">
                               <div className="review-card__top">
                                 <div>
-                                  <div className="review-card__title">{review.productName}</div>
+                                  {review.productNo ? (
+                                    <a href={`#/products/${review.productNo}`} className="review-product-link">
+                                      {review.productName}
+                                    </a>
+                                  ) : (
+                                    <div className="review-card__title">{review.productName}</div>
+                                  )}
                                   <div className="review-card__meta">
                                     {review.orderId} · {formatDate(review.orderedAt)}
                                   </div>
@@ -270,7 +276,13 @@ function ActivityView({
                             <div className="review-card__body">
                               <div className="review-card__top">
                                 <div>
-                                  <div className="review-card__title">{review.productName}</div>
+                                  {review.productNo ? (
+                                    <a href={`#/products/${review.productNo}`} className="review-product-link">
+                                      {review.productName}
+                                    </a>
+                                  ) : (
+                                    <div className="review-card__title">{review.productName}</div>
+                                  )}
                                   <div className="review-card__meta">
                                     {review.orderId} · {formatDate(review.createdAt)}
                                   </div>
