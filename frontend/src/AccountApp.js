@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { buildAuthHeaders, getAuthUser, isAuthenticated, requestAuthApi } from './auth';
 import './styles/account.css';
 import DashboardView from './DashboardView';
 import MyPageView from './MyPageView';
@@ -8,13 +9,11 @@ import AddressModal from './AddressModal';
 import { addCartItemToApi, fetchProductsFromApi } from './api/productApi';
 import { persistValue, readStoredValue } from './components/productUiUtils';
 
-const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || '').replace(/\/+$/, '');
-const ORDER_API_BASE = `${API_BASE_URL}/api/orders`;
-const DASHBOARD_API_BASE = `${API_BASE_URL}/api/dashboard`;
-const USER_API_BASE = `${API_BASE_URL}/api/users`;
-const ADDRESS_API_BASE = `${USER_API_BASE}/me/addresses`;
-const REVIEW_API_BASE = `${API_BASE_URL}/api/reviews`;
-const DEMO_USER_NO = '1';
+const ORDER_API_PATH = '/api/orders';
+const DASHBOARD_API_PATH = '/api/dashboard';
+const USER_API_PATH = '/api/users';
+const ADDRESS_API_PATH = '/api/users/me/addresses';
+const REVIEW_API_PATH = '/api/reviews';
 const WISHLIST_STORAGE_KEY = 'oneulFarmWishlist';
 const CART_STORAGE_KEY = 'oneulFarmCart';
 
@@ -102,6 +101,13 @@ const ACCOUNT_ROUTES = {
   orders: '#/orders',
 };
 
+function accountHeaders(authUser, includeJson = false) {
+  return buildAuthHeaders({
+    includeJson,
+    user: authUser,
+  });
+}
+
 function getAccountPageFromHash(hash) {
   if (hash.startsWith(ACCOUNT_ROUTES.dashboard)) {
     return 'dashboard';
@@ -153,41 +159,6 @@ function validateAddressForm(form) {
   }
 
   return '';
-}
-
-function extractHtmlErrorMessage(text) {
-  if (!text || !text.includes('<html')) {
-    return '';
-  }
-
-  const messageMatch = text.match(/<p><b>메시지<\/b>\s*([^<]+)<\/p>/i);
-  if (messageMatch?.[1]) {
-    return messageMatch[1].trim();
-  }
-
-  const titleMatch = text.match(/<h1>([^<]+)<\/h1>/i);
-  if (titleMatch?.[1]) {
-    return titleMatch[1].trim();
-  }
-
-  return '';
-}
-
-async function parseResponse(response, fallbackMessage) {
-  const text = await response.text();
-  let payload = null;
-
-  try {
-    payload = text ? JSON.parse(text) : null;
-  } catch (error) {
-    payload = null;
-  }
-
-  if (!response.ok) {
-    throw new Error(payload?.message || extractHtmlErrorMessage(text) || text || fallbackMessage);
-  }
-
-  return payload || {};
 }
 
 function toProfileForm(profile) {
@@ -244,7 +215,8 @@ function buildWishlistSavingRate(product) {
   return Math.round(savingRate);
 }
 
-function AccountApp() {
+function AccountApp({ authUser: initialAuthUser }) {
+  const [authUser, setAuthUser] = useState(() => initialAuthUser || getAuthUser());
   const [currentPage, setCurrentPage] = useState(() =>
     getAccountPageFromHash(window.location.hash)
   );
@@ -310,23 +282,38 @@ function AccountApp() {
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [deletingReviewNo, setDeletingReviewNo] = useState(null);
 
-  async function loadReviewsData() {
+  useEffect(() => {
+    setAuthUser(initialAuthUser || getAuthUser());
+  }, [initialAuthUser]);
+
+  const loadReviewsData = useCallback(async () => {
+    if (!isAuthenticated(authUser)) {
+      setWritableReviews([]);
+      setMyReviews([]);
+      setReviewsError('');
+      setReviewsLoading(false);
+      return;
+    }
+
     setReviewsLoading(true);
     setReviewsError('');
 
     try {
-      const [writableResponse, myReviewsResponse] = await Promise.all([
-        fetch(`${REVIEW_API_BASE}/me/writable`, {
-          headers: { 'X-USER-NO': DEMO_USER_NO },
-        }),
-        fetch(`${REVIEW_API_BASE}/me`, {
-          headers: { 'X-USER-NO': DEMO_USER_NO },
-        }),
-      ]);
-
       const [writablePayload, myReviewsPayload] = await Promise.all([
-        parseResponse(writableResponse, '작성 가능한 리뷰 목록을 불러오지 못했습니다.'),
-        parseResponse(myReviewsResponse, '내 리뷰 목록을 불러오지 못했습니다.'),
+        requestAuthApi(
+          `${REVIEW_API_PATH}/me/writable`,
+          {
+            headers: accountHeaders(authUser),
+          },
+          '작성 가능한 리뷰 목록을 불러오지 못했습니다.'
+        ),
+        requestAuthApi(
+          `${REVIEW_API_PATH}/me`,
+          {
+            headers: accountHeaders(authUser),
+          },
+          '내 리뷰 목록을 불러오지 못했습니다.'
+        ),
       ]);
 
       setWritableReviews(Array.isArray(writablePayload.data) ? writablePayload.data : []);
@@ -338,7 +325,7 @@ function AccountApp() {
     } finally {
       setReviewsLoading(false);
     }
-  }
+  }, [authUser]);
 
   useEffect(() => {
     const syncPage = () => {
@@ -348,13 +335,18 @@ function AccountApp() {
       }
 
       setCurrentPage(getAccountPageFromHash(window.location.hash));
+      setAuthUser(getAuthUser());
     };
 
     syncPage();
     window.addEventListener('hashchange', syncPage);
+    window.addEventListener('storage', syncPage);
+    window.addEventListener('oneulFarm:storage-change', syncPage);
 
     return () => {
       window.removeEventListener('hashchange', syncPage);
+      window.removeEventListener('storage', syncPage);
+      window.removeEventListener('oneulFarm:storage-change', syncPage);
     };
   }, []);
 
@@ -421,9 +413,16 @@ function AccountApp() {
 
   useEffect(() => {
     loadReviewsData();
-  }, []);
+  }, [loadReviewsData]);
 
   useEffect(() => {
+    if (!isAuthenticated(authUser)) {
+      setOrders([]);
+      setOrdersLoading(false);
+      setOrdersError('');
+      return undefined;
+    }
+
     const controller = new AbortController();
 
     async function fetchOrders() {
@@ -442,14 +441,14 @@ function AccountApp() {
           query.set('dateTo', appliedOrderFilters.dateTo);
         }
 
-        const response = await fetch(
-          `${ORDER_API_BASE}/me${query.toString() ? `?${query.toString()}` : ''}`,
+        const payload = await requestAuthApi(
+          `${ORDER_API_PATH}/me${query.toString() ? `?${query.toString()}` : ''}`,
           {
-            headers: { 'X-USER-NO': DEMO_USER_NO },
+            headers: accountHeaders(authUser),
             signal: controller.signal,
-          }
+          },
+          '주문 목록을 불러오지 못했습니다.'
         );
-        const payload = await parseResponse(response, '주문 목록을 불러오지 못했습니다.');
         setOrders(Array.isArray(payload.data) ? payload.data : []);
       } catch (error) {
         if (error.name !== 'AbortError') {
@@ -462,20 +461,29 @@ function AccountApp() {
 
     fetchOrders();
     return () => controller.abort();
-  }, [appliedOrderFilters]);
+  }, [authUser, appliedOrderFilters]);
 
   useEffect(() => {
+    if (!isAuthenticated(authUser)) {
+      setSummary(EMPTY_SUMMARY);
+      setSummaryLoading(false);
+      return undefined;
+    }
+
     const controller = new AbortController();
 
     async function fetchSummary() {
       setSummaryLoading(true);
 
       try {
-        const response = await fetch(`${DASHBOARD_API_BASE}/summary`, {
-          headers: { 'X-USER-NO': DEMO_USER_NO },
-          signal: controller.signal,
-        });
-        const payload = await parseResponse(response, '대시보드 요약을 불러오지 못했습니다.');
+        const payload = await requestAuthApi(
+          `${DASHBOARD_API_PATH}/summary`,
+          {
+            headers: accountHeaders(authUser),
+            signal: controller.signal,
+          },
+          '대시보드 요약을 불러오지 못했습니다.'
+        );
         setSummary(payload.data ? { ...EMPTY_SUMMARY, ...payload.data } : EMPTY_SUMMARY);
       } catch (error) {
         if (error.name !== 'AbortError') {
@@ -488,9 +496,18 @@ function AccountApp() {
 
     fetchSummary();
     return () => controller.abort();
-  }, []);
+  }, [authUser]);
 
   useEffect(() => {
+    if (!isAuthenticated(authUser)) {
+      setMonthlySavings([]);
+      setProductSavings([]);
+      setDashboardPatterns(EMPTY_DASHBOARD_PATTERNS);
+      setDashboardError('');
+      setDashboardLoading(false);
+      return undefined;
+    }
+
     const controller = new AbortController();
 
     async function fetchDashboardDetails() {
@@ -498,25 +515,31 @@ function AccountApp() {
       setDashboardError('');
 
       try {
-        const [monthlyResponse, productResponse, patternsResponse] = await Promise.all([
-          fetch(`${DASHBOARD_API_BASE}/monthly-savings`, {
-            headers: { 'X-USER-NO': DEMO_USER_NO },
-            signal: controller.signal,
-          }),
-          fetch(`${DASHBOARD_API_BASE}/product-savings`, {
-            headers: { 'X-USER-NO': DEMO_USER_NO },
-            signal: controller.signal,
-          }),
-          fetch(`${DASHBOARD_API_BASE}/patterns`, {
-            headers: { 'X-USER-NO': DEMO_USER_NO },
-            signal: controller.signal,
-          }),
-        ]);
-
         const [monthlyPayload, productPayload, patternsPayload] = await Promise.all([
-          parseResponse(monthlyResponse, '대시보드 차트 데이터를 불러오지 못했습니다.'),
-          parseResponse(productResponse, '대시보드 품목 분석 데이터를 불러오지 못했습니다.'),
-          parseResponse(patternsResponse, '대시보드 소비 패턴 데이터를 불러오지 못했습니다.'),
+          requestAuthApi(
+            `${DASHBOARD_API_PATH}/monthly-savings`,
+            {
+              headers: accountHeaders(authUser),
+              signal: controller.signal,
+            },
+            '대시보드 차트 데이터를 불러오지 못했습니다.'
+          ),
+          requestAuthApi(
+            `${DASHBOARD_API_PATH}/product-savings`,
+            {
+              headers: accountHeaders(authUser),
+              signal: controller.signal,
+            },
+            '대시보드 품목 분석 데이터를 불러오지 못했습니다.'
+          ),
+          requestAuthApi(
+            `${DASHBOARD_API_PATH}/patterns`,
+            {
+              headers: accountHeaders(authUser),
+              signal: controller.signal,
+            },
+            '대시보드 소비 패턴 데이터를 불러오지 못했습니다.'
+          ),
         ]);
 
         setMonthlySavings(Array.isArray(monthlyPayload.data) ? monthlyPayload.data : []);
@@ -540,9 +563,17 @@ function AccountApp() {
 
     fetchDashboardDetails();
     return () => controller.abort();
-  }, []);
+  }, [authUser]);
 
   useEffect(() => {
+    if (!isAuthenticated(authUser)) {
+      setProfile(EMPTY_PROFILE);
+      setProfileForm(EMPTY_PROFILE_FORM);
+      setProfileLoading(false);
+      setProfileError('');
+      return undefined;
+    }
+
     const controller = new AbortController();
 
     async function fetchProfile() {
@@ -550,11 +581,14 @@ function AccountApp() {
       setProfileError('');
 
       try {
-        const response = await fetch(`${USER_API_BASE}/me`, {
-          headers: { 'X-USER-NO': DEMO_USER_NO },
-          signal: controller.signal,
-        });
-        const payload = await parseResponse(response, '회원정보를 불러오지 못했습니다.');
+        const payload = await requestAuthApi(
+          `${USER_API_PATH}/me`,
+          {
+            headers: accountHeaders(authUser),
+            signal: controller.signal,
+          },
+          '회원정보를 불러오지 못했습니다.'
+        );
         const nextProfile = payload.data ? { ...EMPTY_PROFILE, ...payload.data } : EMPTY_PROFILE;
         setProfile(nextProfile);
         setProfileForm(toProfileForm(nextProfile));
@@ -569,10 +603,10 @@ function AccountApp() {
 
     fetchProfile();
     return () => controller.abort();
-  }, []);
+  }, [authUser]);
 
   useEffect(() => {
-    if (!selectedOrderNo) {
+    if (!isAuthenticated(authUser) || !selectedOrderNo) {
       setOrderDetail(null);
       setDetailError('');
       return;
@@ -585,11 +619,14 @@ function AccountApp() {
       setDetailError('');
 
       try {
-        const response = await fetch(`${ORDER_API_BASE}/me/${selectedOrderNo}`, {
-          headers: { 'X-USER-NO': DEMO_USER_NO },
-          signal: controller.signal,
-        });
-        const payload = await parseResponse(response, '주문 상세를 불러오지 못했습니다.');
+        const payload = await requestAuthApi(
+          `${ORDER_API_PATH}/me/${selectedOrderNo}`,
+          {
+            headers: accountHeaders(authUser),
+            signal: controller.signal,
+          },
+          '주문 상세를 불러오지 못했습니다.'
+        );
         setOrderDetail(payload.data || null);
       } catch (error) {
         if (error.name !== 'AbortError') {
@@ -603,7 +640,7 @@ function AccountApp() {
 
     fetchOrderDetail();
     return () => controller.abort();
-  }, [selectedOrderNo]);
+  }, [authUser, selectedOrderNo]);
 
   useEffect(() => {
     if (selectedOrderNo && !orders.some((order) => order.orderNo === selectedOrderNo)) {
@@ -698,14 +735,11 @@ function AccountApp() {
 
     try {
       const queryParam = fieldKey === 'email' ? 'email' : 'nickname';
-      const response = await fetch(
-        `${USER_API_BASE}/check-${fieldKey}?${queryParam}=${encodeURIComponent(rawValue)}`,
+      const payload = await requestAuthApi(
+        `${USER_API_PATH}/check-${fieldKey}?${queryParam}=${encodeURIComponent(rawValue)}`,
         {
-          headers: { 'X-USER-NO': DEMO_USER_NO },
-        }
-      );
-      const payload = await parseResponse(
-        response,
+          headers: accountHeaders(authUser),
+        },
         fieldKey === 'email' ? '이메일 중복 확인에 실패했습니다.' : '닉네임 중복 확인에 실패했습니다.'
       );
       const available = Boolean(payload.data?.available);
@@ -760,15 +794,15 @@ function AccountApp() {
     }
 
     try {
-      const response = await fetch(`${USER_API_BASE}/me`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-USER-NO': DEMO_USER_NO,
+      const payload = await requestAuthApi(
+        `${USER_API_PATH}/me`,
+        {
+          method: 'PATCH',
+          headers: accountHeaders(authUser, true),
+          body: JSON.stringify(profileForm),
         },
-        body: JSON.stringify(profileForm),
-      });
-      const payload = await parseResponse(response, '회원정보를 저장하지 못했습니다.');
+        '회원정보를 저장하지 못했습니다.'
+      );
 
       if (payload.data) {
         const nextProfile = { ...EMPTY_PROFILE, ...payload.data };
@@ -824,15 +858,15 @@ function AccountApp() {
     setPasswordError('');
 
     try {
-      const response = await fetch(`${USER_API_BASE}/me/password`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-USER-NO': DEMO_USER_NO,
+      await requestAuthApi(
+        `${USER_API_PATH}/me/password`,
+        {
+          method: 'PATCH',
+          headers: accountHeaders(authUser, true),
+          body: JSON.stringify(passwordForm),
         },
-        body: JSON.stringify(passwordForm),
-      });
-      await parseResponse(response, '비밀번호를 변경하지 못했습니다.');
+        '비밀번호를 변경하지 못했습니다.'
+      );
       setPasswordForm(EMPTY_PASSWORD_FORM);
       return true;
     } catch (error) {
@@ -857,15 +891,15 @@ function AccountApp() {
     }
 
     try {
-      const response = await fetch(`${USER_API_BASE}/me/withdraw`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-USER-NO': DEMO_USER_NO,
+      await requestAuthApi(
+        `${USER_API_PATH}/me/withdraw`,
+        {
+          method: 'PATCH',
+          headers: accountHeaders(authUser, true),
+          body: JSON.stringify(withdrawForm),
         },
-        body: JSON.stringify(withdrawForm),
-      });
-      await parseResponse(response, '회원 탈퇴 처리에 실패했습니다.');
+        '회원 탈퇴 처리에 실패했습니다.'
+      );
       window.alert('회원 탈퇴가 완료되었습니다.');
       window.location.hash = '#/products';
       return true;
@@ -878,10 +912,13 @@ function AccountApp() {
   }
 
   async function refreshProfile() {
-    const response = await fetch(`${USER_API_BASE}/me`, {
-      headers: { 'X-USER-NO': DEMO_USER_NO },
-    });
-    const payload = await parseResponse(response, '회원정보를 불러오지 못했습니다.');
+    const payload = await requestAuthApi(
+      `${USER_API_PATH}/me`,
+      {
+        headers: accountHeaders(authUser),
+      },
+      '회원정보를 불러오지 못했습니다.'
+    );
     if (payload.data) {
       const nextProfile = { ...EMPTY_PROFILE, ...payload.data };
       setProfile(nextProfile);
@@ -894,10 +931,13 @@ function AccountApp() {
     setAddressesError('');
 
     try {
-      const response = await fetch(ADDRESS_API_BASE, {
-        headers: { 'X-USER-NO': DEMO_USER_NO },
-      });
-      const payload = await parseResponse(response, '배송지 목록을 불러오지 못했습니다.');
+      const payload = await requestAuthApi(
+        ADDRESS_API_PATH,
+        {
+          headers: accountHeaders(authUser),
+        },
+        '배송지 목록을 불러오지 못했습니다.'
+      );
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
     } catch (error) {
       setAddressesError(error.message || '배송지 목록을 불러오지 못했습니다.');
@@ -987,20 +1027,13 @@ function AccountApp() {
     }
 
     try {
-      const response = await fetch(
-        isEditMode ? `${ADDRESS_API_BASE}/${editingAddressNo}` : ADDRESS_API_BASE,
+      const payload = await requestAuthApi(
+        isEditMode ? `${ADDRESS_API_PATH}/${editingAddressNo}` : ADDRESS_API_PATH,
         {
           method: isEditMode ? 'PATCH' : 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-USER-NO': DEMO_USER_NO,
-          },
+          headers: accountHeaders(authUser, true),
           body: JSON.stringify(addressForm),
-        }
-      );
-
-      const payload = await parseResponse(
-        response,
+        },
         isEditMode ? '배송지 수정에 실패했습니다.' : '배송지 등록에 실패했습니다.'
       );
 
@@ -1025,11 +1058,14 @@ function AccountApp() {
     setAddressesError('');
 
     try {
-      const response = await fetch(`${ADDRESS_API_BASE}/${addressNo}/default`, {
-        method: 'PATCH',
-        headers: { 'X-USER-NO': DEMO_USER_NO },
-      });
-      const payload = await parseResponse(response, '기본 배송지 변경에 실패했습니다.');
+      const payload = await requestAuthApi(
+        `${ADDRESS_API_PATH}/${addressNo}/default`,
+        {
+          method: 'PATCH',
+          headers: accountHeaders(authUser),
+        },
+        '기본 배송지 변경에 실패했습니다.'
+      );
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
       await refreshProfile();
     } catch (error) {
@@ -1056,11 +1092,14 @@ function AccountApp() {
     setAddressesError('');
 
     try {
-      const response = await fetch(`${ADDRESS_API_BASE}/${addressNo}`, {
-        method: 'DELETE',
-        headers: { 'X-USER-NO': DEMO_USER_NO },
-      });
-      const payload = await parseResponse(response, '배송지 삭제에 실패했습니다.');
+      const payload = await requestAuthApi(
+        `${ADDRESS_API_PATH}/${addressNo}`,
+        {
+          method: 'DELETE',
+          headers: accountHeaders(authUser),
+        },
+        '배송지 삭제에 실패했습니다.'
+      );
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
       await refreshProfile();
     } catch (error) {
@@ -1172,20 +1211,13 @@ function AccountApp() {
 
     try {
       const isEditMode = reviewEditor?.mode === 'edit' && reviewEditor?.reviewNo;
-      const response = await fetch(
-        isEditMode ? `${REVIEW_API_BASE}/${reviewEditor.reviewNo}` : REVIEW_API_BASE,
+      await requestAuthApi(
+        isEditMode ? `${REVIEW_API_PATH}/${reviewEditor.reviewNo}` : REVIEW_API_PATH,
         {
           method: isEditMode ? 'PATCH' : 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-USER-NO': DEMO_USER_NO,
-          },
+          headers: accountHeaders(authUser, true),
           body: JSON.stringify(reviewForm),
-        }
-      );
-
-      await parseResponse(
-        response,
+        },
         isEditMode ? '리뷰 수정에 실패했습니다.' : '리뷰 작성에 실패했습니다.'
       );
 
@@ -1214,11 +1246,14 @@ function AccountApp() {
     setReviewsError('');
 
     try {
-      const response = await fetch(`${REVIEW_API_BASE}/${reviewNo}`, {
-        method: 'DELETE',
-        headers: { 'X-USER-NO': DEMO_USER_NO },
-      });
-      await parseResponse(response, '리뷰 삭제에 실패했습니다.');
+      await requestAuthApi(
+        `${REVIEW_API_PATH}/${reviewNo}`,
+        {
+          method: 'DELETE',
+          headers: accountHeaders(authUser),
+        },
+        '리뷰 삭제에 실패했습니다.'
+      );
       await loadReviewsData();
 
       if (reviewEditor?.mode === 'edit' && reviewEditor.reviewNo === reviewNo) {
@@ -1229,6 +1264,52 @@ function AccountApp() {
     } finally {
       setDeletingReviewNo(null);
     }
+  }
+
+  if (!isAuthenticated(authUser)) {
+    return (
+      <div className="account-app page-shell">
+        <main className="container">
+          <section className="card">
+            <div className="page-head" style={{ marginBottom: '8px' }}>
+              <div>
+                <h1>로그인이 필요합니다.</h1>
+                <p>마이페이지와 대시보드는 로그인 후 이용할 수 있습니다.</p>
+              </div>
+            </div>
+            <div className="page-actions">
+              <button
+                className="btn"
+                type="button"
+                onClick={() => {
+                  window.location.hash = '#/login';
+                }}
+              >
+                로그인하러 가기
+              </button>
+              <button
+                className="btn-outline"
+                type="button"
+                onClick={() => {
+                  window.location.hash = '#/signup';
+                }}
+              >
+                회원가입
+              </button>
+            </div>
+          </section>
+        </main>
+
+        <footer className="site-footer">
+          <div className="footer-links">
+            <a href="#/products">개인정보처리방침</a>
+            <a href="#/products">이용약관</a>
+            <a href="#/products">고객센터</a>
+          </div>
+          <div>© 2026 oneulFarm. All rights reserved.</div>
+        </footer>
+      </div>
+    );
   }
 
   return (
@@ -1382,3 +1463,5 @@ function AccountApp() {
 }
 
 export default AccountApp;
+
+
