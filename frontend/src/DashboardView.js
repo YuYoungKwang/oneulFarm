@@ -14,6 +14,17 @@ function formatPercent(value) {
   })}%`;
 }
 
+function InfoTooltip({ text }) {
+  return (
+    <span className="dashboard-tooltip" tabIndex="0" aria-label={text}>
+      <span className="dashboard-tooltip__trigger">i</span>
+      <span className="dashboard-tooltip__content" role="tooltip">
+        {text}
+      </span>
+    </span>
+  );
+}
+
 function renderProductLink(item, className = 'dashboard-product-link') {
   if (!item?.productNo) {
     return <strong>{item?.productName}</strong>;
@@ -32,7 +43,10 @@ function AnimatedValue({ value = 0, formatter = (currentValue) => String(current
   useEffect(() => {
     const targetValue = Math.max(0, Number(value || 0));
 
-    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
       setDisplayValue(targetValue);
       return undefined;
     }
@@ -59,9 +73,7 @@ function AnimatedValue({ value = 0, formatter = (currentValue) => String(current
     };
   }, [value]);
 
-  return (
-    <span>{formatter(displayValue)}</span>
-  );
+  return <span>{formatter(displayValue)}</span>;
 }
 
 function DashboardView({
@@ -87,38 +99,59 @@ function DashboardView({
       <section className="page-head">
         <div>
           <h1>대시보드</h1>
-          <p>절약 흐름과 소비 패턴을 한 화면에서 읽을 수 있도록 핵심 지표만 먼저 모아 둔 개인 대시보드입니다.</p>
+          <p>절약 흐름과 소비 패턴을 한눈에 보는 대시보드입니다.</p>
         </div>
       </section>
 
       <div className="stats-grid dashboard-kpi-grid">
         <article className="stat-card stat-card--saving dashboard-kpi-card dashboard-kpi-card--primary">
-          <div className="dashboard-kpi-eyebrow">핵심 절약 지표</div>
-          <div className="stat-label">누적 절약 금액</div>
-          <div className="stat-value stat-value--saving">
-            {summaryLoading ? '...' : <AnimatedValue value={summary.totalSavedAmount} formatter={(currentValue) => formatPrice(Math.round(currentValue))} />}
+          <div className="dashboard-title-row">
+            <div className="stat-label">누적 절약 금액</div>
+            <InfoTooltip text="서비스를 이용하면서 시장 평균가 대비 얼마나 절약했는지 누적 기준으로 보여줍니다." />
           </div>
-          <div className="dashboard-kpi-note">서비스 이용 전체 기준으로 시장 평균가 대비 아낀 금액입니다.</div>
+          <div className="stat-value stat-value--saving">
+            {summaryLoading ? (
+              '...'
+            ) : (
+              <AnimatedValue
+                value={summary.totalSavedAmount}
+                formatter={(currentValue) => formatPrice(Math.round(currentValue))}
+              />
+            )}
+          </div>
         </article>
+
         <article className="stat-card stat-card--saving dashboard-kpi-card dashboard-kpi-card--primary">
-          <div className="dashboard-kpi-eyebrow">이번 달 체감</div>
-          <div className="stat-label">이번 달 절약 금액</div>
-          <div className="stat-value stat-value--saving">
-            {summaryLoading ? '...' : <AnimatedValue value={summary.monthlySavedAmount} formatter={(currentValue) => formatPrice(Math.round(currentValue))} />}
+          <div className="dashboard-title-row">
+            <div className="stat-label">이번 달 절약 금액</div>
+            <InfoTooltip text="이번 달 주문에서 절약한 금액만 따로 모아 보여줍니다." />
           </div>
-          <div className="dashboard-kpi-note">이번 달 주문에서 바로 체감한 절약 효과를 보여줍니다.</div>
+          <div className="stat-value stat-value--saving">
+            {summaryLoading ? (
+              '...'
+            ) : (
+              <AnimatedValue
+                value={summary.monthlySavedAmount}
+                formatter={(currentValue) => formatPrice(Math.round(currentValue))}
+              />
+            )}
+          </div>
         </article>
+
         <article className="stat-card dashboard-kpi-card dashboard-kpi-card--secondary">
-          <div className="dashboard-kpi-eyebrow dashboard-kpi-eyebrow--neutral">활동 규모</div>
-          <div className="stat-label">총 구매 횟수</div>
+          <div className="dashboard-title-row">
+            <div className="stat-label">총 구매 횟수</div>
+            <InfoTooltip text="완료된 주문과 진행 중인 주문을 모두 포함한 전체 주문 수입니다." />
+          </div>
           <div className="stat-value">{summaryLoading ? '...' : totalOrderCount}</div>
-          <div className="dashboard-kpi-note">완료된 주문과 진행 중인 주문을 포함한 전체 주문 수입니다.</div>
         </article>
+
         <article className="stat-card dashboard-kpi-card dashboard-kpi-card--secondary">
-          <div className="dashboard-kpi-eyebrow dashboard-kpi-eyebrow--neutral">누적 사용액</div>
-          <div className="stat-label">총 구매 금액</div>
+          <div className="dashboard-title-row">
+            <div className="stat-label">총 구매 금액</div>
+            <InfoTooltip text="실제 결제한 금액을 기준으로 지금까지의 누적 구매 규모를 보여줍니다." />
+          </div>
           <div className="stat-value">{summaryLoading ? '...' : totalPurchaseAmount}</div>
-          <div className="dashboard-kpi-note">실제 결제한 금액 기준으로 누적 구매 규모를 보여줍니다.</div>
         </article>
       </div>
 
@@ -129,13 +162,11 @@ function DashboardView({
       <section className="section grid-2">
         <article className="card">
           <div className="dashboard-section-head">
-            <div>
-              <div className="dashboard-section-badge">절약 추세</div>
+            <div className="dashboard-title-row">
               <div className="card-title">월별 절약 흐름</div>
+              <InfoTooltip text="최근 몇 개월의 절약 금액을 월별로 비교해 절약 흐름이 어떻게 달라졌는지 보여줍니다." />
             </div>
-            <div className="dashboard-section-side">최근 달별 비교</div>
           </div>
-          <div className="card-sub">최근 달마다 절약 금액이 어떻게 쌓였는지 비교해, 절약 효과가 커지는 시점을 바로 읽을 수 있게 했습니다.</div>
           <div className="chart-shell">
             {dashboardLoading ? (
               <div className="feedback-card">차트 데이터를 불러오는 중입니다.</div>
@@ -143,14 +174,14 @@ function DashboardView({
               <div className="feedback-card">월별 절약 데이터가 없습니다.</div>
             ) : (
               <div className="bar-chart">
-                {monthlySavings.map((item) => (
+                {monthlySavings.map((item, index) => (
                   <div key={item.yearMonth} className="bar-chart__item">
                     <div className="bar-chart__track">
                       <div
                         className="bar-chart__fill"
                         style={{
                           height: getScaledHeight(item.savedAmount, monthlySavings, 'savedAmount'),
-                          animationDelay: `${100 + monthlySavings.indexOf(item) * 120}ms`,
+                          animationDelay: `${100 + index * 120}ms`,
                         }}
                       />
                     </div>
@@ -165,20 +196,18 @@ function DashboardView({
 
         <article className="card">
           <div className="dashboard-section-head">
-            <div>
-              <div className="dashboard-section-badge dashboard-section-badge--warm">품목 비교</div>
+            <div className="dashboard-title-row">
               <div className="card-title">품목별 절약 분석</div>
+              <InfoTooltip text="어떤 품목에서 절약 효과가 컸는지 비교해 다음 구매 때 눈여겨볼 품목을 빠르게 찾을 수 있습니다." />
             </div>
-            <div className="dashboard-section-side">집중할 상품 찾기</div>
           </div>
-          <div className="card-sub">어떤 품목에서 절약 효과가 컸는지 비교해서, 다음 구매 때 더 집중할 상품을 빠르게 찾을 수 있습니다.</div>
           {dashboardLoading ? (
             <div className="feedback-card">분석 데이터를 불러오는 중입니다.</div>
           ) : productSavings.length === 0 ? (
             <div className="feedback-card">품목별 절약 데이터가 없습니다.</div>
           ) : (
             <div className="compare-bars">
-              {productSavings.map((item) => (
+              {productSavings.map((item, index) => (
                 <div key={item.productName} className="compare-item">
                   {renderProductLink(item)}
                   <div className="bar">
@@ -186,7 +215,7 @@ function DashboardView({
                       style={{
                         width: getScaledWidth(item.savedAmount, productSavings, 'savedAmount'),
                         background: 'var(--green)',
-                        animationDelay: `${140 + productSavings.indexOf(item) * 100}ms`,
+                        animationDelay: `${140 + index * 100}ms`,
                       }}
                     />
                   </div>
@@ -200,19 +229,17 @@ function DashboardView({
 
       <section className="section dashboard-pattern-grid">
         <article className="card dashboard-pattern-card dashboard-pattern-card--saving">
-          <div className="dashboard-section-badge">패턴 요약</div>
-          <div className="card-title">평균 절약률</div>
-          <div className="dashboard-pattern-value">{dashboardLoading ? '...' : averageSavingRate}</div>
-          <div className="dashboard-pattern-copy">
-            주문 금액 기준으로 보면 평균적으로 이 정도 비율만큼 시장가 대비 절약하고 있습니다.
+          <div className="dashboard-title-row">
+            <div className="card-title">평균 절약률</div>
+            <InfoTooltip text="주문 금액 기준으로 평균 어느 정도 비율만큼 시장가 대비 절약하고 있는지 보여줍니다." />
           </div>
+          <div className="dashboard-pattern-value">{dashboardLoading ? '...' : averageSavingRate}</div>
         </article>
 
         <article className="card dashboard-pattern-card">
-          <div className="dashboard-section-badge dashboard-section-badge--warm">Top 품목</div>
-          <div className="card-title">최다 구매 품목</div>
-          <div className="dashboard-pattern-copy">
-            자주 사는 품목을 보면 어떤 상품군에 지출이 집중되는지 바로 읽을 수 있습니다.
+          <div className="dashboard-title-row">
+            <div className="card-title">최다 구매 품목</div>
+            <InfoTooltip text="자주 구매한 품목을 통해 어떤 상품군에 소비가 집중되는지 확인할 수 있습니다." />
           </div>
           {dashboardLoading ? (
             <div className="feedback-card">최다 구매 품목을 불러오는 중입니다.</div>
@@ -239,10 +266,9 @@ function DashboardView({
         </article>
 
         <article className="card dashboard-pattern-card">
-          <div className="dashboard-section-badge">최근 흐름</div>
-          <div className="card-title">최근 구매 상품</div>
-          <div className="dashboard-pattern-copy">
-            가장 최근에 구매한 상품과 금액 흐름을 함께 보여 줘서 최근 소비 패턴을 빠르게 확인할 수 있습니다.
+          <div className="dashboard-title-row">
+            <div className="card-title">최근 구매 상품</div>
+            <InfoTooltip text="최근에 구매한 상품과 결제 금액을 함께 보여 줘서 최근 소비 흐름을 빠르게 확인할 수 있습니다." />
           </div>
           {dashboardLoading ? (
             <div className="feedback-card">최근 구매 상품을 불러오는 중입니다.</div>
