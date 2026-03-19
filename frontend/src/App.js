@@ -189,7 +189,7 @@ function App() {
           {currentApp === 'main' && <MainPage />}
           {currentApp === 'product' && <ProductApp authUser={authUser} />}
           {currentApp === 'account' && <AccountApp authUser={authUser} />}
-          {currentApp === 'recommend' && <RecommendPage />}
+          {currentApp === 'recommend' && <RecommendPage authUser={authUser} />}
           {currentApp === 'main' && <SiteFooter />}
         </>
       )}
