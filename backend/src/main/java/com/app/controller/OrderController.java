@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.app.common.ApiResponse;
@@ -32,9 +33,15 @@ public class OrderController {
 
     @GetMapping("/me")
     public ApiResponse<List<OrderDto>> getMyOrders(
-        @RequestHeader("X-USER-NO") Long userNo
+        @RequestHeader("X-USER-NO") Long userNo,
+        @RequestParam(value = "deliveryStatus", required = false) String deliveryStatus,
+        @RequestParam(value = "dateFrom", required = false) String dateFrom,
+        @RequestParam(value = "dateTo", required = false) String dateTo
     ) {
-        return ApiResponse.success(orderService.getMyOrders(userNo), "Orders loaded.");
+        return ApiResponse.success(
+            orderService.getMyOrders(userNo, deliveryStatus, dateFrom, dateTo),
+            "Orders loaded."
+        );
     }
 
     @GetMapping("/me/{orderNo}")

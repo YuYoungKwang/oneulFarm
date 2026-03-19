@@ -50,6 +50,14 @@
   transform: translateY(-1px);
 }
 
+.account-app .btn:disabled,
+.account-app .btn-outline:disabled,
+.account-app .btn.line:disabled{
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 .account-app .btn-outline{
   background: #fff;
   border: 1px solid var(--line);
@@ -67,6 +75,23 @@
   border: 1px solid var(--line);
   color: var(--green-dark);
   padding: 12px 18px;
+}
+
+.account-app .btn-disabled{
+  border-color: rgba(203, 213, 225, 0.9) !important;
+  background: #f8fafc !important;
+  color: #94a3b8 !important;
+}
+
+.account-app .btn.line.btn-danger-line{
+  border-color: #fecaca;
+  color: #b91c1c;
+  background: #fff5f5;
+}
+
+.account-app .btn.line.btn-danger-line:hover{
+  border-color: #fca5a5;
+  background: #fee2e2;
 }
 
 .account-app .btn-text{
@@ -103,6 +128,35 @@
   margin: 18px 0 24px;
 }
 
+.account-app .account-local-nav{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  margin-top: 20px;
+  border: 1px solid rgba(231, 235, 239, 0.9);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(10px);
+}
+
+.account-app .account-local-nav__link{
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #475569;
+  font-weight: 800;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.account-app .account-local-nav__link.is-active{
+  background: var(--green-soft);
+  color: var(--green-dark);
+}
+
 .account-app .page-head h1{
   font-size: 56px;
   line-height: 1.08;
@@ -115,7 +169,7 @@
 .account-app .card-sub,
 .account-app .small{
   margin: 0;
-  font-size: 14px;
+  font-size: 17px;
   color: var(--muted);
 }
 
@@ -136,7 +190,7 @@
 }
 
 .account-app .section-title{
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 800;
   letter-spacing: -0.02em;
 }
@@ -152,6 +206,28 @@
   margin: 0 0 32px;
 }
 
+.account-app .order-filter-bar{
+  margin: 0 0 18px;
+}
+
+.account-app .order-filter-form{
+  display: grid;
+  gap: 16px;
+}
+
+.account-app .order-filter-grid{
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr;
+  gap: 14px;
+}
+
+.account-app .order-filter-actions{
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .account-app .stat-card,
 .account-app .quick-card{
   background: var(--surface);
@@ -159,6 +235,16 @@
   padding: 20px 22px;
   border: 1px solid rgba(231, 235, 239, 0.7);
   box-shadow: var(--shadow);
+}
+
+.account-app .stat-card--saving,
+.account-app .quick-card--saving{
+  border-color: rgba(21, 154, 85, 0.24);
+  background:
+    linear-gradient(180deg, rgba(236, 249, 241, 0.92), rgba(255, 255, 255, 0.98));
+  box-shadow:
+    0 16px 32px rgba(21, 154, 85, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .account-app .quick-card.soft-green{
@@ -171,25 +257,31 @@
 
 .account-app .stat-label,
 .account-app .quick-label{
-  font-size: 14px;
+  font-size: 16px;
   color: var(--muted);
   font-weight: 600;
 }
 
 .account-app .stat-value{
-  font-size: 32px;
+  font-size: 36px;
   font-weight: 900;
   margin-top: 10px;
   color: var(--green-dark);
 }
 
+.account-app .stat-value--saving,
+.account-app .quick-value--saving{
+  color: #0f7a42;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
 .account-app .stat-value--compact{
-  font-size: 24px;
+  font-size: 26px;
 }
 
 .account-app .quick-value{
   margin-top: 8px;
-  font-size: 20px;
+  font-size: 25px;
   font-weight: 800;
 }
 
@@ -197,10 +289,58 @@
   margin-top: 34px;
 }
 
+.account-app .mypage-section-header{
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 0 0 14px;
+  border-bottom: 1px solid rgba(231, 235, 239, 0.95);
+}
+
+.account-app .mypage-section-header--manage{
+  border-bottom-color: rgba(21, 154, 85, 0.22);
+}
+
+.account-app .mypage-section-header--activity{
+  border-bottom-color: rgba(229, 173, 34, 0.24);
+}
+
+.account-app .mypage-section-header__title{
+  margin: 10px 0 6px;
+  font-size: 27px;
+  line-height: 1.18;
+  letter-spacing: -0.03em;
+  font-weight: 900;
+  color: var(--text);
+}
+
+.account-app .activity-panel-surface{
+  display: grid;
+  gap: 18px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.account-app .activity-panel-block{
+  display: grid;
+  gap: 18px;
+}
+
 .account-app .grid-2{
   display: grid;
   grid-template-columns: 1.3fr 0.8fr;
   gap: 18px;
+}
+
+.account-app .shortcut-grid{
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
 }
 
 .account-app .card{
@@ -212,9 +352,20 @@
 }
 
 .account-app .card-title{
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 800;
   margin-bottom: 6px;
+}
+
+.account-app .shortcut-card{
+  display: grid;
+  gap: 14px;
+  align-content: space-between;
+}
+
+.account-app .profile-summary-card--single{
+  display: grid;
+  gap: 18px;
 }
 
 .account-app .profile-summary{
@@ -222,6 +373,25 @@
   align-items: center;
   gap: 14px;
   margin-bottom: 18px;
+}
+
+.account-app .profile-summary--spread{
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.account-app .profile-summary__identity{
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.account-app .profile-summary__actions{
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .account-app .profile-badge{
@@ -241,6 +411,41 @@
   gap: 12px;
 }
 
+.account-app .profile-summary-grid{
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.account-app .savings-highlight{
+  display: grid;
+  gap: 6px;
+  padding: 20px 22px;
+  border-radius: 24px;
+  border: 1px solid rgba(21, 154, 85, 0.22);
+  background:
+    linear-gradient(180deg, rgba(236, 249, 241, 0.94), rgba(249, 252, 250, 0.98));
+  box-shadow: 0 14px 28px rgba(21, 154, 85, 0.08);
+}
+
+.account-app .savings-highlight__label{
+  font-size: 16px;
+  font-weight: 800;
+  color: #3f6c52;
+}
+
+.account-app .savings-highlight__value{
+  font-size: 38px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: #0f7a42;
+}
+
+.account-app .savings-highlight__sub{
+  font-size: 16px;
+  color: #557462;
+}
+
 .account-app .insight-item{
   display: flex;
   align-items: center;
@@ -249,15 +454,155 @@
   padding: 12px 14px;
   border-radius: 16px;
   background: #f8fafb;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .account-app .insight-item strong{
-  font-size: 15px;
+  font-size: 18px;
 }
 
 .account-app .insight-item--review{
   align-items: flex-start;
+}
+
+.account-app .review-panel{
+  display: grid;
+  gap: 20px;
+}
+
+.account-app .review-stack{
+  display: grid;
+  gap: 18px;
+}
+
+.account-app .review-editor-card{
+  display: grid;
+  gap: 18px;
+}
+
+.account-app .review-editor-form{
+  display: grid;
+  gap: 14px;
+}
+
+.account-app .review-editor-actions{
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.account-app .review-card-list{
+  display: grid;
+  gap: 16px;
+}
+
+.account-app .review-card{
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(231, 235, 239, 0.9);
+  background: #fafbfc;
+}
+
+.account-app .review-card--draft{
+  background: linear-gradient(180deg, #fffdf6, #fffaf0);
+  border-color: rgba(229, 173, 34, 0.22);
+}
+
+.account-app .review-card--published{
+  background: linear-gradient(180deg, #f7fbf8, #fdfefe);
+  border-color: rgba(21, 154, 85, 0.16);
+}
+
+.account-app .review-card__media{
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.account-app .review-card__body{
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.account-app .review-card__top{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.account-app .review-card__title{
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.account-app .review-card__meta{
+  margin-top: 4px;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.account-app .review-card__text{
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.65;
+  color: #4b5563;
+}
+
+.account-app .review-status{
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.account-app .review-status--draft{
+  background: rgba(229, 173, 34, 0.14);
+  color: #946200;
+}
+
+.account-app .review-status--published{
+  background: rgba(21, 154, 85, 0.12);
+  color: #0f7a42;
+}
+
+.account-app .review-rating{
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #f59e0b;
+}
+
+.account-app .review-quote{
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(231, 235, 239, 0.9);
+  font-size: 16px;
+  line-height: 1.7;
+  color: #334155;
+}
+
+.account-app .review-card__actions{
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.account-app .review-card__actions--stacked{
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .account-app .mini-recipes{
@@ -294,6 +639,7 @@
   padding: 10px 16px;
   border-radius: 999px;
   font-weight: 700;
+  font-size: 15px;
   background: #fff;
   border: 1px solid var(--line);
   color: #475569;
@@ -308,6 +654,71 @@
 .account-app .order-list-entry{
   display: grid;
   gap: 14px;
+}
+
+.account-app .mypage-preview-list{
+  display: grid;
+  gap: 14px;
+}
+
+.account-app .mypage-preview-card{
+  padding: 16px 18px;
+  border-radius: 22px;
+  background: #fafbfc;
+  border: 1px solid rgba(231, 235, 239, 0.9);
+  display: grid;
+  gap: 12px;
+}
+
+.account-app .mypage-preview-card__head{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.account-app .mypage-preview-card__meta{
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.account-app .mypage-recent-order{
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 22px;
+  background: #fafbfc;
+  border: 1px solid rgba(231, 235, 239, 0.9);
+}
+
+.account-app .mypage-recent-order--empty{
+  background: #fcfcfb;
+}
+
+.account-app .mypage-recent-order__label{
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.account-app .mypage-recent-order__content{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 16px;
+}
+
+.account-app .mypage-recent-order__saving{
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(21, 154, 85, 0.12);
+  color: #0f7a42;
+  font-size: 15px;
+  font-weight: 800;
 }
 
 .account-app .order-card{
@@ -339,14 +750,23 @@
 }
 
 .account-app .order-summary-item strong{
-  font-size: 13px;
+  font-size: 16px;
   color: var(--muted);
 }
 
 .account-app .order-summary-item span{
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 800;
   color: var(--text);
+}
+
+.account-app .order-summary-item--saving{
+  border: 1px solid rgba(21, 154, 85, 0.18);
+  background: linear-gradient(180deg, rgba(240, 250, 244, 0.92), #fafdfb);
+}
+
+.account-app .order-summary-item--saving span{
+  color: #0f7a42;
 }
 
 .account-app .order-top{
@@ -388,7 +808,7 @@
 .account-app .status-pill{
   padding: 7px 12px;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
 }
 
@@ -407,7 +827,7 @@
   justify-content: space-between;
   gap: 12px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .account-app .product-grid{
@@ -448,10 +868,14 @@
 .account-app .badge{
   padding: 7px 12px;
   border-radius: 999px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
   display: inline-flex;
   align-items: center;
+}
+
+.account-app .activity-panel-block .product-card{
+  background: linear-gradient(180deg, #fffefb, #ffffff);
 }
 
 .account-app .badge.green{
@@ -477,11 +901,45 @@
   gap: 12px;
 }
 
+.account-app .wishlist-price-block{
+  display: grid;
+  gap: 4px;
+}
+
+.account-app .wishlist-price-label{
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
 .account-app .price{
   font-size: 22px;
   font-weight: 900;
   color: var(--green-dark);
   white-space: nowrap;
+}
+
+.account-app .wishlist-saving-rate{
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(21, 154, 85, 0.12);
+  color: #0f7a42;
+  font-size: 15px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.account-app .wishlist-saving-rate__arrow{
+  font-size: 16px;
+  line-height: 1;
+}
+
+.account-app .wishlist-saving-rate strong{
+  font-size: 18px;
+  font-weight: 900;
 }
 
 .account-app .avg{
@@ -546,12 +1004,12 @@
 
 .account-app .bar-chart__item strong{
   color: var(--green-dark);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .account-app .bar-chart__item span{
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .account-app .compare-bars{
@@ -565,7 +1023,7 @@
   grid-template-columns: 110px 1fr 84px;
   gap: 12px;
   align-items: center;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .account-app .bar{
@@ -638,7 +1096,9 @@
 .account-app .modal-card--address{
   max-height: min(88vh, 920px);
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 18px;
+  overflow: hidden;
 }
 
 .account-app .modal-head--sticky{
@@ -647,6 +1107,35 @@
   z-index: 2;
   background: var(--surface);
   padding-bottom: 4px;
+}
+
+.account-app .address-modal__head-actions{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.account-app .address-modal__create-btn{
+  min-width: 112px;
+}
+
+.account-app .address-modal__switch-btn{
+  color: var(--green-dark);
+  border-color: rgba(21, 154, 85, 0.18);
+  background: rgba(244, 250, 246, 0.92);
+}
+
+.account-app .address-modal__close-btn{
+  color: #64748b;
+  border-color: rgba(203, 213, 225, 0.9);
+  background: #f8fafc;
+}
+
+.account-app .address-modal__close-btn:hover{
+  background: #f1f5f9;
+  color: #334155;
 }
 
 .account-app .profile-form{
@@ -671,7 +1160,7 @@
 .account-app .form-field{
   display: grid;
   gap: 8px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text);
 }
@@ -690,7 +1179,41 @@
   background: #fff;
 }
 
+.account-app .form-field textarea{
+  width: 100%;
+  min-height: 132px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 16px;
+  font: inherit;
+  color: var(--text);
+  background: #fff;
+}
+
+.account-app .form-field select{
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 16px;
+  font: inherit;
+  color: var(--text);
+  background: #fff;
+}
+
 .account-app .form-field input:focus{
+  outline: none;
+  border-color: rgba(21, 154, 85, 0.6);
+  box-shadow: 0 0 0 4px rgba(21, 154, 85, 0.08);
+}
+
+.account-app .form-field textarea:focus{
+  outline: none;
+  border-color: rgba(21, 154, 85, 0.6);
+  box-shadow: 0 0 0 4px rgba(21, 154, 85, 0.08);
+}
+
+.account-app .form-field select:focus{
   outline: none;
   border-color: rgba(21, 154, 85, 0.6);
   box-shadow: 0 0 0 4px rgba(21, 154, 85, 0.08);
@@ -701,7 +1224,7 @@
   align-items: center;
   gap: 10px;
   margin-top: 16px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text);
 }
@@ -711,8 +1234,18 @@
   border-radius: 14px;
   background: #fff4eb;
   color: #b45309;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
+}
+
+.account-app .form-error--success{
+  background: #effaf3;
+  color: #166534;
+}
+
+.account-app .form-error--soft{
+  background: #f8fafb;
+  color: #64748b;
 }
 
 .account-app .modal-actions{
@@ -727,10 +1260,15 @@
 }
 
 .account-app .address-list-shell{
-  overflow: auto;
+  min-height: 0;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding-right: 4px;
   display: grid;
   gap: 14px;
+  align-content: start;
 }
 
 .account-app .address-card{
@@ -742,6 +1280,12 @@
   gap: 14px;
 }
 
+.account-app .address-card--default{
+  border-color: rgba(21, 154, 85, 0.35);
+  background: #f8fcf8;
+  box-shadow: 0 12px 24px rgba(21, 154, 85, 0.08);
+}
+
 .account-app .address-card__top{
   display: flex;
   justify-content: space-between;
@@ -749,11 +1293,207 @@
   align-items: flex-start;
 }
 
+.account-app .address-card__actions{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .account-app .address-card__body{
   display: grid;
   gap: 6px;
   color: var(--text);
-  font-size: 14px;
+  font-size: 16px;
+}
+
+.account-app .profile-inline-card{
+  border-radius: 28px;
+}
+
+.account-app .profile-inline-list{
+  display: grid;
+  gap: 14px;
+}
+
+.account-app .profile-inline-row{
+  position: relative;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 18px 0 18px 18px;
+  border-top: 1px solid var(--line);
+}
+
+.account-app .profile-inline-row:first-child{
+  border-top: 0;
+  padding-top: 0;
+}
+
+.account-app .profile-inline-row__label{
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.account-app .profile-inline-row__value{
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.account-app .profile-inline-row__actions{
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.account-app .profile-inline-row.is-editing{
+  grid-template-columns: 150px minmax(0, 1fr);
+  align-items: start;
+}
+
+.account-app .profile-inline-row--saving{
+  padding: 18px 0 18px 18px;
+  background: rgba(241, 249, 244, 0.5);
+}
+
+.account-app .profile-inline-row--saving::before{
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 18px;
+  bottom: 18px;
+  width: 4px;
+  border-radius: 999px;
+  background: rgba(21, 154, 85, 0.38);
+}
+
+.account-app .profile-inline-row--saving .profile-inline-row__label{
+  color: #3f6c52;
+}
+
+.account-app .profile-inline-row--saving .profile-inline-row__value{
+  color: #0f7a42;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.account-app .profile-inline-editor{
+  display: grid;
+  gap: 12px;
+}
+
+.account-app .profile-inline-editor__top{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.account-app .profile-inline-editor__field input{
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 16px;
+  font: inherit;
+  color: var(--text);
+  background: #fff;
+}
+
+.account-app .profile-inline-editor__field input:focus{
+  outline: none;
+  border-color: rgba(21, 154, 85, 0.6);
+  box-shadow: 0 0 0 4px rgba(21, 154, 85, 0.08);
+}
+
+.account-app .profile-inline-editor__check{
+  white-space: nowrap;
+  min-width: 116px;
+}
+
+.account-app .profile-inline-editor--password{
+  gap: 16px;
+}
+
+.account-app .profile-inline-verify{
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: #f8fafb;
+  border: 1px solid rgba(231, 235, 239, 0.9);
+}
+
+.account-app .profile-inline-verify__head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.account-app .profile-inline-verify__title{
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.account-app .profile-inline-verify__sub{
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.account-app .profile-inline-verify__timer{
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f7a42;
+  white-space: nowrap;
+}
+
+.account-app .profile-inline-verify__code{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.account-app .profile-inline-verify__code input{
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 16px;
+  font: inherit;
+  color: var(--text);
+  background: #fff;
+}
+
+.account-app .profile-inline-verify__code input:focus{
+  outline: none;
+  border-color: rgba(21, 154, 85, 0.6);
+  box-shadow: 0 0 0 4px rgba(21, 154, 85, 0.08);
+}
+
+.account-app .withdraw-card{
+  margin-top: 18px;
+  border: 1px solid #fecaca;
+  background: #fff8f8;
+}
+
+.account-app .withdraw-form{
+  display: grid;
+  gap: 14px;
+}
+
+.account-app .withdraw-actions{
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .account-app .detail-shell{
@@ -775,10 +1515,15 @@
   gap: 12px;
 }
 
+.account-app .detail-block--saving{
+  border: 1px solid rgba(21, 154, 85, 0.18);
+  background: linear-gradient(180deg, rgba(242, 251, 245, 0.95), #fbfdfb);
+}
+
 .account-app .detail-block h3,
 .account-app .detail-items h3{
   margin: 0;
-  font-size: 18px;
+  font-size: 21px;
 }
 
 .account-app .detail-row{
@@ -786,7 +1531,7 @@
   justify-content: space-between;
   gap: 12px;
   align-items: flex-start;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .account-app .detail-row strong{
@@ -800,6 +1545,11 @@
 .account-app .detail-row--accent span{
   color: var(--green-dark);
   font-weight: 900;
+}
+
+.account-app .detail-row--saving span{
+  color: #0f7a42;
+  font-weight: 800;
 }
 
 .account-app .detail-items{
@@ -836,7 +1586,7 @@
 
 .account-app .detail-hint{
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 @media (max-width: 1180px){.account-app .stats-grid,
@@ -849,7 +1599,8 @@
   }
 
   .account-app .order-summary-grid,
-.account-app .detail-grid{
+.account-app .detail-grid,
+.account-app .profile-summary-grid{
     grid-template-columns: repeat(2, 1fr);
   }
 }
@@ -862,16 +1613,24 @@
   .account-app .product-grid,
 .account-app .stats-grid,
 .account-app .quick-grid,
-.account-app .mini-recipes{
+.account-app .mini-recipes,
+.account-app .shortcut-grid{
     grid-template-columns: 1fr;
   }
 
-  .account-app .page-head,
+.account-app .page-head,
 .account-app .order-top,
 .account-app .help-row,
-.account-app .section-head{
+.account-app .section-head,
+.account-app .mypage-preview-card__head,
+.account-app .mypage-section-header{
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .account-app .address-modal__head-actions{
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .account-app .order-item{
@@ -879,7 +1638,21 @@
   }
 
   .account-app .order-summary-grid,
-.account-app .detail-grid{
+.account-app .detail-grid,
+.account-app .profile-summary-grid{
+    grid-template-columns: 1fr;
+  }
+
+  .account-app .profile-inline-row,
+.account-app .profile-inline-row.is-editing{
+    grid-template-columns: 1fr;
+  }
+
+  .account-app .profile-inline-editor__top{
+    grid-template-columns: 1fr;
+  }
+
+  .account-app .profile-inline-verify__code{
     grid-template-columns: 1fr;
   }
 
@@ -899,16 +1672,37 @@
   .account-app .detail-row,
 .account-app .detail-item-top,
 .account-app .detail-actions,
-.account-app .address-card__top{
+.account-app .address-card__top,
+.account-app .profile-summary--spread,
+.account-app .profile-inline-row__actions,
+.account-app .review-card__top,
+.account-app .review-card__actions{
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .account-app .review-card{
+    grid-template-columns: 1fr;
+  }
+
+  .account-app .review-card__actions--stacked{
+    align-items: stretch;
   }
 
   .account-app .form-grid{
     grid-template-columns: 1fr;
   }
 
-  .account-app .detail-row span{
+  .account-app .order-filter-grid{
+    grid-template-columns: 1fr;
+  }
+
+.account-app .detail-row span{
     text-align: left;
+  }
+
+  .account-app .mypage-recent-order__content{
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

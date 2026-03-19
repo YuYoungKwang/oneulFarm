@@ -1,6 +1,7 @@
 package com.app.dao;
 
 import java.util.List;
+import java.util.Map;
 
 import com.app.dto.DeliveryDto;
 import com.app.dto.OrderDto;
@@ -10,6 +11,8 @@ import com.app.dto.PaymentDto;
 public interface OrderDao {
 
     List<OrderDto> findMyOrders(Long userNo);
+
+    List<OrderDto> findMyOrders(Map<String, Object> params);
 
     OrderDto findOrderDetail(Long userNo, Long orderNo);
 

@@ -1,6 +1,13 @@
 import { startTransition, useEffect, useState } from 'react';
 import AccountApp from './AccountApp';
+import {
+  clearAuthUser,
+  getAuthUser,
+  isAuthenticated,
+  requiresPasswordChange,
+} from './auth';
 import MainNav from './components/MainNav';
+import PasswordChangeRequiredPage from './components/PasswordChangeRequiredPage';
 import ProductApp from './components/ProductApp';
 import MainPage from './components/Mainpage';
 import SiteFooter from './components/SiteFooter';
@@ -13,12 +20,14 @@ const PRODUCT_ROUTE_SEGMENTS = new Set([
   'cart',
   'checkout',
   'recipes',
-  'orders',
   'order-complete',
   'payment-success',
   'payment-fail',
+  'login',
+  'signup',
+  'password-change',
 ]);
-const ACCOUNT_ROUTE_SEGMENTS = new Set(['dashboard', 'mypage']);
+const ACCOUNT_ROUTE_SEGMENTS = new Set(['dashboard', 'mypage', 'orders']);
 
 function getFirstSegment(hash) {
   const normalized = hash.replace(/^#\/?/, '').trim().toLowerCase();
@@ -104,7 +113,11 @@ function resolveActiveSection(hash) {
   return 'products';
 }
 
-function readCartCount() {
+function readCartCount(authUser) {
+  if (!isAuthenticated(authUser)) {
+    return 0;
+  }
+
   try {
     const storedCart = JSON.parse(window.localStorage.getItem('oneulFarmCart') || '{}');
     return Object.values(storedCart).reduce(
@@ -123,14 +136,21 @@ function App() {
   const [activeSection, setActiveSection] = useState(() =>
     resolveActiveSection(window.location.hash)
   );
-  const [cartCount, setCartCount] = useState(() => readCartCount());
+  const [authUser, setAuthUser] = useState(() => getAuthUser());
+  const [cartCount, setCartCount] = useState(() => readCartCount(getAuthUser()));
+
+  const navigateTo = (hash) => {
+    window.location.hash = hash;
+  };
 
   useEffect(() => {
     const syncApp = () => {
       startTransition(() => {
+        const nextAuthUser = getAuthUser();
         setCurrentApp(resolveAppFromHash(window.location.hash));
         setActiveSection(resolveActiveSection(window.location.hash));
-        setCartCount(readCartCount());
+        setCartCount(readCartCount(nextAuthUser));
+        setAuthUser(nextAuthUser);
       });
     };
 
@@ -146,15 +166,33 @@ function App() {
     };
   }, []);
 
+  const isPasswordChangeRequired = requiresPasswordChange(authUser);
+
   return (
     <>
-      <MainNav activeSection={activeSection} cartCount={cartCount} />
-      {currentApp === 'main' && <MainPage />}
-      {currentApp === 'product' && <ProductApp />}
-      {currentApp === 'account' && <AccountApp />}
-      {currentApp === 'recommend' && <RecommendPage />}
-      {currentApp === 'main' && <SiteFooter />}
-      <SiteFooter />   
+      {isPasswordChangeRequired ? (
+        <PasswordChangeRequiredPage authUser={authUser} />
+      ) : (
+        <>
+          <MainNav
+            activeSection={activeSection}
+            authUser={authUser}
+            cartCount={cartCount}
+            onOpenCart={() => navigateTo(isAuthenticated(authUser) ? '#/cart' : '#/login')}
+            onOpenLogin={() => navigateTo('#/login')}
+            onOpenSignup={() => navigateTo('#/signup')}
+            onLogout={() => {
+              clearAuthUser();
+              navigateTo('#/login');
+            }}
+          />
+          {currentApp === 'main' && <MainPage />}
+          {currentApp === 'product' && <ProductApp authUser={authUser} />}
+          {currentApp === 'account' && <AccountApp authUser={authUser} />}
+          {currentApp === 'recommend' && <RecommendPage />}
+          {currentApp === 'main' && <SiteFooter />}
+        </>
+      )}
     </>
   );
 }

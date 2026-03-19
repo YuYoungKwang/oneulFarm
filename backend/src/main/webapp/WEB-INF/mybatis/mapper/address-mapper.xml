@@ -40,6 +40,23 @@
           AND ADDRESS_NO = #{addressNo}
     ]]></select>
 
+    <select id="selectMyAddress" parameterType="map" resultMap="UserAddressResultMap"><![CDATA[
+        SELECT
+            ADDRESS_NO AS addressNo,
+            RECIPIENT_NAME AS recipientName,
+            RECIPIENT_PHONE AS recipientPhone,
+            ZIP_CODE AS zipCode,
+            ADDRESS1 AS address1,
+            ADDRESS2 AS address2,
+            ADDRESS_NAME AS addressName,
+            DELIVERY_MESSAGE AS deliveryMessage,
+            IS_DEFAULT AS isDefault,
+            TO_CHAR(CREATED_AT, 'YYYY-MM-DD HH24:MI:SS') AS createdAt
+        FROM OFT_USER_ADDRESS
+        WHERE USER_NO = #{userNo}
+          AND ADDRESS_NO = #{addressNo}
+    ]]></select>
+
     <select id="countMyAddresses" parameterType="java.lang.Long" resultType="int"><![CDATA[
         SELECT COUNT(*)
         FROM OFT_USER_ADDRESS
@@ -70,6 +87,21 @@
         )
     ]]></insert>
 
+    <update id="updateAddress" parameterType="map"><![CDATA[
+        UPDATE OFT_USER_ADDRESS
+        SET RECIPIENT_NAME = #{recipientName},
+            RECIPIENT_PHONE = #{recipientPhone},
+            ZIP_CODE = #{zipCode},
+            ADDRESS1 = #{address1},
+            ADDRESS2 = #{address2},
+            ADDRESS_NAME = #{addressName},
+            DELIVERY_MESSAGE = #{deliveryMessage},
+            IS_DEFAULT = #{isDefault},
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE USER_NO = #{userNo}
+          AND ADDRESS_NO = #{addressNo}
+    ]]></update>
+
     <update id="clearDefaultAddress" parameterType="java.lang.Long"><![CDATA[
         UPDATE OFT_USER_ADDRESS
         SET IS_DEFAULT = 'N',
@@ -85,5 +117,11 @@
         WHERE USER_NO = #{userNo}
           AND ADDRESS_NO = #{addressNo}
     ]]></update>
+
+    <delete id="deleteAddress" parameterType="map"><![CDATA[
+        DELETE FROM OFT_USER_ADDRESS
+        WHERE USER_NO = #{userNo}
+          AND ADDRESS_NO = #{addressNo}
+    ]]></delete>
 
 </mapper>

@@ -1,6 +1,6 @@
 package com.app.dto;
 
-public class CreateAddressRequestDto {
+public class AddressRequestDto {
 
     private String recipientName;
     private String recipientPhone;
