@@ -1,0 +1,233 @@
+.container {
+  width: var(--container);
+
+  margin: 16px auto 22px; /* 네비게이션과 동일하게 */
+  
+}
+
+
+.page-head {
+  width: var(--container); /* 메인네비게이션과 동일한 폭 */
+  margin-bottom: 20px;
+}
+.page-row {
+  display: flex;
+  justify-content: space-between; /* 왼쪽 p, 오른쪽 버튼 */
+  align-items: center; /* 세로 정렬 */
+}
+
+.page-row p {
+  margin: 0;
+
+
+}
+
+.page-actions {
+  margin-left: auto; /* 오른쪽 끝으로 밀기 */
+  display: flex;
+  gap: 4px; /* 버튼 간격 */
+}
+
+
+
+.btn-chip {
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: 1px solid #ddd;
+  cursor: pointer;
+}
+
+.btn-chip.active {
+  background: #159a55;
+  color: #fff;
+}
+
+/* 카드 */
+.card {
+  background: #fff;
+  padding: 20px;
+  border-radius: 20px;
+  margin-bottom: 20px;
+}
+
+/* 그리드 */
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+/* 상품 */
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.product-card {
+  padding: 16px;
+  border-radius: 16px;
+  background: #f8faf7;
+  text-align: center;
+}
+
+.product-thumb {
+  font-size: 40px;
+  color: #000;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+}
+/* 가격 행 */
+.price-row {
+  display: flex;
+  justify-content: center; /* 가운데 정렬 */
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.price-row strong {
+  font-size: 18px;
+  font-weight: 700;
+  color: #222;
+}
+
+.price-row .small {
+  font-size: 13px;
+  color: #666;
+}
+
+/* 메타 행 */
+.meta-row {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge.green {
+  background: #e7f5eb;
+  color: #159a55;
+}
+
+.badge.yellow {
+  background: #fbefc2;
+  color: #a67c00;
+}
+
+/* 버튼 */
+.btn.soft {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: 1px solid #ddd;
+  background: #fff;
+  color: #333;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn.soft:hover {
+  background: #f4f4f4;
+}
+
+/* insight 행 */
+.insight-row {
+  display: flex;
+  justify-content: space-between; /* 좌측 텍스트, 우측 버튼 */
+  align-items: center;
+  background: #f4f4f4;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+/* 기존 insight-item */
+.insight-item {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* 작은 버튼 */
+.btn-mini {
+  padding: 6px 12px;
+  border-radius: 12px;
+  border: 1px solid #ddd;
+  background: #fff;
+  color: #159a55;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-mini:hover {
+  background: #e7f5eb;
+}
+
+/* 전체 리스트 */
+.mini-recipes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 한 줄 */
+.mini-recipe-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8faf7;
+  padding: 12px;
+  border-radius: 12px;
+}
+
+/* 텍스트 */
+.mini-recipe-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+
+/* quick */
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.quick-card {
+  padding: 20px;
+  border-radius: 16px;
+  background: #f4f4f4;
+}
+
+.soft-green {
+  background: #e7f5eb;
+}
+
+.soft-yellow {
+  background: #fbefc2;
+}
+
+/* 리스트 */
+.list {
+  display: grid;
+  gap: 10px;
+}
+
+.insight-item {
+  background: #f4f4f4;
+  padding: 10px;
+  border-radius: 10px;
+}
+
