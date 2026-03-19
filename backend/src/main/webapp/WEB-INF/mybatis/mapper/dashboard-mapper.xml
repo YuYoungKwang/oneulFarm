@@ -16,6 +16,7 @@
     </resultMap>
 
     <resultMap id="ProductSavingResultMap" type="com.app.dto.ProductSavingDto">
+        <result property="productNo" column="productNo" />
         <result property="productName" column="productName" />
         <result property="savedAmount" column="savedAmount" />
     </resultMap>
@@ -26,12 +27,14 @@
     </resultMap>
 
     <resultMap id="TopPurchasedProductResultMap" type="com.app.dto.TopPurchasedProductDto">
+        <result property="productNo" column="productNo" />
         <result property="productName" column="productName" />
         <result property="totalQuantity" column="totalQuantity" />
         <result property="savedAmount" column="savedAmount" />
     </resultMap>
 
     <resultMap id="RecentPurchasedProductResultMap" type="com.app.dto.RecentPurchasedProductDto">
+        <result property="productNo" column="productNo" />
         <result property="productName" column="productName" />
         <result property="orderedAt" column="orderedAt" />
         <result property="quantity" column="quantity" />
@@ -89,6 +92,7 @@
         SELECT *
         FROM (
             SELECT
+                oi.PRODUCT_NO AS productNo,
                 oi.PRODUCT_NAME AS productName,
                 SUM(NVL(oi.SAVED_AMOUNT, 0)) AS savedAmount
             FROM OFT_ORDERS o
@@ -96,7 +100,7 @@
               ON oi.ORDER_NO = o.ORDER_NO
             WHERE o.USER_NO = #{userNo}
               AND o.ORDER_STATUS != 'CANCELED'
-            GROUP BY oi.PRODUCT_NAME
+            GROUP BY oi.PRODUCT_NO, oi.PRODUCT_NAME
             ORDER BY savedAmount DESC, productName ASC
         )
         WHERE ROWNUM <= 5
@@ -117,6 +121,7 @@
         SELECT *
         FROM (
             SELECT
+                oi.PRODUCT_NO AS productNo,
                 oi.PRODUCT_NAME AS productName,
                 SUM(NVL(oi.QUANTITY, 0)) AS totalQuantity,
                 SUM(NVL(oi.SAVED_AMOUNT, 0)) AS savedAmount
@@ -125,7 +130,7 @@
               ON oi.ORDER_NO = o.ORDER_NO
             WHERE o.USER_NO = #{userNo}
               AND o.ORDER_STATUS != 'CANCELED'
-            GROUP BY oi.PRODUCT_NAME
+            GROUP BY oi.PRODUCT_NO, oi.PRODUCT_NAME
             ORDER BY totalQuantity DESC, savedAmount DESC, productName ASC
         )
         WHERE ROWNUM <= 3
@@ -135,6 +140,7 @@
         SELECT *
         FROM (
             SELECT
+                oi.PRODUCT_NO AS productNo,
                 oi.PRODUCT_NAME AS productName,
                 TO_CHAR(o.ORDERED_AT, 'YYYY-MM-DD HH24:MI:SS') AS orderedAt,
                 oi.QUANTITY AS quantity,

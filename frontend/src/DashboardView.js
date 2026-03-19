@@ -14,6 +14,18 @@ function formatPercent(value) {
   })}%`;
 }
 
+function renderProductLink(item, className = 'dashboard-product-link') {
+  if (!item?.productNo) {
+    return <strong>{item?.productName}</strong>;
+  }
+
+  return (
+    <a href={`#/products/${item.productNo}`} className={className}>
+      {item.productName}
+    </a>
+  );
+}
+
 function AnimatedValue({ value = 0, formatter = (currentValue) => String(currentValue) }) {
   const [displayValue, setDisplayValue] = useState(0);
 
@@ -168,7 +180,7 @@ function DashboardView({
             <div className="compare-bars">
               {productSavings.map((item) => (
                 <div key={item.productName} className="compare-item">
-                  <strong>{item.productName}</strong>
+                  {renderProductLink(item)}
                   <div className="bar">
                     <span
                       style={{
@@ -213,7 +225,7 @@ function DashboardView({
                   <div className="dashboard-list-item__head">
                     <div className="dashboard-list-item__title-row">
                       <span className="dashboard-rank-badge">TOP {index + 1}</span>
-                      <strong>{item.productName}</strong>
+                      {renderProductLink(item)}
                     </div>
                     <span className="dashboard-list-item__badge">{item.totalQuantity}개 구매</span>
                   </div>
@@ -243,7 +255,7 @@ function DashboardView({
                   <div className="dashboard-list-item__head">
                     <div className="dashboard-list-item__title-row">
                       <span className="dashboard-rank-badge dashboard-rank-badge--recent">최근 {index + 1}</span>
-                      <strong>{item.productName}</strong>
+                      {renderProductLink(item)}
                     </div>
                     <span className="dashboard-list-item__badge">{item.quantity}개</span>
                   </div>

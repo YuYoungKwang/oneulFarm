@@ -4,8 +4,17 @@ import java.math.BigDecimal;
 
 public class ProductSavingDto {
 
+    private Long productNo;
     private String productName;
     private BigDecimal savedAmount;
+
+    public Long getProductNo() {
+        return productNo;
+    }
+
+    public void setProductNo(Long productNo) {
+        this.productNo = productNo;
+    }
 
     public String getProductName() {
         return productName;

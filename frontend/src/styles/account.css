@@ -1098,6 +1098,18 @@
   min-width: 0;
 }
 
+.account-app .dashboard-product-link{
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.account-app .dashboard-product-link:hover{
+  color: var(--green-dark);
+  text-decoration: underline;
+}
+
 .account-app .dashboard-list-item__head strong{
   font-size: 18px;
   color: var(--text);
