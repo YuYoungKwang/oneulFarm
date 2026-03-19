@@ -1058,6 +1058,35 @@
   padding-bottom: 4px;
 }
 
+.account-app .address-modal__head-actions{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.account-app .address-modal__create-btn{
+  min-width: 112px;
+}
+
+.account-app .address-modal__switch-btn{
+  color: var(--green-dark);
+  border-color: rgba(21, 154, 85, 0.18);
+  background: rgba(244, 250, 246, 0.92);
+}
+
+.account-app .address-modal__close-btn{
+  color: #64748b;
+  border-color: rgba(203, 213, 225, 0.9);
+  background: #f8fafc;
+}
+
+.account-app .address-modal__close-btn:hover{
+  background: #f1f5f9;
+  color: #334155;
+}
+
 .account-app .profile-form{
   display: grid;
   gap: 18px;
@@ -1528,6 +1557,11 @@
 .account-app .mypage-section-header{
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .account-app .address-modal__head-actions{
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .account-app .order-item{

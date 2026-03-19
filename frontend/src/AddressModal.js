@@ -64,17 +64,17 @@ function AddressModal({
               배송지 목록을 확인하고, 기본 배송지 변경과 배송지 추가, 수정, 삭제를 진행할 수 있습니다.
             </div>
           </div>
-          <div className="page-actions">
+          <div className="address-modal__head-actions">
             {isFormOpen ? (
-              <button type="button" className="btn-outline" onClick={onCloseForm}>
+              <button type="button" className="btn-outline address-modal__switch-btn" onClick={onCloseForm}>
                 목록으로 돌아가기
               </button>
             ) : (
-              <button type="button" className="btn-outline" onClick={onStartCreate}>
+              <button type="button" className="btn address-modal__create-btn" onClick={onStartCreate}>
                 배송지 추가
               </button>
             )}
-            <button type="button" className="btn-outline" onClick={onClose}>
+            <button type="button" className="btn-outline address-modal__close-btn" onClick={onClose}>
               닫기
             </button>
           </div>
