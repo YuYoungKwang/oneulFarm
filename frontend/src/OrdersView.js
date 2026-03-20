@@ -8,6 +8,10 @@ import {
 import OrderDetailPanel from './OrderDetailPanel';
 import InlineInfoTip from './components/InlineInfoTip';
 
+function getOrderImageSrc(imageNo) {
+  return imageNo ? `/backend/api/image/product/${imageNo}` : '';
+}
+
 function OrdersView({
   orders,
   ordersLoading,
@@ -41,7 +45,7 @@ function OrdersView({
             <div>
               <div className="section-title-row">
                 <div className="section-title">주문 조회 조건</div>
-                <InlineInfoTip content="배송 상태와 기간을 함께 선택하면 원하는 주문만 빠르게 좁혀서 볼 수 있습니다." />
+                <InlineInfoTip content="배송 상태와 기간을 선택하면 원하는 주문만 빠르게 볼 수 있습니다." />
               </div>
             </div>
           </div>
@@ -105,6 +109,7 @@ function OrdersView({
         <section className="order-list">
           {orders.map((order) => {
             const isSelected = selectedOrderNo === order.orderNo;
+            const previewImageNos = Array.isArray(order.previewImageNos) ? order.previewImageNos : [];
 
             return (
               <div key={order.orderNo} className="order-list-entry">
@@ -118,6 +123,24 @@ function OrdersView({
                       {getDeliveryLabel(order.deliveryStatus)}
                     </span>
                   </div>
+
+                  {previewImageNos.length > 0 && (
+                    <div className="order-preview-strip" aria-label="구매 상품 대표 이미지">
+                      {previewImageNos.map((imageNo, index) => (
+                        <img
+                          key={`${order.orderNo}-${imageNo}-${index}`}
+                          className="order-preview-thumb"
+                          src={getOrderImageSrc(imageNo)}
+                          alt={order.displayProductName || '주문 상품'}
+                        />
+                      ))}
+                      {Number(order.itemCount || 0) > previewImageNos.length && (
+                        <span className="order-preview-more">
+                          +{Number(order.itemCount || 0) - previewImageNos.length}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   <div className="order-summary-grid">
                     <div className="order-summary-item">

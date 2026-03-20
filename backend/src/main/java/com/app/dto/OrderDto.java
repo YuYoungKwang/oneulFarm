@@ -30,6 +30,7 @@ public class OrderDto {
     private String displayProductName;
     private Long itemCount;
     private BigDecimal totalSavedAmount;
+    private List<Long> previewImageNos;
 
     private String paymentMethod;
     private String paymentKey;

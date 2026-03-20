@@ -2384,6 +2384,77 @@
   gap: 12px;
 }
 
+.account-app .order-preview-strip{
+  display: flex;
+  align-items: center;
+  margin: 14px 0 2px;
+}
+
+.account-app .order-preview-thumb,
+.account-app .order-preview-more{
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  border: 2px solid #fff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.account-app .order-preview-thumb{
+  object-fit: cover;
+  background: #fff;
+  margin-left: -10px;
+}
+
+.account-app .order-preview-thumb:first-child{
+  margin-left: 0;
+}
+
+.account-app .order-preview-more{
+  margin-left: -10px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #eff6ef, #dff0e4);
+  color: var(--green-dark);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.account-app .detail-item-layout{
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.account-app .detail-item-media{
+  display: flex;
+  justify-content: center;
+}
+
+.account-app .detail-item-thumb{
+  width: 112px;
+  height: 112px;
+  border-radius: 24px;
+  object-fit: cover;
+  border: 1px solid rgba(227, 232, 236, 0.95);
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+.account-app .detail-item-thumb--placeholder{
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 800;
+  background: linear-gradient(180deg, #f6f9f7, #edf4ef);
+}
+
+.account-app .detail-item-body{
+  display: grid;
+  gap: 12px;
+}
+
 .account-app .detail-item-top{
   display: flex;
   justify-content: space-between;
@@ -2492,6 +2563,16 @@
 .account-app .detail-grid,
 .account-app .profile-summary-grid{
     grid-template-columns: 1fr;
+  }
+
+  .account-app .detail-item-layout{
+    grid-template-columns: 1fr;
+  }
+
+  .account-app .detail-item-thumb{
+    width: 100%;
+    max-width: 220px;
+    height: 180px;
   }
 
   .account-app .profile-inline-row,
