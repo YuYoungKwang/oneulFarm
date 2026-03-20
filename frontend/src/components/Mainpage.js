@@ -146,7 +146,7 @@ function MainPage() {
           <div className="section-head">
             <div>
               <div className="section-title">추천 농산물</div>
-              <div className="section-sub">기존 상품/시세 매칭 데이터 기준 추천 상품</div>
+              <div className="section-sub">기존 Product, Price 데이터를 재사용한 추천 상품</div>
             </div>
             <a href="#/products">전체 보기 →</a>
           </div>
@@ -155,14 +155,7 @@ function MainPage() {
             {products.map((product) => (
               <article className="product-card" key={product.productNo}>
                 <div className="product-media">
-                  {product.images?.[0]?.imageNo ? (
-                    <img
-                      src={`/api/image/product/${product.images[0].imageNo}`}
-                      alt={product.productName}
-                    />
-                  ) : (
-                    <span>{product.productName?.slice(0, 1) || "🥬"}</span>
-                  )}
+                  <span>{product.productName?.slice(0, 1) || "🥬"}</span>
                 </div>
                 <div className="product-name">{product.productName}</div>
                 <div className="section-sub">
@@ -174,7 +167,7 @@ function MainPage() {
           </div>
 
           {!isLoading && products.length === 0 ? (
-            <div className="section-empty">노출할 추천 상품이 없습니다.</div>
+            <div className="section-empty">추천 상품 데이터가 없습니다.</div>
           ) : null}
         </section>
 
@@ -190,7 +183,7 @@ function MainPage() {
                   ? `${getInsightLabel(featuredInsight)} · 절감률 ${formatRate(
                       featuredInsight.savingRate
                     )}`
-                  : "상품과 시세 매칭 데이터가 준비되면 표시됩니다."}
+                  : "시세 데이터가 준비되면 표시됩니다."}
               </div>
             </div>
             <div className="banner-illustration">📈</div>
@@ -203,7 +196,7 @@ function MainPage() {
                 {featuredRecipe ? featuredRecipe.recipeName : "추천 레시피 준비 중"}
               </div>
               <div className="section-sub">
-                {featuredRecipe?.description || "기존 레시피 테이블 기준으로 노출됩니다."}
+                {featuredRecipe?.description || "기존 Recipe 데이터를 재사용해 노출합니다."}
               </div>
             </div>
             <div className="banner-illustration">🍲</div>
@@ -246,7 +239,7 @@ function MainPage() {
                 </div>
               ))}
               {!isLoading && insights.length === 0 ? (
-                <div className="section-empty">시세 인사이트가 없습니다.</div>
+                <div className="section-empty">시세 인사이트 데이터가 없습니다.</div>
               ) : null}
             </div>
           </article>
@@ -281,7 +274,7 @@ function MainPage() {
             </div>
 
             {!isLoading && recipes.length === 0 ? (
-              <div className="section-empty">추천 레시피가 없습니다.</div>
+              <div className="section-empty">추천 레시피 데이터가 없습니다.</div>
             ) : null}
           </article>
         </section>
