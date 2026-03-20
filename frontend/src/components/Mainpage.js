@@ -4,13 +4,44 @@ import HeroSlider from "./HeroSlider";
 import { fetchMainPage } from "../api/mainApi";
 import "../styles/mainPage.css";
 
-const CATEGORY_CHIPS = ["🌿 제철", "🍎 과일", "🥬 채소", "🌾 곡물", "🍄 버섯", "💸 특가"];
+const CATEGORY_CHIPS = [
+  "전체",
+  "🌿 제철",
+  "🍎 과일",
+  "🥬 채소",
+  "🌾 곡물",
+  "🍄 버섯",
+  "💸 특가",
+];
+
+const API_BASE_PREFIXES = buildApiBasePrefixes(
+  process.env.REACT_APP_API_BASE_URL || ""
+);
+
 const EMPTY_MAIN_DATA = {
   products: [],
   insights: [],
   chart: [],
   recipes: [],
 };
+
+function buildApiBasePrefixes(explicitBaseUrl) {
+  const normalizedBaseUrl = normalizeBaseUrl(explicitBaseUrl);
+  if (normalizedBaseUrl) {
+    return [normalizedBaseUrl];
+  }
+
+  return ["", "/backend"];
+}
+
+function normalizeBaseUrl(value) {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    return "";
+  }
+
+  return trimmedValue.replace(/\/+$/, "");
+}
 
 function toNumber(value, fallback = 0) {
   const nextValue = Number(value);
@@ -25,6 +56,17 @@ function formatRate(value) {
   const rate = toNumber(value);
   const sign = rate > 0 ? "+" : "";
   return `${sign}${rate.toFixed(1)}%`;
+}
+
+function getDiscountRate(product) {
+  const salePrice = toNumber(product?.salePrice);
+  const avgPrice = toNumber(product?.avgPrice, salePrice);
+
+  if (avgPrice <= 0 || salePrice <= 0 || salePrice >= avgPrice) {
+    return 0;
+  }
+
+  return ((avgPrice - salePrice) / avgPrice) * 100;
 }
 
 function buildChartPoints(chartData) {
@@ -78,10 +120,95 @@ function getInsightLabel(product) {
   return `등락률 ${formatRate(product.changeRate)}`;
 }
 
+function getProductImageSources(product) {
+  const mainImage = Array.isArray(product?.images)
+    ? product.images.find((image) => image?.isMain === "Y") || product.images[0]
+    : null;
+
+  if (!mainImage?.imageNo) {
+    return [];
+  }
+
+  return API_BASE_PREFIXES.map(
+    (basePrefix) => `${basePrefix}/api/image/product/${mainImage.imageNo}`
+  );
+}
+
+function handleImageError(event) {
+  const nextSource = event.currentTarget.dataset.fallbackSrc;
+  if (!nextSource || event.currentTarget.src === nextSource) {
+    return;
+  }
+
+  event.currentTarget.src = nextSource;
+  event.currentTarget.removeAttribute("data-fallback-src");
+}
+
+function getRecipeIngredientPreview(recipe) {
+  if (!Array.isArray(recipe?.ingredientList) || recipe.ingredientList.length === 0) {
+    return "재료 정보가 없습니다.";
+  }
+
+  return recipe.ingredientList
+    .slice(0, 3)
+    .map((ingredient) => ingredient.ingredientName)
+    .filter(Boolean)
+    .join(", ");
+}
+
+function filterProducts(products, category) {
+  if (category === "전체") {
+    return products;
+  }
+
+  if (category.includes("특가")) {
+    return [...products]
+      .filter((product) => {
+        const salePrice = toNumber(product?.salePrice);
+        const avgPrice = toNumber(product?.avgPrice, salePrice);
+        return avgPrice > 0 && salePrice < avgPrice;
+      })
+      .sort(
+        (leftProduct, rightProduct) =>
+          getDiscountRate(rightProduct) - getDiscountRate(leftProduct)
+      );
+  }
+
+  return products.filter((product) => {
+    const name = product?.productName || "";
+    const categoryName = product?.categoryName || "";
+    const source = `${name} ${categoryName}`;
+    const isSeasonal = product?.isSeasonal === "Y";
+
+    if (category.includes("과일")) {
+      return /사과|배|감귤|귤|딸기|포도|복숭아|바나나|오렌지/.test(source);
+    }
+
+    if (category.includes("채소")) {
+      return /양파|오이|토마토|감자|시금치|배추|무|상추|당근|호박|채소/.test(source);
+    }
+
+    if (category.includes("버섯")) {
+      return /버섯/.test(source);
+    }
+
+    if (category.includes("곡물")) {
+      return /쌀|콩|보리|현미|옥수수|곡물/.test(source);
+    }
+
+    if (category.includes("제철")) {
+      return isSeasonal;
+    }
+
+    return true;
+  });
+}
+
 function MainPage() {
   const [mainData, setMainData] = useState(EMPTY_MAIN_DATA);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("전체");
 
   useEffect(() => {
     applyAdminShortcutVisibility();
@@ -122,10 +249,14 @@ function MainPage() {
   }, []);
 
   const { products, insights, chart, recipes } = mainData;
+  const filteredProducts = filterProducts(products, selectedCategory);
+  const hasFiltered = filteredProducts.length > 0;
+  const displayProducts = hasFiltered ? filteredProducts : products;
   const chartPoints = buildChartPoints(chart);
   const featuredInsight = insights[0] || products[0] || null;
   const featuredRecipe = recipes[0] || null;
-  const chartHeadline = chart[chart.length - 1]?.itemName || featuredInsight?.itemName || "대표 품목";
+  const chartHeadline =
+    chart[chart.length - 1]?.itemName || featuredInsight?.itemName || "대표 품목";
 
   return (
     <div className="page-shell">
@@ -134,9 +265,14 @@ function MainPage() {
 
         <div className="chip-row">
           {CATEGORY_CHIPS.map((chip) => (
-            <div className="chip" key={chip}>
+            <button
+              className={`chip ${selectedCategory === chip ? "active" : ""}`}
+              key={chip}
+              onClick={() => setSelectedCategory(chip)}
+              type="button"
+            >
               {chip}
-            </div>
+            </button>
           ))}
         </div>
 
@@ -151,19 +287,45 @@ function MainPage() {
             <a href="#/products">전체 보기 →</a>
           </div>
 
+          {!isLoading && !hasFiltered && selectedCategory !== "전체" && products.length > 0 ? (
+            <div className="section-sub" style={{ marginBottom: "10px" }}>
+              ⚠ 선택한 카테고리 상품이 없어 전체 추천 상품을 보여드립니다.
+            </div>
+          ) : null}
+
           <div className="product-grid">
-            {products.map((product) => (
-              <article className="product-card" key={product.productNo}>
-                <div className="product-media">
-                  <span>{product.productName?.slice(0, 1) || "🥬"}</span>
-                </div>
-                <div className="product-name">{product.productName}</div>
-                <div className="section-sub">
-                  평균가 {formatCurrency(product.avgPrice || product.salePrice)}
-                </div>
-                <div className="price">{formatCurrency(product.salePrice)}</div>
-              </article>
-            ))}
+            {displayProducts.map((product) => {
+              const imageSources = getProductImageSources(product);
+
+              return (
+                <a
+                  className="product-card"
+                  href={`#/products/${product.productNo}`}
+                  key={product.productNo}
+                >
+                  <div className="product-media">
+                    {imageSources.length > 0 ? (
+                      <img
+                        src={imageSources[0]}
+                        data-fallback-src={imageSources[1] || ""}
+                        onError={handleImageError}
+                        alt={product.productName}
+                      />
+                    ) : (
+                      <span>{product.productName?.slice(0, 1) || "🥬"}</span>
+                    )}
+                  </div>
+                  <div className="product-name">{product.productName}</div>
+                  <div className="section-sub">
+                    평균가 {formatCurrency(product.avgPrice || product.salePrice)}
+                  </div>
+                  <div className="price">{formatCurrency(product.salePrice)}</div>
+                  {getDiscountRate(product) > 0 ? (
+                    <div className="discount">{getDiscountRate(product).toFixed(1)}% ↓</div>
+                  ) : null}
+                </a>
+              );
+            })}
           </div>
 
           {!isLoading && products.length === 0 ? (
@@ -193,11 +355,20 @@ function MainPage() {
             <div>
               <div className="banner-title">오늘의 추천 레시피</div>
               <div className="banner-strong">
-                {featuredRecipe ? featuredRecipe.recipeName : "추천 레시피 준비 중"}
+                {featuredRecipe ? (
+                  <a href={`#/recipes/${featuredRecipe.recipeNo}`}>{featuredRecipe.recipeName}</a>
+                ) : (
+                  "추천 레시피 준비 중"
+                )}
               </div>
               <div className="section-sub">
                 {featuredRecipe?.description || "기존 Recipe 데이터를 재사용해 노출합니다."}
               </div>
+              {featuredRecipe ? (
+                <div className="section-sub">
+                  재료: {getRecipeIngredientPreview(featuredRecipe)}
+                </div>
+              ) : null}
             </div>
             <div className="banner-illustration">🍲</div>
           </article>
@@ -266,10 +437,15 @@ function MainPage() {
 
             <div className="mini-recipes">
               {recipes.map((recipe) => (
-                <article className="mini-recipe" key={recipe.recipeNo}>
+                <a
+                  className="mini-recipe"
+                  href={`#/recipes/${recipe.recipeNo}`}
+                  key={recipe.recipeNo}
+                >
                   <h4>{recipe.recipeName}</h4>
                   <p>{recipe.cookTime || "조리시간 정보 없음"}</p>
-                </article>
+                  <p>재료: {getRecipeIngredientPreview(recipe)}</p>
+                </a>
               ))}
             </div>
 

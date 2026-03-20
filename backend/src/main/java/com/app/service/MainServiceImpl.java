@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import com.app.dto.PriceSnapshotDTO;
 import com.app.dto.ProductDto;
+import com.app.dto.RecipeDetailDTO;
 import com.app.dto.RecipeDTO;
 import com.app.dto.RecipeListResponseDTO;
 
@@ -35,8 +36,8 @@ public class MainServiceImpl implements MainService {
     @Override
     public Map<String, Object> getMainPage() {
         List<ProductDto> products = defaultList(productService.getProducts());
-        List<ProductDto> mainProducts = limit(products, MAIN_PRODUCT_LIMIT);
-        List<ProductDto> insights = limit(filterPricedProducts(products), MAIN_INSIGHT_LIMIT);
+        List<ProductDto> mainProducts = enrichProducts(limit(products, MAIN_PRODUCT_LIMIT));
+        List<ProductDto> insights = enrichProducts(limit(filterPricedProducts(products), MAIN_INSIGHT_LIMIT));
         List<PriceSnapshotDTO> chart = getChartData(mainProducts, insights);
         List<RecipeDTO> recipes = getRecipes();
 
@@ -92,7 +93,53 @@ public class MainServiceImpl implements MainService {
             return Collections.emptyList();
         }
 
-        return response.getRecipeList();
+        List<RecipeDTO> recipes = new ArrayList<RecipeDTO>();
+        for (RecipeDTO recipe : response.getRecipeList()) {
+            recipes.add(enrichRecipe(recipe));
+        }
+        return recipes;
+    }
+
+    private List<ProductDto> enrichProducts(List<ProductDto> products) {
+        if (products == null || products.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<ProductDto> enriched = new ArrayList<ProductDto>();
+        for (ProductDto product : products) {
+            if (product == null || product.getProductNo() == null) {
+                continue;
+            }
+
+            ProductDto detailedProduct = productService.getProduct(product.getProductNo());
+            enriched.add(detailedProduct == null ? product : detailedProduct);
+        }
+        return enriched;
+    }
+
+    private RecipeDTO enrichRecipe(RecipeDTO recipe) {
+        if (recipe == null || recipe.getRecipeNo() == null) {
+            return recipe;
+        }
+
+        RecipeDetailDTO detail = recipeService.getRecipeDetail(recipe.getRecipeNo());
+        if (detail == null) {
+            return recipe;
+        }
+
+        RecipeDTO enrichedRecipe = new RecipeDTO();
+        enrichedRecipe.setRecipeNo(detail.getRecipeNo());
+        enrichedRecipe.setExternalRecipeId(detail.getExternalRecipeId());
+        enrichedRecipe.setRecipeName(detail.getRecipeName());
+        enrichedRecipe.setDescription(detail.getDescription());
+        enrichedRecipe.setCookTime(detail.getCookTime());
+        enrichedRecipe.setDifficulty(detail.getDifficulty());
+        enrichedRecipe.setCalories(detail.getCalories());
+        enrichedRecipe.setImageUrl(detail.getImageUrl());
+        enrichedRecipe.setSourceName(detail.getSourceName());
+        enrichedRecipe.setIngredientList(detail.getIngredientList());
+        enrichedRecipe.setStepList(detail.getStepList());
+        return enrichedRecipe;
     }
 
     private ProductDto firstWithItemCode(List<ProductDto> products) {

@@ -1,6 +1,7 @@
 const API_BASE_PREFIXES = buildApiBasePrefixes(
   process.env.REACT_APP_API_BASE_URL || ""
 );
+
 const MAIN_API_PATH = "/api/main";
 
 function buildApiBasePrefixes(explicitBaseUrl) {
