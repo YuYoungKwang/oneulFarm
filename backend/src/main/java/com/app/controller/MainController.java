@@ -1,5 +1,7 @@
 package com.app.controller;
 
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,7 +19,7 @@ public class MainController {
     private MainService mainService;
 
     @GetMapping
-    public ApiResponse<?> getMainPage() {
-        return ApiResponse.success(null, "테스트");
+    public ApiResponse<Map<String, Object>> getMainPage() {
+        return ApiResponse.success(mainService.getMainPage(), "메인 조회 성공");
     }
 }

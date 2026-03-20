@@ -1,4 +1,15 @@
-import { monthlySavings, productSavings } from './mockData';
+function normalizeDateValue(value) {
+  if (!value) {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    const [year, month, day, hour = 0, minute = 0, second = 0] = value;
+    return new Date(year, Number(month || 1) - 1, day || 1, hour, minute, second);
+  }
+
+  return new Date(value);
+}
 
 export function formatPrice(value) {
   return `${Number(value || 0).toLocaleString('ko-KR')}원`;
@@ -9,9 +20,9 @@ export function formatDate(value) {
     return '-';
   }
 
-  const date = new Date(value);
+  const date = normalizeDateValue(value);
   if (Number.isNaN(date.getTime())) {
-    return value;
+    return String(value);
   }
 
   return date.toLocaleDateString('ko-KR', {
@@ -26,9 +37,9 @@ export function formatDateTime(value) {
     return '-';
   }
 
-  const date = new Date(value);
+  const date = normalizeDateValue(value);
   if (Number.isNaN(date.getTime())) {
-    return value;
+    return String(value);
   }
 
   return date.toLocaleString('ko-KR', {
@@ -40,25 +51,15 @@ export function formatDateTime(value) {
   });
 }
 
-export function getMonthlyHeight(value) {
-  const maxValue = Math.max(...monthlySavings.map((item) => item.value));
-  return `${(value / maxValue) * 100}%`;
-}
-
-export function getProductWidth(value) {
-  const maxValue = Math.max(...productSavings.map((item) => item.value));
-  return `${(value / maxValue) * 100}%`;
-}
-
 export function getDeliveryBadgeClass(status) {
   return status === 'DELIVERED' ? 'done' : 'ready';
 }
 
 export function getDeliveryLabel(status) {
   const labels = {
-    READY: '배송준비',
-    SHIPPING: '배송중',
-    DELIVERED: '배송완료',
+    READY: '배송 준비',
+    SHIPPING: '배송 중',
+    DELIVERED: '배송 완료',
   };
 
   return labels[status] || status || '-';
@@ -68,7 +69,7 @@ export function getOrderStats(orders) {
   return {
     totalCount: orders.length,
     shippingCount: orders.filter(
-      (order) => order.deliveryStatus === 'SHIPPING' || order.deliveryStatus === 'READY',
+      (order) => order.deliveryStatus === 'SHIPPING' || order.deliveryStatus === 'READY'
     ).length,
     deliveredCount: orders.filter((order) => order.deliveryStatus === 'DELIVERED').length,
     totalSavedAmount: orders.reduce((sum, order) => sum + Number(order.totalSavedAmount || 0), 0),
@@ -78,4 +79,35 @@ export function getOrderStats(orders) {
 export function getProfileInitials(profile) {
   const source = profile.nickname || profile.userId || 'MY';
   return source.slice(0, 2).toUpperCase();
+}
+
+export function getScaledHeight(value, items, key = 'value') {
+  const maxValue = Math.max(...items.map((item) => Number(item[key] || 0)), 0);
+  if (maxValue === 0) {
+    return '0%';
+  }
+
+  return `${(Number(value || 0) / maxValue) * 100}%`;
+}
+
+export function getScaledWidth(value, items, key = 'value') {
+  const maxValue = Math.max(...items.map((item) => Number(item[key] || 0)), 0);
+  if (maxValue === 0) {
+    return '0%';
+  }
+
+  return `${(Number(value || 0) / maxValue) * 100}%`;
+}
+
+export function formatMonthLabel(value) {
+  if (!value) {
+    return '-';
+  }
+
+  const matched = String(value).match(/^(\d{4})-(\d{2})$/);
+  if (!matched) {
+    return String(value);
+  }
+
+  return `${Number(matched[2])}월`;
 }

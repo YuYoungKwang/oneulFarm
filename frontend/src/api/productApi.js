@@ -1,8 +1,11 @@
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
-const PRODUCT_API_BASE = `${API_BASE_URL}/api/products`;
-const CART_API_BASE = `${API_BASE_URL}/api/cart`;
-const ORDER_API_BASE = `${API_BASE_URL}/api/orders`;
-const DEMO_USER_NO = '1';
+import { buildAuthHeaders } from '../auth';
+
+const API_BASE_PREFIXES = buildApiBasePrefixes(
+  process.env.REACT_APP_API_BASE_URL || ''
+);
+const PRODUCT_API_BASE = '/api/products';
+const CART_API_BASE = '/api/cart';
+const ORDER_API_BASE = '/api/orders';
 
 const PRODUCT_SYMBOLS = ['🥬', '🧅', '🍅', '🥒', '🍎', '🍄', '🌿', '🌾'];
 const RECIPE_SYMBOLS = ['🍳', '🥗', '🥘', '🍲'];
@@ -24,16 +27,44 @@ async function parseResponse(response, fallbackMessage) {
   return payload?.data;
 }
 
-function apiHeaders(includeJson = false) {
-  const headers = {
-    'X-USER-NO': DEMO_USER_NO,
-  };
-
-  if (includeJson) {
-    headers['Content-Type'] = 'application/json';
+function buildApiBasePrefixes(explicitBaseUrl) {
+  const normalizedBaseUrl = normalizeBaseUrl(explicitBaseUrl);
+  if (normalizedBaseUrl) {
+    return [normalizedBaseUrl];
   }
 
-  return headers;
+  return ['', '/backend'];
+}
+
+function normalizeBaseUrl(value) {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    return '';
+  }
+
+  return trimmedValue.replace(/\/+$/, '');
+}
+
+async function requestApi(path, options, fallbackMessage) {
+  let lastError = null;
+
+  for (const basePrefix of API_BASE_PREFIXES) {
+    try {
+      const response = await fetch(`${basePrefix}${path}`, options);
+      return await parseResponse(response, fallbackMessage);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error(fallbackMessage);
+}
+
+function apiHeaders(includeJson = false) {
+  return buildAuthHeaders({
+    includeJson,
+    includeUserNo: false,
+  });
 }
 
 function toNumber(value, fallback = 0) {
@@ -257,17 +288,15 @@ function adaptOrderDetail(rawDetail, options = {}) {
 }
 
 export async function fetchProductsFromApi() {
-  const data = await parseResponse(
-    await fetch(PRODUCT_API_BASE),
-    'Failed to load products.'
-  );
+  const data = await requestApi(PRODUCT_API_BASE, undefined, 'Failed to load products.');
 
   return (data || []).map(buildProductModel);
 }
 
 export async function fetchProductDetailFromApi(productNo) {
-  const data = await parseResponse(
-    await fetch(`${PRODUCT_API_BASE}/${productNo}`),
+  const data = await requestApi(
+    `${PRODUCT_API_BASE}/${productNo}`,
+    undefined,
     'Failed to load product detail.'
   );
 
@@ -275,10 +304,11 @@ export async function fetchProductDetailFromApi(productNo) {
 }
 
 export async function fetchCartFromApi() {
-  const data = await parseResponse(
-    await fetch(`${CART_API_BASE}/me`, {
+  const data = await requestApi(
+    `${CART_API_BASE}/me`,
+    {
       headers: apiHeaders(),
-    }),
+    },
     'Failed to load cart.'
   );
 
@@ -286,12 +316,13 @@ export async function fetchCartFromApi() {
 }
 
 export async function addCartItemToApi(productNo, quantity) {
-  const data = await parseResponse(
-    await fetch(`${CART_API_BASE}/me/items`, {
+  const data = await requestApi(
+    `${CART_API_BASE}/me/items`,
+    {
       method: 'POST',
       headers: apiHeaders(true),
       body: JSON.stringify({ productNo, quantity }),
-    }),
+    },
     'Failed to add cart item.'
   );
 
@@ -299,12 +330,13 @@ export async function addCartItemToApi(productNo, quantity) {
 }
 
 export async function updateCartItemOnApi(productNo, quantity) {
-  const data = await parseResponse(
-    await fetch(`${CART_API_BASE}/me/items/${productNo}`, {
+  const data = await requestApi(
+    `${CART_API_BASE}/me/items/${productNo}`,
+    {
       method: 'PATCH',
       headers: apiHeaders(true),
       body: JSON.stringify({ quantity }),
-    }),
+    },
     'Failed to update cart item.'
   );
 
@@ -312,11 +344,12 @@ export async function updateCartItemOnApi(productNo, quantity) {
 }
 
 export async function removeCartItemFromApi(productNo) {
-  const data = await parseResponse(
-    await fetch(`${CART_API_BASE}/me/items/${productNo}`, {
+  const data = await requestApi(
+    `${CART_API_BASE}/me/items/${productNo}`,
+    {
       method: 'DELETE',
       headers: apiHeaders(),
-    }),
+    },
     'Failed to remove cart item.'
   );
 
@@ -324,11 +357,12 @@ export async function removeCartItemFromApi(productNo) {
 }
 
 export async function clearCartOnApi() {
-  const data = await parseResponse(
-    await fetch(`${CART_API_BASE}/me/items`, {
+  const data = await requestApi(
+    `${CART_API_BASE}/me/items`,
+    {
       method: 'DELETE',
       headers: apiHeaders(),
-    }),
+    },
     'Failed to clear cart.'
   );
 
@@ -336,19 +370,21 @@ export async function clearCartOnApi() {
 }
 
 export async function fetchOrdersFromApi() {
-  const list = await parseResponse(
-    await fetch(`${ORDER_API_BASE}/me`, {
+  const list = await requestApi(
+    `${ORDER_API_BASE}/me`,
+    {
       headers: apiHeaders(),
-    }),
+    },
     'Failed to load orders.'
   );
 
   const details = await Promise.all(
     (list || []).map(async (order) => {
-      const detail = await parseResponse(
-        await fetch(`${ORDER_API_BASE}/me/${order.orderNo}`, {
+      const detail = await requestApi(
+        `${ORDER_API_BASE}/me/${order.orderNo}`,
+        {
           headers: apiHeaders(),
-        }),
+        },
         'Failed to load order detail.'
       );
 
@@ -360,12 +396,13 @@ export async function fetchOrdersFromApi() {
 }
 
 export async function createOrderOnApi(checkoutForm) {
-  const data = await parseResponse(
-    await fetch(`${ORDER_API_BASE}/me`, {
+  const data = await requestApi(
+    `${ORDER_API_BASE}/me`,
+    {
       method: 'POST',
       headers: apiHeaders(true),
       body: JSON.stringify(checkoutForm),
-    }),
+    },
     'Failed to create order.'
   );
 
@@ -375,11 +412,12 @@ export async function createOrderOnApi(checkoutForm) {
 }
 
 export async function advanceOrderOnApi(orderNo, deliveryMessage = '') {
-  const data = await parseResponse(
-    await fetch(`${ORDER_API_BASE}/me/${orderNo}/advance`, {
+  const data = await requestApi(
+    `${ORDER_API_BASE}/me/${orderNo}/advance`,
+    {
       method: 'PATCH',
       headers: apiHeaders(),
-    }),
+    },
     'Failed to update order status.'
   );
 

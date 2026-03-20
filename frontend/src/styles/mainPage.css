@@ -154,6 +154,18 @@
   font-size: 36px;
   text-align: center;
   margin-bottom: 10px;
+  min-height: 92px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.product-media img {
+  width: 100%;
+  max-width: 120px;
+  height: 92px;
+  object-fit: cover;
+  border-radius: 12px;
 }
 
 .product-name {
@@ -260,6 +272,12 @@
   margin-top: 12px;
 }
 
+.chart-caption {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 /* =========================
    절약 대시보드
 ========================= */
@@ -288,4 +306,21 @@
 .mini-recipe h4 {
   font-size: 14px;
   margin: 6px 0;
+}
+
+.mini-recipe p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.section-empty,
+.section-error {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.section-error {
+  color: #c85656;
 }
