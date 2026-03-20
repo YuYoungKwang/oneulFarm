@@ -10,6 +10,37 @@
         <result property="totalPurchaseAmount" column="totalPurchaseAmount" />
     </resultMap>
 
+    <resultMap id="MonthlySavingResultMap" type="com.app.dto.MonthlySavingDto">
+        <result property="yearMonth" column="yearMonth" />
+        <result property="savedAmount" column="savedAmount" />
+    </resultMap>
+
+    <resultMap id="ProductSavingResultMap" type="com.app.dto.ProductSavingDto">
+        <result property="productNo" column="productNo" />
+        <result property="productName" column="productName" />
+        <result property="savedAmount" column="savedAmount" />
+    </resultMap>
+
+    <resultMap id="DashboardPatternSummaryResultMap" type="com.app.dto.DashboardPatternSummaryDto">
+        <result property="averagePurchaseUnitPrice" column="averagePurchaseUnitPrice" />
+        <result property="averageSavingRate" column="averageSavingRate" />
+    </resultMap>
+
+    <resultMap id="TopPurchasedProductResultMap" type="com.app.dto.TopPurchasedProductDto">
+        <result property="productNo" column="productNo" />
+        <result property="productName" column="productName" />
+        <result property="totalQuantity" column="totalQuantity" />
+        <result property="savedAmount" column="savedAmount" />
+    </resultMap>
+
+    <resultMap id="RecentPurchasedProductResultMap" type="com.app.dto.RecentPurchasedProductDto">
+        <result property="productNo" column="productNo" />
+        <result property="productName" column="productName" />
+        <result property="orderedAt" column="orderedAt" />
+        <result property="quantity" column="quantity" />
+        <result property="subtotal" column="subtotal" />
+    </resultMap>
+
     <select id="selectDashboardSummary" parameterType="java.lang.Long" resultMap="DashboardSummaryResultMap"><![CDATA[
         SELECT
             NVL((
@@ -42,6 +73,87 @@
                   AND o.ORDER_STATUS != 'CANCELED'
             ), 0) AS totalPurchaseAmount
         FROM DUAL
+    ]]></select>
+
+    <select id="selectMonthlySavings" parameterType="java.lang.Long" resultMap="MonthlySavingResultMap"><![CDATA[
+        SELECT
+            TO_CHAR(o.ORDERED_AT, 'YYYY-MM') AS yearMonth,
+            SUM(NVL(oi.SAVED_AMOUNT, 0)) AS savedAmount
+        FROM OFT_ORDERS o
+        JOIN OFT_ORDER_ITEM oi
+          ON oi.ORDER_NO = o.ORDER_NO
+        WHERE o.USER_NO = #{userNo}
+          AND o.ORDER_STATUS != 'CANCELED'
+        GROUP BY TO_CHAR(o.ORDERED_AT, 'YYYY-MM')
+        ORDER BY yearMonth
+    ]]></select>
+
+    <select id="selectProductSavings" parameterType="java.lang.Long" resultMap="ProductSavingResultMap"><![CDATA[
+        SELECT *
+        FROM (
+            SELECT
+                oi.PRODUCT_NO AS productNo,
+                oi.PRODUCT_NAME AS productName,
+                SUM(NVL(oi.SAVED_AMOUNT, 0)) AS savedAmount
+            FROM OFT_ORDERS o
+            JOIN OFT_ORDER_ITEM oi
+              ON oi.ORDER_NO = o.ORDER_NO
+            WHERE o.USER_NO = #{userNo}
+              AND o.ORDER_STATUS != 'CANCELED'
+            GROUP BY oi.PRODUCT_NO, oi.PRODUCT_NAME
+            ORDER BY savedAmount DESC, productName ASC
+        )
+        WHERE ROWNUM <= 5
+    ]]></select>
+
+    <select id="selectDashboardPatternSummary" parameterType="java.lang.Long" resultMap="DashboardPatternSummaryResultMap"><![CDATA[
+        SELECT
+            NVL(SUM(NVL(oi.SUBTOTAL, 0)) / NULLIF(SUM(NVL(oi.QUANTITY, 0)), 0), 0) AS averagePurchaseUnitPrice,
+            NVL(SUM(NVL(oi.SUBTOTAL, 0) * NVL(oi.SAVING_RATE, 0)) / NULLIF(SUM(NVL(oi.SUBTOTAL, 0)), 0), 0) AS averageSavingRate
+        FROM OFT_ORDERS o
+        JOIN OFT_ORDER_ITEM oi
+          ON oi.ORDER_NO = o.ORDER_NO
+        WHERE o.USER_NO = #{userNo}
+          AND o.ORDER_STATUS != 'CANCELED'
+    ]]></select>
+
+    <select id="selectTopPurchasedProducts" parameterType="java.lang.Long" resultMap="TopPurchasedProductResultMap"><![CDATA[
+        SELECT *
+        FROM (
+            SELECT
+                oi.PRODUCT_NO AS productNo,
+                oi.PRODUCT_NAME AS productName,
+                SUM(NVL(oi.QUANTITY, 0)) AS totalQuantity,
+                SUM(NVL(oi.SAVED_AMOUNT, 0)) AS savedAmount
+            FROM OFT_ORDERS o
+            JOIN OFT_ORDER_ITEM oi
+              ON oi.ORDER_NO = o.ORDER_NO
+            WHERE o.USER_NO = #{userNo}
+              AND o.ORDER_STATUS != 'CANCELED'
+            GROUP BY oi.PRODUCT_NO, oi.PRODUCT_NAME
+            ORDER BY totalQuantity DESC, savedAmount DESC, productName ASC
+        )
+        WHERE ROWNUM <= 3
+    ]]></select>
+
+    <select id="selectRecentPurchasedProducts" parameterType="java.lang.Long" resultMap="RecentPurchasedProductResultMap"><![CDATA[
+        SELECT *
+        FROM (
+            SELECT
+                oi.PRODUCT_NO AS productNo,
+                oi.PRODUCT_NAME AS productName,
+                TO_CHAR(o.ORDERED_AT, 'YYYY-MM-DD HH24:MI:SS') AS orderedAt,
+                oi.QUANTITY AS quantity,
+                oi.SUBTOTAL AS subtotal,
+                ROW_NUMBER() OVER (ORDER BY o.ORDERED_AT DESC, oi.ORDER_ITEM_NO DESC) AS rn
+            FROM OFT_ORDERS o
+            JOIN OFT_ORDER_ITEM oi
+              ON oi.ORDER_NO = o.ORDER_NO
+            WHERE o.USER_NO = #{userNo}
+              AND o.ORDER_STATUS != 'CANCELED'
+        )
+        WHERE rn <= 3
+        ORDER BY rn
     ]]></select>
 
 </mapper>

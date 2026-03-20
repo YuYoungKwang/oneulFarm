@@ -1,10 +1,18 @@
 import { startTransition, useEffect, useState } from 'react';
 import AccountApp from './AccountApp';
 import AdminApp from './AdminApp';
+import {
+  clearAuthUser,
+  getAuthUser,
+  isAuthenticated,
+  requiresPasswordChange,
+} from './auth';
 import MainNav from './components/MainNav';
+import PasswordChangeRequiredPage from './components/PasswordChangeRequiredPage';
 import ProductApp from './components/ProductApp';
 import MainPage from './components/Mainpage';
 import SiteFooter from './components/SiteFooter';
+import RecommendPage from './components/RecommendPage';
 
 const MAIN_ROUTE_SEGMENTS = new Set(['', 'main', 'mainpage', 'home']);
 const PRODUCT_ROUTE_SEGMENTS = new Set([
@@ -12,11 +20,14 @@ const PRODUCT_ROUTE_SEGMENTS = new Set([
   'products',
   'cart',
   'checkout',
-  'recipes',
   'orders',
+  'recipes',
   'order-complete',
   'payment-success',
   'payment-fail',
+  'login',
+  'signup',
+  'password-change',
 ]);
 const ACCOUNT_ROUTE_SEGMENTS = new Set(['dashboard', 'mypage']);
 const ADMIN_ROUTE_SEGMENTS = new Set(['admin']);
@@ -43,6 +54,10 @@ function getFirstSegment(hash) {
 
 function resolveAppFromHash(hash) {
   const firstSegment = getFirstSegment(hash);
+
+  if (firstSegment === 'recommend') {
+    return 'recommend';
+  }
 
   if (MAIN_ROUTE_SEGMENTS.has(firstSegment)) {
     return 'main';
@@ -78,6 +93,10 @@ function resolveActiveSection(hash) {
     return 'recipes';
   }
 
+  if (firstSegment === 'recommend') {
+    return 'recommend';
+  }
+
   if (
     firstSegment === 'orders' ||
     firstSegment === 'order-complete' ||
@@ -104,7 +123,11 @@ function resolveActiveSection(hash) {
   return 'products';
 }
 
-function readCartCount() {
+function readCartCount(authUser) {
+  if (!isAuthenticated(authUser)) {
+    return 0;
+  }
+
   try {
     const storedCart = JSON.parse(window.localStorage.getItem('oneulFarmCart') || '{}');
     return Object.values(storedCart).reduce(
@@ -123,14 +146,21 @@ function App() {
   const [activeSection, setActiveSection] = useState(() =>
     resolveActiveSection(window.location.hash)
   );
-  const [cartCount, setCartCount] = useState(() => readCartCount());
+  const [authUser, setAuthUser] = useState(() => getAuthUser());
+  const [cartCount, setCartCount] = useState(() => readCartCount(getAuthUser()));
+
+  const navigateTo = (hash) => {
+    window.location.hash = hash;
+  };
 
   useEffect(() => {
     const syncApp = () => {
       startTransition(() => {
+        const nextAuthUser = getAuthUser();
         setCurrentApp(resolveAppFromHash(window.location.hash));
         setActiveSection(resolveActiveSection(window.location.hash));
-        setCartCount(readCartCount());
+        setCartCount(readCartCount(nextAuthUser));
+        setAuthUser(nextAuthUser);
       });
     };
 
@@ -146,16 +176,35 @@ function App() {
     };
   }, []);
 
+  const isPasswordChangeRequired = requiresPasswordChange(authUser);
+
   return (
     <>
-      {currentApp !== 'admin' ? (
-        <MainNav activeSection={activeSection} cartCount={cartCount} />
-      ) : null}
-      {currentApp === 'main' && <MainPage />}
-      {currentApp === 'product' && <ProductApp />}
-      {currentApp === 'account' && <AccountApp />}
-      {currentApp === 'admin' && <AdminApp />}
-      {currentApp === 'main' && <SiteFooter />}
+      {currentApp === 'admin' ? (
+        <AdminApp />
+      ) : isPasswordChangeRequired ? (
+        <PasswordChangeRequiredPage authUser={authUser} />
+      ) : (
+        <>
+          <MainNav
+            activeSection={activeSection}
+            authUser={authUser}
+            cartCount={cartCount}
+            onOpenCart={() => navigateTo(isAuthenticated(authUser) ? '#/cart' : '#/login')}
+            onOpenLogin={() => navigateTo('#/login')}
+            onOpenSignup={() => navigateTo('#/signup')}
+            onLogout={() => {
+              clearAuthUser();
+              navigateTo('#/login');
+            }}
+          />
+          {currentApp === 'main' && <MainPage />}
+          {currentApp === 'product' && <ProductApp authUser={authUser} />}
+          {currentApp === 'account' && <AccountApp authUser={authUser} />}
+          {currentApp === 'recommend' && <RecommendPage authUser={authUser} />}
+          {currentApp === 'main' && <SiteFooter />}
+        </>
+      )}
     </>
   );
 }

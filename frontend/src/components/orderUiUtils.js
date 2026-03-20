@@ -8,9 +8,23 @@ export const orderDateFormatter = new Intl.DateTimeFormat('ko-KR', {
   minute: '2-digit',
 });
 
+function normalizeOrderDateValue(value) {
+  if (!value) {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    const [year, month, day, hour = 0, minute = 0, second = 0] = value;
+    return new Date(year, Number(month || 1) - 1, day || 1, hour, minute, second);
+  }
+
+  return new Date(value);
+}
+
 export function formatOrderDateTime(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
+  const date = normalizeOrderDateValue(value);
+
+  if (!date || Number.isNaN(date.getTime())) {
     return '-';
   }
 

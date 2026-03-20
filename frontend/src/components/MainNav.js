@@ -3,10 +3,10 @@ import { openAdminPage } from '../admin/adminSession';
 import { CartIcon, SearchIcon } from './ProductIcons';
 
 const NAV_ITEMS = [
-  { id: 'market', label: '시세분석', hash: '#/dashboard', section: null },
+  { id: 'market', label: '시세분석', hash: '#/dashboard', section: 'market' },
   { id: 'products', label: '상품', hash: '#/products', section: 'products' },
   { id: 'recipes', label: '레시피', hash: '#/recipes', section: 'recipes' },
-  { id: 'recommend', label: '추천', hash: '#/products', section: null },
+  { id: 'recommend', label: '추천', hash: '#/recommend', section: 'recommend' },
   { id: 'dashboard', label: '대시보드', hash: '#/dashboard', section: 'dashboard' },
   { id: 'mypage', label: '마이페이지', hash: '#/mypage', section: 'mypage' },
 ];
@@ -17,8 +17,12 @@ function navigateTo(hash) {
 
 function MainNav({
   activeSection,
+  authUser,
   cartCount = 0,
   onOpenCart,
+  onOpenLogin,
+  onOpenSignup,
+  onLogout,
 }) {
   return (
     <header className="main-nav-shell">
@@ -69,12 +73,37 @@ function MainNav({
               <span className="main-nav__cart-badge">{cartCount}</span>
             ) : null}
           </button>
-          <button className="main-nav__btn-outline" type="button">
-            로그인
-          </button>
-          <button className="main-nav__btn" type="button">
-            가입
-          </button>
+          {authUser ? (
+            <>
+              <button
+                className="main-nav__btn-outline"
+                type="button"
+                onClick={() => navigateTo('#/mypage')}
+              >
+                {authUser.nickname || authUser.userId}
+              </button>
+              <button className="main-nav__btn" type="button" onClick={onLogout}>
+                로그아웃
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                className="main-nav__btn-outline"
+                type="button"
+                onClick={onOpenLogin}
+              >
+                로그인
+              </button>
+              <button
+                className="main-nav__btn"
+                type="button"
+                onClick={onOpenSignup}
+              >
+                가입하기
+              </button>
+            </>
+          )}
         </div>
       </div>
     </header>

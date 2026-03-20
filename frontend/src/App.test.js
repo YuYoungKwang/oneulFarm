@@ -200,6 +200,18 @@ function buildStoredOrder() {
   );
 }
 
+function signInTestUser() {
+  window.localStorage.setItem(
+    'oneulFarmAuthUser',
+    JSON.stringify({
+      userNo: 1,
+      userId: 'heoryun',
+      nickname: '허륜',
+      accessToken: 'test-access-token',
+    })
+  );
+}
+
 describe('App', () => {
   beforeEach(() => {
     fetchProductsFromApi.mockResolvedValue(PRODUCT_FIXTURES);
@@ -328,6 +340,7 @@ describe('App', () => {
   });
 
   test('\uC7A5\uBC14\uAD6C\uB2C8 \uD398\uC774\uC9C0\uC5D0\uC11C \uC218\uB7C9 \uBCC0\uACBD\uACFC \uC0AD\uC81C\uAC00 \uAC00\uB2A5\uD558\uB2E4', async () => {
+    signInTestUser();
     window.localStorage.setItem(
       'oneulFarmCart',
       JSON.stringify({ 1002: 2, 1001: 1 })
@@ -351,6 +364,7 @@ describe('App', () => {
   });
 
   test('\uC8FC\uBB38\uC11C\uB97C \uC81C\uCD9C\uD558\uBA74 \uC8FC\uBB38 \uC644\uB8CC \uD654\uBA74\uC73C\uB85C \uC774\uB3D9\uD55C\uB2E4', async () => {
+    signInTestUser();
     window.localStorage.setItem('oneulFarmCart', JSON.stringify({ 1002: 2 }));
     window.location.hash = '#/checkout';
 
@@ -383,6 +397,7 @@ describe('App', () => {
   });
 
   test('\uC8FC\uBB38 \uC0C1\uD0DC \uD654\uBA74\uC5D0\uC11C \uBC30\uC1A1 \uC0C1\uD0DC\uB97C \uB2E4\uC74C \uB2E8\uACC4\uB85C \uBCC0\uACBD\uD560 \uC218 \uC788\uB2E4', async () => {
+    signInTestUser();
     const storedOrder = buildStoredOrder();
 
     window.localStorage.setItem(

@@ -1,51 +1,49 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <beans xmlns="http://www.springframework.org/schema/beans"
-		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-		 xmlns:util="http://www.springframework.org/schema/util"
-		 xmlns:task="http://www.springframework.org/schema/task"
-		 xmlns:context="http://www.springframework.org/schema/context"
-		 xmlns:tx="http://www.springframework.org/schema/tx"
-		 xsi:schemaLocation="http://www.springframework.org/schema/beans
-		http://www.springframework.org/schema/beans/spring-beans.xsd
-		http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task-3.0.xsd
-		       http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.1.xsd
-		        http://www.springframework.org/schema/context
-		       http://www.springframework.org/schema/context/spring-context.xsd
-		       http://www.springframework.org/schema/tx
-		       http://www.springframework.org/schema/tx/spring-tx.xsd">
-             
-	
-	<bean class="org.apache.commons.dbcp2.BasicDataSource" id="data_source">
-		<property name="driverClassName" value="oracle.jdbc.OracleDriver" />
-		<property name="url" value="jdbc:oracle:thin:@192.168.0.105:1521:orcl" />
-		<property name="username" value="scott" />
-		<property name="password" value="tiger" />
-	</bean>
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns:util="http://www.springframework.org/schema/util"
+         xmlns:task="http://www.springframework.org/schema/task"
+         xmlns:context="http://www.springframework.org/schema/context"
+         xmlns:tx="http://www.springframework.org/schema/tx"
+         xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task-3.0.xsd
+               http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.1.xsd
+                http://www.springframework.org/schema/context
+               http://www.springframework.org/schema/context/spring-context.xsd
+               http://www.springframework.org/schema/tx
+               http://www.springframework.org/schema/tx/spring-tx.xsd">
 
-	<bean class="org.mybatis.spring.SqlSessionFactoryBean" id="sqlSessionFactory">
-		<property name="dataSource" ref="data_source"></property>
-		<property name="mapperLocations" value="/WEB-INF/mybatis/mapper/*.xml"></property>
-		<property name="configLocation" value="/WEB-INF/mybatis/mybatis-config.xml"></property>
-	</bean>
+    <bean class="org.apache.commons.dbcp2.BasicDataSource" id="data_source">
+        <property name="driverClassName" value="oracle.jdbc.OracleDriver" />
+        <property name="url" value="jdbc:oracle:thin:@192.168.0.105:1521:orcl" />
+        <property name="username" value="scott" />
+        <property name="password" value="tiger" />
+    </bean>
 
-	<bean id="sqlSessionTemplate" class="org.mybatis.spring.SqlSessionTemplate">
-		<constructor-arg name="sqlSessionFactory" ref="sqlSessionFactory" />
-	</bean>
+    <bean class="org.mybatis.spring.SqlSessionFactoryBean" id="sqlSessionFactory">
+        <property name="dataSource" ref="data_source"></property>
+        <property name="mapperLocations" value="/WEB-INF/mybatis/mapper/*.xml"></property>
+        <property name="configLocation" value="/WEB-INF/mybatis/mybatis-config.xml"></property>
+    </bean>
 
-	<bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
-		<property name="dataSource" ref="data_source" />
-	</bean>
-	
-	<context:property-placeholder location="classpath:api.properties" ignore-resource-not-found="true"/>
-	<context:component-scan base-package="com.app.controller" />
+    <bean id="sqlSessionTemplate" class="org.mybatis.spring.SqlSessionTemplate">
+        <constructor-arg name="sqlSessionFactory" ref="sqlSessionFactory" />
+    </bean>
 
-	<task:scheduler id="priceSnapshotTaskScheduler" pool-size="1"/>
-	<task:annotation-driven scheduler="priceSnapshotTaskScheduler"/>
-	
-	<context:component-scan	base-package="com.app.service"/>
-	<context:component-scan	base-package="com.app.dao"/>
-	<tx:annotation-driven transaction-manager="transactionManager"/>
-	
-	
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="data_source" />
+    </bean>
+
+    <context:property-placeholder location="classpath:api.properties" ignore-resource-not-found="true"/>
+    <context:component-scan base-package="com.app.controller" />
+    <context:component-scan base-package="com.app.common" />
+
+    <task:scheduler id="priceSnapshotTaskScheduler" pool-size="1"/>
+    <task:annotation-driven scheduler="priceSnapshotTaskScheduler"/>
+
+    <context:component-scan base-package="com.app.service"/>
+    <context:component-scan base-package="com.app.dao"/>
+    <tx:annotation-driven transaction-manager="transactionManager"/>
 
 </beans>

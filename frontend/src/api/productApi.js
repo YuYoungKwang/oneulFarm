@@ -1,10 +1,11 @@
+import { buildAuthHeaders } from '../auth';
+
 const API_BASE_PREFIXES = buildApiBasePrefixes(
   process.env.REACT_APP_API_BASE_URL || ''
 );
 const PRODUCT_API_BASE = '/api/products';
 const CART_API_BASE = '/api/cart';
 const ORDER_API_BASE = '/api/orders';
-const DEMO_USER_NO = '1';
 let resolvedApiBasePrefix = '';
 
 const PRODUCT_SYMBOLS = ['🥬', '🧅', '🍅', '🥒', '🍎', '🍄', '🌿', '🌾'];
@@ -63,15 +64,10 @@ async function requestApi(path, options, fallbackMessage) {
 }
 
 function apiHeaders(includeJson = false) {
-  const headers = {
-    'X-USER-NO': DEMO_USER_NO,
-  };
-
-  if (includeJson) {
-    headers['Content-Type'] = 'application/json';
-  }
-
-  return headers;
+  return buildAuthHeaders({
+    includeJson,
+    includeUserNo: false,
+  });
 }
 
 function toNumber(value, fallback = 0) {

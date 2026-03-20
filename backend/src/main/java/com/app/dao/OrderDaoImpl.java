@@ -27,6 +27,11 @@ public class OrderDaoImpl implements OrderDao {
     }
 
     @Override
+    public List<OrderDto> findMyOrders(Map<String, Object> params) {
+        return sqlSessionTemplate.selectList(NAMESPACE + "selectMyOrders", params);
+    }
+
+    @Override
     public OrderDto findOrderDetail(Long userNo, Long orderNo) {
         Map<String, Object> params = new HashMap<>();
         params.put("userNo", userNo);
