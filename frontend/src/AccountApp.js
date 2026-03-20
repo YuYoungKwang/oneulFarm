@@ -393,6 +393,7 @@ function AccountApp({ authUser: initialAuthUser }) {
             avg: buildWishlistSummary(product),
             savingRate: buildWishlistSavingRate(product),
             badge: buildWishlistBadge(product),
+            imageUrl: product.mainImage?.imageUrl || '',
             emoji: product.display?.symbol || '🛒',
           }));
 

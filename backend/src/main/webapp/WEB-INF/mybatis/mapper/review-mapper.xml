@@ -233,7 +233,6 @@
 
     <insert id="insertReviewImage" parameterType="map">
         INSERT INTO OFT_REVIEW_IMAGE (
-            REVIEW_IMAGE_NO,
             REVIEW_NO,
             IMAGE_NAME,
             IMAGE_EXT,
@@ -242,7 +241,6 @@
             IMAGE_DATA,
             SORT_ORDER
         ) VALUES (
-            OFT_REVIEW_IMAGE_SEQ.NEXTVAL,
             #{reviewNo},
             #{imageName},
             #{imageExt},

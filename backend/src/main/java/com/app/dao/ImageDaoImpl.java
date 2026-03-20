@@ -24,7 +24,7 @@ public class ImageDaoImpl implements ImageDao {
 
     @Override
     public byte[] findReviewImage(Long reviewImageNo) {
-        return sqlSessionTemplate.selectOne(NAMESPACE + "selectReviewImage", reviewImageNo);
+        return toPrimitiveBytes(sqlSessionTemplate.selectOne(NAMESPACE + "selectReviewImage", reviewImageNo));
     }
 
     @Override

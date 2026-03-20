@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { formatDate, formatPrice } from './appUtils';
 import InlineInfoTip from './components/InlineInfoTip';
 
@@ -22,6 +22,26 @@ function getReviewDisplayImageSrc(review) {
   }
 
   return getProductImageSrc(review?.imageNo);
+}
+
+function getReviewEditorImageSrc(reviewEditor, reviewForm) {
+  if (!reviewEditor) {
+    return '';
+  }
+
+  if (reviewForm?.imageFile) {
+    return URL.createObjectURL(reviewForm.imageFile);
+  }
+
+  if (reviewForm?.removeImage) {
+    return '';
+  }
+
+  if (reviewEditor.reviewImageNo) {
+    return `/backend/api/image/review/${reviewEditor.reviewImageNo}`;
+  }
+
+  return '';
 }
 
 function ActivityView({
@@ -52,25 +72,7 @@ function ActivityView({
   onDeleteReview,
 }) {
   const reviewEditorRef = useRef(null);
-  const reviewPreviewUrl = useMemo(() => {
-    if (!reviewEditor) {
-      return '';
-    }
-
-    if (reviewForm?.imageFile) {
-      return URL.createObjectURL(reviewForm.imageFile);
-    }
-
-    if (reviewForm?.removeImage) {
-      return '';
-    }
-
-    if (reviewEditor.reviewImageNo) {
-      return `/backend/api/image/review/${reviewEditor.reviewImageNo}`;
-    }
-
-    return getProductImageSrc(reviewEditor.imageNo);
-  }, [reviewEditor, reviewForm?.imageFile, reviewForm?.removeImage]);
+  const reviewPreviewUrl = getReviewEditorImageSrc(reviewEditor, reviewForm);
 
   useEffect(() => {
     if (!reviewEditor || !reviewEditorRef.current) {
@@ -150,8 +152,11 @@ function ActivityView({
                   {wishlistItems.map((item) => (
                     <article key={item.productNo} className="product-card">
                       <a href={`#/products/${item.productNo}`} className="product-media wishlist-product-link-media">
-                        <span className="badge green">{item.badge}</span>
-                        <div className="emoji">{item.emoji}</div>
+                        {item.imageUrl ? (
+                          <img className="wishlist-product-thumb" src={item.imageUrl} alt={item.name} />
+                        ) : (
+                          <div className="emoji">{item.emoji}</div>
+                        )}
                       </a>
                       <a href={`#/products/${item.productNo}`} className="product-name wishlist-product-link">
                         {item.name}
