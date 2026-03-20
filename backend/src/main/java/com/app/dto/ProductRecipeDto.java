@@ -10,6 +10,8 @@ import lombok.Setter;
 public class ProductRecipeDto {
 
     private Long mapNo;
+    private Long productNo;
+    private String productName;
     private Long recipeNo;
     private String recipeName;
     private String description;

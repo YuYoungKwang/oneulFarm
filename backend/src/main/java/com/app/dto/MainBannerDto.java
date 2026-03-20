@@ -7,16 +7,18 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class ProductImageDto {
+public class MainBannerDto {
 
-    private Long productNo;
-    private Long imageNo;
+    private Long bannerNo;
+    private String title;
     private String imageName;
     private String imageExt;
     private String mimeType;
     private Long imageSize;
-    private byte[] imageData;
+    private String linkUrl;
     private Integer sortOrder;
-    private String isMain;
+    private String isActive;
+    private LocalDateTime startedAt;
+    private LocalDateTime endedAt;
     private LocalDateTime createdAt;
 }

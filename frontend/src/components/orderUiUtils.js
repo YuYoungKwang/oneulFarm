@@ -9,7 +9,12 @@ export const orderDateFormatter = new Intl.DateTimeFormat('ko-KR', {
 });
 
 export function formatOrderDateTime(value) {
-  return orderDateFormatter.format(new Date(value));
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '-';
+  }
+
+  return orderDateFormatter.format(date);
 }
 
 export function getPaymentMethodLabel(method) {

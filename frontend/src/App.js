@@ -1,5 +1,6 @@
 import { startTransition, useEffect, useState } from 'react';
 import AccountApp from './AccountApp';
+import AdminApp from './AdminApp';
 import MainNav from './components/MainNav';
 import ProductApp from './components/ProductApp';
 import MainPage from './components/Mainpage';
@@ -18,6 +19,7 @@ const PRODUCT_ROUTE_SEGMENTS = new Set([
   'payment-fail',
 ]);
 const ACCOUNT_ROUTE_SEGMENTS = new Set(['dashboard', 'mypage']);
+const ADMIN_ROUTE_SEGMENTS = new Set(['admin']);
 
 function getFirstSegment(hash) {
   const normalized = hash.replace(/^#\/?/, '').trim().toLowerCase();
@@ -50,6 +52,10 @@ function resolveAppFromHash(hash) {
     return 'account';
   }
 
+  if (ADMIN_ROUTE_SEGMENTS.has(firstSegment)) {
+    return 'admin';
+  }
+
   if (PRODUCT_ROUTE_SEGMENTS.has(firstSegment)) {
     return 'product';
   }
@@ -61,6 +67,10 @@ function resolveActiveSection(hash) {
   const firstSegment = getFirstSegment(hash);
 
   if (MAIN_ROUTE_SEGMENTS.has(firstSegment)) {
+    return null;
+  }
+
+  if (ADMIN_ROUTE_SEGMENTS.has(firstSegment)) {
     return null;
   }
 
@@ -138,10 +148,13 @@ function App() {
 
   return (
     <>
-      <MainNav activeSection={activeSection} cartCount={cartCount} />
+      {currentApp !== 'admin' ? (
+        <MainNav activeSection={activeSection} cartCount={cartCount} />
+      ) : null}
       {currentApp === 'main' && <MainPage />}
       {currentApp === 'product' && <ProductApp />}
       {currentApp === 'account' && <AccountApp />}
+      {currentApp === 'admin' && <AdminApp />}
       {currentApp === 'main' && <SiteFooter />}
     </>
   );

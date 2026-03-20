@@ -19,12 +19,8 @@ import {
 } from '../api/productApi';
 import {
   clearPendingTossPayment,
-  createTossPaymentDraft,
-  isTossReady,
   readPendingTossPayment,
   readTossCallbackParams,
-  requestTossPayment,
-  storePendingTossPayment,
 } from '../payment/tossPayments';
 import CartPage from './CartPage';
 import CheckoutPage from './CheckoutPage';
@@ -433,6 +429,12 @@ export default function ProductApp() {
     );
   }
 
+  function getProductStockLimit(productNo) {
+    const targetProduct = findProduct(products, productDetails, productNo);
+    const stockQty = Number(targetProduct?.stockQty || 0);
+    return Number.isFinite(stockQty) ? Math.max(stockQty, 0) : 0;
+  }
+
   function toggleWishlist(productNo) {
     setWishlist((previousWishlist) =>
       previousWishlist.includes(productNo)
@@ -442,9 +444,18 @@ export default function ProductApp() {
   }
 
   async function addToCart(productNo, quantity = 1) {
+    const currentQuantity = Number(cart[productNo] || 0);
+    const stockLimit = getProductStockLimit(productNo);
+    const remainingStock = Math.max(stockLimit - currentQuantity, 0);
+    const safeQuantity = Math.min(Math.max(Number(quantity) || 1, 1), remainingStock);
+
+    if (stockLimit < 1 || safeQuantity < 1) {
+      return;
+    }
+
     if (process.env.NODE_ENV !== 'test') {
       try {
-        const nextCart = await addCartItemToApi(productNo, quantity);
+        const nextCart = await addCartItemToApi(productNo, safeQuantity);
         setCart(nextCart);
         return;
       } catch (error) {
@@ -454,14 +465,21 @@ export default function ProductApp() {
 
     setCart((previousCart) => ({
       ...previousCart,
-      [productNo]: (previousCart[productNo] || 0) + quantity,
+      [productNo]: Math.min(
+        stockLimit,
+        (previousCart[productNo] || 0) + safeQuantity
+      ),
     }));
   }
 
   async function updateCartQuantity(productNo, nextQuantity) {
+    const stockLimit = getProductStockLimit(productNo);
+    const normalizedQuantity =
+      nextQuantity <= 0 ? 0 : Math.min(Math.max(nextQuantity, 1), stockLimit);
+
     if (process.env.NODE_ENV !== 'test') {
       try {
-        const nextCart = await updateCartItemOnApi(productNo, nextQuantity);
+        const nextCart = await updateCartItemOnApi(productNo, normalizedQuantity);
         setCart(nextCart);
         return;
       } catch (error) {
@@ -470,7 +488,7 @@ export default function ProductApp() {
     }
 
     setCart((previousCart) => {
-      if (nextQuantity <= 0) {
+      if (normalizedQuantity <= 0) {
         const nextCart = { ...previousCart };
         delete nextCart[productNo];
         return nextCart;
@@ -478,7 +496,7 @@ export default function ProductApp() {
 
       return {
         ...previousCart,
-        [productNo]: nextQuantity,
+        [productNo]: normalizedQuantity,
       };
     });
   }
@@ -519,19 +537,6 @@ export default function ProductApp() {
     if (!cartItems.length) {
       navigateToHash('#/cart');
       return;
-    }
-
-    if (process.env.NODE_ENV !== 'test' && isTossReady(tossConfig)) {
-      const paymentDraft = createTossPaymentDraft(checkoutForm, cartItems);
-      storePendingTossPayment(paymentDraft);
-
-      try {
-        await requestTossPayment(tossConfig, paymentDraft);
-        return;
-      } catch (error) {
-        clearPendingTossPayment();
-        throw error;
-      }
     }
 
     if (process.env.NODE_ENV !== 'test') {

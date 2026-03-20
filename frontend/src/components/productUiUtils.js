@@ -4,7 +4,7 @@ export const defaultFilters = {
   search: '',
   category: 'ALL',
   priceRange: 'ALL',
-  tags: ['UNDER_AVG'],
+  tags: [],
   sort: 'RECOMMENDED',
 };
 
@@ -17,11 +17,11 @@ export const dateFormatter = new Intl.DateTimeFormat('ko-KR', {
 });
 
 export function formatCurrency(value) {
-  return `${currencyFormatter.format(Math.round(value))}원`;
+  return `${currencyFormatter.format(Math.round(Number(value || 0)))}원`;
 }
 
 export function formatPercent(value) {
-  return `${Math.round(value)}%`;
+  return `${Math.round(Number(value || 0))}%`;
 }
 
 export function parseHash(hash) {
@@ -107,7 +107,7 @@ export function getBadgeLabel(product) {
   }
 
   if (product.priceMatch.badgeType === 'HOT_DEAL') {
-    return '핫딜';
+    return '특가';
   }
 
   if (product.isSeasonal === 'Y') {
@@ -147,7 +147,8 @@ export function isSingleHouseholdFriendly(product) {
   }
 
   return Array.isArray(product?.recommendedFor)
-    ? product.recommendedFor.includes('Single Friendly')
+    ? product.recommendedFor.includes('Single Friendly') ||
+        product.recommendedFor.includes('1인 가구 추천')
     : false;
 }
 
