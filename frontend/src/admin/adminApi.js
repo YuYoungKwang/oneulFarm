@@ -158,6 +158,17 @@ export async function updateAdminOrder(orderNo, payload) {
   );
 }
 
+export async function deleteAdminOrder(orderNo) {
+  return requestApi(
+    `${ADMIN_API_BASE}/orders/${orderNo}`,
+    {
+      method: 'DELETE',
+      headers: apiHeaders(),
+    },
+    '주문 정보 제거에 실패했습니다.'
+  );
+}
+
 export async function fetchAdminUsers() {
   return (
     (await requestApi(
@@ -179,6 +190,17 @@ export async function updateAdminUserStatus(userNo, status) {
       body: JSON.stringify({ status }),
     },
     '회원 상태 변경에 실패했습니다.'
+  );
+}
+
+export async function deleteAdminUser(userNo) {
+  return requestApi(
+    `${ADMIN_API_BASE}/users/${userNo}`,
+    {
+      method: 'DELETE',
+      headers: apiHeaders(),
+    },
+    '\ud68c\uc6d0 \uc644\uc804 \uc0ad\uc81c\uc5d0 \uc2e4\ud328\ud588\uc2b5\ub2c8\ub2e4.'
   );
 }
 

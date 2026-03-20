@@ -8,7 +8,7 @@ const initialCheckoutForm = {
   zipCode: '06236',
   address1: '서울 강남구 테헤란로 123',
   address2: '8층 oneulFarm',
-  deliveryMessage: '문 앞에 놓아주세요',
+  deliveryMessage: '문 앞에 놓아주세요.',
   paymentMethod: 'CARD',
 };
 
@@ -66,7 +66,7 @@ export default function CheckoutPage({
   if (!cartItems.length) {
     return (
       <section className="empty-state detail-empty">
-        <div className="empty-icon">🧾</div>
+        <div className="empty-icon">ORDER</div>
         <h1>주문할 상품이 없습니다.</h1>
         <p>장바구니에 상품을 먼저 담은 뒤 주문서를 작성해주세요.</p>
         <button className="btn" type="button" onClick={onBackToCart}>
@@ -105,7 +105,7 @@ export default function CheckoutPage({
         <article className="quick-card soft-yellow">
           <div className="quick-label">예상 절약 금액</div>
           <div className="quick-value">{formatCurrency(totalSaving)}</div>
-          <div className="section-sub">평균 시세 대비 예상 금액</div>
+          <div className="section-sub">평균 시세 대비 예상 절약 금액</div>
         </article>
         <article className="quick-card">
           <div className="quick-label">결제 수단</div>
@@ -120,7 +120,7 @@ export default function CheckoutPage({
         <form className="checkout-form card" onSubmit={handleSubmit}>
           <div className="card-title">배송 정보 입력</div>
           <div className="card-sub">
-            주문 완료 후 이 주소로 상품이 배송됩니다.
+            주문 완료 후 입력한 주소로 상품이 배송됩니다.
           </div>
 
           <div className="form-grid">
@@ -202,8 +202,8 @@ export default function CheckoutPage({
               </span>
             </div>
             <p className="section-sub">
-              지금은 주문 완료 흐름을 우선 제공하고 있습니다. 실제 결제 연동은
-              이후 단계에서 자연스럽게 이어질 수 있도록 준비해두었습니다.
+              지금은 주문 완료 흐름이 우선 동작하고 있습니다. 실제 결제 연동은
+              다음 단계에서 자연스럽게 이어지도록 준비되어 있습니다.
             </p>
           </div>
 
@@ -229,7 +229,7 @@ export default function CheckoutPage({
                   <span>{formatCurrency(product.salePrice * quantity)}</span>
                 </div>
                 <div className="section-sub">
-                  수량 {quantity}개 · 단가 {formatCurrency(product.salePrice)} ·
+                  수량 {quantity}개 · 개당 {formatCurrency(product.salePrice)} ·
                   평균가 {formatCurrency(product.priceSnapshot.avgPrice)}
                 </div>
               </div>

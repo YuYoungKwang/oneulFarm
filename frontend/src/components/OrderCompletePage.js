@@ -38,9 +38,9 @@ export default function OrderCompletePage({
           <button className="btn-outline" type="button" onClick={onReturnToProducts}>
             상품 계속 보기
           </button>
-          <button className="btn" type="button" onClick={onOpenOrders}>
-            주문 상태 보기
-          </button>
+        <button className="btn" type="button" onClick={onOpenOrders}>
+          주문 내역 보기
+        </button>
         </div>
       </section>
 

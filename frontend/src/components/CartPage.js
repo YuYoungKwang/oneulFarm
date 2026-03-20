@@ -24,7 +24,7 @@ export default function CartPage({
   if (!cartItems.length) {
     return (
       <section className="empty-state detail-empty">
-        <div className="empty-icon">🛒</div>
+        <div className="empty-icon">CART</div>
         <h1>장바구니가 비어 있습니다.</h1>
         <p>마음에 드는 상품을 담고 한 번에 주문해보세요.</p>
         <button className="btn" type="button" onClick={onReturnToProducts}>
@@ -56,12 +56,12 @@ export default function CartPage({
         <article className="quick-card soft-green">
           <div className="quick-label">담은 상품 수</div>
           <div className="quick-value">{cartItems.length}개</div>
-          <div className="section-sub">지금 주문할 상품 종류</div>
+          <div className="section-sub">지금 주문 가능한 상품 종류</div>
         </article>
         <article className="quick-card">
           <div className="quick-label">총 수량</div>
           <div className="quick-value">{totalQuantity}개</div>
-          <div className="section-sub">수량 변경 즉시 반영</div>
+          <div className="section-sub">수량 변경 시 즉시 반영</div>
         </article>
         <article className="quick-card soft-yellow">
           <div className="quick-label">총 상품 금액</div>
@@ -71,7 +71,7 @@ export default function CartPage({
         <article className="quick-card">
           <div className="quick-label">예상 절약 금액</div>
           <div className="quick-value">{formatCurrency(totalSaving)}</div>
-          <div className="section-sub">평균 시세 대비 예상 금액</div>
+          <div className="section-sub">평균 시세 대비 예상 절약</div>
         </article>
       </section>
 
@@ -176,7 +176,9 @@ export default function CartPage({
                   </div>
 
                   {isMaxQuantity ? (
-                    <div className="section-sub">현재 재고만큼만 주문할 수 있습니다.</div>
+                    <div className="section-sub">
+                      현재 재고만큼만 주문할 수 있습니다.
+                    </div>
                   ) : null}
                 </div>
               </article>
