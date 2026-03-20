@@ -1,5 +1,6 @@
 import { useDeferredValue } from 'react';
 import { HeartIcon, SearchIcon } from './ProductIcons';
+import SafeImage from './SafeImage';
 import {
   applyFilters,
   formatCurrency,
@@ -34,13 +35,16 @@ export default function ProductListPage({
         ) / filteredProducts.length
       )
     : 0;
-  const seasonalCount = products.filter(
-    (product) => product.isSeasonal === 'Y' && product.saleStatus === 'SELLING'
+  const sellingProducts = products.filter(
+    (product) => product.saleStatus === 'SELLING'
+  );
+  const seasonalCount = sellingProducts.filter(
+    (product) => product.isSeasonal === 'Y'
   ).length;
-  const underAverageCount = products.filter(
+  const underAverageCount = sellingProducts.filter(
     (product) => product.priceMatch.badgeType === 'UNDER_AVG'
   ).length;
-  const readyForSingleCount = products.filter((product) =>
+  const readyForSingleCount = sellingProducts.filter((product) =>
     isSingleHouseholdFriendly(product)
   ).length;
 
@@ -48,11 +52,10 @@ export default function ProductListPage({
     <>
       <section className="page-head">
         <div>
-          <span className="eyebrow">PRODUCT / PRODUCT_DETAIL</span>
-          <h1>오늘 장보기</h1>
+          <span className="eyebrow">Products</span>
+          <h1>오늘의 장보기</h1>
           <p>
-            평균 시세보다 유리한 상품과 1인 가구용 소분 구성을 빠르게
-            비교하세요.
+            지금 살 만한 상품을 한눈에 보고, 가격과 구성까지 비교해보세요.
           </p>
         </div>
         <div className="page-actions">
@@ -78,22 +81,22 @@ export default function ProductListPage({
         <article className="quick-card soft-green">
           <div className="quick-label">평균가 이하 상품</div>
           <div className="quick-value">{underAverageCount}개</div>
-          <div className="section-sub">`OFT_PRODUCT_PRICE_MATCH.BADGE_TYPE` 기준</div>
+          <div className="section-sub">알뜰하게 장보기 좋은 상품</div>
         </article>
         <article className="quick-card soft-yellow">
           <div className="quick-label">평균 절약 예상</div>
           <div className="quick-value">{formatCurrency(averageSaving)}</div>
-          <div className="section-sub">`OFT_PRICE_SNAPSHOT.AVG_PRICE` 비교</div>
+          <div className="section-sub">상품 1개 기준 예상 절약</div>
         </article>
         <article className="quick-card">
           <div className="quick-label">제철 상품</div>
           <div className="quick-value">{seasonalCount}개</div>
-          <div className="section-sub">`OFT_PRODUCT.IS_SEASONAL = 'Y'`</div>
+          <div className="section-sub">지금 맛있게 즐기기 좋은 상품</div>
         </article>
         <article className="quick-card">
           <div className="quick-label">1인 가구 추천</div>
           <div className="quick-value">{readyForSingleCount}개</div>
-          <div className="section-sub">소분 무게와 추천 태그 기준</div>
+          <div className="section-sub">가볍게 담기 좋은 소분 구성</div>
         </article>
       </section>
 
@@ -130,19 +133,19 @@ export default function ProductListPage({
               />
               <FilterButton
                 active={filters.priceRange === 'UNDER_3000'}
-                label="3천원 미만"
+                label="3천 원 미만"
                 onClick={() => onUpdateFilter('priceRange', 'UNDER_3000')}
               />
               <FilterButton
                 active={filters.priceRange === 'FROM_3000_TO_5000'}
-                label="3천원~5천원"
+                label="3천 원~5천 원"
                 onClick={() =>
                   onUpdateFilter('priceRange', 'FROM_3000_TO_5000')
                 }
               />
               <FilterButton
                 active={filters.priceRange === 'OVER_5000'}
-                label="5천원 이상"
+                label="5천 원 이상"
                 onClick={() => onUpdateFilter('priceRange', 'OVER_5000')}
               />
             </div>
@@ -163,14 +166,14 @@ export default function ProductListPage({
               />
               <TagChip
                 active={filters.tags.includes('SINGLE')}
-                label="1인가구"
+                label="1인 가구 추천"
                 onClick={() => onToggleTag('SINGLE')}
               />
             </div>
           </div>
 
           <button className="btn side-cta" type="button" onClick={onResetFilters}>
-            초기화
+            필터 초기화
           </button>
         </aside>
 
@@ -180,7 +183,7 @@ export default function ProductListPage({
               <label className="search-shell">
                 <input
                   type="text"
-                  placeholder="상품명, 산지, 키워드로 검색"
+                  placeholder="상품명, 원산지, 설명으로 검색"
                   value={filters.search}
                   onChange={(event) =>
                     onUpdateFilter('search', event.target.value)
@@ -201,7 +204,7 @@ export default function ProductListPage({
                 />
                 <TagChip
                   active={filters.sort === 'HIGH_SAVING'}
-                  label="높은 절약순"
+                  label="절약 큰 순"
                   onClick={() => onUpdateFilter('sort', 'HIGH_SAVING')}
                 />
                 <TagChip
@@ -212,7 +215,7 @@ export default function ProductListPage({
               </div>
             </div>
             <div className="section-sub">
-              총 {filteredProducts.length}개 상품 · 직접 매입 후 소분 판매
+              총 {filteredProducts.length}개 상품을 보고 있어요.
             </div>
           </section>
 
@@ -232,9 +235,9 @@ export default function ProductListPage({
             </div>
           ) : (
             <section className="empty-state">
-              <div className="empty-icon">🥕</div>
+              <div className="empty-icon">🔎</div>
               <h2>조건에 맞는 상품이 없습니다.</h2>
-              <p>검색어를 줄이거나 필터를 초기화해서 다시 확인해보세요.</p>
+              <p>검색어나 필터를 조금 바꿔서 다시 찾아보세요.</p>
               <button className="btn" type="button" onClick={onResetFilters}>
                 필터 초기화
               </button>
@@ -270,6 +273,11 @@ function ProductCard({
   onToggleWishlist,
   product,
 }) {
+  const isSoldOut = product.stockQty <= 0 || product.saleStatus !== 'SELLING';
+  const isCartFull = cartQuantity >= product.stockQty && product.stockQty > 0;
+  const mainImage = product.mainImage || product.images?.[0] || null;
+  const hasImage = Boolean(mainImage?.imageUrl);
+
   return (
     <article
       className="product-card"
@@ -278,7 +286,15 @@ function ProductCard({
         '--media-glow': product.display.glowColor,
       }}
     >
-      <div className="product-media">
+      <div className={`product-media ${hasImage ? 'has-image' : ''}`}>
+        {hasImage ? (
+          <SafeImage
+            alt={product.productName}
+            className="product-media-image"
+            fallback={<div className="product-symbol">{product.display.symbol}</div>}
+            src={mainImage.imageUrl}
+          />
+        ) : null}
         <div className="product-badge-row">
           <span className={`badge ${getBadgeTone(product)}`}>
             {getBadgeLabel(product)}
@@ -286,23 +302,20 @@ function ProductCard({
           <button
             className={`icon-circle ${isWished ? 'active' : ''}`}
             type="button"
-            aria-label="찜하기"
+            aria-label={isWished ? '찜 해제' : '찜하기'}
             onClick={() => onToggleWishlist(product.productNo)}
           >
             <HeartIcon filled={isWished} />
           </button>
         </div>
-        <div className="product-symbol">{product.display.symbol}</div>
+        {!hasImage ? <div className="product-symbol">{product.display.symbol}</div> : null}
         <div className="product-media-copy">{product.origin}</div>
       </div>
 
       <div className="product-copy">
         <div className="product-topline">
           <span className="meta-pill">{product.categoryName}</span>
-          <span className="product-stock">
-            재고 {product.stockQty}
-            {product.unit === 'ea' ? '개' : '팩'}
-          </span>
+          <span className="product-stock">재고 {product.stockQty}개</span>
         </div>
         <div className="product-name">{product.productName}</div>
         <div className="product-meta">
@@ -312,7 +325,7 @@ function ProductCard({
         <div className="price-row">
           <div className="price">{formatCurrency(product.salePrice)}</div>
           <div className="discount-copy">
-            평균 대비 {formatCurrency(getSavingAmount(product))} 절약
+            평균가 대비 {formatCurrency(getSavingAmount(product))} 절약
           </div>
         </div>
         <div className="avg">
@@ -326,8 +339,13 @@ function ProductCard({
           className="btn-soft"
           type="button"
           onClick={() => onAddToCart(product.productNo)}
+          disabled={isSoldOut || isCartFull}
         >
-          담기 {cartQuantity > 0 ? `(${cartQuantity})` : ''}
+          {isSoldOut
+            ? '품절'
+            : isCartFull
+              ? '재고만큼 담음'
+              : `장바구니 담기${cartQuantity > 0 ? ` (${cartQuantity})` : ''}`}
         </button>
         <button
           className="btn-outline compact-btn"

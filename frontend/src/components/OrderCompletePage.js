@@ -14,7 +14,7 @@ export default function OrderCompletePage({
   if (!order) {
     return (
       <section className="empty-state detail-empty">
-        <div className="empty-icon">📦</div>
+        <div className="empty-icon">📄</div>
         <h1>주문 완료 정보를 찾을 수 없습니다.</h1>
         <p>주문 내역으로 이동해서 다시 확인해주세요.</p>
         <button className="btn" type="button" onClick={onOpenOrders}>
@@ -30,9 +30,9 @@ export default function OrderCompletePage({
     <>
       <section className="page-head">
         <div>
-          <span className="eyebrow">OFT_ORDERS / OFT_PAYMENT / OFT_DELIVERY</span>
-          <h1>주문이 완료되었습니다.</h1>
-          <p>결제가 완료되었고 주문 상태 관리 화면에서 진행 상황을 확인할 수 있습니다.</p>
+          <span className="eyebrow">Order Complete</span>
+          <h1>주문 완료!</h1>
+          <p>주문이 정상적으로 접수되었습니다. 배송 상태는 주문 관리에서 확인할 수 있습니다.</p>
         </div>
         <div className="page-actions">
           <button className="btn-outline" type="button" onClick={onReturnToProducts}>
@@ -46,7 +46,7 @@ export default function OrderCompletePage({
 
       <section className="order-complete-card">
         <div className="complete-hero">
-          <div className="complete-icon">✅</div>
+          <div className="complete-icon">✓</div>
           <div>
             <div className="card-title complete-title">{order.orderId}</div>
             <div className="section-sub">
@@ -59,28 +59,28 @@ export default function OrderCompletePage({
           <article className="quick-card soft-green">
             <div className="quick-label">최종 결제 금액</div>
             <div className="quick-value">{formatCurrency(order.finalAmount)}</div>
-            <div className="section-sub">`OFT_ORDERS.FINAL_AMOUNT`</div>
+            <div className="section-sub">배송비 포함 최종 금액</div>
           </article>
           <article className="quick-card">
             <div className="quick-label">결제 수단</div>
             <div className="quick-value">
               {getPaymentMethodLabel(order.payment.paymentMethod)}
             </div>
-            <div className="section-sub">`OFT_PAYMENT.PAYMENT_METHOD`</div>
+            <div className="section-sub">선택한 결제 방식</div>
           </article>
           <article className="quick-card soft-yellow">
             <div className="quick-label">예상 절약 금액</div>
             <div className="quick-value">
               {formatCurrency(order.totalSavedAmount)}
             </div>
-            <div className="section-sub">공공 평균가 대비</div>
+            <div className="section-sub">평균 시세 대비 예상 금액</div>
           </article>
           <article className="quick-card">
             <div className="quick-label">배송 상태</div>
             <div className="quick-value">
               {getDeliveryStatusLabel(order.delivery.deliveryStatus)}
             </div>
-            <div className="section-sub">`OFT_DELIVERY.DELIVERY_STATUS`</div>
+            <div className="section-sub">주문 후 바로 확인 가능</div>
           </article>
         </div>
       </section>
@@ -90,7 +90,7 @@ export default function OrderCompletePage({
           <div className="card-title">배송 정보</div>
           <div className="summary-list">
             <div className="insight-item">
-              <strong>받는 사람</strong>
+              <strong>받는 분</strong>
               <span>{order.recipientName}</span>
             </div>
             <div className="insight-item">

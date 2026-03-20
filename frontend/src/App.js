@@ -1,5 +1,6 @@
 import { startTransition, useEffect, useState } from 'react';
 import AccountApp from './AccountApp';
+import AdminApp from './AdminApp';
 import {
   clearAuthUser,
   getAuthUser,
@@ -11,7 +12,7 @@ import PasswordChangeRequiredPage from './components/PasswordChangeRequiredPage'
 import ProductApp from './components/ProductApp';
 import MainPage from './components/Mainpage';
 import SiteFooter from './components/SiteFooter';
-import RecommendPage from './components/RecommendPage'; // 추가
+import RecommendPage from './components/RecommendPage';
 
 const MAIN_ROUTE_SEGMENTS = new Set(['', 'main', 'mainpage', 'home']);
 const PRODUCT_ROUTE_SEGMENTS = new Set([
@@ -19,6 +20,7 @@ const PRODUCT_ROUTE_SEGMENTS = new Set([
   'products',
   'cart',
   'checkout',
+  'orders',
   'recipes',
   'order-complete',
   'payment-success',
@@ -27,7 +29,8 @@ const PRODUCT_ROUTE_SEGMENTS = new Set([
   'signup',
   'password-change',
 ]);
-const ACCOUNT_ROUTE_SEGMENTS = new Set(['dashboard', 'mypage', 'orders']);
+const ACCOUNT_ROUTE_SEGMENTS = new Set(['dashboard', 'mypage']);
+const ADMIN_ROUTE_SEGMENTS = new Set(['admin']);
 
 function getFirstSegment(hash) {
   const normalized = hash.replace(/^#\/?/, '').trim().toLowerCase();
@@ -52,8 +55,8 @@ function getFirstSegment(hash) {
 function resolveAppFromHash(hash) {
   const firstSegment = getFirstSegment(hash);
 
-      if (firstSegment === 'recommend') {
-    return 'recommend';   // ✅ 추가
+  if (firstSegment === 'recommend') {
+    return 'recommend';
   }
 
   if (MAIN_ROUTE_SEGMENTS.has(firstSegment)) {
@@ -64,10 +67,13 @@ function resolveAppFromHash(hash) {
     return 'account';
   }
 
+  if (ADMIN_ROUTE_SEGMENTS.has(firstSegment)) {
+    return 'admin';
+  }
+
   if (PRODUCT_ROUTE_SEGMENTS.has(firstSegment)) {
     return 'product';
   }
-
 
   return 'main';
 }
@@ -79,13 +85,18 @@ function resolveActiveSection(hash) {
     return null;
   }
 
+  if (ADMIN_ROUTE_SEGMENTS.has(firstSegment)) {
+    return null;
+  }
+
   if (firstSegment === 'recipes') {
     return 'recipes';
   }
 
   if (firstSegment === 'recommend') {
-  return 'recommend';
-}
+    return 'recommend';
+  }
+
   if (
     firstSegment === 'orders' ||
     firstSegment === 'order-complete' ||
@@ -97,7 +108,6 @@ function resolveActiveSection(hash) {
   if (firstSegment === 'dashboard') {
     return 'dashboard';
   }
-
 
   if (
     firstSegment === 'productapp' ||
@@ -170,7 +180,9 @@ function App() {
 
   return (
     <>
-      {isPasswordChangeRequired ? (
+      {currentApp === 'admin' ? (
+        <AdminApp />
+      ) : isPasswordChangeRequired ? (
         <PasswordChangeRequiredPage authUser={authUser} />
       ) : (
         <>

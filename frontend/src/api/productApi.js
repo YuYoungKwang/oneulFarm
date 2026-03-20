@@ -6,6 +6,7 @@ const API_BASE_PREFIXES = buildApiBasePrefixes(
 const PRODUCT_API_BASE = '/api/products';
 const CART_API_BASE = '/api/cart';
 const ORDER_API_BASE = '/api/orders';
+let resolvedApiBasePrefix = '';
 
 const PRODUCT_SYMBOLS = ['🥬', '🧅', '🍅', '🥒', '🍎', '🍄', '🌿', '🌾'];
 const RECIPE_SYMBOLS = ['🍳', '🥗', '🥘', '🍲'];
@@ -51,7 +52,9 @@ async function requestApi(path, options, fallbackMessage) {
   for (const basePrefix of API_BASE_PREFIXES) {
     try {
       const response = await fetch(`${basePrefix}${path}`, options);
-      return await parseResponse(response, fallbackMessage);
+      const data = await parseResponse(response, fallbackMessage);
+      resolvedApiBasePrefix = basePrefix;
+      return data;
     } catch (error) {
       lastError = error;
     }
@@ -70,6 +73,23 @@ function apiHeaders(includeJson = false) {
 function toNumber(value, fallback = 0) {
   const nextValue = Number(value);
   return Number.isFinite(nextValue) ? nextValue : fallback;
+}
+
+function getProductImageUrl(imageNo) {
+  if (!imageNo) {
+    return '';
+  }
+
+  const explicitBaseUrl = normalizeBaseUrl(process.env.REACT_APP_API_BASE_URL || '');
+  const basePrefix = explicitBaseUrl || resolvedApiBasePrefix || '';
+  return `${basePrefix}/api/image/product/${imageNo}`;
+}
+
+function enrichProductImages(images = []) {
+  return images.map((image) => ({
+    ...image,
+    imageUrl: image.imageUrl || getProductImageUrl(image.imageNo),
+  }));
 }
 
 function buildDisplay(productNo) {
@@ -106,19 +126,19 @@ function buildRecommendedTags(rawProduct) {
   const tags = [];
 
   if (rawProduct.badgeType === 'UNDER_AVG') {
-    tags.push('Under Avg');
+    tags.push('평균가 이하');
   }
 
   if (rawProduct.isSeasonal === 'Y') {
-    tags.push('Seasonal');
+    tags.push('제철');
   }
 
   if (isSingleFriendly(rawProduct)) {
-    tags.push('Single Friendly');
+    tags.push('1인 가구 추천');
   }
 
   if (!tags.length) {
-    tags.push('Today Pick');
+    tags.push('오늘 추천');
   }
 
   return tags;
@@ -128,21 +148,25 @@ function buildGalleryItems(rawProduct, display) {
   if (Array.isArray(rawProduct.images) && rawProduct.images.length) {
     return rawProduct.images.map((image, index) => ({
       imageNo: image.imageNo,
-      label: image.imageName || `Image ${index + 1}`,
+      label: image.imageName || `이미지 ${index + 1}`,
       symbol: index === 0 ? display.symbol : GALLERY_SYMBOLS[index % GALLERY_SYMBOLS.length],
-      note: image.isMain === 'Y' ? 'Main image' : `Image ${index + 1}`,
+      imageUrl: image.imageUrl || getProductImageUrl(image.imageNo),
+      note: image.isMain === 'Y' ? '대표 이미지' : `이미지 ${index + 1}`,
       isMain: image.isMain || (index === 0 ? 'Y' : 'N'),
       sortOrder: image.sortOrder || index + 1,
+      isPlaceholder: false,
     }));
   }
 
   return GALLERY_SYMBOLS.map((symbol, index) => ({
-    imageNo: index + 1,
-    label: `Image ${index + 1}`,
+    imageNo: null,
+    label: `이미지 ${index + 1}`,
     symbol: index === 0 ? display.symbol : symbol,
-    note: 'Preview image',
+    imageUrl: '',
+    note: '미리보기 이미지',
     isMain: index === 0 ? 'Y' : 'N',
     sortOrder: index + 1,
+    isPlaceholder: true,
   }));
 }
 
@@ -170,6 +194,7 @@ function buildReviews(rawReviews = []) {
 
 function buildProductModel(rawProduct) {
   const display = buildDisplay(rawProduct.productNo);
+  const images = enrichProductImages(buildGalleryItems(rawProduct, display));
   const avgPrice = toNumber(rawProduct.avgPrice, toNumber(rawProduct.salePrice, 0));
   const salePrice = toNumber(rawProduct.salePrice, 0);
   const savingRate = toNumber(
@@ -199,13 +224,14 @@ function buildProductModel(rawProduct) {
       Math.min(toNumber(rawProduct.reviewCount, 0) * 2, 10) +
       toNumber(rawProduct.averageRating, 0) * 5
     ),
-    storageMethod: rawProduct.unit === 'g' ? 'Keep refrigerated' : 'Store in a cool place',
-    purchaseNote: rawProduct.isSeasonal === 'Y' ? 'Packed fresh after order' : 'Selected for steady quality',
-    deliveryInfo: 'Ships the same day before 2 PM',
+    storageMethod: rawProduct.unit === 'g' ? '냉장 보관 권장' : '서늘한 곳에 보관',
+    purchaseNote: rawProduct.isSeasonal === 'Y' ? '주문 후 신선하게 소분' : '품질을 보고 선별한 상품',
+    deliveryInfo: '오후 2시 이전 주문 시 당일 출고',
     recommendedFor,
     isSingleFriendly: isSingleFriendly(rawProduct),
     display,
-    images: buildGalleryItems(rawProduct, display),
+    images,
+    mainImage: images.find((image) => image.isMain === 'Y') || images[0] || null,
     priceSnapshot: {
       snapshotNo: rawProduct.snapshotNo,
       itemCode: rawProduct.itemCode || rawProduct.productName,

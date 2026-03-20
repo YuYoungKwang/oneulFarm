@@ -19,6 +19,9 @@ public class ImageController {
     public ResponseEntity<byte[]> getBannerImage(@PathVariable("id") Long bannerNo) {
 
         byte[] image = imageService.getBannerImage(bannerNo);
+        if (image == null || image.length == 0) {
+            return ResponseEntity.notFound().build();
+        }
         String mimeType = imageService.getBannerMimeType(bannerNo);
 
         return ResponseEntity.ok()
@@ -30,6 +33,9 @@ public class ImageController {
     public ResponseEntity<byte[]> getProductImage(@PathVariable("id") Long imageNo) {
 
         byte[] image = imageService.getProductImage(imageNo);
+        if (image == null || image.length == 0) {
+            return ResponseEntity.notFound().build();
+        }
         String mimeType = imageService.getProductMimeType(imageNo);
 
         return ResponseEntity.ok()

@@ -31,17 +31,14 @@ export default function OrdersPage({
   const completedCount = orders.filter(
     (order) => order.orderStatus === 'COMPLETED'
   ).length;
-  const monthlyAmount = orders.reduce(
-    (sum, order) => sum + order.finalAmount,
-    0
-  );
+  const monthlyAmount = orders.reduce((sum, order) => sum + order.finalAmount, 0);
 
   if (!orders.length) {
     return (
       <section className="empty-state detail-empty">
-        <div className="empty-icon">🗂️</div>
+        <div className="empty-icon">📦</div>
         <h1>주문 내역이 없습니다.</h1>
-        <p>상품을 주문하면 이 화면에서 상태를 확인하고 관리할 수 있습니다.</p>
+        <p>상품을 주문하면 이 화면에서 배송 상태를 확인할 수 있습니다.</p>
         <button className="btn" type="button" onClick={onReturnToProducts}>
           상품 보러 가기
         </button>
@@ -53,9 +50,9 @@ export default function OrdersPage({
     <>
       <section className="page-head">
         <div>
-          <span className="eyebrow">OFT_ORDERS / OFT_DELIVERY / OFT_PAYMENT</span>
+          <span className="eyebrow">Orders</span>
           <h1>주문 상태 관리</h1>
-          <p>생성한 주문의 상태와 배송 진행 상황을 확인하고 다음 단계로 변경할 수 있습니다.</p>
+          <p>주문 상태와 배송 진행 상황을 한눈에 확인할 수 있습니다.</p>
         </div>
         <div className="page-actions">
           <FilterChip
@@ -90,12 +87,12 @@ export default function OrdersPage({
         <article className="quick-card soft-yellow">
           <div className="quick-label">결제 완료</div>
           <div className="quick-value">{paidCount}건</div>
-          <div className="section-sub">`OFT_ORDERS.ORDER_STATUS = 'PAID'`</div>
+          <div className="section-sub">출고 준비 중</div>
         </article>
         <article className="quick-card soft-green">
           <div className="quick-label">배송중</div>
           <div className="quick-value">{shippingCount}건</div>
-          <div className="section-sub">출고 진행 중</div>
+          <div className="section-sub">현재 이동 중인 주문</div>
         </article>
         <article className="quick-card">
           <div className="quick-label">완료 주문</div>
@@ -120,8 +117,7 @@ export default function OrdersPage({
                   <div>
                     <div className="card-title order-card-title">{order.orderId}</div>
                     <div className="section-sub">
-                      {formatOrderDateTime(order.orderedAt)} · {order.items.length}개
-                      상품
+                      {formatOrderDateTime(order.orderedAt)} · {order.items.length}개 상품
                     </div>
                   </div>
                   <span className={`status-pill ${statusMeta.tone}`}>
@@ -199,7 +195,7 @@ export default function OrdersPage({
               </div>
             </div>
 
-            <div className="card-title orders-subtitle">주문 품목</div>
+            <div className="card-title orders-subtitle">주문 상품</div>
             <div className="checkout-items">
               {selectedOrder.items.map((item) => (
                 <div className="checkout-item" key={item.orderItemNo}>
@@ -212,12 +208,6 @@ export default function OrdersPage({
                   </div>
                 </div>
               ))}
-            </div>
-
-            <div className="notice cart-notice">
-              현재 주문 상태 전환은 프론트 목업입니다. 이후 Spring API를 연결하면
-              `OFT_ORDERS`, `OFT_DELIVERY`, `OFT_PAYMENT` 업데이트와 바로
-              연결할 수 있습니다.
             </div>
           </aside>
         ) : null}
