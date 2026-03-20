@@ -1,11 +1,14 @@
 package com.app.service;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.app.dao.ReviewDao;
@@ -14,6 +17,8 @@ import com.app.dto.ReviewRequestDto;
 
 @Service
 public class ReviewServiceImpl implements ReviewService {
+
+    private static final long MAX_REVIEW_IMAGE_SIZE = 5L * 1024L * 1024L;
 
     @Autowired
     private ReviewDao reviewDao;
@@ -30,8 +35,9 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     @Transactional
-    public ActivityReviewDto createReview(Long userNo, ReviewRequestDto request) {
+    public ActivityReviewDto createReview(Long userNo, ReviewRequestDto request, MultipartFile reviewImage) {
         validateReviewRequest(request, true);
+        validateReviewImage(reviewImage);
 
         ActivityReviewDto target = reviewDao.findWritableReviewTarget(userNo, request.getOrderItemNo());
         if (target == null) {
@@ -45,13 +51,15 @@ public class ReviewServiceImpl implements ReviewService {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "리뷰 저장 후 데이터를 다시 불러오지 못했습니다.");
         }
 
-        return createdReview;
+        syncReviewImage(createdReview.getReviewNo(), reviewImage, false);
+        return reviewDao.findMyReviewByNo(userNo, createdReview.getReviewNo());
     }
 
     @Override
     @Transactional
-    public ActivityReviewDto updateReview(Long userNo, Long reviewNo, ReviewRequestDto request) {
+    public ActivityReviewDto updateReview(Long userNo, Long reviewNo, ReviewRequestDto request, MultipartFile reviewImage) {
         validateReviewRequest(request, false);
+        validateReviewImage(reviewImage);
 
         ActivityReviewDto currentReview = reviewDao.findMyReviewByNo(userNo, reviewNo);
         if (currentReview == null) {
@@ -63,6 +71,7 @@ public class ReviewServiceImpl implements ReviewService {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "리뷰 수정에 실패했습니다.");
         }
 
+        syncReviewImage(reviewNo, reviewImage, Boolean.TRUE.equals(request.getRemoveImage()));
         return reviewDao.findMyReviewByNo(userNo, reviewNo);
     }
 
@@ -73,6 +82,8 @@ public class ReviewServiceImpl implements ReviewService {
         if (currentReview == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "삭제할 리뷰를 찾지 못했습니다.");
         }
+
+        reviewDao.deleteReviewImages(reviewNo);
 
         int deletedCount = reviewDao.deleteReview(userNo, reviewNo);
         if (deletedCount < 1) {
@@ -100,5 +111,60 @@ public class ReviewServiceImpl implements ReviewService {
         }
 
         request.setContent(content);
+    }
+
+    private void validateReviewImage(MultipartFile reviewImage) {
+        if (reviewImage == null || reviewImage.isEmpty()) {
+            return;
+        }
+
+        String contentType = reviewImage.getContentType();
+        if (contentType == null || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "리뷰 이미지는 이미지 파일만 등록할 수 있습니다.");
+        }
+
+        if (reviewImage.getSize() > MAX_REVIEW_IMAGE_SIZE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "리뷰 이미지는 5MB 이하만 등록할 수 있습니다.");
+        }
+    }
+
+    private void syncReviewImage(Long reviewNo, MultipartFile reviewImage, boolean removeImage) {
+        boolean hasNewImage = reviewImage != null && !reviewImage.isEmpty();
+
+        if (!removeImage && !hasNewImage) {
+            return;
+        }
+
+        reviewDao.deleteReviewImages(reviewNo);
+
+        if (!hasNewImage) {
+            return;
+        }
+
+        try {
+            reviewDao.insertReviewImage(
+                reviewNo,
+                reviewImage.getOriginalFilename(),
+                extractFileExtension(reviewImage.getOriginalFilename()),
+                reviewImage.getContentType(),
+                reviewImage.getSize(),
+                reviewImage.getBytes()
+            );
+        } catch (IOException exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "리뷰 이미지를 저장하지 못했습니다.");
+        }
+    }
+
+    private String extractFileExtension(String fileName) {
+        if (fileName == null) {
+            return "";
+        }
+
+        int index = fileName.lastIndexOf('.');
+        if (index < 0 || index == fileName.length() - 1) {
+            return "";
+        }
+
+        return fileName.substring(index).toLowerCase(Locale.ROOT);
     }
 }

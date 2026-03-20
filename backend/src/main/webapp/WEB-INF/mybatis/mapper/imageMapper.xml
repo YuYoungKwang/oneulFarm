@@ -30,4 +30,16 @@
         WHERE IMAGE_NO = #{imageNo}
     </select>
 
+    <select id="selectReviewImage" parameterType="long" resultType="byte[]">
+        SELECT IMAGE_DATA
+        FROM OFT_REVIEW_IMAGE
+        WHERE REVIEW_IMAGE_NO = #{reviewImageNo}
+    </select>
+
+    <select id="selectReviewMimeType" parameterType="long" resultType="string">
+        SELECT MIME_TYPE
+        FROM OFT_REVIEW_IMAGE
+        WHERE REVIEW_IMAGE_NO = #{reviewImageNo}
+    </select>
+
 </mapper>

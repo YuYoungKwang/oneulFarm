@@ -21,5 +21,16 @@ public interface ReviewDao {
 
     int updateReview(Long userNo, Long reviewNo, ReviewRequestDto request);
 
+    int deleteReviewImages(Long reviewNo);
+
+    int insertReviewImage(
+        Long reviewNo,
+        String imageName,
+        String imageExt,
+        String mimeType,
+        Long imageSize,
+        byte[] imageData
+    );
+
     int deleteReview(Long userNo, Long reviewNo);
 }

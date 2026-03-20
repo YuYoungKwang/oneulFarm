@@ -75,6 +75,30 @@ public class ReviewDaoImpl implements ReviewDao {
     }
 
     @Override
+    public int deleteReviewImages(Long reviewNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteReviewImages", reviewNo);
+    }
+
+    @Override
+    public int insertReviewImage(
+        Long reviewNo,
+        String imageName,
+        String imageExt,
+        String mimeType,
+        Long imageSize,
+        byte[] imageData
+    ) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("reviewNo", reviewNo);
+        params.put("imageName", imageName);
+        params.put("imageExt", imageExt);
+        params.put("mimeType", mimeType);
+        params.put("imageSize", imageSize);
+        params.put("imageData", imageData);
+        return sqlSessionTemplate.insert(NAMESPACE + "insertReviewImage", params);
+    }
+
+    @Override
     public int deleteReview(Long userNo, Long reviewNo) {
         Map<String, Object> params = new HashMap<>();
         params.put("userNo", userNo);

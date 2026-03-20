@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useRef } from 'react';
 import { formatDate, formatPrice } from './appUtils';
 import InlineInfoTip from './components/InlineInfoTip';
 
@@ -9,6 +10,18 @@ const myPageTabs = [
 function renderStars(rating) {
   const safeRating = Math.max(1, Math.min(5, Number(rating || 5)));
   return '★'.repeat(safeRating) + '☆'.repeat(5 - safeRating);
+}
+
+function getProductImageSrc(imageNo) {
+  return imageNo ? `/backend/api/image/product/${imageNo}` : '';
+}
+
+function getReviewDisplayImageSrc(review) {
+  if (review?.reviewImageNo) {
+    return `/backend/api/image/review/${review.reviewImageNo}`;
+  }
+
+  return getProductImageSrc(review?.imageNo);
 }
 
 function ActivityView({
@@ -33,25 +46,69 @@ function ActivityView({
   onStartEditReview,
   onCancelReviewEditor,
   onReviewFormChange,
+  onReviewImageChange,
+  onRemoveReviewImage,
   onReviewSubmit,
   onDeleteReview,
 }) {
+  const reviewEditorRef = useRef(null);
+  const reviewPreviewUrl = useMemo(() => {
+    if (!reviewEditor) {
+      return '';
+    }
+
+    if (reviewForm?.imageFile) {
+      return URL.createObjectURL(reviewForm.imageFile);
+    }
+
+    if (reviewForm?.removeImage) {
+      return '';
+    }
+
+    if (reviewEditor.reviewImageNo) {
+      return `/backend/api/image/review/${reviewEditor.reviewImageNo}`;
+    }
+
+    return getProductImageSrc(reviewEditor.imageNo);
+  }, [reviewEditor, reviewForm?.imageFile, reviewForm?.removeImage]);
+
+  useEffect(() => {
+    if (!reviewEditor || !reviewEditorRef.current) {
+      return;
+    }
+
+    const fixedHeaderOffset = 132;
+    const top = reviewEditorRef.current.getBoundingClientRect().top + window.scrollY - fixedHeaderOffset;
+
+    window.scrollTo({
+      top: Math.max(top, 0),
+      behavior: 'smooth',
+    });
+  }, [reviewEditor]);
+
+  useEffect(() => {
+    if (!reviewForm?.imageFile || !reviewPreviewUrl.startsWith('blob:')) {
+      return undefined;
+    }
+
+    return () => {
+      URL.revokeObjectURL(reviewPreviewUrl);
+    };
+  }, [reviewForm?.imageFile, reviewPreviewUrl]);
+
   return (
     <>
       <section className="page-head">
         <div>
           <div className="page-title-row">
-            <h1>관심 활동</h1>
-            <InlineInfoTip content="찜한 상품과 리뷰처럼 상품 탐색과 연결되는 활동을 한곳에서 관리하는 화면입니다." />
+            <h1>내 활동</h1>
+            <InlineInfoTip content="찜한 상품과 리뷰처럼 상품 탐색 이후의 활동을 한곳에서 관리할 수 있습니다." />
           </div>
         </div>
       </section>
 
       <section className="section">
         <div className="mypage-section-header mypage-section-header--activity">
-          <div>
-            <div className="section-sub">찜한 상품과 리뷰를 탭으로 나눠 확인하세요.</div>
-          </div>
           <div className="tab-row">
             {myPageTabs.map((tab) => (
               <button
@@ -73,7 +130,7 @@ function ActivityView({
                 <div>
                   <div className="section-title-row">
                     <div className="section-title">찜한 상품</div>
-                    <InlineInfoTip content="상품 화면에서 찜한 항목을 모아 보고, 바로 장바구니에 담거나 상품 상세로 이동할 수 있습니다." />
+                    <InlineInfoTip content="상품 화면에서 찜한 항목을 모아 보고, 장바구니 담기나 상품 상세 이동으로 이어갈 수 있습니다." />
                   </div>
                 </div>
               </div>
@@ -92,11 +149,13 @@ function ActivityView({
                 <div className="product-grid">
                   {wishlistItems.map((item) => (
                     <article key={item.productNo} className="product-card">
-                      <div className="product-media">
+                      <a href={`#/products/${item.productNo}`} className="product-media wishlist-product-link-media">
                         <span className="badge green">{item.badge}</span>
                         <div className="emoji">{item.emoji}</div>
-                      </div>
-                      <div className="product-name">{item.name}</div>
+                      </a>
+                      <a href={`#/products/${item.productNo}`} className="product-name wishlist-product-link">
+                        {item.name}
+                      </a>
                       <div className="price-row">
                         <div className="wishlist-price-block">
                           <div className="wishlist-price-label">현재가</div>
@@ -121,7 +180,9 @@ function ActivityView({
                         >
                           {wishlistActionProductNo === item.productNo ? '담는 중..' : '장바구니 담기'}
                         </button>
-                        <a href={`#/products/${item.productNo}`} className="btn-outline">상품 보러가기</a>
+                        <a href={`#/products/${item.productNo}`} className="btn-outline">
+                          상품 보러가기
+                        </a>
                       </div>
                       <button
                         type="button"
@@ -140,12 +201,12 @@ function ActivityView({
           {activeTab === 'reviews' && (
             <section className="activity-panel-block review-stack">
               {reviewEditor && (
-                <article className="card review-editor-card">
+                <article ref={reviewEditorRef} className="card review-editor-card">
                   <div className="section-head">
                     <div>
                       <div className="section-title-row">
                         <div className="card-title">{reviewEditor.mode === 'edit' ? '리뷰 수정' : '리뷰 작성'}</div>
-                        <InlineInfoTip content="평점과 리뷰 내용을 수정하면 관심 활동과 상품 리뷰 영역에 함께 반영됩니다." />
+                        <InlineInfoTip content="별점과 내용을 바꾸고, 리뷰 사진도 새로 올리거나 제거할 수 있습니다." />
                       </div>
                       <div className="section-sub">
                         {reviewEditor.productName}
@@ -178,6 +239,38 @@ function ActivityView({
                         placeholder="상품 상태, 가격 만족도, 다시 구매하고 싶은 이유를 자유롭게 적어 주세요."
                       />
                     </label>
+                    <div className="review-image-editor">
+                      <div className="review-image-editor__label">리뷰 사진</div>
+                      <div className="review-image-editor__body">
+                        {reviewPreviewUrl ? (
+                          <img
+                            className="review-image-editor__preview"
+                            src={reviewPreviewUrl}
+                            alt={reviewEditor.productName}
+                          />
+                        ) : (
+                          <div className="review-image-editor__placeholder">사진 없음</div>
+                        )}
+                        <div className="review-image-editor__controls">
+                          <label className="btn-outline review-image-editor__file">
+                            <input type="file" accept="image/*" onChange={onReviewImageChange} />
+                            사진 선택
+                          </label>
+                          {reviewPreviewUrl && (
+                            <button
+                              type="button"
+                              className="btn-outline review-image-editor__remove"
+                              onClick={onRemoveReviewImage}
+                            >
+                              사진 제거
+                            </button>
+                          )}
+                          <div className="review-image-editor__hint">
+                            JPG, PNG, WEBP 파일을 1장까지 등록할 수 있습니다.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                     {reviewFormError && <div className="form-error">{reviewFormError}</div>}
                     <div className="review-editor-actions">
                       <button type="button" className="btn-outline" onClick={onCancelReviewEditor}>
@@ -217,38 +310,50 @@ function ActivityView({
                       <article className="feedback-card">작성 가능한 리뷰가 없습니다.</article>
                     ) : (
                       <div className="review-card-list">
-                        {writableReviews.map((review) => (
-                          <article key={review.orderItemNo} className="review-card review-card--draft">
-                            <div className="review-card__media">
-                              <div className="thumb-mini">📝</div>
-                            </div>
-                            <div className="review-card__body">
-                              <div className="review-card__top">
-                                <div>
-                                  {review.productNo ? (
-                                    <a href={`#/products/${review.productNo}`} className="review-product-link">
-                                      {review.productName}
-                                    </a>
-                                  ) : (
-                                    <div className="review-card__title">{review.productName}</div>
-                                  )}
-                                  <div className="review-card__meta">
-                                    {review.orderId} · {formatDate(review.orderedAt)}
-                                  </div>
-                                </div>
-                                <span className="review-status review-status--draft">리뷰 작성 가능</span>
+                        {writableReviews.map((review) => {
+                          const reviewImageSrc = getReviewDisplayImageSrc(review);
+
+                          return (
+                            <article key={review.orderItemNo} className="review-card review-card--draft">
+                              <div className="review-card__media">
+                                {reviewImageSrc ? (
+                                  <img
+                                    className="review-card__thumb"
+                                    src={reviewImageSrc}
+                                    alt={review.productName}
+                                  />
+                                ) : (
+                                  <div className="thumb-mini">리뷰</div>
+                                )}
                               </div>
-                              <p className="review-card__text">
-                                상품 상태나 만족도를 남기면 다음 구매 때도 비교하기 쉬워집니다.
-                              </p>
-                            </div>
-                            <div className="review-card__actions">
-                              <button type="button" className="btn" onClick={() => onStartCreateReview(review)}>
-                                리뷰 작성
-                              </button>
-                            </div>
-                          </article>
-                        ))}
+                              <div className="review-card__body">
+                                <div className="review-card__top">
+                                  <div>
+                                    {review.productNo ? (
+                                      <a href={`#/products/${review.productNo}`} className="review-product-link">
+                                        {review.productName}
+                                      </a>
+                                    ) : (
+                                      <div className="review-card__title">{review.productName}</div>
+                                    )}
+                                    <div className="review-card__meta">
+                                      {review.orderId} · {formatDate(review.orderedAt)}
+                                    </div>
+                                  </div>
+                                  <span className="review-status review-status--draft">리뷰 작성 가능</span>
+                                </div>
+                                <p className="review-card__text">
+                                  상품 상태와 만족도를 남기면 다음 구매 때 비교하기 쉬워집니다.
+                                </p>
+                              </div>
+                              <div className="review-card__actions">
+                                <button type="button" className="btn" onClick={() => onStartCreateReview(review)}>
+                                  리뷰 작성
+                                </button>
+                              </div>
+                            </article>
+                          );
+                        })}
                       </div>
                     )}
                   </article>
@@ -258,7 +363,7 @@ function ActivityView({
                       <div>
                         <div className="section-title-row">
                           <div className="card-title">내가 작성한 리뷰</div>
-                          <InlineInfoTip content="이미 등록한 리뷰를 다시 확인하고, 필요하면 수정하거나 삭제할 수 있습니다." />
+                          <InlineInfoTip content="등록한 리뷰를 다시 확인하고, 필요하면 수정하거나 삭제할 수 있습니다." />
                         </div>
                       </div>
                       <span className="badge green">{myReviews.length}건</span>
@@ -268,45 +373,57 @@ function ActivityView({
                       <article className="feedback-card">작성한 리뷰가 없습니다.</article>
                     ) : (
                       <div className="review-card-list">
-                        {myReviews.map((review) => (
-                          <article key={review.reviewNo} className="review-card review-card--published">
-                            <div className="review-card__media">
-                              <div className="thumb-mini">★</div>
-                            </div>
-                            <div className="review-card__body">
-                              <div className="review-card__top">
-                                <div>
-                                  {review.productNo ? (
-                                    <a href={`#/products/${review.productNo}`} className="review-product-link">
-                                      {review.productName}
-                                    </a>
-                                  ) : (
-                                    <div className="review-card__title">{review.productName}</div>
-                                  )}
-                                  <div className="review-card__meta">
-                                    {review.orderId} · {formatDate(review.createdAt)}
-                                  </div>
-                                </div>
-                                <span className="review-status review-status--published">작성 완료</span>
+                        {myReviews.map((review) => {
+                          const reviewImageSrc = getReviewDisplayImageSrc(review);
+
+                          return (
+                            <article key={review.reviewNo} className="review-card review-card--published">
+                              <div className="review-card__media">
+                                {reviewImageSrc ? (
+                                  <img
+                                    className="review-card__thumb"
+                                    src={reviewImageSrc}
+                                    alt={review.productName}
+                                  />
+                                ) : (
+                                  <div className="thumb-mini">리뷰</div>
+                                )}
                               </div>
-                              <div className="review-rating">{renderStars(review.rating)}</div>
-                              <div className="review-quote">{review.content}</div>
-                            </div>
-                            <div className="review-card__actions review-card__actions--stacked">
-                              <button type="button" className="btn-outline" onClick={() => onStartEditReview(review)}>
-                                수정
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-outline review-delete-btn"
-                                onClick={() => onDeleteReview(review.reviewNo)}
-                                disabled={deletingReviewNo === review.reviewNo}
-                              >
-                                {deletingReviewNo === review.reviewNo ? '삭제 중..' : '삭제'}
-                              </button>
-                            </div>
-                          </article>
-                        ))}
+                              <div className="review-card__body">
+                                <div className="review-card__top">
+                                  <div>
+                                    {review.productNo ? (
+                                      <a href={`#/products/${review.productNo}`} className="review-product-link">
+                                        {review.productName}
+                                      </a>
+                                    ) : (
+                                      <div className="review-card__title">{review.productName}</div>
+                                    )}
+                                    <div className="review-card__meta">
+                                      {review.orderId} · {formatDate(review.createdAt)}
+                                    </div>
+                                  </div>
+                                  <span className="review-status review-status--published">작성 완료</span>
+                                </div>
+                                <div className="review-rating">{renderStars(review.rating)}</div>
+                                <div className="review-quote">{review.content}</div>
+                              </div>
+                              <div className="review-card__actions review-card__actions--stacked">
+                                <button type="button" className="btn-outline" onClick={() => onStartEditReview(review)}>
+                                  수정
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-outline review-delete-btn"
+                                  onClick={() => onDeleteReview(review.reviewNo)}
+                                  disabled={deletingReviewNo === review.reviewNo}
+                                >
+                                  {deletingReviewNo === review.reviewNo ? '삭제 중..' : '삭제'}
+                                </button>
+                              </div>
+                            </article>
+                          );
+                        })}
                       </div>
                     )}
                   </article>
