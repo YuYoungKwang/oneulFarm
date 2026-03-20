@@ -40,6 +40,8 @@ public class ImageDaoImpl implements ImageDao {
     @Override
     public String findReviewMimeType(Long reviewImageNo) {
         return sqlSessionTemplate.selectOne(NAMESPACE + "selectReviewMimeType", reviewImageNo);
+    }
+    
     private byte[] toPrimitiveBytes(Object imageData) {
         if (imageData == null) {
             return null;
