@@ -59,15 +59,4 @@ public class ImageController {
             .header(HttpHeaders.CONTENT_TYPE, mimeType != null ? mimeType : MediaType.IMAGE_JPEG_VALUE)
             .body(image);
     }
-
-    @GetMapping("/review/{id}")
-    public ResponseEntity<byte[]> getReviewImage(@PathVariable("id") Long reviewImageNo) {
-
-        byte[] image = imageService.getReviewImage(reviewImageNo);
-        String mimeType = imageService.getReviewMimeType(reviewImageNo);
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_TYPE, mimeType != null ? mimeType : MediaType.IMAGE_JPEG_VALUE)
-                .body(image);
-    }
 }
