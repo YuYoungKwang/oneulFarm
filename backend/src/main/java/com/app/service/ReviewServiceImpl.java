@@ -1,6 +1,10 @@
 package com.app.service;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -8,8 +12,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.app.dao.RecipeDAO;
 import com.app.dao.ReviewDao;
 import com.app.dto.ActivityReviewDto;
+import com.app.dto.RecipeDTO;
+import com.app.dto.ReviewDto;
+import com.app.dto.ReviewImageDto;
 import com.app.dto.ReviewRequestDto;
 
 @Service
@@ -17,6 +25,9 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Autowired
     private ReviewDao reviewDao;
+
+    @Autowired
+    private RecipeDAO recipeDAO;
 
     @Override
     public List<ActivityReviewDto> getWritableReviews(Long userNo) {
@@ -55,7 +66,7 @@ public class ReviewServiceImpl implements ReviewService {
 
         ActivityReviewDto currentReview = reviewDao.findMyReviewByNo(userNo, reviewNo);
         if (currentReview == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "수정할 리뷰를 찾지 못했습니다.");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "수정할 리뷰를 찾을 수 없습니다.");
         }
 
         int updatedCount = reviewDao.updateReview(userNo, reviewNo, request);
@@ -71,12 +82,89 @@ public class ReviewServiceImpl implements ReviewService {
     public void deleteReview(Long userNo, Long reviewNo) {
         ActivityReviewDto currentReview = reviewDao.findMyReviewByNo(userNo, reviewNo);
         if (currentReview == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "삭제할 리뷰를 찾지 못했습니다.");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "삭제할 리뷰를 찾을 수 없습니다.");
         }
 
         int deletedCount = reviewDao.deleteReview(userNo, reviewNo);
         if (deletedCount < 1) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "리뷰 삭제에 실패했습니다.");
+        }
+    }
+
+    @Override
+    public List<ReviewDto> getRecipeReviews(Long recipeNo) {
+        List<ReviewDto> reviewList = reviewDao.findRecipeReviews(recipeNo);
+        attachReviewImages(reviewList, reviewDao.findRecipeReviewImages(recipeNo));
+        return reviewList;
+    }
+
+    @Override
+    @Transactional
+    public ReviewDto createRecipeReview(Long userNo, ReviewDto reviewDto) {
+        validateRecipeReviewRequest(reviewDto);
+        validateRecipeExists(reviewDto.getRecipeNo());
+
+        ReviewDto existingReview = reviewDao.findRecipeReviewByUserAndRecipe(userNo, reviewDto.getRecipeNo());
+        if (existingReview != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 작성한 레시피 리뷰가 있습니다.");
+        }
+
+        reviewDto.setUserNo(userNo);
+        reviewDao.insertRecipeReview(reviewDto);
+        saveReviewImages(reviewDto.getReviewNo(), reviewDto.getImageList());
+
+        return buildRecipeReviewResponse(reviewDto.getReviewNo());
+    }
+
+    @Override
+    @Transactional
+    public ReviewDto updateRecipeReview(Long userNo, Long reviewNo, ReviewDto reviewDto) {
+        validateRecipeReviewRequest(reviewDto);
+        validateRecipeExists(reviewDto.getRecipeNo());
+
+        ReviewDto currentReview = reviewDao.findRecipeReviewByNo(reviewNo);
+        if (currentReview == null || !userNo.equals(currentReview.getUserNo())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "수정할 레시피 리뷰를 찾을 수 없습니다.");
+        }
+
+        if (!reviewDto.getRecipeNo().equals(currentReview.getRecipeNo())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "레시피 리뷰 대상이 올바르지 않습니다.");
+        }
+
+        reviewDto.setReviewNo(reviewNo);
+        reviewDto.setUserNo(userNo);
+
+        int updatedCount = reviewDao.updateRecipeReview(reviewDto);
+        if (updatedCount < 1) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "레시피 리뷰 수정에 실패했습니다.");
+        }
+
+        if (reviewDto.getImageList() != null && !reviewDto.getImageList().isEmpty()) {
+            reviewDao.deleteReviewImagesByReviewNo(reviewNo);
+            saveReviewImages(reviewNo, reviewDto.getImageList());
+        }
+
+        return buildRecipeReviewResponse(reviewNo);
+    }
+
+    @Override
+    @Transactional
+    public void deleteRecipeReview(Long userNo, Long reviewNo) {
+        ReviewDto currentReview = reviewDao.findRecipeReviewByNo(reviewNo);
+        if (currentReview == null || !userNo.equals(currentReview.getUserNo())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "삭제할 레시피 리뷰를 찾을 수 없습니다.");
+        }
+
+        reviewDao.deleteReviewImagesByReviewNo(reviewNo);
+
+        ReviewDto deleteTarget = new ReviewDto();
+        deleteTarget.setReviewNo(reviewNo);
+        deleteTarget.setUserNo(userNo);
+        deleteTarget.setRecipeNo(currentReview.getRecipeNo());
+
+        int deletedCount = reviewDao.deleteRecipeReview(deleteTarget);
+        if (deletedCount < 1) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "레시피 리뷰 삭제에 실패했습니다.");
         }
     }
 
@@ -100,5 +188,87 @@ public class ReviewServiceImpl implements ReviewService {
         }
 
         request.setContent(content);
+    }
+
+    private void validateRecipeExists(Long recipeNo) {
+        if (recipeNo == null || recipeNo.longValue() <= 0L) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "recipeNo는 필수입니다.");
+        }
+
+        RecipeDTO recipeDTO = recipeDAO.selectRecipeDetail(recipeNo);
+        if (recipeDTO == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "레시피를 찾을 수 없습니다.");
+        }
+    }
+
+    private void validateRecipeReviewRequest(ReviewDto reviewDto) {
+        if (reviewDto == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "리뷰 정보를 입력해 주세요.");
+        }
+
+        if (reviewDto.getRecipeNo() == null || reviewDto.getRecipeNo().longValue() <= 0L) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "레시피 정보가 없습니다.");
+        }
+
+        Integer rating = reviewDto.getRating();
+        if (rating == null || rating.intValue() < 1 || rating.intValue() > 5) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "별점은 1점부터 5점까지 입력할 수 있습니다.");
+        }
+
+        String content = reviewDto.getContent() == null ? "" : reviewDto.getContent().trim();
+        if (content.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "리뷰 내용을 입력해 주세요.");
+        }
+
+        reviewDto.setContent(content);
+
+        List<ReviewImageDto> imageList = reviewDto.getImageList();
+        if (imageList != null && imageList.size() > 3) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "리뷰 이미지는 최대 3장까지 업로드할 수 있습니다.");
+        }
+    }
+
+    private void saveReviewImages(Long reviewNo, List<ReviewImageDto> imageList) {
+        if (reviewNo == null || imageList == null || imageList.isEmpty()) {
+            return;
+        }
+
+        for (int index = 0; index < imageList.size(); index += 1) {
+            ReviewImageDto reviewImageDto = imageList.get(index);
+            reviewImageDto.setReviewNo(reviewNo);
+            reviewImageDto.setSortOrder(Integer.valueOf(index + 1));
+            reviewDao.insertReviewImage(reviewImageDto);
+        }
+    }
+
+    private ReviewDto buildRecipeReviewResponse(Long reviewNo) {
+        ReviewDto reviewDto = reviewDao.findRecipeReviewByNo(reviewNo);
+        if (reviewDto == null) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "레시피 리뷰를 다시 불러오지 못했습니다.");
+        }
+
+        attachReviewImages(Collections.singletonList(reviewDto), reviewDao.findReviewImagesByReviewNo(reviewNo));
+        return reviewDto;
+    }
+
+    private void attachReviewImages(List<ReviewDto> reviewList, List<ReviewImageDto> reviewImageList) {
+        if (reviewList == null || reviewList.isEmpty()) {
+            return;
+        }
+
+        Map<Long, List<ReviewImageDto>> reviewImageMap = new LinkedHashMap<Long, List<ReviewImageDto>>();
+        if (reviewImageList != null) {
+            for (ReviewImageDto reviewImageDto : reviewImageList) {
+                reviewImageDto.setImageUrl("/api/image/review/" + reviewImageDto.getReviewImageNo());
+                reviewImageMap
+                    .computeIfAbsent(reviewImageDto.getReviewNo(), key -> new ArrayList<ReviewImageDto>())
+                    .add(reviewImageDto);
+            }
+        }
+
+        for (ReviewDto reviewDto : reviewList) {
+            List<ReviewImageDto> imageList = reviewImageMap.get(reviewDto.getReviewNo());
+            reviewDto.setImageList(imageList == null ? new ArrayList<ReviewImageDto>() : imageList);
+        }
     }
 }

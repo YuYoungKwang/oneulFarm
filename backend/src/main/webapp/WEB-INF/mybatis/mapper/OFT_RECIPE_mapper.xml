@@ -15,7 +15,7 @@
         <result property="sourceName" column="sourceName" />
     </resultMap>
 
-    <resultMap id="RecipeDetailResultMap" type="com.app.dto.RecipeDetailDTO">
+    <resultMap id="RecipeDetailResultMap" type="com.app.dto.RecipeDTO">
         <id property="recipeNo" column="recipeNo" />
         <result property="externalRecipeId" column="externalRecipeId" />
         <result property="recipeName" column="recipeName" />
@@ -164,8 +164,66 @@
         )
     </insert>
 
+    <sql id="RecipeListWhereClause">
+        WHERE 1 = 1
+        <if test="keyword != null and keyword != ''">
+            AND (
+                UPPER(r.RECIPE_NAME) LIKE '%' || UPPER(#{keyword}) || '%'
+                OR UPPER(DBMS_LOB.SUBSTR(r.DESCRIPTION, 4000, 1)) LIKE '%' || UPPER(#{keyword}) || '%'
+            )
+        </if>
+        <if test="ingredientKeyword != null and ingredientKeyword != ''">
+            AND EXISTS (
+                SELECT 1
+                FROM OFT_RECIPE_INGREDIENT ri
+                WHERE ri.RECIPE_NO = r.RECIPE_NO
+                  AND UPPER(ri.INGREDIENT_NAME) LIKE '%' || UPPER(#{ingredientKeyword}) || '%'
+            )
+        </if>
+    </sql>
+
+    <sql id="RecipeListOrderClause">
+        <choose>
+            <when test="sort == 'FAST'">
+                NVL(TO_NUMBER(REGEXP_SUBSTR(r.COOK_TIME, '[0-9]+')), 99999) ASC,
+                r.CREATED_AT DESC,
+                r.RECIPE_NO DESC
+            </when>
+            <when test="sort == 'EASY'">
+                CASE r.DIFFICULTY
+                    WHEN '?ъ?' THEN 1
+                    WHEN '蹂댄넻' THEN 2
+                    WHEN '?대젮?' THEN 3
+                    ELSE 4
+                END ASC,
+                NVL(TO_NUMBER(REGEXP_SUBSTR(r.COOK_TIME, '[0-9]+')), 99999) ASC,
+                r.CREATED_AT DESC,
+                r.RECIPE_NO DESC
+            </when>
+            <otherwise>
+                r.CREATED_AT DESC,
+                r.RECIPE_NO DESC
+            </otherwise>
+        </choose>
+    </sql>
+
+    <select id="countRecipeList" parameterType="map" resultType="int">
+        SELECT COUNT(*)
+        FROM OFT_RECIPE r
+        <include refid="RecipeListWhereClause" />
+    </select>
+
     <select id="selectRecipeList" parameterType="map" resultMap="RecipeResultMap">
-        SELECT *
+        SELECT
+            recipeNo,
+            externalRecipeId,
+            recipeName,
+            description,
+            cookTime,
+            difficulty,
+            calories,
+            imageUrl,
+            sourceName
         FROM (
             SELECT
                 r.RECIPE_NO AS recipeNo,
@@ -177,48 +235,16 @@
                 r.CALORIES AS calories,
                 r.IMAGE_URL AS imageUrl,
                 r.SOURCE_NAME AS sourceName,
-                r.CREATED_AT AS createdAt
+                ROW_NUMBER() OVER (
+                    ORDER BY
+                    <include refid="RecipeListOrderClause" />
+                ) AS rowNo
             FROM OFT_RECIPE r
-            WHERE 1 = 1
-            <if test="keyword != null and keyword != ''">
-                AND (
-                    UPPER(r.RECIPE_NAME) LIKE '%' || UPPER(#{keyword}) || '%'
-                    OR UPPER(DBMS_LOB.SUBSTR(r.DESCRIPTION, 4000, 1)) LIKE '%' || UPPER(#{keyword}) || '%'
-                )
-            </if>
-            <if test="ingredientKeyword != null and ingredientKeyword != ''">
-                AND EXISTS (
-                    SELECT 1
-                    FROM OFT_RECIPE_INGREDIENT ri
-                    WHERE ri.RECIPE_NO = r.RECIPE_NO
-                      AND UPPER(ri.INGREDIENT_NAME) LIKE '%' || UPPER(#{ingredientKeyword}) || '%'
-                )
-            </if>
-            ORDER BY
-            <choose>
-                <when test="sort == 'FAST'">
-                    NVL(TO_NUMBER(REGEXP_SUBSTR(r.COOK_TIME, '[0-9]+')), 99999) ASC,
-                    r.CREATED_AT DESC,
-                    r.RECIPE_NO DESC
-                </when>
-                <when test="sort == 'EASY'">
-                    CASE r.DIFFICULTY
-                        WHEN '쉬움' THEN 1
-                        WHEN '보통' THEN 2
-                        WHEN '어려움' THEN 3
-                        ELSE 4
-                    END ASC,
-                    NVL(TO_NUMBER(REGEXP_SUBSTR(r.COOK_TIME, '[0-9]+')), 99999) ASC,
-                    r.CREATED_AT DESC,
-                    r.RECIPE_NO DESC
-                </when>
-                <otherwise>
-                    r.CREATED_AT DESC,
-                    r.RECIPE_NO DESC
-                </otherwise>
-            </choose>
+            <include refid="RecipeListWhereClause" />
         )
-        WHERE ROWNUM &lt;= #{limit}
+        WHERE rowNo &gt; #{offset}
+          AND rowNo &lt;= #{offset} + #{pageSize}
+        ORDER BY rowNo
     </select>
 
     <select id="selectRecipeDetail" parameterType="java.lang.Long" resultMap="RecipeResultMap"><![CDATA[

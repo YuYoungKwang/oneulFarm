@@ -57,13 +57,23 @@ public class RecipeDAOImpl implements RecipeDAO {
     }
 
     @Override
-    public List<RecipeDTO> selectRecipeList(String keyword, String ingredientKeyword, String sort, int limit) {
+    public List<RecipeDTO> selectRecipeList(String keyword, String ingredientKeyword, String sort, int offset, int pageSize) {
         Map<String, Object> parameterMap = new HashMap<String, Object>();
         parameterMap.put("keyword", keyword);
         parameterMap.put("ingredientKeyword", ingredientKeyword);
         parameterMap.put("sort", sort);
-        parameterMap.put("limit", Integer.valueOf(limit));
+        parameterMap.put("offset", Integer.valueOf(offset));
+        parameterMap.put("pageSize", Integer.valueOf(pageSize));
         return sqlSessionTemplate.selectList(NAMESPACE + "selectRecipeList", parameterMap);
+    }
+
+    @Override
+    public int countRecipeList(String keyword, String ingredientKeyword) {
+        Map<String, Object> parameterMap = new HashMap<String, Object>();
+        parameterMap.put("keyword", keyword);
+        parameterMap.put("ingredientKeyword", ingredientKeyword);
+        Integer count = sqlSessionTemplate.selectOne(NAMESPACE + "countRecipeList", parameterMap);
+        return count == null ? 0 : count.intValue();
     }
 
     @Override

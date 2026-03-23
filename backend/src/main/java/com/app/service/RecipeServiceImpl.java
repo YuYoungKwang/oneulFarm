@@ -30,6 +30,7 @@ import com.app.dto.RecipeDTO;
 import com.app.dto.RecipeIngredientDTO;
 import com.app.dto.RecipeStepDTO;
 import com.app.dto.RecipeStepImageDTO;
+import com.app.dto.ReviewDto;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -52,6 +53,9 @@ public class RecipeServiceImpl implements RecipeService {
 
     @Autowired
     private ProductDao productDao;
+
+    @Autowired
+    private ReviewService reviewService;
 
     @Value("${foodsafetykorea.baseUrl:https://openapi.foodsafetykorea.go.kr/api}")
     private String foodsafetyKoreaBaseUrl;
@@ -108,18 +112,26 @@ public class RecipeServiceImpl implements RecipeService {
     }
 
     @Override
-    public List<RecipeDTO> getRecipeList(String keyword, String ingredientKeyword, String sort, Integer limit) {
+    public List<RecipeDTO> getRecipeList(String keyword, String ingredientKeyword, String sort, Integer limit, Integer page) {
         String resolvedKeyword = trimToNull(keyword);
         String resolvedIngredientKeyword = trimToNull(ingredientKeyword);
         String resolvedSort = normalizeSort(sort);
         int resolvedLimit = resolveLimit(limit);
+        int resolvedPage = resolvePage(page);
+        int resolvedOffset = (resolvedPage - 1) * resolvedLimit;
 
         return recipeDAO.selectRecipeList(
             resolvedKeyword,
             resolvedIngredientKeyword,
             resolvedSort,
+            resolvedOffset,
             resolvedLimit
         );
+    }
+
+    @Override
+    public int getRecipeListCount(String keyword, String ingredientKeyword) {
+        return recipeDAO.countRecipeList(trimToNull(keyword), trimToNull(ingredientKeyword));
     }
 
     @Override
@@ -158,6 +170,8 @@ public class RecipeServiceImpl implements RecipeService {
         recipeDTO.setRecommendedProductList(
             buildRecommendedProductList(ingredientList, productDao.findSellingProducts(), RECOMMEND_PRODUCT_LIMIT)
         );
+        List<ReviewDto> reviewList = reviewService.getRecipeReviews(recipeNo);
+        recipeDTO.setReviewList(reviewList);
         return recipeDTO;
     }
 
@@ -569,6 +583,13 @@ public class RecipeServiceImpl implements RecipeService {
             return DEFAULT_LIMIT;
         }
         return Math.min(limit.intValue(), MAX_LIMIT);
+    }
+
+    private int resolvePage(Integer page) {
+        if (page == null || page.intValue() <= 0) {
+            return 1;
+        }
+        return page.intValue();
     }
 
     private int resolveSyncTargetCount(Integer limit) {

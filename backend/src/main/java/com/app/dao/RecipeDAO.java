@@ -23,7 +23,9 @@ public interface RecipeDAO {
 
     int insertRecipeStepImage(RecipeStepImageDTO recipeStepImageDTO);
 
-    List<RecipeDTO> selectRecipeList(String keyword, String ingredientKeyword, String sort, int limit);
+    List<RecipeDTO> selectRecipeList(String keyword, String ingredientKeyword, String sort, int offset, int pageSize);
+
+    int countRecipeList(String keyword, String ingredientKeyword);
 
     RecipeDTO selectRecipeDetail(Long recipeNo);
 
