@@ -182,10 +182,6 @@ export default function ProductApp({ authUser }) {
   }, [isLoggedIn]);
 
   useEffect(() => {
-    if (process.env.NODE_ENV === 'test') {
-      return;
-    }
-
     if (route.page !== 'product-detail' || route.productNo == null) {
       return;
     }
@@ -422,7 +418,15 @@ export default function ProductApp({ authUser }) {
     navigateToHash(`#/recipes/${recipeNo}`);
   }
 
-  function openRecipeList() {
+  function openRecipeList(searchState) {
+    if (searchState?.ingredientKeyword) {
+      const queryString = new URLSearchParams({
+        ingredientKeyword: searchState.ingredientKeyword,
+      }).toString();
+      navigateToHash(`#/recipes?${queryString}`);
+      return;
+    }
+
     navigateToHash('#/recipes');
   }
 
@@ -720,7 +724,12 @@ export default function ProductApp({ authUser }) {
         ) : route.page === 'recipe-detail' ? (
           <RecipeDetailPage recipeNo={route.recipeNo} onBack={openRecipeList} />
         ) : route.page === 'recipes' ? (
-          <RecipeListPage onOpenRecipe={openRecipe} />
+          <RecipeListPage
+            initialIngredientKeyword={route.recipeIngredientKeyword}
+            initialKeyword={route.recipeKeyword}
+            initialSort={route.recipeSort}
+            onOpenRecipe={openRecipe}
+          />
         ) : route.page === 'price-analysis' ? (
           <PriceAnalysisPage
             products={products}
@@ -734,6 +743,8 @@ export default function ProductApp({ authUser }) {
               isWished={wishlist.includes(currentProduct.productNo)}
               onAddToCart={addToCart}
               onBack={openProductList}
+              onOpenRecipe={openRecipe}
+              onOpenRecipeList={openRecipeList}
               onToggleWishlist={toggleWishlist}
               product={currentProduct}
             />
