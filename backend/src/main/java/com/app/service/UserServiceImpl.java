@@ -1,11 +1,18 @@
 package com.app.service;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.app.dao.UserDao;
@@ -13,10 +20,13 @@ import com.app.dto.ChangePasswordRequestDto;
 import com.app.dto.CurrentPasswordRequestDto;
 import com.app.dto.DuplicateCheckResponseDto;
 import com.app.dto.UpdateUserProfileRequestDto;
+import com.app.dto.UserDto;
 import com.app.dto.UserProfileDto;
 
 @Service
 public class UserServiceImpl implements UserService {
+
+    private static final Path PROFILE_IMAGE_DIRECTORY = Paths.get("D:/fileStorage/profile");
 
     @Autowired
     private UserDao userDao;
@@ -53,6 +63,44 @@ public class UserServiceImpl implements UserService {
         }
 
         return getMyProfile(userNo);
+    }
+
+    @Override
+    @Transactional
+    public UserProfileDto updateProfileImage(Long userNo, MultipartFile profileImage) {
+        validateProfileImage(profileImage);
+
+        UserProfileDto currentProfile = getMyProfile(userNo);
+        String originalFilename = profileImage.getOriginalFilename();
+        String extension = extractExtension(originalFilename);
+        String storedFileName = "user-" + userNo + "-" + UUID.randomUUID() + extension;
+
+        try {
+            Files.createDirectories(PROFILE_IMAGE_DIRECTORY);
+            Path targetPath = PROFILE_IMAGE_DIRECTORY.resolve(storedFileName);
+            Files.copy(profileImage.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+
+            UserDto imageInfo = new UserDto();
+            imageInfo.setProfileImageUrl("/fileStorage/profile/" + storedFileName);
+            imageInfo.setProfileImageName(originalFilename);
+            imageInfo.setProfileImageExt(extension);
+            imageInfo.setProfileImageMimeType(profileImage.getContentType());
+            imageInfo.setProfileImageSize(profileImage.getSize());
+
+            int updatedCount = userDao.updateProfileImage(userNo, imageInfo);
+            if (updatedCount == 0) {
+                Files.deleteIfExists(targetPath);
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "사용자 정보를 찾을 수 없습니다.");
+            }
+
+            deleteStoredProfileImage(currentProfile.getProfileImageUrl());
+            return getMyProfile(userNo);
+        } catch (IOException exception) {
+            throw new ResponseStatusException(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "프로필 사진을 저장하지 못했습니다."
+            );
+        }
     }
 
     @Override
@@ -143,11 +191,51 @@ public class UserServiceImpl implements UserService {
         request.setCurrentPassword(request.getCurrentPassword().trim());
     }
 
+    private void validateProfileImage(MultipartFile profileImage) {
+        if (profileImage == null || profileImage.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "등록할 프로필 사진을 선택해 주세요.");
+        }
+
+        String contentType = profileImage.getContentType();
+        if (contentType == null || !contentType.toLowerCase().startsWith("image/")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미지 파일만 등록할 수 있습니다.");
+        }
+
+        if (profileImage.getSize() > 5 * 1024 * 1024) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "프로필 사진은 5MB 이하만 등록할 수 있습니다.");
+        }
+    }
+
     private String normalize(String value) {
         return value == null ? null : value.trim();
     }
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private String extractExtension(String filename) {
+        if (filename == null || !filename.contains(".")) {
+            return "";
+        }
+
+        return filename.substring(filename.lastIndexOf('.'));
+    }
+
+    private void deleteStoredProfileImage(String profileImageUrl) {
+        if (profileImageUrl == null || !profileImageUrl.startsWith("/fileStorage/profile/")) {
+            return;
+        }
+
+        String fileName = profileImageUrl.substring("/fileStorage/profile/".length());
+        if (fileName.isEmpty()) {
+            return;
+        }
+
+        try {
+            Files.deleteIfExists(PROFILE_IMAGE_DIRECTORY.resolve(fileName));
+        } catch (IOException ignored) {
+            // Old image cleanup is best-effort only.
+        }
     }
 }

@@ -28,6 +28,8 @@ public interface UserDao {
 
     int updateMyProfile(Long userNo, UpdateUserProfileRequestDto request);
 
+    int updateProfileImage(Long userNo, UserDto user);
+
     int countByPassword(Long userNo, String password);
 
     int updatePassword(Long userNo, ChangePasswordRequestDto request);

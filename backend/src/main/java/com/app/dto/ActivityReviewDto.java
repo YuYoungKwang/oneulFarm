@@ -12,6 +12,8 @@ public class ActivityReviewDto {
     private Long reviewNo;
     private Long orderItemNo;
     private Long productNo;
+    private Long imageNo;
+    private Long reviewImageNo;
     private String productName;
     private String orderId;
     private Integer rating;

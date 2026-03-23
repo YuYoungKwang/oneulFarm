@@ -5,6 +5,10 @@ import {
   getDeliveryLabel,
 } from './appUtils';
 
+function getOrderItemImageSrc(imageNo) {
+  return imageNo ? `/backend/api/image/product/${imageNo}` : '';
+}
+
 function OrderDetailPanel({ detail, loading, error }) {
   if (loading) {
     return <article className="card feedback-card">주문 상세를 불러오는 중입니다.</article>;
@@ -75,21 +79,36 @@ function OrderDetailPanel({ detail, loading, error }) {
         <div className="detail-item-list">
           {(detail.items || []).map((item) => (
             <article key={item.orderItemNo} className="detail-item-card">
-              <div className="detail-item-top">
-                <strong>{item.productName}</strong>
-                <span>{item.quantity}개</span>
-              </div>
-              <div className="detail-row"><strong>구매 단가</strong><span>{formatPrice(item.unitPrice)}</span></div>
-              <div className="detail-row"><strong>소계</strong><span>{formatPrice(item.subtotal)}</span></div>
-              <div className="detail-row"><strong>시장 평균가</strong><span>{formatPrice(item.marketAvgPrice)}</span></div>
-              <div className="detail-row detail-row--saving"><strong>절약 금액</strong><span>{formatPrice(item.savedAmount)}</span></div>
-              <div className="detail-row"><strong>절약률</strong><span>{Number(item.savingRate || 0).toFixed(2)}%</span></div>
-              <div className="detail-actions">
-                {item.reviewWritable && <button type="button" className="btn">리뷰 작성</button>}
-                {!item.reviewWritable && item.reviewExists && <button type="button" className="btn-outline">리뷰 보기</button>}
-                {!item.reviewWritable && !item.reviewExists && (
-                  <span className="detail-hint">리뷰 작성 조건 미충족</span>
-                )}
+              <div className="detail-item-layout">
+                <div className="detail-item-media">
+                  {item.imageNo ? (
+                    <img
+                      className="detail-item-thumb"
+                      src={getOrderItemImageSrc(item.imageNo)}
+                      alt={item.productName}
+                    />
+                  ) : (
+                    <div className="detail-item-thumb detail-item-thumb--placeholder">상품</div>
+                  )}
+                </div>
+                <div className="detail-item-body">
+                  <div className="detail-item-top">
+                    <strong>{item.productName}</strong>
+                    <span>{item.quantity}개</span>
+                  </div>
+                  <div className="detail-row"><strong>구매 단가</strong><span>{formatPrice(item.unitPrice)}</span></div>
+                  <div className="detail-row"><strong>소계</strong><span>{formatPrice(item.subtotal)}</span></div>
+                  <div className="detail-row"><strong>시장 평균가</strong><span>{formatPrice(item.marketAvgPrice)}</span></div>
+                  <div className="detail-row detail-row--saving"><strong>절약 금액</strong><span>{formatPrice(item.savedAmount)}</span></div>
+                  <div className="detail-row"><strong>절약률</strong><span>{Number(item.savingRate || 0).toFixed(2)}%</span></div>
+                  <div className="detail-actions">
+                    {item.reviewWritable && <button type="button" className="btn">리뷰 작성</button>}
+                    {!item.reviewWritable && item.reviewExists && <button type="button" className="btn-outline">리뷰 보기</button>}
+                    {!item.reviewWritable && !item.reviewExists && (
+                      <span className="detail-hint">리뷰 작성 조건 미충족</span>
+                    )}
+                  </div>
+                </div>
               </div>
             </article>
           ))}

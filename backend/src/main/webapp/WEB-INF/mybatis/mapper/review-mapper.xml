@@ -7,6 +7,8 @@
         <result property="reviewNo" column="reviewNo" />
         <result property="orderItemNo" column="orderItemNo" />
         <result property="productNo" column="productNo" />
+        <result property="imageNo" column="imageNo" />
+        <result property="reviewImageNo" column="reviewImageNo" />
         <result property="productName" column="productName" />
         <result property="orderId" column="orderId" />
         <result property="rating" column="rating" />
@@ -19,6 +21,8 @@
         SELECT
             oi.ORDER_ITEM_NO AS orderItemNo,
             oi.PRODUCT_NO AS productNo,
+            img.IMAGE_NO AS imageNo,
+            revImg.REVIEW_IMAGE_NO AS reviewImageNo,
             oi.PRODUCT_NAME AS productName,
             o.ORDER_ID AS orderId,
             o.ORDERED_AT AS orderedAt
@@ -30,6 +34,19 @@
         LEFT JOIN OFT_REVIEW r
             ON r.ORDER_ITEM_NO = oi.ORDER_ITEM_NO
            AND r.DELETED_AT IS NULL
+        LEFT JOIN (
+            SELECT PRODUCT_NO, MIN(IMAGE_NO) AS IMAGE_NO
+            FROM OFT_PRODUCT_IMAGE
+            WHERE IS_MAIN = 'Y'
+            GROUP BY PRODUCT_NO
+        ) img
+            ON img.PRODUCT_NO = oi.PRODUCT_NO
+        LEFT JOIN (
+            SELECT REVIEW_NO, MIN(REVIEW_IMAGE_NO) AS REVIEW_IMAGE_NO
+            FROM OFT_REVIEW_IMAGE
+            GROUP BY REVIEW_NO
+        ) revImg
+            ON revImg.REVIEW_NO = r.REVIEW_NO
         WHERE o.USER_NO = #{_parameter}
           AND NVL(d.DELIVERY_STATUS, 'READY') = 'DELIVERED'
           AND r.REVIEW_NO IS NULL
@@ -41,6 +58,8 @@
             r.REVIEW_NO AS reviewNo,
             r.ORDER_ITEM_NO AS orderItemNo,
             r.PRODUCT_NO AS productNo,
+            img.IMAGE_NO AS imageNo,
+            revImg.REVIEW_IMAGE_NO AS reviewImageNo,
             oi.PRODUCT_NAME AS productName,
             o.ORDER_ID AS orderId,
             r.RATING AS rating,
@@ -53,6 +72,19 @@
            AND oi.PRODUCT_NO = r.PRODUCT_NO
         JOIN OFT_ORDERS o
             ON o.ORDER_NO = oi.ORDER_NO
+        LEFT JOIN (
+            SELECT PRODUCT_NO, MIN(IMAGE_NO) AS IMAGE_NO
+            FROM OFT_PRODUCT_IMAGE
+            WHERE IS_MAIN = 'Y'
+            GROUP BY PRODUCT_NO
+        ) img
+            ON img.PRODUCT_NO = r.PRODUCT_NO
+        LEFT JOIN (
+            SELECT REVIEW_NO, MIN(REVIEW_IMAGE_NO) AS REVIEW_IMAGE_NO
+            FROM OFT_REVIEW_IMAGE
+            GROUP BY REVIEW_NO
+        ) revImg
+            ON revImg.REVIEW_NO = r.REVIEW_NO
         WHERE r.USER_NO = #{_parameter}
           AND r.DELETED_AT IS NULL
         ORDER BY r.CREATED_AT DESC, r.REVIEW_NO DESC
@@ -62,6 +94,8 @@
         SELECT
             oi.ORDER_ITEM_NO AS orderItemNo,
             oi.PRODUCT_NO AS productNo,
+            img.IMAGE_NO AS imageNo,
+            revImg.REVIEW_IMAGE_NO AS reviewImageNo,
             oi.PRODUCT_NAME AS productName,
             o.ORDER_ID AS orderId,
             o.ORDERED_AT AS orderedAt
@@ -73,6 +107,19 @@
         LEFT JOIN OFT_REVIEW r
             ON r.ORDER_ITEM_NO = oi.ORDER_ITEM_NO
            AND r.DELETED_AT IS NULL
+        LEFT JOIN (
+            SELECT PRODUCT_NO, MIN(IMAGE_NO) AS IMAGE_NO
+            FROM OFT_PRODUCT_IMAGE
+            WHERE IS_MAIN = 'Y'
+            GROUP BY PRODUCT_NO
+        ) img
+            ON img.PRODUCT_NO = oi.PRODUCT_NO
+        LEFT JOIN (
+            SELECT REVIEW_NO, MIN(REVIEW_IMAGE_NO) AS REVIEW_IMAGE_NO
+            FROM OFT_REVIEW_IMAGE
+            GROUP BY REVIEW_NO
+        ) revImg
+            ON revImg.REVIEW_NO = r.REVIEW_NO
         WHERE o.USER_NO = #{userNo}
           AND oi.ORDER_ITEM_NO = #{orderItemNo}
           AND NVL(d.DELIVERY_STATUS, 'READY') = 'DELIVERED'
@@ -84,6 +131,8 @@
             r.REVIEW_NO AS reviewNo,
             r.ORDER_ITEM_NO AS orderItemNo,
             r.PRODUCT_NO AS productNo,
+            img.IMAGE_NO AS imageNo,
+            revImg.REVIEW_IMAGE_NO AS reviewImageNo,
             oi.PRODUCT_NAME AS productName,
             o.ORDER_ID AS orderId,
             r.RATING AS rating,
@@ -96,6 +145,19 @@
            AND oi.PRODUCT_NO = r.PRODUCT_NO
         JOIN OFT_ORDERS o
             ON o.ORDER_NO = oi.ORDER_NO
+        LEFT JOIN (
+            SELECT PRODUCT_NO, MIN(IMAGE_NO) AS IMAGE_NO
+            FROM OFT_PRODUCT_IMAGE
+            WHERE IS_MAIN = 'Y'
+            GROUP BY PRODUCT_NO
+        ) img
+            ON img.PRODUCT_NO = r.PRODUCT_NO
+        LEFT JOIN (
+            SELECT REVIEW_NO, MIN(REVIEW_IMAGE_NO) AS REVIEW_IMAGE_NO
+            FROM OFT_REVIEW_IMAGE
+            GROUP BY REVIEW_NO
+        ) revImg
+            ON revImg.REVIEW_NO = r.REVIEW_NO
         WHERE r.USER_NO = #{userNo}
           AND r.REVIEW_NO = #{reviewNo}
           AND r.DELETED_AT IS NULL
@@ -106,6 +168,8 @@
             r.REVIEW_NO AS reviewNo,
             r.ORDER_ITEM_NO AS orderItemNo,
             r.PRODUCT_NO AS productNo,
+            img.IMAGE_NO AS imageNo,
+            revImg.REVIEW_IMAGE_NO AS reviewImageNo,
             oi.PRODUCT_NAME AS productName,
             o.ORDER_ID AS orderId,
             r.RATING AS rating,
@@ -118,6 +182,19 @@
            AND oi.PRODUCT_NO = r.PRODUCT_NO
         JOIN OFT_ORDERS o
             ON o.ORDER_NO = oi.ORDER_NO
+        LEFT JOIN (
+            SELECT PRODUCT_NO, MIN(IMAGE_NO) AS IMAGE_NO
+            FROM OFT_PRODUCT_IMAGE
+            WHERE IS_MAIN = 'Y'
+            GROUP BY PRODUCT_NO
+        ) img
+            ON img.PRODUCT_NO = r.PRODUCT_NO
+        LEFT JOIN (
+            SELECT REVIEW_NO, MIN(REVIEW_IMAGE_NO) AS REVIEW_IMAGE_NO
+            FROM OFT_REVIEW_IMAGE
+            GROUP BY REVIEW_NO
+        ) revImg
+            ON revImg.REVIEW_NO = r.REVIEW_NO
         WHERE r.USER_NO = #{userNo}
           AND r.ORDER_ITEM_NO = #{orderItemNo}
           AND r.DELETED_AT IS NULL
@@ -148,6 +225,31 @@
           AND USER_NO = #{userNo}
           AND DELETED_AT IS NULL
     </update>
+
+    <delete id="deleteReviewImages" parameterType="long">
+        DELETE FROM OFT_REVIEW_IMAGE
+        WHERE REVIEW_NO = #{_parameter}
+    </delete>
+
+    <insert id="insertReviewImage" parameterType="map">
+        INSERT INTO OFT_REVIEW_IMAGE (
+            REVIEW_NO,
+            IMAGE_NAME,
+            IMAGE_EXT,
+            MIME_TYPE,
+            IMAGE_SIZE,
+            IMAGE_DATA,
+            SORT_ORDER
+        ) VALUES (
+            #{reviewNo},
+            #{imageName},
+            #{imageExt},
+            #{mimeType},
+            #{imageSize},
+            #{imageData},
+            1
+        )
+    </insert>
 
     <update id="deleteReview" parameterType="map">
         UPDATE OFT_REVIEW

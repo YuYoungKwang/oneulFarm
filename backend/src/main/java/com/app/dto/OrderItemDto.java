@@ -12,6 +12,7 @@ public class OrderItemDto {
     private Long orderItemNo;
     private Long orderNo;
     private Long productNo;
+    private Long imageNo;
     private String productName;
     private BigDecimal unitPrice;
     private Integer quantity;

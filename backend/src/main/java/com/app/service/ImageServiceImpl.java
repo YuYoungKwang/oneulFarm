@@ -22,6 +22,11 @@ public class ImageServiceImpl implements ImageService {
     }
 
     @Override
+    public byte[] getReviewImage(Long reviewImageNo) {
+        return imageDao.findReviewImage(reviewImageNo);
+    }
+
+    @Override
     public String getBannerMimeType(Long bannerNo) {
         return imageDao.findBannerMimeType(bannerNo);
     }
@@ -29,5 +34,10 @@ public class ImageServiceImpl implements ImageService {
     @Override
     public String getProductMimeType(Long imageNo) {
         return imageDao.findProductMimeType(imageNo);
+    }
+
+    @Override
+    public String getReviewMimeType(Long reviewImageNo) {
+        return imageDao.findReviewMimeType(reviewImageNo);
     }
 }
