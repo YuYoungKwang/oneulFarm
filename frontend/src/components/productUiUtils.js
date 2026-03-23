@@ -94,6 +94,16 @@ export function parseHash(hash) {
       : { page: 'product-detail', productNo };
   }
 
+  if (segments[0] === 'products') {
+    return {
+      page: 'products',
+      productCategory: searchParams.get('category') || '',
+      productTag: searchParams.get('tag') || '',
+      productSearch: searchParams.get('search') || '',
+      productSort: searchParams.get('sort') || '',
+    };
+  }
+
   if (segments[0] === 'login') {
     return { page: 'login' };
   }

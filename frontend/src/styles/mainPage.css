@@ -1,130 +1,18 @@
-/* ===== 컨테이너 ===== */
 .container {
   width: var(--container);
   margin: 0 auto;
 }
 
-/* ===== HERO ===== */
-.hero {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: 40px;
-  align-items: center;
-  margin-bottom: 40px;
-}
-
-.hero-copy h1 {
-  font-size: 42px;
-  line-height: 1.3;
-  margin: 12px 0;
-  font-weight: 800;
-}
-
-.accent {
-  color: var(--green);
-}
-
-.eyebrow {
-  font-size: 14px;
-  color: var(--green-dark);
-  font-weight: 700;
-}
-
-.hero p {
-  color: var(--muted);
-  margin-bottom: 20px;
-}
-
-.hero-actions {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.hero-actions input {
-  flex: 1;
-  min-width: 240px;
-  padding: 12px 14px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--line);
-}
-
-/* ===== 버튼 ===== */
-.btn {
-  background: var(--green);
-  color: white;
-  padding: 12px 18px;
-  border-radius: var(--radius-pill);
-  font-weight: 700;
-}
-
-.btn-soft {
-  background: var(--green-soft);
-  color: var(--green-dark);
-  padding: 12px 18px;
-  border-radius: var(--radius-pill);
-  font-weight: 700;
-}
-
-/* ===== HERO 이미지 ===== */
-.hero-art {
-  position: relative;
-  height: 260px;
-}
-
-.art-card {
-  position: absolute;
-  width: 180px;
-  height: 220px;
-  border-radius: var(--radius-soft);
-  background: var(--surface-3);
-  box-shadow: var(--shadow);
-}
-
-.art-card.front {
-  right: 20px;
-  top: 20px;
-  background: linear-gradient(135deg, var(--green), #f3c85b);
-}
-
-.art-card.back {
-  left: 20px;
-  top: 40px;
-}
-
-/* ===== 카테고리 ===== */
-.chip-row {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 30px;
-}
-
-.chip {
-  padding: 10px 14px;
-  border-radius: var(--radius-pill);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.chip.active {
-  background: var(--green);
-  color: #fff;
-  border-color: var(--green);
-}
-
-/* ===== 섹션 ===== */
 .section {
   margin-top: 40px;
+  margin-bottom: 28px;
 }
 
 .section-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
   margin-bottom: 18px;
 }
 
@@ -138,88 +26,281 @@
   color: var(--muted);
 }
 
-/* ===== 상품 ===== */
-.product-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 18px;
+.section-empty,
+.section-error {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 14px;
 }
 
-.product-card {
-  background: var(--surface);
-  border-radius: var(--radius-soft);
-  padding: 16px;
+.section-error {
+  color: #c85656;
+}
+
+.category-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.category-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #ffffff, #f7faf7);
   box-shadow: var(--shadow-soft);
-  transition: transform 0.2s;
   color: inherit;
   text-decoration: none;
 }
 
-.product-card:hover {
+.category-card:hover,
+.spotlight-card:hover,
+.recipe-card:hover {
   transform: translateY(-4px);
 }
 
-.product-media {
-  font-size: 36px;
-  text-align: center;
-  margin-bottom: 10px;
-  min-height: 92px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.category-card,
+.spotlight-card,
+.recipe-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.product-media img {
-  width: 100%;
-  max-width: 120px;
-  height: 92px;
-  object-fit: cover;
-  border-radius: 12px;
+.category-card__copy {
+  display: grid;
+  gap: 6px;
 }
 
-.product-name {
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-
-.price {
+.category-card__eyebrow {
   color: var(--green-dark);
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.category-card__copy strong {
+  font-size: 15px;
+  line-height: 1.4;
+  color: #14212e;
+  font-weight: 700;
+}
+
+.category-card__copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.category-card__media {
+  height: 220px;
+  border-radius: 16px;
+  overflow: hidden;
+  padding: 18px;
+  background: #ffffff;
+  display: grid;
+  place-items: center;
+  color: var(--green-dark);
+  font-size: 18px;
   font-weight: 800;
 }
 
-.discount {
-  margin-top: 6px;
-  color: #d64545;
+.category-card__media img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: scale-down !important;
+  object-position: center center !important;
+  display: block;
+}
+
+.subsection-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.subsection-title {
+  color: #14212e;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.spotlight-controls {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.spotlight-controls button {
+  width: 42px;
+  height: 42px;
+  border: 1px solid #d8e0d8;
+  border-radius: 999px;
+  background: #fff;
+  color: #245c38;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--shadow-soft);
+}
+
+.spotlight-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(240px, calc((100% - 54px) / 4));
+  gap: 18px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+}
+
+.spotlight-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.spotlight-card {
+  display: grid;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #fff;
+  box-shadow: var(--shadow-soft);
+  color: inherit;
+  text-decoration: none;
+  scroll-snap-align: start;
+}
+
+.spotlight-card__media {
+  height: 260px;
+  padding: 18px;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  color: var(--green-dark);
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.spotlight-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: scale-down;
+  object-position: center;
+  display: block;
+}
+
+.spotlight-card__body {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+}
+
+.spotlight-card__category {
+  color: var(--green-dark);
   font-size: 12px;
+  font-weight: 800;
+}
+
+.spotlight-card__name {
+  color: #14212e;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.spotlight-card__price {
+  color: #14212e;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.spotlight-card__meta {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.spotlight-card__saving {
+  color: #d64545;
+  font-size: 13px;
   font-weight: 700;
 }
 
-/* ===== 반응형 ===== */
-@media (max-width: 900px) {
-  .hero {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-art {
-    display: none;
-  }
+.recipe-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
 }
-/* =========================
-   배너 영역
-========================= */
 
-/* =========================
-   카드 공통
-========================= */
+.recipe-card {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #fff;
+  box-shadow: var(--shadow-soft);
+  color: inherit;
+  text-decoration: none;
+}
+
+.recipe-card__media {
+  min-height: 180px;
+  background: #f3f6f3;
+  display: grid;
+  place-items: center;
+  color: var(--green-dark);
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.recipe-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.recipe-card__body {
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  padding: 20px;
+}
+
+.recipe-card__eyebrow {
+  color: var(--green-dark);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.recipe-card__body strong {
+  color: #14212e;
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+.recipe-card__body p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 .card {
   background: #fff;
   border-radius: 16px;
   padding: 20px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
 .card-title {
-  font-weight: bold;
+  font-weight: 800;
   font-size: 16px;
   margin-bottom: 8px;
 }
@@ -230,22 +311,21 @@
   margin-bottom: 12px;
 }
 
-/* =========================
-   grid
-========================= */
-.section {
-  margin-bottom: 28px;
-}
-
 .grid-2 {
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 18px;
 }
 
-/* =========================
-   인사이트
-========================= */
+.market-overview {
+  display: grid;
+  gap: 18px;
+}
+
+.market-overview__head {
+  margin-bottom: 0;
+}
+
 .insight-list {
   display: flex;
   flex-direction: column;
@@ -254,8 +334,8 @@
 
 .insight-item {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 12px;
   width: 100%;
   padding: 12px 14px;
   border: 1px solid var(--line);
@@ -276,90 +356,92 @@
   pointer-events: none;
 }
 
-.insight-item span {
+.insight-item__icon {
+  width: 20px;
+  height: 20px;
   color: var(--green-dark);
+  flex-shrink: 0;
+}
+
+.insight-item__icon svg {
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+}
+
+.insight-item__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: #14212e;
   font-weight: 700;
 }
 
-/* =========================
-   필터 버튼
-========================= */
-.filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.insight-item__thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: #f4f7f4;
+  color: var(--green-dark);
+  font-weight: 800;
+  flex-shrink: 0;
 }
 
-.btn-chip {
-  padding: 6px 12px;
-  border-radius: 20px;
-  border: 1px solid #ddd;
-  font-size: 12px;
-  cursor: pointer;
+.insight-item__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.btn-chip.active {
-  background: #159a55;
-  color: #fff;
-  border: none;
-}
-
-/* =========================
-   차트 영역
-========================= */
 .chart-shell {
   margin-top: 12px;
 }
 
-.chart-caption {
-  margin-top: 10px;
-  color: var(--muted);
-  font-size: 13px;
+@media (max-width: 1180px) {
+  .grid-2,
+  .recipe-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .spotlight-rail {
+    grid-auto-columns: minmax(240px, calc((100% - 18px) / 2));
+  }
 }
 
-/* =========================
-   절약 대시보드
-========================= */
-.stat-value {
-  font-size: 28px;
-  font-weight: bold;
-  margin-top: 10px;
-}
+@media (max-width: 900px) {
+  .section-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 
-/* =========================
-   레시피 카드
-========================= */
-.mini-recipes {
-  display: flex;
-  gap: 12px;
-}
+  .subsection-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 
-.mini-recipe {
-  flex: 1;
-  background: #f8f8f8;
-  padding: 12px;
-  border-radius: 10px;
-  text-align: center;
-}
+  .spotlight-controls {
+    align-self: flex-end;
+  }
 
-.mini-recipe h4 {
-  font-size: 14px;
-  margin: 6px 0;
-}
+  .spotlight-card__media {
+    height: 240px;
+  }
 
-.mini-recipe p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-}
+  .category-card__media {
+    height: 240px;
+  }
 
-.section-empty,
-.section-error {
-  margin-top: 12px;
-  color: var(--muted);
-  font-size: 14px;
-}
+  .recipe-card {
+    grid-template-columns: 1fr;
+  }
 
-.section-error {
-  color: #c85656;
+  .recipe-card__media {
+    min-height: 220px;
+  }
+
+  .spotlight-rail {
+    grid-auto-columns: 84%;
+  }
 }

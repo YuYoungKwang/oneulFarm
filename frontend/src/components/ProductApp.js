@@ -392,6 +392,24 @@ export default function ProductApp({ authUser }) {
     }
   }, [route.page, route.productNo, route.orderId]);
 
+  useEffect(() => {
+    if (route.page !== 'products') {
+      return;
+    }
+
+    if (!route.productCategory && !route.productTag && !route.productSearch && !route.productSort) {
+      return;
+    }
+
+    setFilters({
+      ...defaultFilters,
+      category: route.productCategory || 'ALL',
+      search: route.productSearch || '',
+      sort: route.productSort || defaultFilters.sort,
+      tags: route.productTag ? [route.productTag] : [],
+    });
+  }, [route.page, route.productCategory, route.productTag, route.productSearch, route.productSort]);
+
   const categories = Array.from(
     new Set(products.map((product) => product.categoryName).filter(Boolean))
   );

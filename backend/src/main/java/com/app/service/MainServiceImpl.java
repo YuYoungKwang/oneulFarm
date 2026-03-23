@@ -17,7 +17,7 @@ import com.app.dto.RecipeDTO;
 @Service
 public class MainServiceImpl implements MainService {
 
-    private static final int MAIN_PRODUCT_LIMIT = 4;
+    private static final int MAIN_PRODUCT_LIMIT = 12;
     private static final int MAIN_INSIGHT_LIMIT = 10;
     private static final int MAIN_RECIPE_LIMIT = 2;
     private static final int MAIN_CHART_DAYS = 7;
