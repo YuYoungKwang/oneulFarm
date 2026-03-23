@@ -383,14 +383,19 @@ describe('App', () => {
       expect(window.location.hash).toBe('#/recipes?ingredientKeyword=%EC%96%91%ED%8C%8C');
     });
 
-    expect(await screen.findByRole('heading', { name: '\uB808\uC2DC\uD53C' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', {
+        name: '\uC624\uB298 \uBA39\uC744 \uBA54\uB274\uB97C \uB354 \uBE60\uB974\uAC8C \uACE8\uB77C\uBCF4\uC138\uC694',
+      })
+    ).toBeInTheDocument();
 
     await waitFor(() => {
       expect(fetchRecipeList).toHaveBeenCalledWith({
         keyword: '',
         ingredientKeyword: '\uC591\uD30C',
         sort: 'RECOMMENDED',
-        limit: 18,
+        page: 1,
+        pageSize: 8,
       });
     });
   });

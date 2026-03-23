@@ -847,7 +847,7 @@ function formatReviewDate(value) {
   if (!value) return '방금 전';
   const date = parseReviewDateValue(value);
   if (!date) return String(value);
-  return `${String(date.getFullYear()).slice(-2)}/${padReviewDate(date.getMonth() + 1)}/${padReviewDate(date.getDate())} ${padReviewDate(date.getHours())}:${padReviewDate(date.getMinutes())}`;
+  return `${date.getFullYear()}.${padReviewDate(date.getMonth() + 1)}.${padReviewDate(date.getDate())}`;
 }
 
 function formatReviewTimestamp(review) {

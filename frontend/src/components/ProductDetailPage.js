@@ -577,16 +577,39 @@ function formatReviewDate(value) {
     return '작성일 정보 없음';
   }
 
-  const reviewDate = new Date(value);
-  if (Number.isNaN(reviewDate.getTime())) {
+  const reviewDate = parseReviewDateValue(value);
+  if (!reviewDate) {
     return String(value);
   }
 
   return reviewDate.toLocaleDateString('ko-KR', {
     year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
   });
+}
+
+function parseReviewDateValue(value) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    const [year, month, day, hour = 0, minute = 0, second = 0] = value;
+    const parsedDate = new Date(
+      Number(year),
+      Number(month || 1) - 1,
+      Number(day || 1),
+      Number(hour),
+      Number(minute),
+      Number(second)
+    );
+
+    return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+  }
+
+  const parsedDate = new Date(value);
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
 }
 
 function formatMarketSource(value) {
