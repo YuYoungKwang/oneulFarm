@@ -8,6 +8,8 @@ public interface OrderService {
 
     List<OrderDto> getMyOrders(Long userNo);
 
+    List<OrderDto> getMyOrders(Long userNo, String deliveryStatus, String dateFrom, String dateTo);
+
     OrderDto getMyOrderDetail(Long userNo, Long orderNo);
 
     OrderDto createOrder(Long userNo, OrderDto request);

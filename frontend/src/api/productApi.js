@@ -1,8 +1,12 @@
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
-const PRODUCT_API_BASE = `${API_BASE_URL}/api/products`;
-const CART_API_BASE = `${API_BASE_URL}/api/cart`;
-const ORDER_API_BASE = `${API_BASE_URL}/api/orders`;
-const DEMO_USER_NO = '1';
+import { buildAuthHeaders } from '../auth';
+
+const API_BASE_PREFIXES = buildApiBasePrefixes(
+  process.env.REACT_APP_API_BASE_URL || ''
+);
+const PRODUCT_API_BASE = '/api/products';
+const CART_API_BASE = '/api/cart';
+const ORDER_API_BASE = '/api/orders';
+let resolvedApiBasePrefix = '';
 
 const PRODUCT_SYMBOLS = ['🥬', '🧅', '🍅', '🥒', '🍎', '🍄', '🌿', '🌾'];
 const RECIPE_SYMBOLS = ['🍳', '🥗', '🥘', '🍲'];
@@ -24,21 +28,68 @@ async function parseResponse(response, fallbackMessage) {
   return payload?.data;
 }
 
-function apiHeaders(includeJson = false) {
-  const headers = {
-    'X-USER-NO': DEMO_USER_NO,
-  };
-
-  if (includeJson) {
-    headers['Content-Type'] = 'application/json';
+function buildApiBasePrefixes(explicitBaseUrl) {
+  const normalizedBaseUrl = normalizeBaseUrl(explicitBaseUrl);
+  if (normalizedBaseUrl) {
+    return [normalizedBaseUrl];
   }
 
-  return headers;
+  return ['', '/backend'];
+}
+
+function normalizeBaseUrl(value) {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    return '';
+  }
+
+  return trimmedValue.replace(/\/+$/, '');
+}
+
+async function requestApi(path, options, fallbackMessage) {
+  let lastError = null;
+
+  for (const basePrefix of API_BASE_PREFIXES) {
+    try {
+      const response = await fetch(`${basePrefix}${path}`, options);
+      const data = await parseResponse(response, fallbackMessage);
+      resolvedApiBasePrefix = basePrefix;
+      return data;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error(fallbackMessage);
+}
+
+function apiHeaders(includeJson = false) {
+  return buildAuthHeaders({
+    includeJson,
+    includeUserNo: false,
+  });
 }
 
 function toNumber(value, fallback = 0) {
   const nextValue = Number(value);
   return Number.isFinite(nextValue) ? nextValue : fallback;
+}
+
+function getProductImageUrl(imageNo) {
+  if (!imageNo) {
+    return '';
+  }
+
+  const explicitBaseUrl = normalizeBaseUrl(process.env.REACT_APP_API_BASE_URL || '');
+  const basePrefix = explicitBaseUrl || resolvedApiBasePrefix || '';
+  return `${basePrefix}/api/image/product/${imageNo}`;
+}
+
+function enrichProductImages(images = []) {
+  return images.map((image) => ({
+    ...image,
+    imageUrl: image.imageUrl || getProductImageUrl(image.imageNo),
+  }));
 }
 
 function buildDisplay(productNo) {
@@ -75,19 +126,19 @@ function buildRecommendedTags(rawProduct) {
   const tags = [];
 
   if (rawProduct.badgeType === 'UNDER_AVG') {
-    tags.push('Under Avg');
+    tags.push('평균가 이하');
   }
 
   if (rawProduct.isSeasonal === 'Y') {
-    tags.push('Seasonal');
+    tags.push('제철');
   }
 
   if (isSingleFriendly(rawProduct)) {
-    tags.push('Single Friendly');
+    tags.push('1인 가구 추천');
   }
 
   if (!tags.length) {
-    tags.push('Today Pick');
+    tags.push('오늘 추천');
   }
 
   return tags;
@@ -97,21 +148,25 @@ function buildGalleryItems(rawProduct, display) {
   if (Array.isArray(rawProduct.images) && rawProduct.images.length) {
     return rawProduct.images.map((image, index) => ({
       imageNo: image.imageNo,
-      label: image.imageName || `Image ${index + 1}`,
+      label: image.imageName || `이미지 ${index + 1}`,
       symbol: index === 0 ? display.symbol : GALLERY_SYMBOLS[index % GALLERY_SYMBOLS.length],
-      note: image.isMain === 'Y' ? 'Main image' : `Image ${index + 1}`,
+      imageUrl: image.imageUrl || getProductImageUrl(image.imageNo),
+      note: image.isMain === 'Y' ? '대표 이미지' : `이미지 ${index + 1}`,
       isMain: image.isMain || (index === 0 ? 'Y' : 'N'),
       sortOrder: image.sortOrder || index + 1,
+      isPlaceholder: false,
     }));
   }
 
   return GALLERY_SYMBOLS.map((symbol, index) => ({
-    imageNo: index + 1,
-    label: `Image ${index + 1}`,
+    imageNo: null,
+    label: `이미지 ${index + 1}`,
     symbol: index === 0 ? display.symbol : symbol,
-    note: 'Preview image',
+    imageUrl: '',
+    note: '미리보기 이미지',
     isMain: index === 0 ? 'Y' : 'N',
     sortOrder: index + 1,
+    isPlaceholder: true,
   }));
 }
 
@@ -139,6 +194,7 @@ function buildReviews(rawReviews = []) {
 
 function buildProductModel(rawProduct) {
   const display = buildDisplay(rawProduct.productNo);
+  const images = enrichProductImages(buildGalleryItems(rawProduct, display));
   const avgPrice = toNumber(rawProduct.avgPrice, toNumber(rawProduct.salePrice, 0));
   const salePrice = toNumber(rawProduct.salePrice, 0);
   const savingRate = toNumber(
@@ -168,13 +224,14 @@ function buildProductModel(rawProduct) {
       Math.min(toNumber(rawProduct.reviewCount, 0) * 2, 10) +
       toNumber(rawProduct.averageRating, 0) * 5
     ),
-    storageMethod: rawProduct.unit === 'g' ? 'Keep refrigerated' : 'Store in a cool place',
-    purchaseNote: rawProduct.isSeasonal === 'Y' ? 'Packed fresh after order' : 'Selected for steady quality',
-    deliveryInfo: 'Ships the same day before 2 PM',
+    storageMethod: rawProduct.unit === 'g' ? '냉장 보관 권장' : '서늘한 곳에 보관',
+    purchaseNote: rawProduct.isSeasonal === 'Y' ? '주문 후 신선하게 소분' : '품질을 보고 선별한 상품',
+    deliveryInfo: '오후 2시 이전 주문 시 당일 출고',
     recommendedFor,
     isSingleFriendly: isSingleFriendly(rawProduct),
     display,
-    images: buildGalleryItems(rawProduct, display),
+    images,
+    mainImage: images.find((image) => image.isMain === 'Y') || images[0] || null,
     priceSnapshot: {
       snapshotNo: rawProduct.snapshotNo,
       itemCode: rawProduct.itemCode || rawProduct.productName,
@@ -257,17 +314,15 @@ function adaptOrderDetail(rawDetail, options = {}) {
 }
 
 export async function fetchProductsFromApi() {
-  const data = await parseResponse(
-    await fetch(PRODUCT_API_BASE),
-    'Failed to load products.'
-  );
+  const data = await requestApi(PRODUCT_API_BASE, undefined, 'Failed to load products.');
 
   return (data || []).map(buildProductModel);
 }
 
 export async function fetchProductDetailFromApi(productNo) {
-  const data = await parseResponse(
-    await fetch(`${PRODUCT_API_BASE}/${productNo}`),
+  const data = await requestApi(
+    `${PRODUCT_API_BASE}/${productNo}`,
+    undefined,
     'Failed to load product detail.'
   );
 
@@ -275,10 +330,11 @@ export async function fetchProductDetailFromApi(productNo) {
 }
 
 export async function fetchCartFromApi() {
-  const data = await parseResponse(
-    await fetch(`${CART_API_BASE}/me`, {
+  const data = await requestApi(
+    `${CART_API_BASE}/me`,
+    {
       headers: apiHeaders(),
-    }),
+    },
     'Failed to load cart.'
   );
 
@@ -286,12 +342,13 @@ export async function fetchCartFromApi() {
 }
 
 export async function addCartItemToApi(productNo, quantity) {
-  const data = await parseResponse(
-    await fetch(`${CART_API_BASE}/me/items`, {
+  const data = await requestApi(
+    `${CART_API_BASE}/me/items`,
+    {
       method: 'POST',
       headers: apiHeaders(true),
       body: JSON.stringify({ productNo, quantity }),
-    }),
+    },
     'Failed to add cart item.'
   );
 
@@ -299,12 +356,13 @@ export async function addCartItemToApi(productNo, quantity) {
 }
 
 export async function updateCartItemOnApi(productNo, quantity) {
-  const data = await parseResponse(
-    await fetch(`${CART_API_BASE}/me/items/${productNo}`, {
+  const data = await requestApi(
+    `${CART_API_BASE}/me/items/${productNo}`,
+    {
       method: 'PATCH',
       headers: apiHeaders(true),
       body: JSON.stringify({ quantity }),
-    }),
+    },
     'Failed to update cart item.'
   );
 
@@ -312,11 +370,12 @@ export async function updateCartItemOnApi(productNo, quantity) {
 }
 
 export async function removeCartItemFromApi(productNo) {
-  const data = await parseResponse(
-    await fetch(`${CART_API_BASE}/me/items/${productNo}`, {
+  const data = await requestApi(
+    `${CART_API_BASE}/me/items/${productNo}`,
+    {
       method: 'DELETE',
       headers: apiHeaders(),
-    }),
+    },
     'Failed to remove cart item.'
   );
 
@@ -324,11 +383,12 @@ export async function removeCartItemFromApi(productNo) {
 }
 
 export async function clearCartOnApi() {
-  const data = await parseResponse(
-    await fetch(`${CART_API_BASE}/me/items`, {
+  const data = await requestApi(
+    `${CART_API_BASE}/me/items`,
+    {
       method: 'DELETE',
       headers: apiHeaders(),
-    }),
+    },
     'Failed to clear cart.'
   );
 
@@ -336,19 +396,21 @@ export async function clearCartOnApi() {
 }
 
 export async function fetchOrdersFromApi() {
-  const list = await parseResponse(
-    await fetch(`${ORDER_API_BASE}/me`, {
+  const list = await requestApi(
+    `${ORDER_API_BASE}/me`,
+    {
       headers: apiHeaders(),
-    }),
+    },
     'Failed to load orders.'
   );
 
   const details = await Promise.all(
     (list || []).map(async (order) => {
-      const detail = await parseResponse(
-        await fetch(`${ORDER_API_BASE}/me/${order.orderNo}`, {
+      const detail = await requestApi(
+        `${ORDER_API_BASE}/me/${order.orderNo}`,
+        {
           headers: apiHeaders(),
-        }),
+        },
         'Failed to load order detail.'
       );
 
@@ -360,12 +422,13 @@ export async function fetchOrdersFromApi() {
 }
 
 export async function createOrderOnApi(checkoutForm) {
-  const data = await parseResponse(
-    await fetch(`${ORDER_API_BASE}/me`, {
+  const data = await requestApi(
+    `${ORDER_API_BASE}/me`,
+    {
       method: 'POST',
       headers: apiHeaders(true),
       body: JSON.stringify(checkoutForm),
-    }),
+    },
     'Failed to create order.'
   );
 
@@ -375,11 +438,12 @@ export async function createOrderOnApi(checkoutForm) {
 }
 
 export async function advanceOrderOnApi(orderNo, deliveryMessage = '') {
-  const data = await parseResponse(
-    await fetch(`${ORDER_API_BASE}/me/${orderNo}/advance`, {
+  const data = await requestApi(
+    `${ORDER_API_BASE}/me/${orderNo}/advance`,
+    {
       method: 'PATCH',
       headers: apiHeaders(),
-    }),
+    },
     'Failed to update order status.'
   );
 

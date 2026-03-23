@@ -5,6 +5,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -31,7 +33,13 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public List<OrderDto> getMyOrders(Long userNo) {
-        List<OrderDto> responses = orderDao.findMyOrders(userNo);
+        return getMyOrders(userNo, null, null, null);
+    }
+
+    @Override
+    public List<OrderDto> getMyOrders(Long userNo, String deliveryStatus, String dateFrom, String dateTo) {
+        Map<String, Object> params = buildOrderFilterParams(userNo, deliveryStatus, dateFrom, dateTo);
+        List<OrderDto> responses = orderDao.findMyOrders(params);
 
         for (OrderDto response : responses) {
             response.setFinalAmount(defaultAmount(response.getFinalAmount()));
@@ -242,5 +250,45 @@ public class OrderServiceImpl implements OrderService {
 
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private Map<String, Object> buildOrderFilterParams(Long userNo, String deliveryStatus, String dateFrom, String dateTo) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("userNo", userNo);
+
+        String normalizedStatus = trimToNull(deliveryStatus);
+        if (normalizedStatus != null && !"ALL".equalsIgnoreCase(normalizedStatus)) {
+            params.put("deliveryStatus", normalizedStatus);
+        }
+
+        LocalDate fromDate = parseDate(dateFrom, "시작일 형식이 올바르지 않습니다.");
+        LocalDate toDate = parseDate(dateTo, "종료일 형식이 올바르지 않습니다.");
+
+        if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "시작일은 종료일보다 늦을 수 없습니다.");
+        }
+
+        if (fromDate != null) {
+            params.put("dateFrom", fromDate.atStartOfDay());
+        }
+
+        if (toDate != null) {
+            params.put("dateTo", toDate.plusDays(1).atStartOfDay());
+        }
+
+        return params;
+    }
+
+    private LocalDate parseDate(String value, String errorMessage) {
+        String normalized = trimToNull(value);
+        if (normalized == null) {
+            return null;
+        }
+
+        try {
+            return LocalDate.parse(normalized);
+        } catch (Exception exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, errorMessage);
+        }
     }
 }

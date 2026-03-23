@@ -1,6 +1,7 @@
 package com.app.dto;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 public class UserProfileDto {
 
@@ -12,6 +13,11 @@ public class UserProfileDto {
     private String profileImageUrl;
     private String defaultAddress;
     private BigDecimal totalSavedAmount;
+    private String role;
+    private String status;
+    private LocalDateTime createdAt;
+    private Long totalOrderCount;
+    private BigDecimal totalPurchaseAmount;
 
     public Long getUserNo() {
         return userNo;
@@ -75,5 +81,45 @@ public class UserProfileDto {
 
     public void setTotalSavedAmount(BigDecimal totalSavedAmount) {
         this.totalSavedAmount = totalSavedAmount;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Long getTotalOrderCount() {
+        return totalOrderCount;
+    }
+
+    public void setTotalOrderCount(Long totalOrderCount) {
+        this.totalOrderCount = totalOrderCount;
+    }
+
+    public BigDecimal getTotalPurchaseAmount() {
+        return totalPurchaseAmount;
+    }
+
+    public void setTotalPurchaseAmount(BigDecimal totalPurchaseAmount) {
+        this.totalPurchaseAmount = totalPurchaseAmount;
     }
 }

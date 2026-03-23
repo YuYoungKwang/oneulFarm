@@ -7,7 +7,6 @@ import {
 } from '../api/paymentApi';
 import {
   addCartItemToApi,
-  advanceOrderOnApi,
   clearCartOnApi,
   createOrderOnApi,
   fetchCartFromApi,
@@ -17,15 +16,10 @@ import {
   removeCartItemFromApi,
   updateCartItemOnApi,
 } from '../api/productApi';
-import { findProductByNo, productCatalog } from '../data/productData';
 import {
   clearPendingTossPayment,
-  createTossPaymentDraft,
-  isTossReady,
   readPendingTossPayment,
   readTossCallbackParams,
-  requestTossPayment,
-  storePendingTossPayment,
 } from '../payment/tossPayments';
 import CartPage from './CartPage';
 import CheckoutPage from './CheckoutPage';
@@ -33,9 +27,11 @@ import OrderCompletePage from './OrderCompletePage';
 import OrdersPage from './OrdersPage';
 import ProductDetailPage from './ProductDetailPage';
 import ProductListPage from './ProductListPage';
+import LoginPage from './LoginPage';
+import SignupPage from './SignupPage';
 import RecipeDetailPage from './RecipeDetailPage';
 import RecipeListPage from './RecipeListPage';
-import { advanceOrderStatus, createOrderFromCart } from './orderUiUtils';
+import { createOrderFromCart } from './orderUiUtils';
 import {
   DEFAULT_ROUTE,
   defaultFilters,
@@ -44,8 +40,9 @@ import {
   persistValue,
   readStoredValue,
 } from './productUiUtils';
+import { isAuthenticated } from '../auth';
 
-export default function ProductApp() {
+export default function ProductApp({ authUser }) {
   const [route, setRoute] = useState(() => parseHash(window.location.hash));
   const [filters, setFilters] = useState(defaultFilters);
   const [wishlist, setWishlist] = useState(() =>
@@ -55,14 +52,19 @@ export default function ProductApp() {
   const [orders, setOrders] = useState(() =>
     readStoredValue('oneulFarmOrders', [])
   );
-  const [products, setProducts] = useState(productCatalog);
+  const [products, setProducts] = useState([]);
+  const [productsStatus, setProductsStatus] = useState('loading');
+  const [productsError, setProductsError] = useState('');
+  const [productReloadToken, setProductReloadToken] = useState(0);
   const [productDetails, setProductDetails] = useState({});
+  const [productDetailStates, setProductDetailStates] = useState({});
   const [tossConfig, setTossConfig] = useState(DEFAULT_TOSS_CONFIG);
   const [paymentFlowState, setPaymentFlowState] = useState({
     status: 'idle',
     title: '',
     description: '',
   });
+  const isLoggedIn = isAuthenticated(authUser);
 
   useEffect(() => {
     if (!window.location.hash) {
@@ -96,21 +98,53 @@ export default function ProductApp() {
   }, [orders]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadProducts() {
+      try {
+        if (!cancelled) {
+          setProductsStatus('loading');
+          setProductsError('');
+        }
+
+        const nextProducts = await fetchProductsFromApi();
+        if (!cancelled) {
+          setProducts(nextProducts);
+          setProductsStatus('success');
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setProducts([]);
+          setProductDetails({});
+          setProductsStatus('error');
+          setProductsError(
+            error?.message ||
+              '상품 목록을 불러오지 못했습니다. 백엔드와 DB 연결 상태를 확인해 주세요.'
+          );
+        }
+      }
+    }
+
+    loadProducts();
+    return () => {
+      cancelled = true;
+    };
+  }, [productReloadToken]);
+
+  useEffect(() => {
     if (process.env.NODE_ENV === 'test') {
+      return;
+    }
+
+    if (!isLoggedIn) {
+      setCart({});
+      setOrders([]);
       return;
     }
 
     let cancelled = false;
 
     async function loadInitialData() {
-      try {
-        const nextProducts = await fetchProductsFromApi();
-        if (!cancelled) {
-          setProducts(nextProducts);
-        }
-      } catch (error) {
-        // Keep mock catalog as fallback.
-      }
 
       try {
         const nextCart = await fetchCartFromApi();
@@ -144,7 +178,7 @@ export default function ProductApp() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isLoggedIn]);
 
   useEffect(() => {
     if (process.env.NODE_ENV === 'test') {
@@ -156,7 +190,12 @@ export default function ProductApp() {
     }
 
     const existingDetail = productDetails[route.productNo];
-    if (existingDetail?.recipes?.length || existingDetail?.reviews?.length) {
+    const detailState = productDetailStates[route.productNo];
+    if (
+      existingDetail?.recipes?.length ||
+      existingDetail?.reviews?.length ||
+      detailState === 'loading'
+    ) {
       return;
     }
 
@@ -164,6 +203,11 @@ export default function ProductApp() {
 
     async function loadProductDetail() {
       try {
+        setProductDetailStates((previousStates) => ({
+          ...previousStates,
+          [route.productNo]: 'loading',
+        }));
+
         const detailProduct = await fetchProductDetailFromApi(route.productNo);
         if (cancelled) {
           return;
@@ -176,8 +220,17 @@ export default function ProductApp() {
         setProducts((previousProducts) =>
           mergeProducts(previousProducts, detailProduct)
         );
+        setProductDetailStates((previousStates) => ({
+          ...previousStates,
+          [detailProduct.productNo]: 'success',
+        }));
       } catch (error) {
-        // Keep local detail as fallback.
+        if (!cancelled) {
+          setProductDetailStates((previousStates) => ({
+            ...previousStates,
+            [route.productNo]: 'error',
+          }));
+        }
       }
     }
 
@@ -185,7 +238,7 @@ export default function ProductApp() {
     return () => {
       cancelled = true;
     };
-  }, [productDetails, route.page, route.productNo]);
+  }, [productDetailStates, productDetails, route.page, route.productNo]);
 
   useEffect(() => {
     if (process.env.NODE_ENV === 'test') {
@@ -323,6 +376,13 @@ export default function ProductApp() {
     route.orderId != null
       ? orders.find((order) => order.orderId === route.orderId) || null
       : null;
+  const currentDetailState =
+    route.productNo != null ? productDetailStates[route.productNo] : '';
+  const routeNeedsProducts =
+    route.page === 'cart' ||
+    route.page === 'checkout' ||
+    route.page === 'product-detail' ||
+    route.page === 'products';
 
   function updateFilter(key, value) {
     setFilters((previousFilters) => ({
@@ -344,6 +404,10 @@ export default function ProductApp() {
     setFilters(defaultFilters);
   }
 
+  function retryProductLoad() {
+    setProductReloadToken((previousToken) => previousToken + 1);
+  }
+
   function openProduct(productNo) {
     navigateToHash(`#/products/${productNo}`);
   }
@@ -361,17 +425,47 @@ export default function ProductApp() {
   }
 
   function openCart() {
+    if (!isLoggedIn) {
+      navigateToHash('#/login');
+      return;
+    }
+
     navigateToHash('#/cart');
   }
 
   function openCheckout() {
+    if (!isLoggedIn) {
+      navigateToHash('#/login');
+      return;
+    }
+
     navigateToHash('#/checkout');
   }
 
-  function openOrders(orderId) {
+  function openMyOrders() {
+    if (!isLoggedIn) {
+      navigateToHash('#/login');
+      return;
+    }
+
+    navigateToHash('#/mypage/orders');
+  }
+
+  function openOrderPreview(orderId) {
+    if (!isLoggedIn) {
+      navigateToHash('#/login');
+      return;
+    }
+
     navigateToHash(
       orderId ? `#/orders/${encodeURIComponent(orderId)}` : '#/orders'
     );
+  }
+
+  function getProductStockLimit(productNo) {
+    const targetProduct = findProduct(products, productDetails, productNo);
+    const stockQty = Number(targetProduct?.stockQty || 0);
+    return Number.isFinite(stockQty) ? Math.max(stockQty, 0) : 0;
   }
 
   function toggleWishlist(productNo) {
@@ -383,9 +477,23 @@ export default function ProductApp() {
   }
 
   async function addToCart(productNo, quantity = 1) {
+    if (!isLoggedIn) {
+      navigateToHash('#/login');
+      return;
+    }
+
+    const currentQuantity = Number(cart[productNo] || 0);
+    const stockLimit = getProductStockLimit(productNo);
+    const remainingStock = Math.max(stockLimit - currentQuantity, 0);
+    const safeQuantity = Math.min(Math.max(Number(quantity) || 1, 1), remainingStock);
+
+    if (stockLimit < 1 || safeQuantity < 1) {
+      return;
+    }
+
     if (process.env.NODE_ENV !== 'test') {
       try {
-        const nextCart = await addCartItemToApi(productNo, quantity);
+        const nextCart = await addCartItemToApi(productNo, safeQuantity);
         setCart(nextCart);
         return;
       } catch (error) {
@@ -395,14 +503,21 @@ export default function ProductApp() {
 
     setCart((previousCart) => ({
       ...previousCart,
-      [productNo]: (previousCart[productNo] || 0) + quantity,
+      [productNo]: Math.min(
+        stockLimit,
+        (previousCart[productNo] || 0) + safeQuantity
+      ),
     }));
   }
 
   async function updateCartQuantity(productNo, nextQuantity) {
+    const stockLimit = getProductStockLimit(productNo);
+    const normalizedQuantity =
+      nextQuantity <= 0 ? 0 : Math.min(Math.max(nextQuantity, 1), stockLimit);
+
     if (process.env.NODE_ENV !== 'test') {
       try {
-        const nextCart = await updateCartItemOnApi(productNo, nextQuantity);
+        const nextCart = await updateCartItemOnApi(productNo, normalizedQuantity);
         setCart(nextCart);
         return;
       } catch (error) {
@@ -411,7 +526,7 @@ export default function ProductApp() {
     }
 
     setCart((previousCart) => {
-      if (nextQuantity <= 0) {
+      if (normalizedQuantity <= 0) {
         const nextCart = { ...previousCart };
         delete nextCart[productNo];
         return nextCart;
@@ -419,7 +534,7 @@ export default function ProductApp() {
 
       return {
         ...previousCart,
-        [productNo]: nextQuantity,
+        [productNo]: normalizedQuantity,
       };
     });
   }
@@ -457,22 +572,14 @@ export default function ProductApp() {
   }
 
   async function submitOrder(checkoutForm) {
-    if (!cartItems.length) {
-      navigateToHash('#/cart');
+    if (!isLoggedIn) {
+      navigateToHash('#/login');
       return;
     }
 
-    if (process.env.NODE_ENV !== 'test' && isTossReady(tossConfig)) {
-      const paymentDraft = createTossPaymentDraft(checkoutForm, cartItems);
-      storePendingTossPayment(paymentDraft);
-
-      try {
-        await requestTossPayment(tossConfig, paymentDraft);
-        return;
-      } catch (error) {
-        clearPendingTossPayment();
-        throw error;
-      }
+    if (!cartItems.length) {
+      navigateToHash('#/cart');
+      return;
     }
 
     if (process.env.NODE_ENV !== 'test') {
@@ -509,67 +616,63 @@ export default function ProductApp() {
     window.history.replaceState(null, '', `${window.location.pathname}${nextHash}`);
   }
 
-  async function moveOrderToNextStatus(orderId) {
-    const targetOrder = orders.find((order) => order.orderId === orderId);
-    if (!targetOrder) {
-      return;
-    }
-
-    if (process.env.NODE_ENV !== 'test') {
-      try {
-        const updatedOrder = await advanceOrderOnApi(
-          targetOrder.orderNo,
-          targetOrder.deliveryMessage
-        );
-        setOrders((previousOrders) =>
-          previousOrders.map((order) =>
-            order.orderId === orderId ? updatedOrder : order
-          )
-        );
-        return;
-      } catch (error) {
-        // Fall back to local order state.
-      }
-    }
-
-    setOrders((previousOrders) =>
-      previousOrders.map((order) =>
-        order.orderId === orderId ? advanceOrderStatus(order) : order
-      )
-    );
-  }
-
   return (
     <div className="product-app page-shell">
       <main className="container">
-        {route.page === 'cart' ? (
-          <CartPage
-            cartItems={cartItems}
-            onClearCart={clearCart}
-            onDecreaseQuantity={(productNo) =>
-              updateCartQuantity(productNo, (cart[productNo] || 1) - 1)
-            }
-            onIncreaseQuantity={(productNo) => {
-              const product = findProduct(products, productDetails, productNo);
-              const nextQuantity = (cart[productNo] || 0) + 1;
-
-              updateCartQuantity(
-                productNo,
-                Math.min(product?.stockQty || nextQuantity, nextQuantity)
-              );
-            }}
-            onOpenProduct={openProduct}
-            onProceedToCheckout={openCheckout}
-            onRemoveItem={removeFromCart}
+        {route.page === 'login' ? (
+          <LoginPage />
+        ) : route.page === 'signup' ? (
+          <SignupPage />
+        ) : routeNeedsProducts && productsStatus === 'loading' ? (
+          <ProductsLoadingPage />
+        ) : routeNeedsProducts && productsStatus === 'error' ? (
+          <ProductsErrorPage
+            message={productsError}
+            onRetry={retryProductLoad}
             onReturnToProducts={openProductList}
           />
+        ) : route.page === 'cart' ? (
+          isLoggedIn ? (
+            <CartPage
+              cartItems={cartItems}
+              onClearCart={clearCart}
+              onDecreaseQuantity={(productNo) =>
+                updateCartQuantity(productNo, (cart[productNo] || 1) - 1)
+              }
+              onIncreaseQuantity={(productNo) => {
+                const product = findProduct(products, productDetails, productNo);
+                const nextQuantity = (cart[productNo] || 0) + 1;
+
+                updateCartQuantity(
+                  productNo,
+                  Math.min(product?.stockQty || nextQuantity, nextQuantity)
+                );
+              }}
+              onOpenProduct={openProduct}
+              onProceedToCheckout={openCheckout}
+              onRemoveItem={removeFromCart}
+              onReturnToProducts={openProductList}
+            />
+          ) : (
+            <LoginRequiredCartNotice
+              title="濡쒓렇?몄씠 ?꾩슂?⑸땲??"
+              description="?λ컮援щ땲??濡쒓렇?????댁슜?????덉뒿?덈떎."
+            />
+          )
         ) : route.page === 'checkout' ? (
-          <CheckoutPage
-            cartItems={cartItems}
-            onBackToCart={openCart}
-            onSubmitOrder={submitOrder}
-            tossConfig={tossConfig}
-          />
+          isLoggedIn ? (
+            <CheckoutPage
+              cartItems={cartItems}
+              onBackToCart={openCart}
+              onSubmitOrder={submitOrder}
+              tossConfig={tossConfig}
+            />
+          ) : (
+            <LoginRequiredCartNotice
+              title="二쇰Ц ???꾪븳 濡쒓렇?몄씠 ?꾩슂?⑸땲??"
+              description="寃곗젣瑜??꾪븯硫?癒쇱? 濡쒓렇?명빐 二쇱꽭??"
+            />
+          )
         ) : route.page === 'payment-success' || route.page === 'payment-fail' ? (
           <PaymentFlowPage
             description={
@@ -594,18 +697,24 @@ export default function ProductApp() {
           />
         ) : route.page === 'order-complete' ? (
           <OrderCompletePage
-            onOpenOrders={() => openOrders(route.orderId)}
+            onOpenOrders={openMyOrders}
             onReturnToProducts={openProductList}
             order={currentOrder}
           />
         ) : route.page === 'orders' ? (
-          <OrdersPage
-            onAdvanceStatus={moveOrderToNextStatus}
-            onOpenOrder={openOrders}
-            onReturnToProducts={openProductList}
-            orders={orders}
-            selectedOrderId={route.orderId}
-          />
+          isLoggedIn ? (
+            <OrdersPage
+              onSelectOrder={openOrderPreview}
+              onReturnToProducts={openProductList}
+              orders={orders}
+              selectedOrderId={route.orderId}
+            />
+          ) : (
+            <LoginRequiredCartNotice
+              title="二쇰Ц ?댁뿭 議고쉶瑜??꾪빐 濡쒓렇?명빐 二쇱꽭??"
+              description="二쇰Ц ?댁뿭? 濡쒓렇?????뺤씤?????덉뒿?덈떎."
+            />
+          )
         ) : route.page === 'recipe-detail' ? (
           <RecipeDetailPage recipeNo={route.recipeNo} onBack={openRecipeList} />
         ) : route.page === 'recipes' ? (
@@ -620,6 +729,8 @@ export default function ProductApp() {
               onToggleWishlist={toggleWishlist}
               product={currentProduct}
             />
+          ) : currentDetailState === 'loading' ? (
+            <ProductsLoadingPage />
           ) : (
             <NotFoundPage onBack={openProductList} />
           )
@@ -648,7 +759,7 @@ function findProduct(products, productDetails, productNo) {
   return (
     productDetails[productNo] ||
     products.find((product) => product.productNo === productNo) ||
-    findProductByNo(productNo)
+    null
   );
 }
 
@@ -733,6 +844,39 @@ function PaymentFlowPage({
   );
 }
 
+function ProductsLoadingPage() {
+  return (
+    <section className="empty-state detail-empty">
+      <div className="empty-icon">DB</div>
+      <h1>{'\uC0C1\uD488 \uB370\uC774\uD130\uB97C \uBD88\uB7EC\uC624\uB294 \uC911\uC785\uB2C8\uB2E4.'}</h1>
+      <p>
+        {
+          '\uC2E4\uC81C DB\uC5D0 \uC800\uC7A5\uB41C \uC0C1\uD488 \uBAA9\uB85D\uC744 \uAC00\uC838\uC624\uACE0 \uC788\uC2B5\uB2C8\uB2E4.'
+        }
+      </p>
+    </section>
+  );
+}
+
+function ProductsErrorPage({ message, onRetry, onReturnToProducts }) {
+  return (
+    <section className="empty-state detail-empty">
+      <div className="empty-icon">API</div>
+      <h1>{'\uC0C1\uD488 \uBAA9\uB85D\uC744 \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.'}</h1>
+      <p>
+        {message ||
+          '\uBC31\uC5D4\uB4DC \uC11C\uBC84\uC640 DB \uC5F0\uB3D9 \uC0C1\uD0DC\uB97C \uD655\uC778\uD55C \uB4A4 \uB2E4\uC2DC \uC2DC\uB3C4\uD574 \uC8FC\uC138\uC694.'}
+      </p>
+      <button className="btn" type="button" onClick={onRetry}>
+        {'\uB2E4\uC2DC \uBD88\uB7EC\uC624\uAE30'}
+      </button>
+      <button className="btn-outline" type="button" onClick={onReturnToProducts}>
+        {'\uC0C1\uD488 \uBAA9\uB85D\uC73C\uB85C \uC774\uB3D9'}
+      </button>
+    </section>
+  );
+}
+
 function NotFoundPage({ onBack }) {
   return (
     <section className="empty-state detail-empty">
@@ -742,6 +886,39 @@ function NotFoundPage({ onBack }) {
       <button className="btn" type="button" onClick={onBack}>
         상품 목록으로 이동
       </button>
+    </section>
+  );
+}
+
+function LoginRequiredCartNotice() {
+  return (
+    <section className="card">
+      <div className="page-head" style={{ marginBottom: '8px' }}>
+        <div>
+          <h1>로그인이 필요합니다.</h1>
+          <p>장바구니는 로그인 후 이용할 수 있습니다.</p>
+        </div>
+      </div>
+      <div className="page-actions">
+        <button
+          className="btn"
+          type="button"
+          onClick={() => {
+            window.location.hash = '#/login';
+          }}
+        >
+          로그인하러 가기
+        </button>
+        <button
+          className="btn-outline"
+          type="button"
+          onClick={() => {
+            window.location.hash = '#/signup';
+          }}
+        >
+          회원가입
+        </button>
+      </div>
     </section>
   );
 }

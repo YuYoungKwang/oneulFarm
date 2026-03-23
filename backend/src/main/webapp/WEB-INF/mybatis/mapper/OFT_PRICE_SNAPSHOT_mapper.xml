@@ -4,7 +4,7 @@
 
 <mapper namespace="com.app.dao.PriceSnapshotDAO">
 
-    <resultMap id="priceSnapshotResultMap" type="PriceSnapshotDTO">
+    <resultMap id="priceSnapshotResultMap" type="com.app.dto.PriceSnapshotDTO">
         <id property="snapshotNo" column="snapshotNo"/>
         <result property="itemCode" column="itemCode"/>
         <result property="itemName" column="itemName"/>
@@ -18,7 +18,7 @@
         <result property="sourceName" column="sourceName"/>
     </resultMap>
 
-    <update id="mergePriceSnapshot" parameterType="PriceSnapshotDTO">
+    <update id="mergePriceSnapshot" parameterType="com.app.dto.PriceSnapshotDTO">
         MERGE INTO OFT_PRICE_SNAPSHOT target
         USING (
             SELECT

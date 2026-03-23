@@ -3,6 +3,27 @@
     "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="userMapper">
 
+    <resultMap id="UserResultMap" type="com.app.dto.UserDto">
+        <result property="userNo" column="userNo" />
+        <result property="userId" column="userId" />
+        <result property="email" column="email" />
+        <result property="password" column="password" />
+        <result property="nickname" column="nickname" />
+        <result property="phone" column="phone" />
+        <result property="role" column="role" />
+        <result property="status" column="status" />
+        <result property="tempPasswordYn" column="tempPasswordYn" />
+        <result property="createdAt" column="createdAt" />
+        <result property="updatedAt" column="updatedAt" />
+        <result property="deletedAt" column="deletedAt" />
+        <result property="profileImageUrl" column="profileImageUrl" />
+        <result property="profileImageName" column="profileImageName" />
+        <result property="profileImageExt" column="profileImageExt" />
+        <result property="profileImageMimeType" column="profileImageMimeType" />
+        <result property="profileImageSize" column="profileImageSize" />
+        <result property="profileImageData" column="profileImageData" />
+    </resultMap>
+
     <resultMap id="UserProfileResultMap" type="com.app.dto.UserProfileDto">
         <result property="userNo" column="userNo" />
         <result property="userId" column="userId" />
@@ -13,6 +34,126 @@
         <result property="defaultAddress" column="defaultAddress" />
         <result property="totalSavedAmount" column="totalSavedAmount" />
     </resultMap>
+
+    <select id="selectByUserIdOrEmail" parameterType="string" resultMap="UserResultMap"><![CDATA[
+        SELECT
+            USER_NO AS userNo,
+            USER_ID AS userId,
+            EMAIL AS email,
+            PASSWORD AS password,
+            NICKNAME AS nickname,
+            PHONE AS phone,
+            ROLE AS role,
+            STATUS AS status,
+            TEMP_PASSWORD_YN AS tempPasswordYn,
+            CREATED_AT AS createdAt,
+            UPDATED_AT AS updatedAt,
+            DELETED_AT AS deletedAt,
+            PROFILE_IMAGE_URL AS profileImageUrl,
+            PROFILE_IMAGE_NAME AS profileImageName,
+            PROFILE_IMAGE_EXT AS profileImageExt,
+            PROFILE_IMAGE_MIME_TYPE AS profileImageMimeType,
+            PROFILE_IMAGE_SIZE AS profileImageSize,
+            PROFILE_IMAGE_DATA AS profileImageData
+        FROM OFT_USERS
+        WHERE UPPER(TRIM(USER_ID)) = UPPER(TRIM(#{value}))
+           OR UPPER(TRIM(EMAIL)) = UPPER(TRIM(#{value}))
+    ]]></select>
+
+    <select id="selectByEmailAndPhone" parameterType="map" resultMap="UserResultMap"><![CDATA[
+        SELECT
+            USER_NO AS userNo,
+            USER_ID AS userId,
+            EMAIL AS email,
+            PASSWORD AS password,
+            NICKNAME AS nickname,
+            PHONE AS phone,
+            ROLE AS role,
+            STATUS AS status,
+            TEMP_PASSWORD_YN AS tempPasswordYn,
+            CREATED_AT AS createdAt,
+            UPDATED_AT AS updatedAt,
+            DELETED_AT AS deletedAt,
+            PROFILE_IMAGE_URL AS profileImageUrl,
+            PROFILE_IMAGE_NAME AS profileImageName,
+            PROFILE_IMAGE_EXT AS profileImageExt,
+            PROFILE_IMAGE_MIME_TYPE AS profileImageMimeType,
+            PROFILE_IMAGE_SIZE AS profileImageSize,
+            PROFILE_IMAGE_DATA AS profileImageData
+        FROM OFT_USERS
+        WHERE UPPER(TRIM(EMAIL)) = UPPER(TRIM(#{email}))
+          AND REPLACE(TRIM(PHONE), '-', '') = REPLACE(TRIM(#{phone}), '-', '')
+    ]]></select>
+
+    <select id="selectByEmail" parameterType="string" resultMap="UserResultMap"><![CDATA[
+        SELECT
+            USER_NO AS userNo,
+            USER_ID AS userId,
+            EMAIL AS email,
+            PASSWORD AS password,
+            NICKNAME AS nickname,
+            PHONE AS phone,
+            ROLE AS role,
+            STATUS AS status,
+            TEMP_PASSWORD_YN AS tempPasswordYn,
+            CREATED_AT AS createdAt,
+            UPDATED_AT AS updatedAt,
+            DELETED_AT AS deletedAt,
+            PROFILE_IMAGE_URL AS profileImageUrl,
+            PROFILE_IMAGE_NAME AS profileImageName,
+            PROFILE_IMAGE_EXT AS profileImageExt,
+            PROFILE_IMAGE_MIME_TYPE AS profileImageMimeType,
+            PROFILE_IMAGE_SIZE AS profileImageSize,
+            PROFILE_IMAGE_DATA AS profileImageData
+        FROM OFT_USERS
+        WHERE UPPER(TRIM(EMAIL)) = UPPER(TRIM(#{value}))
+    ]]></select>
+
+    <select id="selectByUserNo" parameterType="java.lang.Long" resultMap="UserResultMap"><![CDATA[
+        SELECT
+            USER_NO AS userNo,
+            USER_ID AS userId,
+            EMAIL AS email,
+            PASSWORD AS password,
+            NICKNAME AS nickname,
+            PHONE AS phone,
+            ROLE AS role,
+            STATUS AS status,
+            TEMP_PASSWORD_YN AS tempPasswordYn,
+            CREATED_AT AS createdAt,
+            UPDATED_AT AS updatedAt,
+            DELETED_AT AS deletedAt,
+            PROFILE_IMAGE_URL AS profileImageUrl,
+            PROFILE_IMAGE_NAME AS profileImageName,
+            PROFILE_IMAGE_EXT AS profileImageExt,
+            PROFILE_IMAGE_MIME_TYPE AS profileImageMimeType,
+            PROFILE_IMAGE_SIZE AS profileImageSize,
+            PROFILE_IMAGE_DATA AS profileImageData
+        FROM OFT_USERS
+        WHERE USER_NO = #{value}
+    ]]></select>
+
+    <select id="countByUserId" parameterType="string" resultType="int"><![CDATA[
+        SELECT COUNT(*)
+        FROM OFT_USERS
+        WHERE UPPER(TRIM(USER_ID)) = UPPER(TRIM(#{value}))
+    ]]></select>
+
+    <insert id="insertUser" parameterType="com.app.dto.UserDto"><![CDATA[
+        INSERT INTO OFT_USERS (
+            USER_ID,
+            EMAIL,
+            PASSWORD,
+            NICKNAME,
+            PHONE
+        ) VALUES (
+            #{userId},
+            #{email},
+            #{password},
+            #{nickname},
+            #{phone}
+        )
+    ]]></insert>
 
     <select id="selectMyProfile" parameterType="java.lang.Long" resultMap="UserProfileResultMap"><![CDATA[
         SELECT
@@ -37,6 +178,7 @@
             ), 0) AS totalSavedAmount
         FROM OFT_USERS u
         WHERE u.USER_NO = #{userNo}
+          AND u.STATUS = 'ACTIVE'
     ]]></select>
 
     <select id="countByEmail" parameterType="map" resultType="int"><![CDATA[
@@ -53,11 +195,53 @@
           AND USER_NO != #{userNo}
     ]]></select>
 
+    <select id="countByPassword" parameterType="map" resultType="int"><![CDATA[
+        SELECT COUNT(*)
+        FROM OFT_USERS
+        WHERE USER_NO = #{userNo}
+          AND PASSWORD = #{password}
+          AND STATUS = 'ACTIVE'
+    ]]></select>
+
     <update id="updateMyProfile" parameterType="map"><![CDATA[
         UPDATE OFT_USERS
         SET NICKNAME = #{nickname},
             EMAIL = #{email},
             PHONE = #{phone},
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE USER_NO = #{userNo}
+          AND STATUS = 'ACTIVE'
+    ]]></update>
+
+    <update id="updatePassword" parameterType="map"><![CDATA[
+        UPDATE OFT_USERS
+        SET PASSWORD = #{newPassword},
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE USER_NO = #{userNo}
+          AND STATUS = 'ACTIVE'
+    ]]></update>
+
+    <update id="updateStatusToWithdrawn" parameterType="map"><![CDATA[
+        UPDATE OFT_USERS
+        SET STATUS = 'WITHDRAWN',
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE USER_NO = #{userNo}
+          AND PASSWORD = #{currentPassword}
+          AND STATUS = 'ACTIVE'
+    ]]></update>
+
+    <update id="updateTemporaryPassword" parameterType="map"><![CDATA[
+        UPDATE OFT_USERS
+        SET PASSWORD = #{password},
+            TEMP_PASSWORD_YN = 'Y',
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE USER_NO = #{userNo}
+    ]]></update>
+
+    <update id="updatePasswordAndClearTemporary" parameterType="map"><![CDATA[
+        UPDATE OFT_USERS
+        SET PASSWORD = #{password},
+            TEMP_PASSWORD_YN = 'N',
             UPDATED_AT = SYSTIMESTAMP
         WHERE USER_NO = #{userNo}
     ]]></update>
