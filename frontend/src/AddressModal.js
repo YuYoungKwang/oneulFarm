@@ -33,8 +33,8 @@ function AddressModal({
     addresses.length === 1 ||
     (editingAddress && editingAddress.isDefault === 'Y');
   const formTitle = isEditMode ? '배송지 수정' : '새 배송지 등록';
-  const submitLabel = isEditMode ? '배송지 저장' : '배송지 등록';
-  const submitLoadingLabel = isEditMode ? '저장 중...' : '등록 중...';
+  const submitLabel = isEditMode ? '저장' : '확인';
+  const submitLoadingLabel = isEditMode ? '저장 중...' : '확인 중...';
 
   function handleDefaultChange(event) {
     if (mustKeepDefault && !event.target.checked) {
@@ -161,7 +161,7 @@ function AddressModal({
 
             {formError && <div className="form-error">{formError}</div>}
 
-            <div className="modal-actions">
+            <div className="modal-actions address-form-panel__actions">
               <button type="button" className="btn-outline" onClick={onCloseForm}>
                 취소
               </button>
