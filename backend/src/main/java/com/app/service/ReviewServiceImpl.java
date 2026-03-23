@@ -299,7 +299,9 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     private void syncReviewImage(Long reviewNo, MultipartFile reviewImage, boolean removeImage) {
-        boolean hasNewImage = reviewImage != null && !reviewImage.isEmpty();
+        boolean hasNewImage = reviewImage != null
+            && !reviewImage.isEmpty()
+            && reviewImage.getSize() > 0;
 
         if (!removeImage && !hasNewImage) {
             return;
