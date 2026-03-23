@@ -20,6 +20,8 @@ import {
 import { fetchProductDetailFromApi, fetchProductsFromApi } from './api/productApi';
 import { fetchRecipeDetail, fetchRecipeList } from './components/recipeApi';
 
+const originalFetch = global.fetch;
+
 const mockImageUrl =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 jest.mock('./api/productApi', () => ({
@@ -229,6 +231,34 @@ const RECIPE_FIXTURES = [
   },
 ];
 
+const DEFAULT_ADDRESS_FIXTURE = {
+  addressNo: 1,
+  addressName: '집',
+  recipientName: '허륜',
+  recipientPhone: '010-1234-5678',
+  zipCode: '06236',
+  address1: '서울 강남구 테헤란로 123',
+  address2: '8층 oneulFarm',
+  deliveryMessage: '문 앞에 놓아주세요',
+  isDefault: 'Y',
+};
+
+function buildJsonResponse(payload, status = 200) {
+  return Promise.resolve({
+    ok: status >= 200 && status < 300,
+    status,
+    headers: {
+      get(name) {
+        return String(name || '').toLowerCase() === 'content-type'
+          ? 'application/json; charset=utf-8'
+          : '';
+      },
+    },
+    json: async () => payload,
+    text: async () => JSON.stringify(payload),
+  });
+}
+
 function findFixtureProduct(productNo) {
   return PRODUCT_FIXTURES.find((product) => product.productNo === productNo);
 }
@@ -263,6 +293,19 @@ function signInTestUser() {
 
 describe('App', () => {
   beforeEach(() => {
+    global.fetch = jest.fn((input) => {
+      const requestUrl = String(input);
+
+      if (requestUrl.includes('/api/users/me/addresses')) {
+        return buildJsonResponse({
+          success: true,
+          data: [DEFAULT_ADDRESS_FIXTURE],
+        });
+      }
+
+      return Promise.reject(new Error(`Unhandled fetch in test: ${requestUrl}`));
+    });
+
     fetchProductsFromApi.mockResolvedValue(PRODUCT_FIXTURES);
     fetchProductDetailFromApi.mockResolvedValue(
       buildProduct({
@@ -319,6 +362,10 @@ describe('App', () => {
     window.location.hash = '';
     window.localStorage.clear();
     jest.clearAllMocks();
+  });
+
+  afterAll(() => {
+    global.fetch = originalFetch;
   });
 
   test('\uAE30\uBCF8 \uBA54\uC778 \uD398\uC774\uC9C0\uC5D0\uC11C\uB294 \uD65C\uC131 \uB124\uBE44\uAC00 \uC5C6\uB2E4', async () => {
@@ -551,9 +598,17 @@ describe('App', () => {
       await screen.findByText('\uC8FC\uBB38\uC11C \uC791\uC131')
     ).toBeInTheDocument();
 
-    fireEvent.click(
-      screen.getByText('\uC8FC\uBB38 \uC644\uB8CC\uD558\uAE30')
-    );
+    expect(await screen.findByDisplayValue('허륜')).toBeInTheDocument();
+
+    const submitButton = screen.getByRole('button', {
+      name: '\uC8FC\uBB38 \uC644\uB8CC\uD558\uAE30',
+    });
+
+    await waitFor(() => {
+      expect(submitButton).toBeEnabled();
+    });
+
+    fireEvent.click(submitButton);
 
     expect(
       await screen.findByText('\uC8FC\uBB38 \uC644\uB8CC!')

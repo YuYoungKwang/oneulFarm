@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { buildAuthHeaders, getAuthUser, isAuthenticated, requestAuthApi } from './auth';
 import './styles/account.css';
 import DashboardView from './DashboardView';
@@ -235,6 +235,7 @@ function AccountApp({ authUser: initialAuthUser }) {
   const [currentPage, setCurrentPage] = useState(() =>
     getAccountPageFromHash(window.location.hash)
   );
+  const addressModalRouteHandledRef = useRef(false);
   const [activeTab, setActiveTab] = useState('wishlist');
 
   const [orders, setOrders] = useState([]);
@@ -976,7 +977,7 @@ function AccountApp({ authUser: initialAuthUser }) {
     }
   }
 
-  async function fetchAddresses() {
+  const fetchAddresses = useCallback(async () => {
     setAddressesLoading(true);
     setAddressesError('');
 
@@ -994,18 +995,19 @@ function AccountApp({ authUser: initialAuthUser }) {
     } finally {
       setAddressesLoading(false);
     }
-  }
+  }, [authUser]);
 
-  function openAddressModal() {
+  const openAddressModal = useCallback(() => {
     setIsAddressModalOpen(true);
     setAddressForm(EMPTY_ADDRESS_FORM);
     setAddressFormError('');
     setIsAddressFormOpen(false);
     setEditingAddressNo(null);
     fetchAddresses();
-  }
+  }, [fetchAddresses]);
 
   function closeAddressModal() {
+    addressModalRouteHandledRef.current = false;
     setIsAddressModalOpen(false);
     setAddressesError('');
     setChangingAddressNo(null);
@@ -1015,6 +1017,29 @@ function AccountApp({ authUser: initialAuthUser }) {
     setAddressSubmitting(false);
     setIsAddressFormOpen(false);
   }
+
+  useEffect(() => {
+    if (currentPage !== 'mypage') {
+      addressModalRouteHandledRef.current = false;
+      return;
+    }
+
+    const [, queryString = ''] = window.location.hash.split('?');
+    const params = new URLSearchParams(queryString);
+    const shouldOpenAddressModal = params.get('address') === 'manage';
+
+    if (!shouldOpenAddressModal || addressModalRouteHandledRef.current) {
+      return;
+    }
+
+    addressModalRouteHandledRef.current = true;
+    openAddressModal();
+    window.history.replaceState(
+      null,
+      '',
+      `${window.location.pathname}${window.location.search}${ACCOUNT_ROUTES.mypage}`
+    );
+  }, [currentPage, openAddressModal]);
 
   function handleStartCreateAddress() {
     setAddressForm(EMPTY_ADDRESS_FORM);

@@ -493,6 +493,15 @@ export default function ProductApp({ authUser }) {
     navigateToHash('#/mypage/orders');
   }
 
+  function openAddressSetup() {
+    if (!isLoggedIn) {
+      navigateToHash('#/login');
+      return;
+    }
+
+    navigateToHash('#/mypage?address=manage');
+  }
+
   function openOrderPreview(orderId) {
     if (!isLoggedIn) {
       navigateToHash('#/login');
@@ -733,6 +742,7 @@ export default function ProductApp({ authUser }) {
             <CheckoutPage
               cartItems={cartItems}
               onBackToCart={openCart}
+              onOpenAddressSetup={openAddressSetup}
               onSubmitOrder={submitOrder}
               tossConfig={tossConfig}
             />
