@@ -23,6 +23,11 @@ public class ImageDaoImpl implements ImageDao {
     }
 
     @Override
+    public byte[] findReviewImage(Long reviewImageNo) {
+        return toPrimitiveBytes(sqlSessionTemplate.selectOne(NAMESPACE + "selectReviewImage", reviewImageNo));
+    }
+
+    @Override
     public String findBannerMimeType(Long bannerNo) {
         return sqlSessionTemplate.selectOne(NAMESPACE + "selectBannerMimeType", bannerNo);
     }
@@ -32,6 +37,11 @@ public class ImageDaoImpl implements ImageDao {
         return sqlSessionTemplate.selectOne(NAMESPACE + "selectProductMimeType", imageNo);
     }
 
+    @Override
+    public String findReviewMimeType(Long reviewImageNo) {
+        return sqlSessionTemplate.selectOne(NAMESPACE + "selectReviewMimeType", reviewImageNo);
+    }
+    
     private byte[] toPrimitiveBytes(Object imageData) {
         if (imageData == null) {
             return null;

@@ -6,7 +6,11 @@ public interface ImageDao {
 
     byte[] findProductImage(Long imageNo);
 
+    byte[] findReviewImage(Long reviewImageNo);
+
     String findBannerMimeType(Long bannerNo);
 
     String findProductMimeType(Long imageNo);
+
+    String findReviewMimeType(Long reviewImageNo);
 }

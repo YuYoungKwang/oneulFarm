@@ -213,6 +213,18 @@
           AND STATUS = 'ACTIVE'
     ]]></update>
 
+    <update id="updateProfileImage" parameterType="map"><![CDATA[
+        UPDATE OFT_USERS
+        SET PROFILE_IMAGE_URL = #{profileImageUrl},
+            PROFILE_IMAGE_NAME = #{profileImageName},
+            PROFILE_IMAGE_EXT = #{profileImageExt},
+            PROFILE_IMAGE_MIME_TYPE = #{profileImageMimeType},
+            PROFILE_IMAGE_SIZE = #{profileImageSize},
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE USER_NO = #{userNo}
+          AND STATUS = 'ACTIVE'
+    ]]></update>
+
     <update id="updatePassword" parameterType="map"><![CDATA[
         UPDATE OFT_USERS
         SET PASSWORD = #{newPassword},
