@@ -49,7 +49,8 @@ function getFirstSegment(hash) {
     return pathnameSegment;
   }
 
-  const [firstSegment] = normalized.split('/');
+  const [normalizedPath] = normalized.split('?');
+  const [firstSegment] = normalizedPath.split('/');
   return firstSegment;
 }
 

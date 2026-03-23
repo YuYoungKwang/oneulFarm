@@ -3,11 +3,22 @@ import '../styles/recipe.css';
 import { fetchRecipeList } from './recipeApi';
 
 const PAGE_SIZE = 8;
-const QUICK_INGREDIENTS = ['대파', '감자', '토마토', '소고기', '버섯'];
+const SORT_OPTIONS = [
+  { value: 'RECOMMENDED', label: '추천순' },
+  { value: 'EASY', label: '쉬운 순' },
+  { value: 'FAST', label: '빠른 조리' },
+];
+const QUICK_INGREDIENTS = ['양파', '감자', '토마토', '오이', '버섯'];
 
-export default function RecipeListPage({ onOpenRecipe }) {
-  const [keyword, setKeyword] = useState('');
-  const [ingredientKeyword, setIngredientKeyword] = useState('');
+export default function RecipeListPage({
+  initialIngredientKeyword = '',
+  initialKeyword = '',
+  initialSort = 'RECOMMENDED',
+  onOpenRecipe,
+}) {
+  const [keyword, setKeyword] = useState(initialKeyword);
+  const [ingredientKeyword, setIngredientKeyword] = useState(initialIngredientKeyword);
+  const [sort, setSort] = useState(initialSort || 'RECOMMENDED');
   const [currentPage, setCurrentPage] = useState(1);
   const [recipeResponse, setRecipeResponse] = useState({
     count: 0,
@@ -24,11 +35,18 @@ export default function RecipeListPage({ onOpenRecipe }) {
   const recipeList = recipeResponse.recipeList || [];
   const totalCount = recipeResponse.totalCount || recipeResponse.count || 0;
   const totalPages = recipeResponse.totalPages || 0;
-  const hasFilters = Boolean(keyword.trim() || ingredientKeyword);
+  const hasFilters = Boolean(keyword.trim() || ingredientKeyword || sort !== 'RECOMMENDED');
+
+  useEffect(() => {
+    setKeyword(initialKeyword || '');
+    setIngredientKeyword(initialIngredientKeyword || '');
+    setSort(initialSort || 'RECOMMENDED');
+    setCurrentPage(1);
+  }, [initialIngredientKeyword, initialKeyword, initialSort]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [deferredKeyword, ingredientKeyword]);
+  }, [deferredKeyword, ingredientKeyword, sort]);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,37 +57,41 @@ export default function RecipeListPage({ onOpenRecipe }) {
 
       try {
         const data = await fetchRecipeList({
-          ingredientKeyword,
           keyword: deferredKeyword,
+          ingredientKeyword,
+          sort,
           page: currentPage,
           pageSize: PAGE_SIZE,
-          sort: 'RECOMMENDED',
         });
 
-        if (!cancelled) {
-          setRecipeResponse({
-            count: data?.count || 0,
-            currentCount: data?.currentCount || 0,
-            page: data?.page || currentPage,
-            pageSize: data?.pageSize || PAGE_SIZE,
-            recipeList: Array.isArray(data?.recipeList) ? data.recipeList : [],
-            totalCount: data?.totalCount || data?.count || 0,
-            totalPages: data?.totalPages || 0,
-          });
+        if (cancelled) {
+          return;
         }
+
+        setRecipeResponse({
+          count: data?.count || 0,
+          currentCount: data?.currentCount || 0,
+          page: data?.page || currentPage,
+          pageSize: data?.pageSize || PAGE_SIZE,
+          recipeList: Array.isArray(data?.recipeList) ? data.recipeList : [],
+          totalCount: data?.totalCount || data?.count || 0,
+          totalPages: data?.totalPages || 0,
+        });
       } catch (error) {
-        if (!cancelled) {
-          setErrorMessage(error.message);
-          setRecipeResponse({
-            count: 0,
-            currentCount: 0,
-            page: 1,
-            pageSize: PAGE_SIZE,
-            recipeList: [],
-            totalCount: 0,
-            totalPages: 0,
-          });
+        if (cancelled) {
+          return;
         }
+
+        setErrorMessage(error?.message || '레시피 목록을 불러오지 못했습니다.');
+        setRecipeResponse({
+          count: 0,
+          currentCount: 0,
+          page: 1,
+          pageSize: PAGE_SIZE,
+          recipeList: [],
+          totalCount: 0,
+          totalPages: 0,
+        });
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -82,16 +104,26 @@ export default function RecipeListPage({ onOpenRecipe }) {
     return () => {
       cancelled = true;
     };
-  }, [currentPage, deferredKeyword, ingredientKeyword]);
+  }, [currentPage, deferredKeyword, ingredientKeyword, sort]);
 
   const paginationNumbers = useMemo(
     () => buildPaginationNumbers(currentPage, totalPages),
     [currentPage, totalPages]
   );
 
+  const ingredientChipList = useMemo(() => {
+    if (ingredientKeyword && !QUICK_INGREDIENTS.includes(ingredientKeyword)) {
+      return [ingredientKeyword, ...QUICK_INGREDIENTS];
+    }
+
+    return QUICK_INGREDIENTS;
+  }, [ingredientKeyword]);
+
   function resetFilters() {
     setKeyword('');
     setIngredientKeyword('');
+    setSort('RECOMMENDED');
+    setCurrentPage(1);
   }
 
   return (
@@ -101,8 +133,8 @@ export default function RecipeListPage({ onOpenRecipe }) {
           <span className="recipe-kicker">Recipe Collection</span>
           <h1>오늘 먹을 메뉴를 더 빠르게 골라보세요</h1>
           <p>
-            재료명이나 레시피 이름으로 바로 찾고, 자주 찾는 재료 필터로 원하는
-            메뉴를 빠르게 좁혀볼 수 있어요.
+            재료명이나 레시피 이름으로 바로 찾고, 상품과 잘 어울리는 레시피를
+            추천순과 난이도 기준으로 편하게 비교해보세요.
           </p>
 
           <div className="recipe-hero__stats">
@@ -122,7 +154,6 @@ export default function RecipeListPage({ onOpenRecipe }) {
             </div>
           </div>
         </div>
-
       </section>
 
       <section className="recipe-toolbar-card">
@@ -153,18 +184,18 @@ export default function RecipeListPage({ onOpenRecipe }) {
 
         <div className="recipe-toolbar-copy">
           <strong>자주 찾는 재료</strong>
-          <span>필터를 하나만 눌러도 바로 맞춤 레시피만 모아볼 수 있습니다.</span>
+          <span>하나만 눌러도 해당 재료 기준으로 바로 레시피를 좁혀볼 수 있어요.</span>
         </div>
 
         <div className="recipe-chip-row">
-          {QUICK_INGREDIENTS.map((item) => (
+          {ingredientChipList.map((item) => (
             <button
               key={item}
               className={`btn-chip ${ingredientKeyword === item ? 'active' : ''}`}
               type="button"
               onClick={() =>
-                setIngredientKeyword((previousValue) =>
-                  previousValue === item ? '' : item
+                setIngredientKeyword((currentValue) =>
+                  currentValue === item ? '' : item
                 )
               }
             >
@@ -173,12 +204,32 @@ export default function RecipeListPage({ onOpenRecipe }) {
           ))}
         </div>
 
+        <div className="recipe-toolbar-copy">
+          <strong>정렬 기준</strong>
+          <span>원하는 스타일에 맞춰 레시피를 빠르게 다시 정렬할 수 있어요.</span>
+        </div>
+
+        <div className="recipe-chip-row">
+          {SORT_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              className={`btn-chip ${sort === option.value ? 'active' : ''}`}
+              type="button"
+              onClick={() => setSort(option.value)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
         <div className="recipe-result-meta">
           <strong>총 {totalCount}개의 레시피</strong>
           <span>
             {ingredientKeyword
-              ? `${ingredientKeyword} 재료 기준으로 정리된 목록`
-              : '전체 재료 기준으로 추천 순 목록'}
+              ? `${ingredientKeyword} 재료 기준 검색 결과`
+              : keyword
+                ? `"${keyword}" 검색 결과`
+                : '전체 레시피 기준'}
           </span>
         </div>
       </section>
@@ -199,7 +250,10 @@ export default function RecipeListPage({ onOpenRecipe }) {
         <>
           <div className="recipe-list-grid recipe-list-grid--compact">
             {recipeList.map((recipe) => (
-              <article className="recipe-list-card recipe-list-card--compact" key={recipe.recipeNo}>
+              <article
+                className="recipe-list-card recipe-list-card--compact"
+                key={recipe.recipeNo}
+              >
                 <div className="recipe-list-card__visual">
                   <button
                     className="recipe-list-card__media recipe-list-card__media--compact"
@@ -215,6 +269,11 @@ export default function RecipeListPage({ onOpenRecipe }) {
                     )}
                   </button>
                   <div className="recipe-list-card__badge-row">
+                    {recipe.cookTime ? (
+                      <span className="recipe-badge recipe-badge--soft">
+                        {recipe.cookTime}
+                      </span>
+                    ) : null}
                     {recipe.calories != null ? (
                       <span className="recipe-badge recipe-badge--green">
                         {Math.round(recipe.calories)} kcal
@@ -238,8 +297,10 @@ export default function RecipeListPage({ onOpenRecipe }) {
                   </div>
 
                   <div className="recipe-list-card__meta">
-                    <span className="recipe-pill">재료 확인</span>
-                    <span className="recipe-pill">상세 보기</span>
+                    <span className="recipe-pill">{recipe.difficulty || '난이도 미정'}</span>
+                    <span className="recipe-pill">
+                      {ingredientKeyword || '전체 재료'}
+                    </span>
                   </div>
 
                   <div className="recipe-list-card__foot recipe-list-card__foot--compact">
@@ -304,6 +365,27 @@ export default function RecipeListPage({ onOpenRecipe }) {
         </section>
       )}
 
+      <section className="recipe-note-grid">
+        <article className="recipe-note-card">
+          <h3>자주 찾는 재료</h3>
+          <div className="recipe-chip-row">
+            {ingredientChipList.map((item) => (
+              <span className="recipe-note-chip" key={item}>
+                {item}
+              </span>
+            ))}
+          </div>
+        </article>
+
+        <article className="recipe-note-card recipe-note-card--accent">
+          <h3>정렬 가이드</h3>
+          <ul className="recipe-note-list">
+            <li>추천순: 상품과 잘 어울리는 레시피를 먼저 보여줍니다.</li>
+            <li>쉬운 순: 비교적 만들기 쉬운 메뉴를 우선 정렬합니다.</li>
+            <li>빠른 조리: 조리 시간이 짧은 레시피를 먼저 확인할 수 있습니다.</li>
+          </ul>
+        </article>
+      </section>
     </div>
   );
 }
@@ -313,35 +395,51 @@ function summarizeDescription(description) {
     return '설명이 아직 등록되지 않은 레시피입니다.';
   }
 
-  const normalizedDescription = description.replace(/\s+/g, ' ').trim();
-  if (normalizedDescription.length <= 68) {
+  const normalizedDescription = String(description).replace(/\s+/g, ' ').trim();
+  if (normalizedDescription.length <= 84) {
     return normalizedDescription;
   }
 
-  return `${normalizedDescription.slice(0, 68)}...`;
+  return `${normalizedDescription.slice(0, 84).trim()}...`;
 }
 
 function getRecipeEmoji(recipeName) {
-  const normalizedName = (recipeName || '').toLowerCase();
+  const normalizedName = String(recipeName || '').toLowerCase();
 
   if (
     normalizedName.includes('국') ||
+    normalizedName.includes('찌개') ||
     normalizedName.includes('탕') ||
+    normalizedName.includes('수프') ||
     normalizedName.includes('스프')
   ) {
-    return '🥣';
+    return '🍲';
   }
-  if (normalizedName.includes('샐러드') || normalizedName.includes('무침')) {
+
+  if (
+    normalizedName.includes('샐러드') ||
+    normalizedName.includes('무침')
+  ) {
     return '🥗';
   }
-  if (normalizedName.includes('볶음') || normalizedName.includes('구이')) {
+
+  if (
+    normalizedName.includes('볶음') ||
+    normalizedName.includes('전') ||
+    normalizedName.includes('덮밥') ||
+    normalizedName.includes('구이')
+  ) {
     return '🍳';
   }
-  if (normalizedName.includes('파스타') || normalizedName.includes('국수')) {
+
+  if (
+    normalizedName.includes('파스타') ||
+    normalizedName.includes('국수')
+  ) {
     return '🍝';
   }
 
-  return '🍽️';
+  return '🥘';
 }
 
 function buildPaginationNumbers(currentPage, totalPages) {

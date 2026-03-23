@@ -5,7 +5,6 @@ import {
   applyFilters,
   formatCurrency,
   formatPercent,
-  getDiscountRate,
   getSavingAmount,
   isSingleHouseholdFriendly,
 } from './productUiUtils';
@@ -33,9 +32,7 @@ export default function ProductListPage({
         ) / filteredProducts.length
       )
     : 0;
-  const sellingProducts = products.filter(
-    (product) => product.saleStatus === 'SELLING'
-  );
+  const sellingProducts = products.filter((product) => product.saleStatus === 'SELLING');
   const seasonalCount = sellingProducts.filter(
     (product) => product.isSeasonal === 'Y'
   ).length;
@@ -52,10 +49,9 @@ export default function ProductListPage({
         <div>
           <span className="eyebrow">Products</span>
           <h1>오늘의 상품 보기</h1>
-          <p>
-            지금 사기 좋은 상품을 한눈에 보고, 가격과 구성까지 비교해보세요.
-          </p>
+          <p>지금 담기 좋은 상품을 비교하고, 원하는 조건으로 빠르게 골라보세요.</p>
         </div>
+
         <div className="page-actions">
           <TagChip
             active={filters.tags.includes('UNDER_AVG')}
@@ -84,7 +80,7 @@ export default function ProductListPage({
         <article className="quick-card soft-yellow">
           <div className="quick-label">평균 절약 예상</div>
           <div className="quick-value">{formatCurrency(averageSaving)}</div>
-          <div className="section-sub">상품 1개 기준 예상 절약 금액</div>
+          <div className="section-sub">상품 1개 기준 절약 예상 금액</div>
         </article>
         <article className="quick-card">
           <div className="quick-label">제철 상품</div>
@@ -94,7 +90,7 @@ export default function ProductListPage({
         <article className="quick-card">
           <div className="quick-label">1인 가구 추천</div>
           <div className="quick-value">{readyForSingleCount}개</div>
-          <div className="section-sub">소분 구매에 잘 맞는 구성</div>
+          <div className="section-sub">소분 구매에 맞는 구성</div>
         </article>
       </section>
 
@@ -104,14 +100,14 @@ export default function ProductListPage({
 
           <div className="side-group">
             <div className="side-title small-title">카테고리</div>
-            <div className="check-list">
-              <FilterButton
+            <div className="filter-option-list">
+              <FilterOptionButton
                 active={filters.category === 'ALL'}
                 label="전체"
                 onClick={() => onUpdateFilter('category', 'ALL')}
               />
               {categories.map((categoryName) => (
-                <FilterButton
+                <FilterOptionButton
                   key={categoryName}
                   active={filters.category === categoryName}
                   label={categoryName}
@@ -123,25 +119,23 @@ export default function ProductListPage({
 
           <div className="side-group">
             <div className="side-title small-title">가격 조건</div>
-            <div className="check-list">
-              <FilterButton
+            <div className="filter-option-list">
+              <FilterOptionButton
                 active={filters.priceRange === 'ALL'}
                 label="전체"
                 onClick={() => onUpdateFilter('priceRange', 'ALL')}
               />
-              <FilterButton
+              <FilterOptionButton
                 active={filters.priceRange === 'UNDER_3000'}
                 label="3천원 미만"
                 onClick={() => onUpdateFilter('priceRange', 'UNDER_3000')}
               />
-              <FilterButton
+              <FilterOptionButton
                 active={filters.priceRange === 'FROM_3000_TO_5000'}
                 label="3천원~5천원"
-                onClick={() =>
-                  onUpdateFilter('priceRange', 'FROM_3000_TO_5000')
-                }
+                onClick={() => onUpdateFilter('priceRange', 'FROM_3000_TO_5000')}
               />
-              <FilterButton
+              <FilterOptionButton
                 active={filters.priceRange === 'OVER_5000'}
                 label="5천원 이상"
                 onClick={() => onUpdateFilter('priceRange', 'OVER_5000')}
@@ -183,12 +177,11 @@ export default function ProductListPage({
                   type="text"
                   placeholder="상품명, 원산지, 설명으로 검색"
                   value={filters.search}
-                  onChange={(event) =>
-                    onUpdateFilter('search', event.target.value)
-                  }
+                  onChange={(event) => onUpdateFilter('search', event.target.value)}
                 />
                 <SearchIcon />
               </label>
+
               <div className="chips">
                 <TagChip
                   active={filters.sort === 'RECOMMENDED'}
@@ -202,7 +195,7 @@ export default function ProductListPage({
                 />
                 <TagChip
                   active={filters.sort === 'HIGH_SAVING'}
-                  label="절약 큰 순"
+                  label="절약 높은 순"
                   onClick={() => onUpdateFilter('sort', 'HIGH_SAVING')}
                 />
                 <TagChip
@@ -212,9 +205,8 @@ export default function ProductListPage({
                 />
               </div>
             </div>
-            <div className="section-sub">
-              총 {filteredProducts.length}개 상품을 보고 있어요.
-            </div>
+
+            <div className="section-sub">총 {filteredProducts.length}개 상품을 보고 있어요.</div>
           </section>
 
           {filteredProducts.length ? (
@@ -259,10 +251,10 @@ function TagChip({ active, label, onClick }) {
   );
 }
 
-function FilterButton({ active, label, onClick }) {
+function FilterOptionButton({ active, label, onClick }) {
   return (
     <button
-      className={`check ${active ? 'active' : ''}`}
+      className={`filter-option ${active ? 'active' : ''}`}
       type="button"
       onClick={onClick}
     >
@@ -301,16 +293,18 @@ function ProductCard({
             src={mainImage.imageUrl}
           />
         ) : null}
+
         <div className="product-badge-row">
           <button
+            aria-label={isWished ? '찜 해제' : '찜하기'}
             className={`icon-circle ${isWished ? 'active' : ''}`}
             type="button"
-            aria-label={isWished ? '찜 해제' : '찜하기'}
             onClick={() => onToggleWishlist(product.productNo)}
           >
             <HeartIcon filled={isWished} />
           </button>
         </div>
+
         {!hasImage ? <div className="product-symbol">{product.display.symbol}</div> : null}
       </div>
 
@@ -319,43 +313,47 @@ function ProductCard({
           <span className="meta-pill">{product.categoryName}</span>
           <span className="product-stock">재고 {product.stockQty}개</span>
         </div>
-        <div className="product-name">{product.productName}</div>
+
+        <button
+          className="product-name-button"
+          type="button"
+          onClick={() => onOpenProduct(product.productNo)}
+        >
+          <h2 className="product-name">{product.productName}</h2>
+        </button>
+
         <div className="product-meta">
           {product.origin} · {product.packageWeight}
           {product.unit}
         </div>
+
         <div className="price-row">
           <div className="price">{formatCurrency(product.salePrice)}</div>
           <div className="discount-copy">
-            평균가 대비 {formatCurrency(getSavingAmount(product))} 절약
+            평균가 대비 {formatCurrency(getSavingAmount(product))} ·{' '}
+            {formatPercent(product.priceMatch.savingRate)} 절약
           </div>
         </div>
-        <div className="avg">
-          평균가 {formatCurrency(product.priceSnapshot.avgPrice)} ·{' '}
-          {formatPercent(getDiscountRate(product))}
-        </div>
-      </div>
 
-      <div className="product-foot">
-        <button
-          className="btn-soft"
-          type="button"
-          onClick={() => onAddToCart(product.productNo)}
-          disabled={isSoldOut || isCartFull}
-        >
-          {isSoldOut
-            ? '품절'
-            : isCartFull
-              ? '재고만큼 담음'
-              : `장바구니 담기${cartQuantity > 0 ? ` (${cartQuantity})` : ''}`}
-        </button>
-        <button
-          className="btn-outline compact-btn"
-          type="button"
-          onClick={() => onOpenProduct(product.productNo)}
-        >
-          상세 보기
-        </button>
+        <div className="avg">평균가 {formatCurrency(product.priceSnapshot.avgPrice)}</div>
+
+        <div className="product-foot">
+          <button
+            className="btn-outline"
+            type="button"
+            onClick={() => onOpenProduct(product.productNo)}
+          >
+            상세 보기
+          </button>
+          <button
+            className="btn"
+            type="button"
+            onClick={() => onAddToCart(product.productNo, 1)}
+            disabled={isSoldOut || isCartFull}
+          >
+            {isSoldOut ? '품절' : isCartFull ? '재고 한도 도달' : '장바구니 담기'}
+          </button>
+        </div>
       </div>
     </article>
   );

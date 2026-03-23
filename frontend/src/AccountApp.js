@@ -96,6 +96,19 @@ const EMPTY_REVIEW_FORM = {
   removeImage: false,
 };
 
+function notifyReviewChange(productNo) {
+  const safeProductNo = Number(productNo);
+  if (!Number.isFinite(safeProductNo) || safeProductNo <= 0) {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent('oneulFarm:review-change', {
+      detail: { productNo: safeProductNo },
+    })
+  );
+}
+
 const ACCOUNT_ROUTES = {
   dashboard: '#/dashboard',
   mypage: '#/mypage',
@@ -1210,6 +1223,7 @@ function AccountApp({ authUser: initialAuthUser }) {
     setReviewEditor({
       mode: 'create',
       reviewNo: null,
+      productNo: review.productNo,
       productName: review.productName,
       orderId: review.orderId,
       imageNo: review.imageNo || null,
@@ -1229,6 +1243,7 @@ function AccountApp({ authUser: initialAuthUser }) {
     setReviewEditor({
       mode: 'edit',
       reviewNo: review.reviewNo,
+      productNo: review.productNo,
       productName: review.productName,
       orderId: review.orderId,
       imageNo: review.imageNo || null,
@@ -1313,6 +1328,7 @@ function AccountApp({ authUser: initialAuthUser }) {
       );
 
       await loadReviewsData();
+      notifyReviewChange(reviewEditor?.productNo);
       handleCancelReviewEditor();
       return true;
     } catch (error) {
@@ -1333,6 +1349,15 @@ function AccountApp({ authUser: initialAuthUser }) {
       return;
     }
 
+    const targetReview = myReviews.find(
+      (currentReview) => Number(currentReview.reviewNo) === Number(reviewNo)
+    );
+    const targetProductNo =
+      targetReview?.productNo ||
+      (reviewEditor?.mode === 'edit' && reviewEditor.reviewNo === reviewNo
+        ? reviewEditor.productNo
+        : null);
+
     setDeletingReviewNo(reviewNo);
     setReviewsError('');
 
@@ -1346,6 +1371,7 @@ function AccountApp({ authUser: initialAuthUser }) {
         '리뷰 삭제에 실패했습니다.'
       );
       await loadReviewsData();
+      notifyReviewChange(targetProductNo);
 
       if (reviewEditor?.mode === 'edit' && reviewEditor.reviewNo === reviewNo) {
         handleCancelReviewEditor();
