@@ -64,11 +64,51 @@ public interface AdminDao {
 
     int updateAdminDeliveryForDelivered(Long orderNo);
 
+    int deleteReviewImagesByOrder(Long orderNo);
+
+    int deleteReviewsByOrder(Long orderNo);
+
+    int deletePaymentByOrder(Long orderNo);
+
+    int deleteDeliveryByOrder(Long orderNo);
+
+    int deleteOrderItemsByOrder(Long orderNo);
+
+    int deleteOrder(Long orderNo);
+
     List<UserProfileDto> findAdminUsers();
 
     UserProfileDto findAdminUser(Long userNo);
 
     int updateAdminUserStatus(Long userNo, String status);
+
+    int countPackageHistoriesByUser(Long userNo);
+
+    int deleteReviewImagesByUser(Long userNo);
+
+    int deleteReviewsByUser(Long userNo);
+
+    int deleteWishlistByUser(Long userNo);
+
+    int deleteCartItemsByUser(Long userNo);
+
+    int deleteCartByUser(Long userNo);
+
+    int deleteUserAddresses(Long userNo);
+
+    int deleteTermsAgreementsByUser(Long userNo);
+
+    int deleteUserMonthlyStats(Long userNo);
+
+    int deletePaymentsByUser(Long userNo);
+
+    int deleteDeliveriesByUser(Long userNo);
+
+    int deleteOrderItemsByUser(Long userNo);
+
+    int deleteOrdersByUser(Long userNo);
+
+    int deleteAdminUser(Long userNo);
 
     List<PurchaseBatchDto> findPurchaseBatches();
 

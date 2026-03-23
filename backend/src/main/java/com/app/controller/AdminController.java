@@ -100,6 +100,14 @@ public class AdminController {
         return ApiResponse.success(adminService.updateOrder(orderNo, request), "Admin order updated.");
     }
 
+    @DeleteMapping("/orders/{orderNo}")
+    public ApiResponse<Void> deleteOrder(
+        @PathVariable Long orderNo
+    ) {
+        adminService.deleteOrder(orderNo);
+        return ApiResponse.success(null, "Admin order deleted.");
+    }
+
     @GetMapping("/users")
     public ApiResponse<List<UserProfileDto>> getUsers() {
         return ApiResponse.success(adminService.getUsers(), "Admin users loaded.");
@@ -111,6 +119,14 @@ public class AdminController {
         @RequestBody UserProfileDto request
     ) {
         return ApiResponse.success(adminService.updateUserStatus(userNo, request), "Admin user updated.");
+    }
+
+    @DeleteMapping("/users/{userNo}")
+    public ApiResponse<Void> deleteUser(
+        @PathVariable Long userNo
+    ) {
+        adminService.deleteUser(userNo);
+        return ApiResponse.success(null, "Admin user deleted.");
     }
 
     @GetMapping("/purchases")

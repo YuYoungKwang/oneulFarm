@@ -3,7 +3,7 @@ import { openAdminPage } from '../admin/adminSession';
 import { CartIcon, SearchIcon } from './ProductIcons';
 
 const NAV_ITEMS = [
-  { id: 'market', label: '시세분석', hash: '#/dashboard', section: 'market' },
+  { id: 'market', label: '시세분석', hash: '#/price-analysis', section: 'market' },
   { id: 'products', label: '상품', hash: '#/products', section: 'products' },
   { id: 'recipes', label: '레시피', hash: '#/recipes', section: 'recipes' },
   { id: 'recommend', label: '추천', hash: '#/recommend', section: 'recommend' },

@@ -76,6 +76,10 @@ export function parseHash(hash) {
     return { page: 'recipes' };
   }
 
+  if (segments[0] === 'price-analysis') {
+    return { page: 'price-analysis' };
+  }
+
   if (segments[0] === 'products' && segments[1]) {
     const productNo = Number(segments[1]);
 
@@ -84,12 +88,10 @@ export function parseHash(hash) {
       : { page: 'product-detail', productNo };
   }
 
-  // 로그인 라우트 추가
   if (segments[0] === 'login') {
     return { page: 'login' };
   }
 
-  // 회원가입 라우트 추가
   if (segments[0] === 'signup') {
     return { page: 'signup' };
   }

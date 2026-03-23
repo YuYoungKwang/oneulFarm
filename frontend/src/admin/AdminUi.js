@@ -1,5 +1,46 @@
 export const adminCurrencyFormatter = new Intl.NumberFormat('ko-KR');
 
+function toAdminDate(value) {
+  if (!value) {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    const [year, month, day, hour = 0, minute = 0, second = 0, nano = 0] = value;
+    if (!year || !month || !day) {
+      return null;
+    }
+
+    return new Date(
+      year,
+      month - 1,
+      day,
+      hour,
+      minute,
+      second,
+      Math.floor(Number(nano || 0) / 1000000)
+    );
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDateParts(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hour24 = date.getHours();
+  const minute = String(date.getMinutes()).padStart(2, '0');
+  const meridiem = hour24 < 12 ? '오전' : '오후';
+  const hour12 = String(hour24 % 12 || 12).padStart(2, '0');
+
+  return {
+    date: `${year}.${month}.${day}.`,
+    time: `${meridiem} ${hour12}:${minute}`,
+  };
+}
+
 export function formatAdminCurrency(value) {
   return `${adminCurrencyFormatter.format(Math.round(Number(value || 0)))}원`;
 }
@@ -13,37 +54,30 @@ export function formatAdminDate(value) {
     return '-';
   }
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
+  const date = toAdminDate(value);
+  if (!date) {
+    return String(value);
   }
 
-  return date.toLocaleString('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const { date: datePart, time } = formatDateParts(date);
+  return `${datePart} ${time}`;
+}
+
+export function formatAdminDateParts(value) {
+  if (!value) {
+    return { date: '-', time: '' };
+  }
+
+  const date = toAdminDate(value);
+  if (!date) {
+    return { date: String(value), time: '' };
+  }
+
+  return formatDateParts(date);
 }
 
 export function formatAdminDateTime(value) {
-  if (!value) {
-    return '-';
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatAdminDate(value);
 }
 
 export function getStatusTone(status) {
@@ -94,27 +128,19 @@ export function AdminStatusBadge({ status }) {
   return <span className={`admin-badge admin-badge--${tone}`}>{getStatusLabel(status)}</span>;
 }
 
-export function AdminPageHeader({
-  title,
-  description,
-  actions,
-}) {
+export function AdminPageHeader({ title, description, actions }) {
   return (
     <div className="admin-page-head">
       <div>
         <h1>{title}</h1>
-        <p>{description}</p>
+        {description ? <p>{description}</p> : null}
       </div>
       {actions ? <div className="admin-page-actions">{actions}</div> : null}
     </div>
   );
 }
 
-export function AdminMetricCard({
-  label,
-  value,
-  helper,
-}) {
+export function AdminMetricCard({ label, value, helper }) {
   return (
     <article className="admin-card admin-metric-card">
       <div className="admin-metric-card__label">{label}</div>
@@ -124,10 +150,7 @@ export function AdminMetricCard({
   );
 }
 
-export function AdminEmptyState({
-  title,
-  description,
-}) {
+export function AdminEmptyState({ title, description }) {
   return (
     <div className="admin-empty-state">
       <strong>{title}</strong>

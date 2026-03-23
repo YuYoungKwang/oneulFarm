@@ -163,6 +163,36 @@ public class AdminDaoImpl implements AdminDao {
     }
 
     @Override
+    public int deleteReviewImagesByOrder(Long orderNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteAdminReviewImagesByOrder", orderNo);
+    }
+
+    @Override
+    public int deleteReviewsByOrder(Long orderNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteAdminReviewsByOrder", orderNo);
+    }
+
+    @Override
+    public int deletePaymentByOrder(Long orderNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteAdminPaymentByOrder", orderNo);
+    }
+
+    @Override
+    public int deleteDeliveryByOrder(Long orderNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteAdminDeliveryByOrder", orderNo);
+    }
+
+    @Override
+    public int deleteOrderItemsByOrder(Long orderNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteAdminOrderItemsByOrder", orderNo);
+    }
+
+    @Override
+    public int deleteOrder(Long orderNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteAdminOrder", orderNo);
+    }
+
+    @Override
     public List<UserProfileDto> findAdminUsers() {
         return sqlSessionTemplate.selectList(NAMESPACE + "selectAdminUsers");
     }
@@ -178,6 +208,76 @@ public class AdminDaoImpl implements AdminDao {
         params.put("userNo", userNo);
         params.put("status", status);
         return sqlSessionTemplate.update(NAMESPACE + "updateAdminUserStatus", params);
+    }
+
+    @Override
+    public int countPackageHistoriesByUser(Long userNo) {
+        return sqlSessionTemplate.selectOne(NAMESPACE + "countAdminPackageHistoriesByUser", userNo);
+    }
+
+    @Override
+    public int deleteReviewImagesByUser(Long userNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteAdminReviewImagesByUser", userNo);
+    }
+
+    @Override
+    public int deleteReviewsByUser(Long userNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteAdminReviewsByUserAccount", userNo);
+    }
+
+    @Override
+    public int deleteWishlistByUser(Long userNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteAdminWishlistByUser", userNo);
+    }
+
+    @Override
+    public int deleteCartItemsByUser(Long userNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteAdminCartItemsByUser", userNo);
+    }
+
+    @Override
+    public int deleteCartByUser(Long userNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteAdminCartByUser", userNo);
+    }
+
+    @Override
+    public int deleteUserAddresses(Long userNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteAdminUserAddresses", userNo);
+    }
+
+    @Override
+    public int deleteTermsAgreementsByUser(Long userNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteAdminTermsAgreementsByUser", userNo);
+    }
+
+    @Override
+    public int deleteUserMonthlyStats(Long userNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteAdminUserMonthlyStats", userNo);
+    }
+
+    @Override
+    public int deletePaymentsByUser(Long userNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteAdminPaymentsByUser", userNo);
+    }
+
+    @Override
+    public int deleteDeliveriesByUser(Long userNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteAdminDeliveriesByUser", userNo);
+    }
+
+    @Override
+    public int deleteOrderItemsByUser(Long userNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteAdminOrderItemsByUser", userNo);
+    }
+
+    @Override
+    public int deleteOrdersByUser(Long userNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteAdminOrdersByUser", userNo);
+    }
+
+    @Override
+    public int deleteAdminUser(Long userNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteAdminUser", userNo);
     }
 
     @Override

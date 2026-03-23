@@ -134,7 +134,7 @@ public class AdminServiceImpl implements AdminService {
         if (adminDao.countOrderItemsByProduct(productNo) > 0) {
             throw new ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
-                "Ordered products cannot be permanently deleted."
+                "Products with order history cannot be deleted. Remove completed delivered orders from order management first."
             );
         }
 
@@ -230,8 +230,41 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @Transactional
+    public void deleteOrder(Long orderNo) {
+        OrderDto currentOrder = getOrderDetail(orderNo);
+        if (!"COMPLETED".equals(currentOrder.getOrderStatus())
+            || !"DELIVERED".equals(currentOrder.getDeliveryStatus())) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Only completed delivered orders can be removed."
+            );
+        }
+
+        adminDao.deleteReviewImagesByOrder(orderNo);
+        adminDao.deleteReviewsByOrder(orderNo);
+        adminDao.deletePaymentByOrder(orderNo);
+        adminDao.deleteDeliveryByOrder(orderNo);
+        adminDao.deleteOrderItemsByOrder(orderNo);
+
+        int deletedCount = adminDao.deleteOrder(orderNo);
+        if (deletedCount == 0) {
+            throw new ResponseStatusException(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Failed to remove order."
+            );
+        }
+    }
+
+    @Override
     public List<UserProfileDto> getUsers() {
-        List<UserProfileDto> users = adminDao.findAdminUsers();
+        List<UserProfileDto> users = new ArrayList<>();
+        for (UserProfileDto user : adminDao.findAdminUsers()) {
+            if (!shouldExposeUserInAdmin(user)) {
+                continue;
+            }
+            users.add(user);
+        }
         for (UserProfileDto user : users) {
             hydrateUserDefaults(user);
         }
@@ -261,6 +294,50 @@ public class AdminServiceImpl implements AdminService {
         }
         hydrateUserDefaults(user);
         return user;
+    }
+
+    @Override
+    @Transactional
+    public void deleteUser(Long userNo) {
+        UserProfileDto user = adminDao.findAdminUser(userNo);
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found.");
+        }
+
+        if (!"USER".equals(user.getRole())) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Only regular user accounts can be permanently deleted."
+            );
+        }
+
+        if (adminDao.countPackageHistoriesByUser(userNo) > 0) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Accounts with package history cannot be permanently deleted."
+            );
+        }
+
+        adminDao.deleteReviewImagesByUser(userNo);
+        adminDao.deleteReviewsByUser(userNo);
+        adminDao.deleteWishlistByUser(userNo);
+        adminDao.deleteCartItemsByUser(userNo);
+        adminDao.deleteCartByUser(userNo);
+        adminDao.deleteUserAddresses(userNo);
+        adminDao.deleteTermsAgreementsByUser(userNo);
+        adminDao.deleteUserMonthlyStats(userNo);
+        adminDao.deletePaymentsByUser(userNo);
+        adminDao.deleteDeliveriesByUser(userNo);
+        adminDao.deleteOrderItemsByUser(userNo);
+        adminDao.deleteOrdersByUser(userNo);
+
+        int deletedCount = adminDao.deleteAdminUser(userNo);
+        if (deletedCount == 0) {
+            throw new ResponseStatusException(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Failed to permanently delete user."
+            );
+        }
     }
 
     @Override
@@ -405,6 +482,33 @@ public class AdminServiceImpl implements AdminService {
         order.setPaidAmount(defaultAmount(order.getPaidAmount()));
     }
 
+    private boolean shouldExposeUserInAdmin(UserProfileDto user) {
+        if (user == null) {
+            return false;
+        }
+
+        if (!"USER".equals(user.getRole())) {
+            return false;
+        }
+
+        String userId = uppercase(trimToNull(user.getUserId()));
+        String email = uppercase(trimToNull(user.getEmail()));
+        String nickname = uppercase(trimToNull(user.getNickname()));
+
+        if (email != null && email.endsWith("@EXAMPLE.COM")) {
+            return false;
+        }
+
+        if ("DUPCHECK".equals(userId)) {
+            return false;
+        }
+
+        return !startsWith(userId, "FLAKY")
+            && !startsWith(nickname, "FLAKY")
+            && !contains(userId, "PROBE")
+            && !contains(email, "PROBE");
+    }
+
     private void normalizeProductRequest(ProductDto request) {
         request.setProductName(request.getProductName().trim());
         request.setOrigin(trimToNull(request.getOrigin()));
@@ -447,6 +551,18 @@ public class AdminServiceImpl implements AdminService {
 
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String uppercase(String value) {
+        return value == null ? null : value.toUpperCase();
+    }
+
+    private boolean startsWith(String source, String prefix) {
+        return source != null && source.startsWith(prefix);
+    }
+
+    private boolean contains(String source, String target) {
+        return source != null && source.contains(target);
     }
 
     private String resolveImageName(String originalFilename) {

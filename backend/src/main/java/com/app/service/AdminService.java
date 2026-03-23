@@ -31,9 +31,13 @@ public interface AdminService {
 
     OrderDto updateOrder(Long orderNo, OrderDto request);
 
+    void deleteOrder(Long orderNo);
+
     List<UserProfileDto> getUsers();
 
     UserProfileDto updateUserStatus(Long userNo, UserProfileDto request);
+
+    void deleteUser(Long userNo);
 
     List<PurchaseBatchDto> getPurchaseBatches();
 

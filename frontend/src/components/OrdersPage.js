@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   formatOrderDateTime,
   getDeliveryStatusLabel,
@@ -8,30 +7,37 @@ import {
 import { formatCurrency } from './productUiUtils';
 
 export default function OrdersPage({
-  onAdvanceStatus,
-  onOpenOrder,
   onReturnToProducts,
+  onSelectOrder,
   orders,
   selectedOrderId,
 }) {
-  const [statusFilter, setStatusFilter] = useState('ALL');
-
-  const filteredOrders = orders.filter((order) =>
-    statusFilter === 'ALL' ? true : order.orderStatus === statusFilter
-  );
+  const filteredOrders = orders;
   const selectedOrder =
     filteredOrders.find((order) => order.orderId === selectedOrderId) ||
     filteredOrders[0] ||
     null;
 
   const paidCount = orders.filter((order) => order.orderStatus === 'PAID').length;
-  const shippingCount = orders.filter(
-    (order) => order.orderStatus === 'SHIPPING'
-  ).length;
-  const completedCount = orders.filter(
-    (order) => order.orderStatus === 'COMPLETED'
-  ).length;
-  const monthlyAmount = orders.reduce((sum, order) => sum + order.finalAmount, 0);
+  const shippingCount = orders.filter((order) => order.orderStatus === 'SHIPPING').length;
+  const completedCount = orders.filter((order) => order.orderStatus === 'COMPLETED').length;
+  const monthlyAmount = orders.reduce(
+    (sum, order) => sum + Number(order.finalAmount || 0),
+    0
+  );
+
+  function handleSelectOrder(orderId) {
+    if (typeof onSelectOrder === 'function') {
+      onSelectOrder(orderId);
+    }
+  }
+
+  function handleKeyDown(event, orderId) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleSelectOrder(orderId);
+    }
+  }
 
   if (!orders.length) {
     return (
@@ -51,30 +57,8 @@ export default function OrdersPage({
       <section className="page-head">
         <div>
           <span className="eyebrow">Orders</span>
-          <h1>주문 상태 관리</h1>
-          <p>주문 상태와 배송 진행 상황을 한눈에 확인할 수 있습니다.</p>
-        </div>
-        <div className="page-actions">
-          <FilterChip
-            active={statusFilter === 'ALL'}
-            label="전체"
-            onClick={() => setStatusFilter('ALL')}
-          />
-          <FilterChip
-            active={statusFilter === 'PAID'}
-            label="결제 완료"
-            onClick={() => setStatusFilter('PAID')}
-          />
-          <FilterChip
-            active={statusFilter === 'SHIPPING'}
-            label="배송중"
-            onClick={() => setStatusFilter('SHIPPING')}
-          />
-          <FilterChip
-            active={statusFilter === 'COMPLETED'}
-            label="주문 완료"
-            onClick={() => setStatusFilter('COMPLETED')}
-          />
+          <h1>주문 내역</h1>
+          <p>주문 상태와 배송 현황을 확인할 수 있습니다.</p>
         </div>
       </section>
 
@@ -92,10 +76,10 @@ export default function OrdersPage({
         <article className="quick-card soft-green">
           <div className="quick-label">배송중</div>
           <div className="quick-value">{shippingCount}건</div>
-          <div className="section-sub">현재 이동 중인 주문</div>
+          <div className="section-sub">이동 중인 주문</div>
         </article>
         <article className="quick-card">
-          <div className="quick-label">완료 주문</div>
+          <div className="quick-label">주문 완료</div>
           <div className="quick-value">{completedCount}건</div>
           <div className="section-sub">{formatCurrency(monthlyAmount)} 누적</div>
         </article>
@@ -105,13 +89,16 @@ export default function OrdersPage({
         <div className="orders-list">
           {filteredOrders.map((order) => {
             const statusMeta = getOrderStatusMeta(order.orderStatus);
+            const isSelected = selectedOrder?.orderId === order.orderId;
 
             return (
               <article
                 key={order.orderId}
-                className={`order-card ${
-                  selectedOrder?.orderId === order.orderId ? 'active' : ''
-                }`}
+                className={`order-card ${isSelected ? 'active' : ''} is-selectable`}
+                onClick={() => handleSelectOrder(order.orderId)}
+                onKeyDown={(event) => handleKeyDown(event, order.orderId)}
+                role="button"
+                tabIndex={0}
               >
                 <div className="order-card-head">
                   <div>
@@ -120,9 +107,7 @@ export default function OrdersPage({
                       {formatOrderDateTime(order.orderedAt)} · {order.items.length}개 상품
                     </div>
                   </div>
-                  <span className={`status-pill ${statusMeta.tone}`}>
-                    {statusMeta.label}
-                  </span>
+                  <span className={`status-pill ${statusMeta.tone}`}>{statusMeta.label}</span>
                 </div>
 
                 <div className="order-card-items">
@@ -136,23 +121,10 @@ export default function OrdersPage({
                   ))}
                 </div>
 
-                <div className="order-actions">
-                  <button
-                    className="btn-outline compact-btn"
-                    type="button"
-                    onClick={() => onOpenOrder(order.orderId)}
-                  >
-                    상세 보기
-                  </button>
-                  {order.orderStatus === 'PAID' || order.orderStatus === 'SHIPPING' ? (
-                    <button
-                      className="btn compact-btn"
-                      type="button"
-                      onClick={() => onAdvanceStatus(order.orderId)}
-                    >
-                      {order.orderStatus === 'PAID' ? '배송 시작' : '배송 완료'}
-                    </button>
-                  ) : null}
+                <div className="section-sub order-card-hint">
+                  {isSelected
+                    ? '선택된 주문입니다.'
+                    : '카드를 누르면 주문 상세를 볼 수 있습니다.'}
                 </div>
               </article>
             );
@@ -173,9 +145,7 @@ export default function OrdersPage({
               </div>
               <div className="insight-item">
                 <strong>결제 수단</strong>
-                <span>
-                  {getPaymentMethodLabel(selectedOrder.payment.paymentMethod)}
-                </span>
+                <span>{getPaymentMethodLabel(selectedOrder.payment.paymentMethod)}</span>
               </div>
               <div className="insight-item">
                 <strong>결제 금액</strong>
@@ -183,9 +153,7 @@ export default function OrdersPage({
               </div>
               <div className="insight-item">
                 <strong>배송 상태</strong>
-                <span>
-                  {getDeliveryStatusLabel(selectedOrder.delivery.deliveryStatus)}
-                </span>
+                <span>{getDeliveryStatusLabel(selectedOrder.delivery.deliveryStatus)}</span>
               </div>
               <div className="insight-item">
                 <strong>배송지</strong>
@@ -213,17 +181,5 @@ export default function OrdersPage({
         ) : null}
       </section>
     </>
-  );
-}
-
-function FilterChip({ active, label, onClick }) {
-  return (
-    <button
-      className={`btn-chip ${active ? 'active' : ''}`}
-      type="button"
-      onClick={onClick}
-    >
-      {label}
-    </button>
   );
 }
