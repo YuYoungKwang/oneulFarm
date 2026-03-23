@@ -255,7 +255,30 @@
 .insight-item {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  text-align: left;
   font-size: 14px;
+  cursor: pointer;
+}
+
+.insight-item.is-active {
+  border-color: var(--green);
+  background: var(--green-soft);
+}
+
+.insight-item strong,
+.insight-item span {
+  pointer-events: none;
+}
+
+.insight-item span {
+  color: var(--green-dark);
+  font-weight: 700;
 }
 
 /* =========================

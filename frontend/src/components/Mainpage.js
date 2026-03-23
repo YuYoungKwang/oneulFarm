@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from "react";
-import HeroSlider from "./HeroSlider";
-
 import { fetchMainPage } from "../api/mainApi";
+import { fetchPriceTrendFromApi } from "../api/priceAnalysisApi";
+import HeroSlider from "./HeroSlider";
+import PriceTrendChart from "./price/PriceTrendChart";
 import "../styles/mainPage.css";
+import "../styles/priceAnalysis.css";
 
 const CATEGORY_CHIPS = [
   "전체",
-  "🌿 제철",
-  "🍎 과일",
-  "🥬 채소",
-  "🌾 곡물",
-  "🍄 버섯",
-  "💸 특가",
+  "제철 추천",
+  "과일",
+  "채소",
+  "곡물",
+  "버섯",
+  "할인 상품",
 ];
 
 const API_BASE_PREFIXES = buildApiBasePrefixes(
@@ -35,7 +37,7 @@ function buildApiBasePrefixes(explicitBaseUrl) {
 }
 
 function normalizeBaseUrl(value) {
-  const trimmedValue = value.trim();
+  const trimmedValue = String(value || "").trim();
   if (!trimmedValue) {
     return "";
   }
@@ -58,6 +60,39 @@ function formatRate(value) {
   return `${sign}${rate.toFixed(1)}%`;
 }
 
+function formatChartDate(value) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return `${date.getMonth() + 1}.${date.getDate()}`;
+}
+
+function buildTrendPoints(chartData) {
+  return (Array.isArray(chartData) ? chartData : [])
+    .map((item) => ({
+      date: item?.snapshotDate,
+      label: formatChartDate(item?.snapshotDate),
+      value: toNumber(item?.avgPrice),
+    }))
+    .filter((item) => item.date && Number.isFinite(item.value));
+}
+
+function normalizeTrendRows(rows) {
+  return (Array.isArray(rows) ? rows : [])
+    .map((row) => ({
+      date: row?.snapshotDate,
+      label: formatChartDate(row?.snapshotDate),
+      value: toNumber(row?.avgPrice),
+    }))
+    .filter((row) => row.date && Number.isFinite(row.value));
+}
+
 function getDiscountRate(product) {
   const salePrice = toNumber(product?.salePrice);
   const avgPrice = toNumber(product?.avgPrice, salePrice);
@@ -67,45 +102,6 @@ function getDiscountRate(product) {
   }
 
   return ((avgPrice - salePrice) / avgPrice) * 100;
-}
-
-function buildChartPoints(chartData) {
-  if (!Array.isArray(chartData) || chartData.length === 0) {
-    return "";
-  }
-
-  const width = 640;
-  const height = 280;
-  const paddingX = 70;
-  const paddingY = 40;
-  const values = chartData.map((item) => toNumber(item.avgPrice));
-  const minValue = Math.min(...values);
-  const maxValue = Math.max(...values);
-  const range = maxValue - minValue || 1;
-
-  return chartData
-    .map((item, index) => {
-      const x = paddingX + ((width - paddingX * 2) * index) / Math.max(chartData.length - 1, 1);
-      const y =
-        height -
-        paddingY -
-        ((height - paddingY * 2) * (toNumber(item.avgPrice) - minValue)) / range;
-      return `${x},${y}`;
-    })
-    .join(" ");
-}
-
-function applyAdminShortcutVisibility() {
-  const role = localStorage.getItem("farmsenseRole") || "guest";
-
-  document.querySelectorAll("[data-admin-shortcut]").forEach((element) => {
-    if (role === "admin") {
-      element.classList.remove("admin-nav-hidden");
-      return;
-    }
-
-    element.classList.add("admin-nav-hidden");
-  });
 }
 
 function getInsightLabel(product) {
@@ -125,13 +121,23 @@ function getProductImageSources(product) {
     ? product.images.find((image) => image?.isMain === "Y") || product.images[0]
     : null;
 
-  if (!mainImage?.imageNo) {
-    return [];
+  if (mainImage?.imageNo) {
+    return API_BASE_PREFIXES.map(
+      (basePrefix) => `${basePrefix}/api/image/product/${mainImage.imageNo}`
+    );
   }
 
-  return API_BASE_PREFIXES.map(
-    (basePrefix) => `${basePrefix}/api/image/product/${mainImage.imageNo}`
-  );
+  if (product?.imageNo) {
+    return API_BASE_PREFIXES.map(
+      (basePrefix) => `${basePrefix}/api/image/product/${product.imageNo}`
+    );
+  }
+
+  if (product?.imageUrl) {
+    return [product.imageUrl];
+  }
+
+  return [];
 }
 
 function handleImageError(event) {
@@ -161,7 +167,7 @@ function filterProducts(products, category) {
     return products;
   }
 
-  if (category.includes("특가")) {
+  if (category === "할인 상품") {
     return [...products]
       .filter((product) => {
         const salePrice = toNumber(product?.salePrice);
@@ -175,28 +181,26 @@ function filterProducts(products, category) {
   }
 
   return products.filter((product) => {
-    const name = product?.productName || "";
-    const categoryName = product?.categoryName || "";
-    const source = `${name} ${categoryName}`;
+    const source = `${product?.productName || ""} ${product?.categoryName || ""}`;
     const isSeasonal = product?.isSeasonal === "Y";
 
-    if (category.includes("과일")) {
-      return /사과|배|감귤|귤|딸기|포도|복숭아|바나나|오렌지/.test(source);
+    if (category === "과일") {
+      return /과일|사과|배|감귤|딸기|포도|복숭아|바나나|오렌지/.test(source);
     }
 
-    if (category.includes("채소")) {
-      return /양파|오이|토마토|감자|시금치|배추|무|상추|당근|호박|채소/.test(source);
+    if (category === "채소") {
+      return /채소|양파|대파|오이|토마토|감자|시금치|배추|무|상추|깻잎/.test(source);
     }
 
-    if (category.includes("버섯")) {
+    if (category === "버섯") {
       return /버섯/.test(source);
     }
 
-    if (category.includes("곡물")) {
-      return /쌀|콩|보리|현미|옥수수|곡물/.test(source);
+    if (category === "곡물") {
+      return /쌀|보리|콩|잡곡|곡물/.test(source);
     }
 
-    if (category.includes("제철")) {
+    if (category === "제철 추천") {
       return isSeasonal;
     }
 
@@ -209,10 +213,14 @@ function MainPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("전체");
+  const [selectedInsightKey, setSelectedInsightKey] = useState("");
+  const [trendState, setTrendState] = useState({
+    error: "",
+    loading: false,
+    rows: [],
+  });
 
   useEffect(() => {
-    applyAdminShortcutVisibility();
-
     let isMounted = true;
 
     async function loadMainPage() {
@@ -233,6 +241,7 @@ function MainPage() {
         if (!isMounted) {
           return;
         }
+
         setErrorMessage(error.message || "메인 데이터를 불러오지 못했습니다.");
       } finally {
         if (isMounted) {
@@ -249,14 +258,96 @@ function MainPage() {
   }, []);
 
   const { products, insights, chart, recipes } = mainData;
+
+  useEffect(() => {
+    if (!insights.length) {
+      setSelectedInsightKey("");
+      return;
+    }
+
+    const hasSelectedInsight = insights.some(
+      (insight) => String(insight?.productNo || "") === selectedInsightKey
+    );
+
+    if (!hasSelectedInsight) {
+      setSelectedInsightKey(String(insights[0]?.productNo || ""));
+    }
+  }, [insights, selectedInsightKey]);
+
+  const selectedInsight =
+    insights.find((insight) => String(insight?.productNo || "") === selectedInsightKey) ||
+    insights[0] ||
+    null;
+
+  useEffect(() => {
+    if (!selectedInsight?.itemCode) {
+      setTrendState({
+        error: "",
+        loading: false,
+        rows: [],
+      });
+      return;
+    }
+
+    let cancelled = false;
+    const abortController = new AbortController();
+
+    async function loadTrend() {
+      setTrendState({
+        error: "",
+        loading: true,
+        rows: [],
+      });
+
+      try {
+        const payload = await fetchPriceTrendFromApi({
+          days: 365,
+          itemCode: selectedInsight.itemCode,
+          marketType: selectedInsight.marketType || "RETAIL",
+          signal: abortController.signal,
+        });
+
+        if (cancelled) {
+          return;
+        }
+
+        setTrendState({
+          error: "",
+          loading: false,
+          rows: normalizeTrendRows(payload?.trend || payload || []),
+        });
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        setTrendState({
+          error: error?.message || "시세 추이를 불러오지 못했습니다.",
+          loading: false,
+          rows: [],
+        });
+      }
+    }
+
+    loadTrend();
+
+    return () => {
+      cancelled = true;
+      abortController.abort();
+    };
+  }, [selectedInsight]);
+
   const filteredProducts = filterProducts(products, selectedCategory);
   const hasFiltered = filteredProducts.length > 0;
   const displayProducts = hasFiltered ? filteredProducts : products;
-  const chartPoints = buildChartPoints(chart);
-  const featuredInsight = insights[0] || products[0] || null;
+  const trendPoints = trendState.rows.length ? trendState.rows : buildTrendPoints(chart);
+  const featuredInsight = selectedInsight || insights[0] || products[0] || null;
   const featuredRecipe = recipes[0] || null;
   const chartHeadline =
-    chart[chart.length - 1]?.itemName || featuredInsight?.itemName || "대표 품목";
+    selectedInsight?.itemName ||
+    chart[chart.length - 1]?.itemName ||
+    featuredInsight?.itemName ||
+    "대표 품목";
 
   return (
     <div className="page-shell">
@@ -282,14 +373,14 @@ function MainPage() {
           <div className="section-head">
             <div>
               <div className="section-title">추천 농산물</div>
-              <div className="section-sub">기존 Product, Price 데이터를 재사용한 추천 상품</div>
+              <div className="section-sub">상품과 시세 데이터를 기반으로 추천합니다.</div>
             </div>
-            <a href="#/products">전체 보기 →</a>
+            <a href="#/products">전체 보기</a>
           </div>
 
           {!isLoading && !hasFiltered && selectedCategory !== "전체" && products.length > 0 ? (
             <div className="section-sub" style={{ marginBottom: "10px" }}>
-              ⚠ 선택한 카테고리 상품이 없어 전체 추천 상품을 보여드립니다.
+              선택한 카테고리 상품이 없어 전체 추천 상품을 보여줍니다.
             </div>
           ) : null}
 
@@ -312,7 +403,7 @@ function MainPage() {
                         alt={product.productName}
                       />
                     ) : (
-                      <span>{product.productName?.slice(0, 1) || "🥬"}</span>
+                      <span>{product.productName?.slice(0, 1) || "?"}</span>
                     )}
                   </div>
                   <div className="product-name">{product.productName}</div>
@@ -321,7 +412,9 @@ function MainPage() {
                   </div>
                   <div className="price">{formatCurrency(product.salePrice)}</div>
                   {getDiscountRate(product) > 0 ? (
-                    <div className="discount">{getDiscountRate(product).toFixed(1)}% ↓</div>
+                    <div className="discount">
+                      {getDiscountRate(product).toFixed(1)}% 할인
+                    </div>
                   ) : null}
                 </a>
               );
@@ -356,13 +449,15 @@ function MainPage() {
               <div className="banner-title">오늘의 추천 레시피</div>
               <div className="banner-strong">
                 {featuredRecipe ? (
-                  <a href={`#/recipes/${featuredRecipe.recipeNo}`}>{featuredRecipe.recipeName}</a>
+                  <a href={`#/recipes/${featuredRecipe.recipeNo}`}>
+                    {featuredRecipe.recipeName}
+                  </a>
                 ) : (
                   "추천 레시피 준비 중"
                 )}
               </div>
               <div className="section-sub">
-                {featuredRecipe?.description || "기존 Recipe 데이터를 재사용해 노출합니다."}
+                {featuredRecipe?.description || "레시피 데이터를 기반으로 추천합니다."}
               </div>
               {featuredRecipe ? (
                 <div className="section-sub">
@@ -370,30 +465,27 @@ function MainPage() {
                 </div>
               ) : null}
             </div>
-            <div className="banner-illustration">🍲</div>
+            <div className="banner-illustration">🍳</div>
           </article>
         </div>
 
         <section className="section grid-2">
           <article className="card">
             <div className="card-title">시세 그래프</div>
-            <div className="card-sub">{chartHeadline} 최근 7건 평균가 추세</div>
+            <div className="card-sub">{chartHeadline} 최근 시세 추이</div>
 
             <div className="chart-shell">
-              {chartPoints ? (
-                <>
-                  <svg viewBox="0 0 640 280" width="100%" height="280">
-                    <polyline
-                      fill="none"
-                      stroke="#159a55"
-                      strokeWidth="4"
-                      points={chartPoints}
-                    />
-                  </svg>
-                  <div className="chart-caption">
-                    최신 평균가 {formatCurrency(chart[chart.length - 1]?.avgPrice)}
-                  </div>
-                </>
+              {trendState.loading ? (
+                <div className="section-sub">선택한 인사이트 기준 시세 추이를 불러오는 중입니다.</div>
+              ) : trendState.error ? (
+                <div className="section-error">{trendState.error}</div>
+              ) : trendPoints.length ? (
+                <PriceTrendChart
+                  points={trendPoints}
+                  productLabel={chartHeadline}
+                  subtitle="오른쪽 시세 인사이트 항목을 선택하면 해당 품목의 차트로 바뀝니다."
+                  title="가격 추세 차트"
+                />
               ) : (
                 <div className="section-empty">시세 그래프 데이터가 없습니다.</div>
               )}
@@ -403,12 +495,22 @@ function MainPage() {
           <article className="card">
             <div className="card-title">시세 인사이트</div>
             <div className="insight-list">
-              {insights.map((product) => (
-                <div className="insight-item" key={product.productNo}>
-                  <strong>{product.productName}</strong>
-                  <span style={{ color: "var(--green)" }}>{getInsightLabel(product)}</span>
-                </div>
-              ))}
+              {insights.map((product) => {
+                const isActive =
+                  String(product?.productNo || "") === String(selectedInsight?.productNo || "");
+
+                return (
+                  <button
+                    className={`insight-item ${isActive ? "is-active" : ""}`}
+                    key={product.productNo}
+                    type="button"
+                    onClick={() => setSelectedInsightKey(String(product.productNo))}
+                  >
+                    <strong>{product.productName}</strong>
+                    <span>{getInsightLabel(product)}</span>
+                  </button>
+                );
+              })}
               {!isLoading && insights.length === 0 ? (
                 <div className="section-empty">시세 인사이트 데이터가 없습니다.</div>
               ) : null}
@@ -418,7 +520,7 @@ function MainPage() {
 
         <section className="section grid-2">
           <article className="card">
-            <div className="card-title">대표 추천 상품</div>
+            <div className="card-title">오늘 추천 상품</div>
             {featuredInsight ? (
               <>
                 <div className="stat-value">{featuredInsight.productName}</div>
