@@ -98,7 +98,7 @@ const ACCOUNT_ROUTES = {
   dashboard: '#/dashboard',
   mypage: '#/mypage',
   activity: '#/mypage/activity',
-  orders: '#/orders',
+  orders: '#/mypage/orders',
 };
 
 function accountHeaders(authUser, includeJson = false) {

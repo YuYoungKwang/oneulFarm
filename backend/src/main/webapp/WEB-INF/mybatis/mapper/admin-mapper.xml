@@ -1,0 +1,812 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="adminMapper">
+
+    <resultMap id="AdminProductResultMap" type="com.app.dto.ProductDto">
+        <result property="productNo" column="productNo" />
+        <result property="categoryNo" column="categoryNo" />
+        <result property="categoryName" column="categoryName" />
+        <result property="productName" column="productName" />
+        <result property="origin" column="origin" />
+        <result property="unit" column="unit" />
+        <result property="packageWeight" column="packageWeight" />
+        <result property="salePrice" column="salePrice" />
+        <result property="stockQty" column="stockQty" />
+        <result property="description" column="description" />
+        <result property="isSeasonal" column="isSeasonal" />
+        <result property="saleStatus" column="saleStatus" />
+        <result property="createdAt" column="createdAt" />
+        <result property="updatedAt" column="updatedAt" />
+    </resultMap>
+
+    <resultMap id="AdminOrderResultMap" type="com.app.dto.OrderDto">
+        <result property="orderNo" column="orderNo" />
+        <result property="userNo" column="userNo" />
+        <result property="orderId" column="orderId" />
+        <result property="orderedAt" column="orderedAt" />
+        <result property="orderStatus" column="orderStatus" />
+        <result property="recipientName" column="recipientName" />
+        <result property="recipientPhone" column="recipientPhone" />
+        <result property="deliveryStatus" column="deliveryStatus" />
+        <result property="displayProductName" column="displayProductName" />
+        <result property="itemCount" column="itemCount" />
+        <result property="finalAmount" column="finalAmount" />
+        <result property="totalSavedAmount" column="totalSavedAmount" />
+        <result property="paymentMethod" column="paymentMethod" />
+        <result property="paymentStatus" column="paymentStatus" />
+        <result property="paidAmount" column="paidAmount" />
+        <result property="trackingNo" column="trackingNo" />
+        <result property="courierName" column="courierName" />
+    </resultMap>
+
+    <resultMap id="AdminOrderDetailResultMap" type="com.app.dto.OrderDto">
+        <result property="orderNo" column="orderNo" />
+        <result property="userNo" column="userNo" />
+        <result property="orderId" column="orderId" />
+        <result property="orderedAt" column="orderedAt" />
+        <result property="orderStatus" column="orderStatus" />
+        <result property="recipientName" column="recipientName" />
+        <result property="recipientPhone" column="recipientPhone" />
+        <result property="zipCode" column="zipCode" />
+        <result property="address1" column="address1" />
+        <result property="address2" column="address2" />
+        <result property="deliveryStatus" column="deliveryStatus" />
+        <result property="courierName" column="courierName" />
+        <result property="trackingNo" column="trackingNo" />
+        <result property="shippedAt" column="shippedAt" />
+        <result property="deliveredAt" column="deliveredAt" />
+        <result property="paymentMethod" column="paymentMethod" />
+        <result property="paymentStatus" column="paymentStatus" />
+        <result property="paidAt" column="paidAt" />
+        <result property="paidAmount" column="paidAmount" />
+        <result property="totalAmount" column="totalAmount" />
+        <result property="discountAmount" column="discountAmount" />
+        <result property="deliveryFee" column="deliveryFee" />
+        <result property="finalAmount" column="finalAmount" />
+    </resultMap>
+
+    <resultMap id="AdminUserResultMap" type="com.app.dto.UserProfileDto">
+        <result property="userNo" column="userNo" />
+        <result property="userId" column="userId" />
+        <result property="nickname" column="nickname" />
+        <result property="email" column="email" />
+        <result property="phone" column="phone" />
+        <result property="profileImageUrl" column="profileImageUrl" />
+        <result property="defaultAddress" column="defaultAddress" />
+        <result property="totalSavedAmount" column="totalSavedAmount" />
+        <result property="role" column="role" />
+        <result property="status" column="status" />
+        <result property="createdAt" column="createdAt" />
+        <result property="totalOrderCount" column="totalOrderCount" />
+        <result property="totalPurchaseAmount" column="totalPurchaseAmount" />
+    </resultMap>
+
+    <select id="selectProductCategories" resultType="com.app.dto.ProductCategoryDto">
+        SELECT
+            CATEGORY_NO AS categoryNo,
+            CATEGORY_NAME AS categoryName,
+            CREATED_AT AS createdAt
+        FROM OFT_PRODUCT_CATEGORY
+        ORDER BY CATEGORY_NAME ASC
+    </select>
+
+    <select id="selectAdminProducts" resultMap="AdminProductResultMap">
+        SELECT
+            p.PRODUCT_NO AS productNo,
+            p.CATEGORY_NO AS categoryNo,
+            c.CATEGORY_NAME AS categoryName,
+            p.PRODUCT_NAME AS productName,
+            p.ORIGIN AS origin,
+            p.UNIT AS unit,
+            p.PACKAGE_WEIGHT AS packageWeight,
+            p.SALE_PRICE AS salePrice,
+            p.STOCK_QTY AS stockQty,
+            p.DESCRIPTION AS description,
+            p.IS_SEASONAL AS isSeasonal,
+            p.SALE_STATUS AS saleStatus,
+            p.CREATED_AT AS createdAt,
+            p.UPDATED_AT AS updatedAt
+        FROM OFT_PRODUCT p
+        JOIN OFT_PRODUCT_CATEGORY c
+            ON c.CATEGORY_NO = p.CATEGORY_NO
+        ORDER BY p.UPDATED_AT DESC, p.PRODUCT_NO DESC
+    </select>
+
+    <select id="selectAdminProduct" parameterType="long" resultMap="AdminProductResultMap">
+        SELECT
+            p.PRODUCT_NO AS productNo,
+            p.CATEGORY_NO AS categoryNo,
+            c.CATEGORY_NAME AS categoryName,
+            p.PRODUCT_NAME AS productName,
+            p.ORIGIN AS origin,
+            p.UNIT AS unit,
+            p.PACKAGE_WEIGHT AS packageWeight,
+            p.SALE_PRICE AS salePrice,
+            p.STOCK_QTY AS stockQty,
+            p.DESCRIPTION AS description,
+            p.IS_SEASONAL AS isSeasonal,
+            p.SALE_STATUS AS saleStatus,
+            p.CREATED_AT AS createdAt,
+            p.UPDATED_AT AS updatedAt
+        FROM OFT_PRODUCT p
+        JOIN OFT_PRODUCT_CATEGORY c
+            ON c.CATEGORY_NO = p.CATEGORY_NO
+        WHERE p.PRODUCT_NO = #{_parameter}
+    </select>
+
+    <select id="selectNewestAdminProduct" parameterType="com.app.dto.ProductDto" resultMap="AdminProductResultMap">
+        SELECT *
+        FROM (
+            SELECT
+                p.PRODUCT_NO AS productNo,
+                p.CATEGORY_NO AS categoryNo,
+                c.CATEGORY_NAME AS categoryName,
+                p.PRODUCT_NAME AS productName,
+                p.ORIGIN AS origin,
+                p.UNIT AS unit,
+                p.PACKAGE_WEIGHT AS packageWeight,
+                p.SALE_PRICE AS salePrice,
+                p.STOCK_QTY AS stockQty,
+                p.DESCRIPTION AS description,
+                p.IS_SEASONAL AS isSeasonal,
+                p.SALE_STATUS AS saleStatus,
+                p.CREATED_AT AS createdAt,
+                p.UPDATED_AT AS updatedAt
+            FROM OFT_PRODUCT p
+            JOIN OFT_PRODUCT_CATEGORY c
+                ON c.CATEGORY_NO = p.CATEGORY_NO
+            WHERE p.CATEGORY_NO = #{categoryNo}
+              AND p.PRODUCT_NAME = #{productName}
+              AND NVL(p.ORIGIN, ' ') = NVL(#{origin}, ' ')
+              AND p.UNIT = #{unit}
+              AND p.PACKAGE_WEIGHT = #{packageWeight}
+              AND p.SALE_PRICE = #{salePrice}
+              AND p.STOCK_QTY = #{stockQty}
+              AND p.IS_SEASONAL = #{isSeasonal}
+              AND p.SALE_STATUS = #{saleStatus}
+            ORDER BY p.PRODUCT_NO DESC
+        )
+        WHERE ROWNUM = 1
+    </select>
+
+    <insert id="insertAdminProduct" parameterType="com.app.dto.ProductDto">
+        INSERT INTO OFT_PRODUCT (
+            CATEGORY_NO,
+            PRODUCT_NAME,
+            ORIGIN,
+            UNIT,
+            PACKAGE_WEIGHT,
+            SALE_PRICE,
+            STOCK_QTY,
+            DESCRIPTION,
+            IS_SEASONAL,
+            SALE_STATUS
+        ) VALUES (
+            #{categoryNo},
+            #{productName},
+            #{origin},
+            #{unit},
+            #{packageWeight},
+            #{salePrice},
+            #{stockQty},
+            #{description},
+            #{isSeasonal},
+            #{saleStatus}
+        )
+    </insert>
+
+    <update id="updateAdminProduct" parameterType="com.app.dto.ProductDto">
+        UPDATE OFT_PRODUCT
+        SET CATEGORY_NO = #{categoryNo},
+            PRODUCT_NAME = #{productName},
+            ORIGIN = #{origin},
+            UNIT = #{unit},
+            PACKAGE_WEIGHT = #{packageWeight},
+            SALE_PRICE = #{salePrice},
+            STOCK_QTY = #{stockQty},
+            DESCRIPTION = #{description},
+            IS_SEASONAL = #{isSeasonal},
+            SALE_STATUS = #{saleStatus}
+        WHERE PRODUCT_NO = #{productNo}
+    </update>
+
+    <select id="selectAdminProductImages" parameterType="long" resultType="com.app.dto.ProductImageDto">
+        SELECT
+            PRODUCT_NO AS productNo,
+            IMAGE_NO AS imageNo,
+            IMAGE_NAME AS imageName,
+            IMAGE_EXT AS imageExt,
+            MIME_TYPE AS mimeType,
+            IMAGE_SIZE AS imageSize,
+            SORT_ORDER AS sortOrder,
+            IS_MAIN AS isMain,
+            CREATED_AT AS createdAt
+        FROM OFT_PRODUCT_IMAGE
+        WHERE PRODUCT_NO = #{_parameter}
+        ORDER BY SORT_ORDER ASC, IMAGE_NO ASC
+    </select>
+
+    <delete id="deleteAdminProductImages" parameterType="long">
+        DELETE FROM OFT_PRODUCT_IMAGE
+        WHERE PRODUCT_NO = #{_parameter}
+    </delete>
+
+    <insert id="insertAdminProductImage" parameterType="com.app.dto.ProductImageDto">
+        INSERT INTO OFT_PRODUCT_IMAGE (
+            PRODUCT_NO,
+            IMAGE_NAME,
+            IMAGE_EXT,
+            MIME_TYPE,
+            IMAGE_SIZE,
+            IMAGE_DATA,
+            SORT_ORDER,
+            IS_MAIN
+        ) VALUES (
+            #{productNo},
+            #{imageName},
+            #{imageExt},
+            #{mimeType},
+            #{imageSize},
+            #{imageData, jdbcType=BLOB},
+            #{sortOrder},
+            #{isMain}
+        )
+    </insert>
+
+    <select id="countAdminOrderItemsByProduct" parameterType="long" resultType="int">
+        SELECT COUNT(*)
+        FROM OFT_ORDER_ITEM
+        WHERE PRODUCT_NO = #{_parameter}
+    </select>
+
+    <delete id="deleteAdminCartItemsByProduct" parameterType="long">
+        DELETE FROM OFT_CART_ITEM
+        WHERE PRODUCT_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminWishlistByProduct" parameterType="long">
+        DELETE FROM OFT_WISHLIST
+        WHERE PRODUCT_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminReviewImagesByProduct" parameterType="long">
+        DELETE FROM OFT_REVIEW_IMAGE
+        WHERE REVIEW_NO IN (
+            SELECT REVIEW_NO
+            FROM OFT_REVIEW
+            WHERE PRODUCT_NO = #{_parameter}
+        )
+    </delete>
+
+    <delete id="deleteAdminReviewsByProduct" parameterType="long">
+        DELETE FROM OFT_REVIEW
+        WHERE PRODUCT_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminProductRecipeMappings" parameterType="long">
+        DELETE FROM OFT_PRODUCT_RECIPE_MAP
+        WHERE PRODUCT_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminProductPriceMatches" parameterType="long">
+        DELETE FROM OFT_PRODUCT_PRICE_MATCH
+        WHERE PRODUCT_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminProductPriceCodeMaps" parameterType="long">
+        DELETE FROM OFT_PRODUCT_PRICE_CODE_MAP
+        WHERE PRODUCT_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminPackageHistoriesByProduct" parameterType="long">
+        DELETE FROM OFT_PACKAGE_HISTORY
+        WHERE PRODUCT_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminProduct" parameterType="long">
+        DELETE FROM OFT_PRODUCT
+        WHERE PRODUCT_NO = #{_parameter}
+    </delete>
+
+    <select id="selectAdminOrders" resultMap="AdminOrderResultMap">
+        SELECT
+            o.ORDER_NO AS orderNo,
+            o.USER_NO AS userNo,
+            o.ORDER_ID AS orderId,
+            o.ORDERED_AT AS orderedAt,
+            o.ORDER_STATUS AS orderStatus,
+            o.RECIPIENT_NAME AS recipientName,
+            o.RECIPIENT_PHONE AS recipientPhone,
+            NVL(d.DELIVERY_STATUS, 'READY') AS deliveryStatus,
+            CASE
+                WHEN oi.ITEM_COUNT &lt;= 1 THEN oi.FIRST_PRODUCT_NAME
+                ELSE oi.FIRST_PRODUCT_NAME || ' 외 ' || TO_CHAR(oi.ITEM_COUNT - 1) || '건'
+            END AS displayProductName,
+            oi.ITEM_COUNT AS itemCount,
+            o.FINAL_AMOUNT AS finalAmount,
+            oi.TOTAL_SAVED_AMOUNT AS totalSavedAmount,
+            p.PAYMENT_METHOD AS paymentMethod,
+            p.PAYMENT_STATUS AS paymentStatus,
+            p.PAID_AMOUNT AS paidAmount,
+            d.TRACKING_NO AS trackingNo,
+            d.COURIER_NAME AS courierName
+        FROM OFT_ORDERS o
+        LEFT JOIN OFT_DELIVERY d
+            ON d.ORDER_NO = o.ORDER_NO
+        LEFT JOIN OFT_PAYMENT p
+            ON p.ORDER_NO = o.ORDER_NO
+        JOIN (
+            SELECT
+                agg.ORDER_NO,
+                firstItem.PRODUCT_NAME AS FIRST_PRODUCT_NAME,
+                agg.ITEM_COUNT,
+                agg.TOTAL_SAVED_AMOUNT
+            FROM (
+                SELECT
+                    ORDER_NO,
+                    COUNT(*) AS ITEM_COUNT,
+                    SUM(NVL(SAVED_AMOUNT, 0)) AS TOTAL_SAVED_AMOUNT,
+                    MIN(ORDER_ITEM_NO) AS FIRST_ORDER_ITEM_NO
+                FROM OFT_ORDER_ITEM
+                GROUP BY ORDER_NO
+            ) agg
+            JOIN OFT_ORDER_ITEM firstItem
+                ON firstItem.ORDER_ITEM_NO = agg.FIRST_ORDER_ITEM_NO
+        ) oi
+            ON oi.ORDER_NO = o.ORDER_NO
+        ORDER BY o.ORDERED_AT DESC, o.ORDER_NO DESC
+    </select>
+
+    <select id="selectAdminOrderDetail" parameterType="long" resultMap="AdminOrderDetailResultMap">
+        SELECT
+            o.ORDER_NO AS orderNo,
+            o.USER_NO AS userNo,
+            o.ORDER_ID AS orderId,
+            o.ORDERED_AT AS orderedAt,
+            o.ORDER_STATUS AS orderStatus,
+            o.RECIPIENT_NAME AS recipientName,
+            o.RECIPIENT_PHONE AS recipientPhone,
+            o.ZIP_CODE AS zipCode,
+            o.ADDRESS1 AS address1,
+            o.ADDRESS2 AS address2,
+            NVL(d.DELIVERY_STATUS, 'READY') AS deliveryStatus,
+            d.COURIER_NAME AS courierName,
+            d.TRACKING_NO AS trackingNo,
+            d.SHIPPED_AT AS shippedAt,
+            d.DELIVERED_AT AS deliveredAt,
+            p.PAYMENT_METHOD AS paymentMethod,
+            p.PAYMENT_STATUS AS paymentStatus,
+            p.PAID_AT AS paidAt,
+            p.PAID_AMOUNT AS paidAmount,
+            o.TOTAL_AMOUNT AS totalAmount,
+            o.DISCOUNT_AMOUNT AS discountAmount,
+            o.DELIVERY_FEE AS deliveryFee,
+            o.FINAL_AMOUNT AS finalAmount
+        FROM OFT_ORDERS o
+        LEFT JOIN OFT_DELIVERY d
+            ON d.ORDER_NO = o.ORDER_NO
+        LEFT JOIN OFT_PAYMENT p
+            ON p.ORDER_NO = o.ORDER_NO
+        WHERE o.ORDER_NO = #{_parameter}
+    </select>
+
+    <update id="updateAdminOrderStatus" parameterType="map">
+        UPDATE OFT_ORDERS
+        SET ORDER_STATUS = #{orderStatus}
+        WHERE ORDER_NO = #{orderNo}
+    </update>
+
+    <update id="updateAdminDeliveryTracking" parameterType="map">
+        UPDATE OFT_DELIVERY
+        SET TRACKING_NO = #{trackingNo},
+            COURIER_NAME = #{courierName}
+        WHERE ORDER_NO = #{orderNo}
+    </update>
+
+    <update id="updateAdminDeliveryForShipping" parameterType="map">
+        UPDATE OFT_DELIVERY
+        SET DELIVERY_STATUS = 'SHIPPING',
+            TRACKING_NO = #{trackingNo},
+            COURIER_NAME = #{courierName},
+            SHIPPED_AT = NVL(SHIPPED_AT, SYSTIMESTAMP)
+        WHERE ORDER_NO = #{orderNo}
+    </update>
+
+    <update id="updateAdminDeliveryForDelivered" parameterType="long">
+        UPDATE OFT_DELIVERY
+        SET DELIVERY_STATUS = 'DELIVERED',
+            DELIVERED_AT = SYSTIMESTAMP
+        WHERE ORDER_NO = #{_parameter}
+    </update>
+
+    <delete id="deleteAdminReviewImagesByOrder" parameterType="long">
+        DELETE FROM OFT_REVIEW_IMAGE
+        WHERE REVIEW_NO IN (
+            SELECT REVIEW_NO
+            FROM OFT_REVIEW
+            WHERE ORDER_ITEM_NO IN (
+                SELECT ORDER_ITEM_NO
+                FROM OFT_ORDER_ITEM
+                WHERE ORDER_NO = #{_parameter}
+            )
+        )
+    </delete>
+
+    <delete id="deleteAdminReviewsByOrder" parameterType="long">
+        DELETE FROM OFT_REVIEW
+        WHERE ORDER_ITEM_NO IN (
+            SELECT ORDER_ITEM_NO
+            FROM OFT_ORDER_ITEM
+            WHERE ORDER_NO = #{_parameter}
+        )
+    </delete>
+
+    <delete id="deleteAdminPaymentByOrder" parameterType="long">
+        DELETE FROM OFT_PAYMENT
+        WHERE ORDER_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminDeliveryByOrder" parameterType="long">
+        DELETE FROM OFT_DELIVERY
+        WHERE ORDER_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminOrderItemsByOrder" parameterType="long">
+        DELETE FROM OFT_ORDER_ITEM
+        WHERE ORDER_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminOrder" parameterType="long">
+        DELETE FROM OFT_ORDERS
+        WHERE ORDER_NO = #{_parameter}
+    </delete>
+
+    <select id="selectAdminUsers" resultMap="AdminUserResultMap">
+        SELECT
+            u.USER_NO AS userNo,
+            u.USER_ID AS userId,
+            u.NICKNAME AS nickname,
+            u.EMAIL AS email,
+            u.PHONE AS phone,
+            u.PROFILE_IMAGE_URL AS profileImageUrl,
+            (
+                SELECT TRIM(a.ADDRESS1 || ' ' || NVL(a.ADDRESS2, ''))
+                FROM OFT_USER_ADDRESS a
+                WHERE a.USER_NO = u.USER_NO
+                  AND a.IS_DEFAULT = 'Y'
+            ) AS defaultAddress,
+            NVL(saved.TOTAL_SAVED_AMOUNT, 0) AS totalSavedAmount,
+            u.ROLE AS role,
+            u.STATUS AS status,
+            u.CREATED_AT AS createdAt,
+            NVL(ord.TOTAL_ORDER_COUNT, 0) AS totalOrderCount,
+            NVL(ord.TOTAL_PURCHASE_AMOUNT, 0) AS totalPurchaseAmount
+        FROM OFT_USERS u
+        LEFT JOIN (
+            SELECT
+                o.USER_NO,
+                COUNT(DISTINCT o.ORDER_NO) AS TOTAL_ORDER_COUNT,
+                SUM(NVL(o.FINAL_AMOUNT, 0)) AS TOTAL_PURCHASE_AMOUNT
+            FROM OFT_ORDERS o
+            GROUP BY o.USER_NO
+        ) ord
+            ON ord.USER_NO = u.USER_NO
+        LEFT JOIN (
+            SELECT
+                o.USER_NO,
+                SUM(NVL(oi.SAVED_AMOUNT, 0)) AS TOTAL_SAVED_AMOUNT
+            FROM OFT_ORDERS o
+            LEFT JOIN OFT_ORDER_ITEM oi
+                ON oi.ORDER_NO = o.ORDER_NO
+            GROUP BY o.USER_NO
+        ) saved
+            ON saved.USER_NO = u.USER_NO
+        ORDER BY u.CREATED_AT DESC, u.USER_NO DESC
+    </select>
+
+    <select id="selectAdminUser" parameterType="long" resultMap="AdminUserResultMap">
+        SELECT
+            u.USER_NO AS userNo,
+            u.USER_ID AS userId,
+            u.NICKNAME AS nickname,
+            u.EMAIL AS email,
+            u.PHONE AS phone,
+            u.PROFILE_IMAGE_URL AS profileImageUrl,
+            (
+                SELECT TRIM(a.ADDRESS1 || ' ' || NVL(a.ADDRESS2, ''))
+                FROM OFT_USER_ADDRESS a
+                WHERE a.USER_NO = u.USER_NO
+                  AND a.IS_DEFAULT = 'Y'
+            ) AS defaultAddress,
+            NVL(saved.TOTAL_SAVED_AMOUNT, 0) AS totalSavedAmount,
+            u.ROLE AS role,
+            u.STATUS AS status,
+            u.CREATED_AT AS createdAt,
+            NVL(ord.TOTAL_ORDER_COUNT, 0) AS totalOrderCount,
+            NVL(ord.TOTAL_PURCHASE_AMOUNT, 0) AS totalPurchaseAmount
+        FROM OFT_USERS u
+        LEFT JOIN (
+            SELECT
+                o.USER_NO,
+                COUNT(DISTINCT o.ORDER_NO) AS TOTAL_ORDER_COUNT,
+                SUM(NVL(o.FINAL_AMOUNT, 0)) AS TOTAL_PURCHASE_AMOUNT
+            FROM OFT_ORDERS o
+            GROUP BY o.USER_NO
+        ) ord
+            ON ord.USER_NO = u.USER_NO
+        LEFT JOIN (
+            SELECT
+                o.USER_NO,
+                SUM(NVL(oi.SAVED_AMOUNT, 0)) AS TOTAL_SAVED_AMOUNT
+            FROM OFT_ORDERS o
+            LEFT JOIN OFT_ORDER_ITEM oi
+                ON oi.ORDER_NO = o.ORDER_NO
+            GROUP BY o.USER_NO
+        ) saved
+            ON saved.USER_NO = u.USER_NO
+        WHERE u.USER_NO = #{_parameter}
+    </select>
+
+    <update id="updateAdminUserStatus" parameterType="map">
+        UPDATE OFT_USERS
+        SET STATUS = #{status}
+        WHERE USER_NO = #{userNo}
+    </update>
+
+    <select id="countAdminPackageHistoriesByUser" parameterType="long" resultType="int">
+        SELECT COUNT(*)
+        FROM OFT_PACKAGE_HISTORY
+        WHERE USER_NO = #{_parameter}
+    </select>
+
+    <delete id="deleteAdminReviewImagesByUser" parameterType="long">
+        DELETE FROM OFT_REVIEW_IMAGE
+        WHERE REVIEW_NO IN (
+            SELECT REVIEW_NO
+            FROM OFT_REVIEW
+            WHERE USER_NO = #{_parameter}
+        )
+    </delete>
+
+    <delete id="deleteAdminReviewsByUserAccount" parameterType="long">
+        DELETE FROM OFT_REVIEW
+        WHERE USER_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminWishlistByUser" parameterType="long">
+        DELETE FROM OFT_WISHLIST
+        WHERE USER_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminCartItemsByUser" parameterType="long">
+        DELETE FROM OFT_CART_ITEM
+        WHERE CART_NO IN (
+            SELECT CART_NO
+            FROM OFT_CART
+            WHERE USER_NO = #{_parameter}
+        )
+    </delete>
+
+    <delete id="deleteAdminCartByUser" parameterType="long">
+        DELETE FROM OFT_CART
+        WHERE USER_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminUserAddresses" parameterType="long">
+        DELETE FROM OFT_USER_ADDRESS
+        WHERE USER_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminTermsAgreementsByUser" parameterType="long">
+        DELETE FROM OFT_TERMS_AGREEMENT
+        WHERE USER_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminUserMonthlyStats" parameterType="long">
+        DELETE FROM OFT_USER_MONTHLY_STATS
+        WHERE USER_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminPaymentsByUser" parameterType="long">
+        DELETE FROM OFT_PAYMENT
+        WHERE ORDER_NO IN (
+            SELECT ORDER_NO
+            FROM OFT_ORDERS
+            WHERE USER_NO = #{_parameter}
+        )
+    </delete>
+
+    <delete id="deleteAdminDeliveriesByUser" parameterType="long">
+        DELETE FROM OFT_DELIVERY
+        WHERE ORDER_NO IN (
+            SELECT ORDER_NO
+            FROM OFT_ORDERS
+            WHERE USER_NO = #{_parameter}
+        )
+    </delete>
+
+    <delete id="deleteAdminOrderItemsByUser" parameterType="long">
+        DELETE FROM OFT_ORDER_ITEM
+        WHERE ORDER_NO IN (
+            SELECT ORDER_NO
+            FROM OFT_ORDERS
+            WHERE USER_NO = #{_parameter}
+        )
+    </delete>
+
+    <delete id="deleteAdminOrdersByUser" parameterType="long">
+        DELETE FROM OFT_ORDERS
+        WHERE USER_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminUser" parameterType="long">
+        DELETE FROM OFT_USERS
+        WHERE USER_NO = #{_parameter}
+    </delete>
+
+    <select id="selectPurchaseBatches" resultType="com.app.dto.PurchaseBatchDto">
+        SELECT
+            BATCH_NO AS batchNo,
+            PRODUCT_NAME AS productName,
+            ORIGIN AS origin,
+            PURCHASE_UNIT AS purchaseUnit,
+            PURCHASE_QTY AS purchaseQty,
+            PURCHASE_PRICE AS purchasePrice,
+            PURCHASE_DATE AS purchaseDate,
+            SUPPLIER_NAME AS supplierName,
+            STATUS AS status,
+            CREATED_AT AS createdAt
+        FROM OFT_PURCHASE_BATCH
+        ORDER BY PURCHASE_DATE DESC, BATCH_NO DESC
+    </select>
+
+    <select id="selectPurchaseBatch" parameterType="long" resultType="com.app.dto.PurchaseBatchDto">
+        SELECT
+            BATCH_NO AS batchNo,
+            PRODUCT_NAME AS productName,
+            ORIGIN AS origin,
+            PURCHASE_UNIT AS purchaseUnit,
+            PURCHASE_QTY AS purchaseQty,
+            PURCHASE_PRICE AS purchasePrice,
+            PURCHASE_DATE AS purchaseDate,
+            SUPPLIER_NAME AS supplierName,
+            STATUS AS status,
+            CREATED_AT AS createdAt
+        FROM OFT_PURCHASE_BATCH
+        WHERE BATCH_NO = #{_parameter}
+    </select>
+
+    <select id="selectNewestPurchaseBatch" parameterType="com.app.dto.PurchaseBatchDto" resultType="com.app.dto.PurchaseBatchDto">
+        SELECT *
+        FROM (
+            SELECT
+                BATCH_NO AS batchNo,
+                PRODUCT_NAME AS productName,
+                ORIGIN AS origin,
+                PURCHASE_UNIT AS purchaseUnit,
+                PURCHASE_QTY AS purchaseQty,
+                PURCHASE_PRICE AS purchasePrice,
+                PURCHASE_DATE AS purchaseDate,
+                SUPPLIER_NAME AS supplierName,
+                STATUS AS status,
+                CREATED_AT AS createdAt
+            FROM OFT_PURCHASE_BATCH
+            WHERE PRODUCT_NAME = #{productName}
+              AND NVL(ORIGIN, ' ') = NVL(#{origin}, ' ')
+              AND PURCHASE_UNIT = #{purchaseUnit}
+              AND PURCHASE_QTY = #{purchaseQty}
+              AND PURCHASE_PRICE = #{purchasePrice}
+              AND PURCHASE_DATE = #{purchaseDate}
+              AND NVL(SUPPLIER_NAME, ' ') = NVL(#{supplierName}, ' ')
+              AND STATUS = #{status}
+            ORDER BY BATCH_NO DESC
+        )
+        WHERE ROWNUM = 1
+    </select>
+
+    <insert id="insertPurchaseBatch" parameterType="com.app.dto.PurchaseBatchDto">
+        INSERT INTO OFT_PURCHASE_BATCH (
+            PRODUCT_NAME,
+            ORIGIN,
+            PURCHASE_UNIT,
+            PURCHASE_QTY,
+            PURCHASE_PRICE,
+            PURCHASE_DATE,
+            SUPPLIER_NAME,
+            STATUS
+        ) VALUES (
+            #{productName},
+            #{origin},
+            #{purchaseUnit},
+            #{purchaseQty},
+            #{purchasePrice},
+            #{purchaseDate},
+            #{supplierName},
+            #{status}
+        )
+    </insert>
+
+    <select id="selectPackageHistories" resultType="com.app.dto.PackageHistoryDto">
+        SELECT
+            PACKAGE_NO AS packageNo,
+            BATCH_NO AS batchNo,
+            PRODUCT_NO AS productNo,
+            PACKAGED_QTY AS packagedQty,
+            PACKAGED_WEIGHT AS packagedWeight,
+            PACKAGED_AT AS packagedAt,
+            NOTE AS note,
+            USER_NO AS userNo
+        FROM OFT_PACKAGE_HISTORY
+        ORDER BY PACKAGED_AT DESC, PACKAGE_NO DESC
+    </select>
+
+    <insert id="insertPackageHistory" parameterType="com.app.dto.PackageHistoryDto" useGeneratedKeys="true" keyProperty="packageNo">
+        INSERT INTO OFT_PACKAGE_HISTORY (
+            BATCH_NO,
+            PRODUCT_NO,
+            PACKAGED_QTY,
+            PACKAGED_WEIGHT,
+            NOTE,
+            USER_NO
+        ) VALUES (
+            #{batchNo},
+            #{productNo},
+            #{packagedQty},
+            #{packagedWeight},
+            #{note},
+            #{userNo}
+        )
+    </insert>
+
+    <update id="updatePurchaseBatchStatus" parameterType="map">
+        UPDATE OFT_PURCHASE_BATCH
+        SET STATUS = #{status}
+        WHERE BATCH_NO = #{batchNo}
+    </update>
+
+    <update id="increaseProductStock" parameterType="map">
+        UPDATE OFT_PRODUCT
+        SET STOCK_QTY = STOCK_QTY + #{quantity}
+        WHERE PRODUCT_NO = #{productNo}
+    </update>
+
+    <select id="selectMainBanners" resultType="com.app.dto.MainBannerDto">
+        SELECT
+            BANNER_NO AS bannerNo,
+            TITLE AS title,
+            IMAGE_NAME AS imageName,
+            IMAGE_EXT AS imageExt,
+            MIME_TYPE AS mimeType,
+            IMAGE_SIZE AS imageSize,
+            LINK_URL AS linkUrl,
+            SORT_ORDER AS sortOrder,
+            IS_ACTIVE AS isActive,
+            STARTED_AT AS startedAt,
+            ENDED_AT AS endedAt,
+            CREATED_AT AS createdAt
+        FROM OFT_MAIN_BANNER
+        ORDER BY SORT_ORDER ASC, BANNER_NO ASC
+    </select>
+
+    <select id="selectRecipeMappings" resultType="com.app.dto.ProductRecipeDto">
+        SELECT
+            prm.MAP_NO AS mapNo,
+            prm.PRODUCT_NO AS productNo,
+            p.PRODUCT_NAME AS productName,
+            prm.RECIPE_NO AS recipeNo,
+            r.RECIPE_NAME AS recipeName,
+            r.DESCRIPTION AS description,
+            r.COOK_TIME AS cookTime,
+            r.DIFFICULTY AS difficulty,
+            prm.MATCH_SCORE AS matchScore,
+            r.IMAGE_URL AS imageUrl
+        FROM OFT_PRODUCT_RECIPE_MAP prm
+        JOIN OFT_PRODUCT p
+            ON p.PRODUCT_NO = prm.PRODUCT_NO
+        JOIN OFT_RECIPE r
+            ON r.RECIPE_NO = prm.RECIPE_NO
+        ORDER BY prm.CREATED_AT DESC, prm.MAP_NO DESC
+    </select>
+
+</mapper>

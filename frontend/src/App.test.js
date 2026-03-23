@@ -5,8 +5,22 @@ import {
   DEFAULT_TOSS_CONFIG,
   fetchTossPaymentConfigFromApi,
 } from './api/paymentApi';
+import {
+  deleteAdminProduct,
+  fetchAdminBanners,
+  fetchAdminOrders,
+  fetchAdminPackageHistories,
+  fetchAdminProductCategories,
+  fetchAdminProducts,
+  fetchAdminPurchases,
+  fetchAdminRecipeMappings,
+  fetchAdminUsers,
+  saveAdminProduct,
+} from './admin/adminApi';
 import { fetchProductsFromApi } from './api/productApi';
 
+const mockImageUrl =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 jest.mock('./api/productApi', () => ({
   addCartItemToApi: jest.fn(),
   advanceOrderOnApi: jest.fn(),
@@ -33,6 +47,27 @@ jest.mock('./api/paymentApi', () => ({
   fetchTossPaymentConfigFromApi: jest.fn(),
 }));
 
+jest.mock('./admin/adminApi', () => ({
+  createAdminPackageHistory: jest.fn(),
+  createAdminPurchaseBatch: jest.fn(),
+  deleteAdminProduct: jest.fn(),
+  fetchAdminBanners: jest.fn(),
+  fetchAdminOrderDetail: jest.fn(),
+  fetchAdminOrders: jest.fn(),
+  fetchAdminPackageHistories: jest.fn(),
+  fetchAdminProductCategories: jest.fn(),
+  fetchAdminProducts: jest.fn(),
+  fetchAdminPurchases: jest.fn(),
+  fetchAdminRecipeMappings: jest.fn(),
+  fetchAdminUsers: jest.fn(),
+  getAdminBannerImageUrl: jest.fn(() => mockImageUrl),
+  getAdminProductImageUrl: jest.fn(() => mockImageUrl),
+  saveAdminProduct: jest.fn(),
+  triggerAdminRecipeSync: jest.fn(),
+  uploadAdminProductImages: jest.fn(),
+  updateAdminOrder: jest.fn(),
+  updateAdminUserStatus: jest.fn(),
+}));
 function buildProduct(overrides = {}) {
   const productNo = overrides.productNo ?? 1001;
   const productName =
@@ -85,6 +120,7 @@ function buildProduct(overrides = {}) {
           imageNo: productNo * 10 + 1,
           label: 'Image 1',
           symbol: 'OF',
+          imageUrl: mockImageUrl,
           note: 'Main image',
           isMain: 'Y',
           sortOrder: 1,
@@ -162,10 +198,35 @@ function buildStoredOrder() {
   );
 }
 
+function signInTestUser() {
+  window.localStorage.setItem(
+    'oneulFarmAuthUser',
+    JSON.stringify({
+      userNo: 1,
+      userId: 'heoryun',
+      nickname: '허륜',
+      accessToken: 'test-access-token',
+    })
+  );
+}
+
 describe('App', () => {
   beforeEach(() => {
     fetchProductsFromApi.mockResolvedValue(PRODUCT_FIXTURES);
     fetchTossPaymentConfigFromApi.mockResolvedValue(DEFAULT_TOSS_CONFIG);
+    fetchAdminProductCategories.mockResolvedValue([
+      { categoryNo: 1, categoryName: '\uCC44\uC18C' },
+    ]);
+    fetchAdminProducts.mockResolvedValue(PRODUCT_FIXTURES);
+    fetchAdminOrders.mockResolvedValue([]);
+    fetchAdminUsers.mockResolvedValue([]);
+    fetchAdminPurchases.mockResolvedValue([]);
+    fetchAdminPackageHistories.mockResolvedValue([]);
+    fetchAdminBanners.mockResolvedValue([]);
+    fetchAdminRecipeMappings.mockResolvedValue([]);
+    deleteAdminProduct.mockResolvedValue(null);
+    saveAdminProduct.mockResolvedValue(buildProduct({ productNo: 1001, saleStatus: 'STOP' }));
+    window.confirm = jest.fn(() => true);
   });
 
   afterEach(() => {
@@ -193,6 +254,7 @@ describe('App', () => {
 
     expect(await screen.findByText('\uC591\uD30C 1kg')).toBeInTheDocument();
     expect(screen.getByText('\uAC10\uC790 1kg')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '\uC591\uD30C 1kg' })).toBeInTheDocument();
   });
 
   test('\uD574\uC2DC \uACBD\uB85C\uC5D0 \uB530\uB77C \uC0C1\uD488 \uC0C1\uC138 \uD654\uBA74\uC774 \uB80C\uB354\uB9C1\uB41C\uB2E4', async () => {
@@ -207,6 +269,8 @@ describe('App', () => {
   });
 
   test('\uC0C1\uD488 \uD654\uBA74\uC758 \uB9C8\uC774\uD398\uC774\uC9C0 \uB124\uBE44\uB294 \uB9C8\uC774\uD398\uC774\uC9C0 \uACBD\uB85C\uB85C \uC774\uB3D9\uD55C\uB2E4', async () => {
+    window.location.hash = '#/products';
+
     render(<App />);
 
     await screen.findByText('\uC591\uD30C 1kg');
@@ -244,7 +308,39 @@ describe('App', () => {
     expect(afterLabels).toContain('\uB9C8\uC774\uD398\uC774\uC9C0');
   });
 
+  test('\uC0AC\uC6A9\uC790 \uB124\uBE44\uC5D0\uC11C \uAD00\uB9AC\uC790\uACC4\uC815 \uC804\uD658 \uBC84\uD2BC\uC73C\uB85C \uAD00\uB9AC\uC790 \uD398\uC774\uC9C0\uC5D0 \uC9C4\uC785\uD55C\uB2E4', async () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: '\uAD00\uB9AC\uC790\uACC4\uC815 \uC804\uD658' }));
+
+    await waitFor(() => {
+      expect(window.location.hash).toBe('#/admin');
+    });
+
+    expect(
+      await screen.findByRole('navigation', { name: '\uAD00\uB9AC\uC790 \uBA54\uB274' })
+    ).toBeInTheDocument();
+    expect(screen.getByText('oneulFarm')).toBeInTheDocument();
+  });
+
+  test('관리자 상품 목록에서 영구삭제 버튼으로 상품을 실제 삭제 요청할 수 있다', async () => {
+    window.location.hash = '#/admin/products';
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: '관리자 화면 열기' }));
+    fireEvent.click(await screen.findByRole('button', { name: '상품 관리' }));
+
+    const retireButtons = await screen.findAllByRole('button', { name: '영구삭제' });
+    fireEvent.click(retireButtons[0]);
+
+    await waitFor(() => {
+      expect(deleteAdminProduct).toHaveBeenCalledWith(1001);
+    });
+  });
+
   test('\uC7A5\uBC14\uAD6C\uB2C8 \uD398\uC774\uC9C0\uC5D0\uC11C \uC218\uB7C9 \uBCC0\uACBD\uACFC \uC0AD\uC81C\uAC00 \uAC00\uB2A5\uD558\uB2E4', async () => {
+    signInTestUser();
     window.localStorage.setItem(
       'oneulFarmCart',
       JSON.stringify({ 1002: 2, 1001: 1 })
@@ -268,6 +364,7 @@ describe('App', () => {
   });
 
   test('\uC8FC\uBB38\uC11C\uB97C \uC81C\uCD9C\uD558\uBA74 \uC8FC\uBB38 \uC644\uB8CC \uD654\uBA74\uC73C\uB85C \uC774\uB3D9\uD55C\uB2E4', async () => {
+    signInTestUser();
     window.localStorage.setItem('oneulFarmCart', JSON.stringify({ 1002: 2 }));
     window.location.hash = '#/checkout';
 
@@ -278,11 +375,11 @@ describe('App', () => {
     ).toBeInTheDocument();
 
     fireEvent.click(
-      screen.getByText('\uACB0\uC81C\uD558\uACE0 \uC8FC\uBB38 \uC0DD\uC131')
+      screen.getByText('\uC8FC\uBB38 \uC644\uB8CC\uD558\uAE30')
     );
 
     expect(
-      await screen.findByText('\uC8FC\uBB38\uC774 \uC644\uB8CC\uB418\uC5C8\uC2B5\uB2C8\uB2E4.')
+      await screen.findByText('\uC8FC\uBB38 \uC644\uB8CC!')
     ).toBeInTheDocument();
 
     await waitFor(() => {
@@ -299,7 +396,8 @@ describe('App', () => {
     });
   });
 
-  test('\uC8FC\uBB38 \uC0C1\uD0DC \uD654\uBA74\uC5D0\uC11C \uBC30\uC1A1 \uC0C1\uD0DC\uB97C \uB2E4\uC74C \uB2E8\uACC4\uB85C \uBCC0\uACBD\uD560 \uC218 \uC788\uB2E4', async () => {
+  test('\uC0AC\uC6A9\uC790 \uC8FC\uBB38 \uD654\uBA74\uC5D0\uC11C\uB294 \uBC30\uC1A1 \uC0C1\uD0DC\uB97C \uC9C1\uC811 \uBCC0\uACBD\uD560 \uC218 \uC5C6\uB2E4', async () => {
+    signInTestUser();
     const storedOrder = buildStoredOrder();
 
     window.localStorage.setItem(
@@ -310,17 +408,9 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByText('\uBC30\uC1A1 \uC2DC\uC791')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('\uBC30\uC1A1 \uC2DC\uC791'));
-
-    await waitFor(() => {
-      const storedOrders = JSON.parse(
-        window.localStorage.getItem('oneulFarmOrders') || '[]'
-      );
-
-      expect(storedOrders[0].orderStatus).toBe('SHIPPING');
-      expect(screen.getAllByText('\uBC30\uC1A1\uC911').length).toBeGreaterThan(0);
-    });
+    expect(await screen.findByText('\uC8FC\uBB38 \uB0B4\uC5ED')).toBeInTheDocument();
+    expect(screen.queryByText('\uBC30\uC1A1 \uC2DC\uC791')).not.toBeInTheDocument();
+    expect(screen.queryByText('\uBC30\uC1A1 \uC644\uB8CC')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '\uC0C1\uC138 \uBCF4\uAE30' })).not.toBeInTheDocument();
   });
 });

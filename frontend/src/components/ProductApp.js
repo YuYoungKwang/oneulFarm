@@ -7,7 +7,6 @@ import {
 } from '../api/paymentApi';
 import {
   addCartItemToApi,
-  advanceOrderOnApi,
   clearCartOnApi,
   createOrderOnApi,
   fetchCartFromApi,
@@ -19,12 +18,8 @@ import {
 } from '../api/productApi';
 import {
   clearPendingTossPayment,
-  createTossPaymentDraft,
-  isTossReady,
   readPendingTossPayment,
   readTossCallbackParams,
-  requestTossPayment,
-  storePendingTossPayment,
 } from '../payment/tossPayments';
 import CartPage from './CartPage';
 import CheckoutPage from './CheckoutPage';
@@ -34,9 +29,10 @@ import ProductDetailPage from './ProductDetailPage';
 import ProductListPage from './ProductListPage';
 import LoginPage from './LoginPage';
 import SignupPage from './SignupPage';
+import PriceAnalysisPage from './PriceAnalysisPage';
 import RecipeDetailPage from './RecipeDetailPage';
 import RecipeListPage from './RecipeListPage';
-import { advanceOrderStatus, createOrderFromCart } from './orderUiUtils';
+import { createOrderFromCart } from './orderUiUtils';
 import {
   DEFAULT_ROUTE,
   defaultFilters,
@@ -384,6 +380,7 @@ export default function ProductApp({ authUser }) {
   const currentDetailState =
     route.productNo != null ? productDetailStates[route.productNo] : '';
   const routeNeedsProducts =
+    route.page === 'price-analysis' ||
     route.page === 'cart' ||
     route.page === 'checkout' ||
     route.page === 'product-detail' ||
@@ -447,7 +444,16 @@ export default function ProductApp({ authUser }) {
     navigateToHash('#/checkout');
   }
 
-  function openOrders(orderId) {
+  function openMyOrders() {
+    if (!isLoggedIn) {
+      navigateToHash('#/login');
+      return;
+    }
+
+    navigateToHash('#/mypage/orders');
+  }
+
+  function openOrderPreview(orderId) {
     if (!isLoggedIn) {
       navigateToHash('#/login');
       return;
@@ -456,6 +462,12 @@ export default function ProductApp({ authUser }) {
     navigateToHash(
       orderId ? `#/orders/${encodeURIComponent(orderId)}` : '#/orders'
     );
+  }
+
+  function getProductStockLimit(productNo) {
+    const targetProduct = findProduct(products, productDetails, productNo);
+    const stockQty = Number(targetProduct?.stockQty || 0);
+    return Number.isFinite(stockQty) ? Math.max(stockQty, 0) : 0;
   }
 
   function toggleWishlist(productNo) {
@@ -472,9 +484,17 @@ export default function ProductApp({ authUser }) {
       return;
     }
 
+    const currentQuantity = Number(cart[productNo] || 0);
+    const stockLimit = getProductStockLimit(productNo);
+    const remainingStock = Math.max(stockLimit - currentQuantity, 0);
+    const safeQuantity = Math.min(Math.max(Number(quantity) || 1, 1), remainingStock);
+
+    if (stockLimit < 1 || safeQuantity < 1) {
+      return;
+    }
     if (process.env.NODE_ENV !== 'test') {
       try {
-        const nextCart = await addCartItemToApi(productNo, quantity);
+        const nextCart = await addCartItemToApi(productNo, safeQuantity);
         setCart(nextCart);
         return;
       } catch (error) {
@@ -484,14 +504,21 @@ export default function ProductApp({ authUser }) {
 
     setCart((previousCart) => ({
       ...previousCart,
-      [productNo]: (previousCart[productNo] || 0) + quantity,
+      [productNo]: Math.min(
+        stockLimit,
+        (previousCart[productNo] || 0) + safeQuantity
+      ),
     }));
   }
 
   async function updateCartQuantity(productNo, nextQuantity) {
+    const stockLimit = getProductStockLimit(productNo);
+    const normalizedQuantity =
+      nextQuantity <= 0 ? 0 : Math.min(Math.max(nextQuantity, 1), stockLimit);
+
     if (process.env.NODE_ENV !== 'test') {
       try {
-        const nextCart = await updateCartItemOnApi(productNo, nextQuantity);
+        const nextCart = await updateCartItemOnApi(productNo, normalizedQuantity);
         setCart(nextCart);
         return;
       } catch (error) {
@@ -500,7 +527,7 @@ export default function ProductApp({ authUser }) {
     }
 
     setCart((previousCart) => {
-      if (nextQuantity <= 0) {
+      if (normalizedQuantity <= 0) {
         const nextCart = { ...previousCart };
         delete nextCart[productNo];
         return nextCart;
@@ -508,7 +535,7 @@ export default function ProductApp({ authUser }) {
 
       return {
         ...previousCart,
-        [productNo]: nextQuantity,
+        [productNo]: normalizedQuantity,
       };
     });
   }
@@ -556,19 +583,6 @@ export default function ProductApp({ authUser }) {
       return;
     }
 
-    if (process.env.NODE_ENV !== 'test' && isTossReady(tossConfig)) {
-      const paymentDraft = createTossPaymentDraft(checkoutForm, cartItems);
-      storePendingTossPayment(paymentDraft);
-
-      try {
-        await requestTossPayment(tossConfig, paymentDraft);
-        return;
-      } catch (error) {
-        clearPendingTossPayment();
-        throw error;
-      }
-    }
-
     if (process.env.NODE_ENV !== 'test') {
       try {
         const newOrder = await createOrderOnApi(checkoutForm);
@@ -601,36 +615,6 @@ export default function ProductApp({ authUser }) {
     const nextHash = `#/order-complete/${encodeURIComponent(newOrder.orderId)}`;
     window.location.hash = nextHash;
     window.history.replaceState(null, '', `${window.location.pathname}${nextHash}`);
-  }
-
-  async function moveOrderToNextStatus(orderId) {
-    const targetOrder = orders.find((order) => order.orderId === orderId);
-    if (!targetOrder) {
-      return;
-    }
-
-    if (process.env.NODE_ENV !== 'test') {
-      try {
-        const updatedOrder = await advanceOrderOnApi(
-          targetOrder.orderNo,
-          targetOrder.deliveryMessage
-        );
-        setOrders((previousOrders) =>
-          previousOrders.map((order) =>
-            order.orderId === orderId ? updatedOrder : order
-          )
-        );
-        return;
-      } catch (error) {
-        // Fall back to local order state.
-      }
-    }
-
-    setOrders((previousOrders) =>
-      previousOrders.map((order) =>
-        order.orderId === orderId ? advanceOrderStatus(order) : order
-      )
-    );
   }
 
   return (
@@ -714,15 +698,14 @@ export default function ProductApp({ authUser }) {
           />
         ) : route.page === 'order-complete' ? (
           <OrderCompletePage
-            onOpenOrders={() => openOrders(route.orderId)}
+            onOpenOrders={openMyOrders}
             onReturnToProducts={openProductList}
             order={currentOrder}
           />
         ) : route.page === 'orders' ? (
           isLoggedIn ? (
             <OrdersPage
-              onAdvanceStatus={moveOrderToNextStatus}
-              onOpenOrder={openOrders}
+              onSelectOrder={openOrderPreview}
               onReturnToProducts={openProductList}
               orders={orders}
               selectedOrderId={route.orderId}
@@ -737,6 +720,12 @@ export default function ProductApp({ authUser }) {
           <RecipeDetailPage recipeNo={route.recipeNo} onBack={openRecipeList} />
         ) : route.page === 'recipes' ? (
           <RecipeListPage onOpenRecipe={openRecipe} />
+        ) : route.page === 'price-analysis' ? (
+          <PriceAnalysisPage
+            products={products}
+            onOpenProduct={openProduct}
+            onOpenRecipe={openRecipe}
+          />
         ) : route.page === 'product-detail' ? (
           currentProduct ? (
             <ProductDetailPage

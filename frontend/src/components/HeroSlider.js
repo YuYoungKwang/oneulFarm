@@ -1,30 +1,27 @@
 import React, { useEffect, useState } from "react";
 import "../styles/banner.css";
 
+const SLIDES = [
+  {
+    title: "제철 농산물",
+    desc: "오늘 가장 신선한 농산물을 만나보세요",
+  },
+  {
+    title: "특가 할인",
+    desc: "평균가보다 저렴한 상품을 추천합니다",
+  },
+  {
+    title: "레시피 추천",
+    desc: "구매한 재료로 요리를 만들어보세요",
+  },
+];
+
 const HeroSlider = () => {
   const [index, setIndex] = useState(0);
-  
 
-  // 👉 슬라이드 데이터 (나중에 API로 교체 가능)
-  const slides = [
-    {
-      title: "제철 농산물",
-      desc: "오늘 가장 신선한 농산물을 만나보세요",
-    },
-    {
-      title: "특가 할인",
-      desc: "평균가보다 저렴한 상품을 추천합니다",
-    },
-    {
-      title: "레시피 추천",
-      desc: "구매한 재료로 요리를 만들어보세요",
-    },
-  ];
-
-  // 👉 자동 슬라이드
   useEffect(() => {
     const interval = setInterval(() => {
-      setIndex((prev) => (prev + 1) % slides.length);
+      setIndex((prev) => (prev + 1) % SLIDES.length);
     }, 3000);
 
     return () => clearInterval(interval);
@@ -32,17 +29,16 @@ const HeroSlider = () => {
 
   return (
     <section className="hero">
-      
-      {/* 왼쪽 슬라이드 */}
       <div className="hero-copy">
         <span className="eyebrow">시세 기반 장보기</span>
 
         <h1>
-          오늘 가장 신선한<br />
-          <span className="accent">{slides[index].title}</span>을 만나보세요
+          오늘 가장 신선한
+          <br />
+          <span className="accent">{SLIDES[index].title}</span>을 만나보세요
         </h1>
 
-        <p>{slides[index].desc}</p>
+        <p>{SLIDES[index].desc}</p>
 
         <div className="hero-actions">
           <input placeholder="농산물명, 제철 상품, 레시피 검색" />
@@ -50,9 +46,8 @@ const HeroSlider = () => {
           <a className="btn" href="#/ProductApp">상품 보기</a>
         </div>
 
-        {/* 인디케이터 */}
         <div className="hero-dots">
-          {slides.map((_, i) => (
+          {SLIDES.map((_, i) => (
             <span
               key={i}
               className={index === i ? "active" : ""}
@@ -62,10 +57,7 @@ const HeroSlider = () => {
         </div>
       </div>
 
-      {/* 오른쪽 배너 (이미지/API 연결 가능) */}
       <div className="hero-art">
-      
-
         <div className="art-card back"></div>
         <div className="art-card front"></div>
       </div>
