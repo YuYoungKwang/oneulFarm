@@ -5,8 +5,6 @@ import {
   applyFilters,
   formatCurrency,
   formatPercent,
-  getBadgeLabel,
-  getBadgeTone,
   getDiscountRate,
   getSavingAmount,
   isSingleHouseholdFriendly,
@@ -53,9 +51,9 @@ export default function ProductListPage({
       <section className="page-head">
         <div>
           <span className="eyebrow">Products</span>
-          <h1>오늘의 장보기</h1>
+          <h1>오늘의 상품 보기</h1>
           <p>
-            지금 살 만한 상품을 한눈에 보고, 가격과 구성까지 비교해보세요.
+            지금 사기 좋은 상품을 한눈에 보고, 가격과 구성까지 비교해보세요.
           </p>
         </div>
         <div className="page-actions">
@@ -81,22 +79,22 @@ export default function ProductListPage({
         <article className="quick-card soft-green">
           <div className="quick-label">평균가 이하 상품</div>
           <div className="quick-value">{underAverageCount}개</div>
-          <div className="section-sub">알뜰하게 장보기 좋은 상품</div>
+          <div className="section-sub">가격 메리트가 좋은 상품</div>
         </article>
         <article className="quick-card soft-yellow">
           <div className="quick-label">평균 절약 예상</div>
           <div className="quick-value">{formatCurrency(averageSaving)}</div>
-          <div className="section-sub">상품 1개 기준 예상 절약</div>
+          <div className="section-sub">상품 1개 기준 예상 절약 금액</div>
         </article>
         <article className="quick-card">
           <div className="quick-label">제철 상품</div>
           <div className="quick-value">{seasonalCount}개</div>
-          <div className="section-sub">지금 맛있게 즐기기 좋은 상품</div>
+          <div className="section-sub">지금 먹기 좋은 제철 상품</div>
         </article>
         <article className="quick-card">
           <div className="quick-label">1인 가구 추천</div>
           <div className="quick-value">{readyForSingleCount}개</div>
-          <div className="section-sub">가볍게 담기 좋은 소분 구성</div>
+          <div className="section-sub">소분 구매에 잘 맞는 구성</div>
         </article>
       </section>
 
@@ -133,19 +131,19 @@ export default function ProductListPage({
               />
               <FilterButton
                 active={filters.priceRange === 'UNDER_3000'}
-                label="3천 원 미만"
+                label="3천원 미만"
                 onClick={() => onUpdateFilter('priceRange', 'UNDER_3000')}
               />
               <FilterButton
                 active={filters.priceRange === 'FROM_3000_TO_5000'}
-                label="3천 원~5천 원"
+                label="3천원~5천원"
                 onClick={() =>
                   onUpdateFilter('priceRange', 'FROM_3000_TO_5000')
                 }
               />
               <FilterButton
                 active={filters.priceRange === 'OVER_5000'}
-                label="5천 원 이상"
+                label="5천원 이상"
                 onClick={() => onUpdateFilter('priceRange', 'OVER_5000')}
               />
             </div>
@@ -235,7 +233,7 @@ export default function ProductListPage({
             </div>
           ) : (
             <section className="empty-state">
-              <div className="empty-icon">🔎</div>
+              <div className="empty-icon">NO</div>
               <h2>조건에 맞는 상품이 없습니다.</h2>
               <p>검색어나 필터를 조금 바꿔서 다시 찾아보세요.</p>
               <button className="btn" type="button" onClick={onResetFilters}>
@@ -251,7 +249,11 @@ export default function ProductListPage({
 
 function TagChip({ active, label, onClick }) {
   return (
-    <button className={`btn-chip ${active ? 'active' : ''}`} type="button" onClick={onClick}>
+    <button
+      className={`btn-chip ${active ? 'active' : ''}`}
+      type="button"
+      onClick={onClick}
+    >
       {label}
     </button>
   );
@@ -259,7 +261,11 @@ function TagChip({ active, label, onClick }) {
 
 function FilterButton({ active, label, onClick }) {
   return (
-    <button className={`check ${active ? 'active' : ''}`} type="button" onClick={onClick}>
+    <button
+      className={`check ${active ? 'active' : ''}`}
+      type="button"
+      onClick={onClick}
+    >
       {label}
     </button>
   );
@@ -296,9 +302,6 @@ function ProductCard({
           />
         ) : null}
         <div className="product-badge-row">
-          <span className={`badge ${getBadgeTone(product)}`}>
-            {getBadgeLabel(product)}
-          </span>
           <button
             className={`icon-circle ${isWished ? 'active' : ''}`}
             type="button"
@@ -309,7 +312,6 @@ function ProductCard({
           </button>
         </div>
         {!hasImage ? <div className="product-symbol">{product.display.symbol}</div> : null}
-        <div className="product-media-copy">{product.origin}</div>
       </div>
 
       <div className="product-copy">

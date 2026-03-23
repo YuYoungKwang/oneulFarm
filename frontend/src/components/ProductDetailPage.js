@@ -118,14 +118,14 @@ export default function ProductDetailPage({
         </article>
 
         <article className="purchase-card">
-          <span className="eyebrow">알뜰 추천 상품</span>
+          <span className="eyebrow">오늘 추천 상품</span>
           <h2 className="detail-title">{product.productName}</h2>
           <p className="muted-copy">
             {product.origin} · 소분 판매 · {product.recommendedFor.join(' · ')}
           </p>
           <div className="price-large">{formatCurrency(product.salePrice)}</div>
           <div className="avg">
-            평균가 {formatCurrency(product.priceSnapshot.avgPrice)} · 약{' '}
+            평균가 {formatCurrency(product.priceSnapshot.avgPrice)} ·{' '}
             {formatPercent(product.priceMatch.savingRate)} 절약
           </div>
           <div className="meta-row">
@@ -191,7 +191,7 @@ export default function ProductDetailPage({
             </button>
           </div>
           <div className="notice">
-            오후 2시 이전 주문 시 더 빠르게 준비해 보내드려요.
+            오후 2시 이전 주문 시 빠르게 준비해 보내드려요.
           </div>
           <div className="detail-inline-meta">
             <span>현재 장바구니 수량 {cartQuantity}개</span>
@@ -214,7 +214,7 @@ export default function ProductDetailPage({
           <div className="section-sub">최근 집계 기준 최저가</div>
         </article>
         <article className="quick-card">
-          <div className="quick-label">변동폭</div>
+          <div className="quick-label">변동률</div>
           <div className="quick-value">
             {product.priceSnapshot.changeRate > 0 ? '+' : ''}
             {product.priceSnapshot.changeRate}%
@@ -324,7 +324,7 @@ export default function ProductDetailPage({
             <div>
               <div className="section-title">리뷰 미리보기</div>
               <div className="section-sub">
-                최근 상품 후기를 간단히 확인해보세요.
+                최근 상품 후기를 간단하게 확인해보세요.
               </div>
             </div>
           </div>

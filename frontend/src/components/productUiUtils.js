@@ -88,12 +88,10 @@ export function parseHash(hash) {
       : { page: 'product-detail', productNo };
   }
 
-  // 로그인 라우트 추가
   if (segments[0] === 'login') {
     return { page: 'login' };
   }
 
-  // 회원가입 라우트 추가
   if (segments[0] === 'signup') {
     return { page: 'signup' };
   }

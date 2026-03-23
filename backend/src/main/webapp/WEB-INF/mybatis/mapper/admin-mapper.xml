@@ -420,6 +420,48 @@
         WHERE ORDER_NO = #{_parameter}
     </update>
 
+    <delete id="deleteAdminReviewImagesByOrder" parameterType="long">
+        DELETE FROM OFT_REVIEW_IMAGE
+        WHERE REVIEW_NO IN (
+            SELECT REVIEW_NO
+            FROM OFT_REVIEW
+            WHERE ORDER_ITEM_NO IN (
+                SELECT ORDER_ITEM_NO
+                FROM OFT_ORDER_ITEM
+                WHERE ORDER_NO = #{_parameter}
+            )
+        )
+    </delete>
+
+    <delete id="deleteAdminReviewsByOrder" parameterType="long">
+        DELETE FROM OFT_REVIEW
+        WHERE ORDER_ITEM_NO IN (
+            SELECT ORDER_ITEM_NO
+            FROM OFT_ORDER_ITEM
+            WHERE ORDER_NO = #{_parameter}
+        )
+    </delete>
+
+    <delete id="deleteAdminPaymentByOrder" parameterType="long">
+        DELETE FROM OFT_PAYMENT
+        WHERE ORDER_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminDeliveryByOrder" parameterType="long">
+        DELETE FROM OFT_DELIVERY
+        WHERE ORDER_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminOrderItemsByOrder" parameterType="long">
+        DELETE FROM OFT_ORDER_ITEM
+        WHERE ORDER_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminOrder" parameterType="long">
+        DELETE FROM OFT_ORDERS
+        WHERE ORDER_NO = #{_parameter}
+    </delete>
+
     <select id="selectAdminUsers" resultMap="AdminUserResultMap">
         SELECT
             u.USER_NO AS userNo,
@@ -511,6 +553,97 @@
         SET STATUS = #{status}
         WHERE USER_NO = #{userNo}
     </update>
+
+    <select id="countAdminPackageHistoriesByUser" parameterType="long" resultType="int">
+        SELECT COUNT(*)
+        FROM OFT_PACKAGE_HISTORY
+        WHERE USER_NO = #{_parameter}
+    </select>
+
+    <delete id="deleteAdminReviewImagesByUser" parameterType="long">
+        DELETE FROM OFT_REVIEW_IMAGE
+        WHERE REVIEW_NO IN (
+            SELECT REVIEW_NO
+            FROM OFT_REVIEW
+            WHERE USER_NO = #{_parameter}
+        )
+    </delete>
+
+    <delete id="deleteAdminReviewsByUserAccount" parameterType="long">
+        DELETE FROM OFT_REVIEW
+        WHERE USER_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminWishlistByUser" parameterType="long">
+        DELETE FROM OFT_WISHLIST
+        WHERE USER_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminCartItemsByUser" parameterType="long">
+        DELETE FROM OFT_CART_ITEM
+        WHERE CART_NO IN (
+            SELECT CART_NO
+            FROM OFT_CART
+            WHERE USER_NO = #{_parameter}
+        )
+    </delete>
+
+    <delete id="deleteAdminCartByUser" parameterType="long">
+        DELETE FROM OFT_CART
+        WHERE USER_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminUserAddresses" parameterType="long">
+        DELETE FROM OFT_USER_ADDRESS
+        WHERE USER_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminTermsAgreementsByUser" parameterType="long">
+        DELETE FROM OFT_TERMS_AGREEMENT
+        WHERE USER_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminUserMonthlyStats" parameterType="long">
+        DELETE FROM OFT_USER_MONTHLY_STATS
+        WHERE USER_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminPaymentsByUser" parameterType="long">
+        DELETE FROM OFT_PAYMENT
+        WHERE ORDER_NO IN (
+            SELECT ORDER_NO
+            FROM OFT_ORDERS
+            WHERE USER_NO = #{_parameter}
+        )
+    </delete>
+
+    <delete id="deleteAdminDeliveriesByUser" parameterType="long">
+        DELETE FROM OFT_DELIVERY
+        WHERE ORDER_NO IN (
+            SELECT ORDER_NO
+            FROM OFT_ORDERS
+            WHERE USER_NO = #{_parameter}
+        )
+    </delete>
+
+    <delete id="deleteAdminOrderItemsByUser" parameterType="long">
+        DELETE FROM OFT_ORDER_ITEM
+        WHERE ORDER_NO IN (
+            SELECT ORDER_NO
+            FROM OFT_ORDERS
+            WHERE USER_NO = #{_parameter}
+        )
+    </delete>
+
+    <delete id="deleteAdminOrdersByUser" parameterType="long">
+        DELETE FROM OFT_ORDERS
+        WHERE USER_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAdminUser" parameterType="long">
+        DELETE FROM OFT_USERS
+        WHERE USER_NO = #{_parameter}
+    </delete>
 
     <select id="selectPurchaseBatches" resultType="com.app.dto.PurchaseBatchDto">
         SELECT

@@ -9,11 +9,14 @@ import {
   formatAdminCount,
   formatAdminCurrency,
   formatAdminDate,
+  formatAdminDateParts,
 } from './admin/AdminUi';
 import {
   createAdminPackageHistory,
   createAdminPurchaseBatch,
+  deleteAdminOrder,
   deleteAdminProduct,
+  deleteAdminUser,
   fetchAdminBanners,
   fetchAdminOrderDetail,
   fetchAdminOrders,
@@ -347,7 +350,6 @@ function DashboardPage({
           </div>
         </article>
       </section>
-
       <section className="admin-grid admin-grid--2">
         <article className="admin-card admin-card--panel">
           <div className="admin-section-line">
@@ -478,7 +480,6 @@ function ProductsPage({
           </button>
         ))}
       </div>
-
       <section className="admin-grid admin-grid--2">
         <article className="admin-card admin-card--panel">
           <h2>상품 목록</h2>
@@ -652,6 +653,7 @@ function OrdersPage({
   onOrderFilterChange,
   onSelectOrder,
   onTrackingChange,
+  onDeleteOrder,
   onUpdateOrder,
   updating,
 }) {
@@ -661,6 +663,11 @@ function OrdersPage({
     }
     return order.orderStatus === orderFilter;
   });
+  const canDeleteOrder = Boolean(
+    selectedOrderDetail
+      && selectedOrderDetail.orderStatus === 'COMPLETED'
+      && selectedOrderDetail.deliveryStatus === 'DELIVERED'
+  );
 
   return (
     <>
@@ -705,7 +712,7 @@ function OrdersPage({
       <section className="admin-grid admin-grid--2">
         <article className="admin-card admin-card--panel">
           <h2>주문 목록</h2>
-          <table className="admin-table admin-table--clickable">
+          <table className="admin-table admin-table--clickable admin-table--users">
             <thead>
               <tr>
                 <th>주문번호</th>
@@ -766,6 +773,16 @@ function OrdersPage({
                 <strong>배송 상태 변경</strong>
                 <div className="admin-page-actions">
                   <AdminStatusBadge status={selectedOrderDetail.orderStatus} />
+                  {canDeleteOrder ? (
+                    <button
+                      type="button"
+                      className="admin-action admin-action--danger"
+                      onClick={() => onDeleteOrder(selectedOrderDetail)}
+                      disabled={updating}
+                    >
+                      정보 제거
+                    </button>
+                  ) : null}
                   <button type="button" className="admin-action admin-action--soft" onClick={() => onUpdateOrder({ orderStatus: 'SHIPPING' })} disabled={updating}>
                     배송중
                   </button>
@@ -798,24 +815,28 @@ function UsersPage({
   onUserFilterChange,
   onSelectUser,
   onUpdateUserStatus,
+  onDeleteUser,
   updating,
 }) {
-  const filteredUsers = users.filter((user, index) => {
-    if (userFilter === 'ALL') {
-      return true;
-    }
-    if (userFilter === 'TOP') {
-      return index < 5;
-    }
-    return user.status === userFilter;
-  });
+  const rankedUsers = [...users].sort((left, right) => (
+    toNumber(right.totalPurchaseAmount, 0) - toNumber(left.totalPurchaseAmount, 0)
+    || toNumber(right.totalOrderCount, 0) - toNumber(left.totalOrderCount, 0)
+    || toNumber(right.userNo, 0) - toNumber(left.userNo, 0)
+  ));
+  const filteredUsers = userFilter === 'TOP'
+    ? rankedUsers.slice(0, 5)
+    : users.filter((user) => {
+      if (userFilter === 'ALL') {
+        return true;
+      }
+      return user.status === userFilter;
+    });
   const selectedUser = users.find((user) => user.userNo === selectedUserNo) || null;
 
   return (
     <>
       <AdminPageHeader
         title="회원 관리"
-        description="회원 목록, 상태 변경, 주문 빈도와 활동 정보를 확인하는 화면"
         actions={
           <button type="button" className="admin-action admin-action--line" disabled>
             엑셀 다운로드
@@ -842,35 +863,57 @@ function UsersPage({
         ))}
       </div>
 
-      <section className="admin-grid admin-grid--2">
+      <section className="admin-grid admin-grid--users">
         <article className="admin-card admin-card--panel">
           <h2>회원 목록</h2>
-          <table className="admin-table admin-table--clickable">
-            <thead>
-              <tr>
-                <th>회원</th>
-                <th>가입일</th>
-                <th>주문 수</th>
-                <th>누적 구매</th>
-                <th>상태</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.map((user) => (
-                <tr
-                  key={user.userNo}
-                  className={user.userNo === selectedUserNo ? 'is-selected' : ''}
-                  onClick={() => onSelectUser(user.userNo)}
-                >
-                  <td>{user.nickname} / {user.email}</td>
-                  <td>{formatAdminDate(user.createdAt)}</td>
-                  <td>{formatAdminCount(user.totalOrderCount)}</td>
-                  <td>{formatAdminCurrency(user.totalPurchaseAmount)}</td>
-                  <td><AdminStatusBadge status={user.status} /></td>
+          <div className="admin-table-wrap">
+            <table className="admin-table admin-table--clickable admin-table--users">
+              <thead>
+                <tr>
+                  <th>회원</th>
+                  <th>가입일</th>
+                  <th>주문 수</th>
+                  <th>누적 구매</th>
+                  <th>상태</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredUsers.map((user) => (
+                  <tr
+                    key={user.userNo}
+                    className={user.userNo === selectedUserNo ? 'is-selected' : ''}
+                    onClick={() => onSelectUser(user.userNo)}
+                  >
+                    <td>
+                      <div className="admin-user-cell">
+                        <strong className="admin-user-primary">{user.nickname}</strong>
+                        <span className="admin-user-sub">{user.email}</span>
+                      </div>
+                    </td>
+                    <td className="admin-date-cell">{renderAdminDateCell(user.createdAt)}</td>
+                    <td className="admin-count-cell">{formatAdminCount(user.totalOrderCount)}</td>
+                    <td>{formatAdminCurrency(user.totalPurchaseAmount)}</td>
+                    <td className="admin-table__actions">
+                      <div className="admin-user-actions">
+                        <AdminStatusBadge status={user.status} />
+                        <button
+                          type="button"
+                          className="admin-action admin-action--danger admin-action--tiny"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onDeleteUser(user);
+                          }}
+                          disabled={updating}
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </article>
 
         <article className="admin-card admin-card--panel">
@@ -914,6 +957,17 @@ function UsersPage({
         </article>
       </section>
     </>
+  );
+}
+
+function renderAdminDateCell(value) {
+  const { date, time } = formatAdminDateParts(value);
+
+  return (
+    <div className="admin-date-stack">
+      <span>{date}</span>
+      {time ? <span>{time}</span> : null}
+    </div>
   );
 }
 
@@ -1276,6 +1330,11 @@ function AdminApp() {
     [products, selectedProductNo]
   );
 
+  const currentUser = useMemo(
+    () => users.find((user) => user.userNo === selectedUserNo) || null,
+    [users, selectedUserNo]
+  );
+
   useEffect(() => {
     if (currentProduct) {
       setProductForm(buildProductForm(currentProduct));
@@ -1456,6 +1515,48 @@ function AdminApp() {
     }
   }
 
+  async function handleDeleteOrder(order) {
+    if (!order?.orderNo) {
+      return;
+    }
+
+    const isDeletable =
+      order.orderStatus === 'COMPLETED' && order.deliveryStatus === 'DELIVERED';
+
+    if (!isDeletable) {
+      setActionError('배송 완료된 주문만 정보 제거할 수 있습니다.');
+      return;
+    }
+
+    const shouldDelete = window.confirm(
+      `'${order.orderId}' 주문 정보를 제거할까요? 배송 완료 주문에 한해서만 삭제할 수 있습니다.`
+    );
+    if (!shouldDelete) {
+      return;
+    }
+
+    setUpdatingOrder(true);
+    setActionError('');
+    setActionSuccess('');
+
+    try {
+      await deleteAdminOrder(order.orderNo);
+      const [nextOrders, nextUsers] = await Promise.all([
+        fetchAdminOrders(),
+        fetchAdminUsers(),
+      ]);
+      setOrders(nextOrders);
+      setUsers(nextUsers);
+      setSelectedOrderDetail(null);
+      setSelectedOrderNo(nextOrders[0]?.orderNo || null);
+      setActionSuccess('배송 완료 주문 정보를 제거했습니다.');
+    } catch (error) {
+      setActionError(error.message || '주문 정보 제거에 실패했습니다.');
+    } finally {
+      setUpdatingOrder(false);
+    }
+  }
+
   async function handleUpdateUserStatus(userNo, status) {
     setUpdatingUser(true);
     setActionError('');
@@ -1466,6 +1567,45 @@ function AdminApp() {
       setUsers(nextUsers);
     } catch (error) {
       setActionError(error.message || '회원 상태 변경에 실패했습니다.');
+    } finally {
+      setUpdatingUser(false);
+    }
+  }
+
+  async function handleDeleteUser(user) {
+    if (!user?.userNo) {
+      return;
+    }
+
+    const shouldDelete = window.confirm(
+      `\uc815\ub9d0 \uc0ad\uc81c\ud558\uc2dc\uaca0\uc2b5\ub2c8\uae4c?\n\n${user.userId} \uacc4\uc815\uc758 \ud68c\uc6d0 \uc815\ubcf4, \uc8fc\ubb38, \ucc1c, \uc7a5\ubc14\uad6c\ub2c8, \ub9ac\ubdf0 \ub370\uc774\ud130\uac00 \ud568\uaed8 \uc644\uc804\ud788 \uc0ad\uc81c\ub429\ub2c8\ub2e4.`
+    );
+    if (!shouldDelete) {
+      return;
+    }
+
+    setUpdatingUser(true);
+    setActionError('');
+    setActionSuccess('');
+
+    try {
+      await deleteAdminUser(user.userNo);
+      const [nextUsers, nextOrders] = await Promise.all([
+        fetchAdminUsers(),
+        fetchAdminOrders(),
+      ]);
+      setUsers(nextUsers);
+      setOrders(nextOrders);
+      setSelectedUserNo(nextUsers[0]?.userNo || null);
+
+      if (selectedOrderNo && !nextOrders.some((order) => order.orderNo === selectedOrderNo)) {
+        setSelectedOrderNo(nextOrders[0]?.orderNo || null);
+        setSelectedOrderDetail(null);
+      }
+
+      setActionSuccess('\ud68c\uc6d0 \ub370\uc774\ud130\ub97c \uc644\uc804\ud788 \uc0ad\uc81c\ud588\uc2b5\ub2c8\ub2e4.');
+    } catch (error) {
+      setActionError(error.message || '\ud68c\uc6d0 \uc644\uc804 \uc0ad\uc81c\uc5d0 \uc2e4\ud328\ud588\uc2b5\ub2c8\ub2e4.');
     } finally {
       setUpdatingUser(false);
     }
@@ -1564,6 +1704,21 @@ function AdminApp() {
       {!loading && !loadError && actionSuccess ? (
         <div className="admin-inline-success">{actionSuccess}</div>
       ) : null}
+      {!loading && !loadError && false ? (
+        <div className="admin-page-actions admin-page-actions--spaced">
+          <span className="admin-muted">
+            선택 회원: {currentUser.nickname} ({currentUser.userId})
+          </span>
+          <button
+            type="button"
+            className="admin-action admin-action--danger"
+            onClick={() => handleDeleteUser(currentUser)}
+            disabled={updatingUser}
+          >
+            선택 회원 삭제
+          </button>
+        </div>
+      ) : null}
       {!loading && !loadError ? (
         <>
           {currentPage === 'dashboard' ? (
@@ -1613,6 +1768,7 @@ function AdminApp() {
               onOrderFilterChange={setOrderFilter}
               onSelectOrder={setSelectedOrderNo}
               onTrackingChange={(event) => setTrackingNo(event.target.value)}
+              onDeleteOrder={handleDeleteOrder}
               onUpdateOrder={handleUpdateOrder}
               updating={updatingOrder}
             />
@@ -1625,6 +1781,7 @@ function AdminApp() {
               onUserFilterChange={setUserFilter}
               onSelectUser={setSelectedUserNo}
               onUpdateUserStatus={handleUpdateUserStatus}
+              onDeleteUser={handleDeleteUser}
               updating={updatingUser}
             />
           ) : null}

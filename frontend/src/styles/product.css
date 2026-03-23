@@ -113,13 +113,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   border: 1px solid rgba(226, 232, 240, 0.95);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.96);
   color: #64748b;
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
   backdrop-filter: blur(10px);
 }
 
@@ -384,6 +384,11 @@
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.05), rgba(15, 23, 42, 0.28));
 }
 
+.product-app .product-media.has-image .badge,
+.product-app .product-media.has-image .icon-circle{
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
 .product-app .product-media.has-image .product-media-copy{
   color: #fff;
   text-shadow: 0 2px 12px rgba(15, 23, 42, 0.36);
@@ -398,31 +403,58 @@
 }
 
 .product-app .product-badge-row{
+  position: absolute;
+  top: 14px;
+  right: 14px;
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+  align-items: center;
+  justify-content: flex-end;
+  z-index: 2;
 }
 
 .product-app .badge{
   display: inline-flex;
   align-items: center;
-  padding: 7px 12px;
+  justify-content: center;
+  padding: 9px 13px;
   border-radius: 999px;
-  background: var(--yellow-soft);
+  background: rgba(255, 244, 212, 0.95);
   color: #7b5600;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
+  line-height: 1.1;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(8px);
 }
 
 .product-app .badge.green{
-  background: var(--green-soft);
+  background: rgba(235, 248, 239, 0.94);
   color: var(--green-dark);
 }
 
 .product-app .badge.yellow{
-  background: #fff4d4;
+  background: rgba(255, 244, 212, 0.95);
   color: #8a6200;
+}
+
+.product-app .badge--saving{
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 68px;
+  padding: 10px 12px;
+  border-radius: 22px;
+}
+
+.product-app .badge--saving strong{
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.product-app .badge--saving span{
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .product-app .product-symbol{
@@ -825,6 +857,19 @@
   padding: 20px 22px;
 }
 
+.product-app .order-card.is-selectable{
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.product-app .order-card.is-selectable:hover{
+  transform: translateY(-1px);
+  border-color: rgba(21, 154, 85, 0.28);
+}
+
 .product-app .order-card.active{
   border-color: rgba(21, 154, 85, 0.35);
   box-shadow: 0 14px 34px rgba(21, 154, 85, 0.12);
@@ -845,6 +890,10 @@
   display: grid;
   gap: 10px;
   margin-top: 16px;
+}
+
+.product-app .order-card-hint{
+  margin-top: 14px;
 }
 
 .product-app .order-row{

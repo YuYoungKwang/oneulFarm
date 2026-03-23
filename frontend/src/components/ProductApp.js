@@ -7,7 +7,6 @@ import {
 } from '../api/paymentApi';
 import {
   addCartItemToApi,
-  advanceOrderOnApi,
   clearCartOnApi,
   createOrderOnApi,
   fetchCartFromApi,
@@ -33,7 +32,7 @@ import SignupPage from './SignupPage';
 import PriceAnalysisPage from './PriceAnalysisPage';
 import RecipeDetailPage from './RecipeDetailPage';
 import RecipeListPage from './RecipeListPage';
-import { advanceOrderStatus, createOrderFromCart } from './orderUiUtils';
+import { createOrderFromCart } from './orderUiUtils';
 import {
   DEFAULT_ROUTE,
   defaultFilters,
@@ -445,7 +444,16 @@ export default function ProductApp({ authUser }) {
     navigateToHash('#/checkout');
   }
 
-  function openOrders(orderId) {
+  function openMyOrders() {
+    if (!isLoggedIn) {
+      navigateToHash('#/login');
+      return;
+    }
+
+    navigateToHash('#/mypage/orders');
+  }
+
+  function openOrderPreview(orderId) {
     if (!isLoggedIn) {
       navigateToHash('#/login');
       return;
@@ -610,36 +618,6 @@ export default function ProductApp({ authUser }) {
     window.history.replaceState(null, '', `${window.location.pathname}${nextHash}`);
   }
 
-  async function moveOrderToNextStatus(orderId) {
-    const targetOrder = orders.find((order) => order.orderId === orderId);
-    if (!targetOrder) {
-      return;
-    }
-
-    if (process.env.NODE_ENV !== 'test') {
-      try {
-        const updatedOrder = await advanceOrderOnApi(
-          targetOrder.orderNo,
-          targetOrder.deliveryMessage
-        );
-        setOrders((previousOrders) =>
-          previousOrders.map((order) =>
-            order.orderId === orderId ? updatedOrder : order
-          )
-        );
-        return;
-      } catch (error) {
-        // Fall back to local order state.
-      }
-    }
-
-    setOrders((previousOrders) =>
-      previousOrders.map((order) =>
-        order.orderId === orderId ? advanceOrderStatus(order) : order
-      )
-    );
-  }
-
   return (
     <div className="product-app page-shell">
       <main className="container">
@@ -721,15 +699,14 @@ export default function ProductApp({ authUser }) {
           />
         ) : route.page === 'order-complete' ? (
           <OrderCompletePage
-            onOpenOrders={() => openOrders(route.orderId)}
+            onOpenOrders={openMyOrders}
             onReturnToProducts={openProductList}
             order={currentOrder}
           />
         ) : route.page === 'orders' ? (
           isLoggedIn ? (
             <OrdersPage
-              onAdvanceStatus={moveOrderToNextStatus}
-              onOpenOrder={openOrders}
+              onSelectOrder={openOrderPreview}
               onReturnToProducts={openProductList}
               orders={orders}
               selectedOrderId={route.orderId}

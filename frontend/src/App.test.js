@@ -396,7 +396,7 @@ describe('App', () => {
     });
   });
 
-  test('\uC8FC\uBB38 \uC0C1\uD0DC \uD654\uBA74\uC5D0\uC11C \uBC30\uC1A1 \uC0C1\uD0DC\uB97C \uB2E4\uC74C \uB2E8\uACC4\uB85C \uBCC0\uACBD\uD560 \uC218 \uC788\uB2E4', async () => {
+  test('\uC0AC\uC6A9\uC790 \uC8FC\uBB38 \uD654\uBA74\uC5D0\uC11C\uB294 \uBC30\uC1A1 \uC0C1\uD0DC\uB97C \uC9C1\uC811 \uBCC0\uACBD\uD560 \uC218 \uC5C6\uB2E4', async () => {
     signInTestUser();
     const storedOrder = buildStoredOrder();
 
@@ -408,17 +408,9 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByText('\uBC30\uC1A1 \uC2DC\uC791')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('\uBC30\uC1A1 \uC2DC\uC791'));
-
-    await waitFor(() => {
-      const storedOrders = JSON.parse(
-        window.localStorage.getItem('oneulFarmOrders') || '[]'
-      );
-
-      expect(storedOrders[0].orderStatus).toBe('SHIPPING');
-      expect(screen.getAllByText('\uBC30\uC1A1\uC911').length).toBeGreaterThan(0);
-    });
+    expect(await screen.findByText('\uC8FC\uBB38 \uB0B4\uC5ED')).toBeInTheDocument();
+    expect(screen.queryByText('\uBC30\uC1A1 \uC2DC\uC791')).not.toBeInTheDocument();
+    expect(screen.queryByText('\uBC30\uC1A1 \uC644\uB8CC')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '\uC0C1\uC138 \uBCF4\uAE30' })).not.toBeInTheDocument();
   });
 });
