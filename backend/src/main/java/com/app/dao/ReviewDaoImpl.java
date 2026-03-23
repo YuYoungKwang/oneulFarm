@@ -97,7 +97,7 @@ public class ReviewDaoImpl implements ReviewDao {
         params.put("mimeType", mimeType);
         params.put("imageSize", imageSize);
         params.put("imageData", imageData);
-        return sqlSessionTemplate.insert(NAMESPACE + "insertReviewImage", params);
+        return sqlSessionTemplate.insert(NAMESPACE + "insertActivityReviewImage", params);
     }
 
     @Override

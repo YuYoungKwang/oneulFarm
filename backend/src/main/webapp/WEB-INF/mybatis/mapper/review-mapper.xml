@@ -255,7 +255,7 @@
         WHERE REVIEW_NO = #{_parameter}
     </delete>
 
-    <insert id="insertReviewImage" parameterType="map">
+    <insert id="insertActivityReviewImage" parameterType="map">
         INSERT INTO OFT_REVIEW_IMAGE (
             REVIEW_NO,
             IMAGE_NAME,
