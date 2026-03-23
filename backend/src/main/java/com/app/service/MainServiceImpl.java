@@ -11,9 +11,7 @@ import org.springframework.stereotype.Service;
 
 import com.app.dto.PriceSnapshotDTO;
 import com.app.dto.ProductDto;
-import com.app.dto.RecipeDetailDTO;
 import com.app.dto.RecipeDTO;
-import com.app.dto.RecipeListResponseDTO;
 
 @Service
 public class MainServiceImpl implements MainService {
@@ -82,19 +80,20 @@ public class MainServiceImpl implements MainService {
     }
 
     private List<RecipeDTO> getRecipes() {
-        RecipeListResponseDTO response = recipeService.getRecipeList(
+        List<RecipeDTO> recipeList = recipeService.getRecipeList(
             null,
             null,
             null,
-            Integer.valueOf(MAIN_RECIPE_LIMIT)
+            Integer.valueOf(MAIN_RECIPE_LIMIT),
+            null
         );
 
-        if (response == null || response.getRecipeList() == null) {
+        if (recipeList == null || recipeList.isEmpty()) {
             return Collections.emptyList();
         }
 
         List<RecipeDTO> recipes = new ArrayList<RecipeDTO>();
-        for (RecipeDTO recipe : response.getRecipeList()) {
+        for (RecipeDTO recipe : recipeList) {
             recipes.add(enrichRecipe(recipe));
         }
         return recipes;
@@ -122,7 +121,7 @@ public class MainServiceImpl implements MainService {
             return recipe;
         }
 
-        RecipeDetailDTO detail = recipeService.getRecipeDetail(recipe.getRecipeNo());
+        RecipeDTO detail = recipeService.getRecipeDetail(recipe.getRecipeNo());
         if (detail == null) {
             return recipe;
         }

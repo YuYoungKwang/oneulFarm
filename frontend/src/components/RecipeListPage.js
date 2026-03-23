@@ -132,10 +132,6 @@ export default function RecipeListPage({
         <div className="recipe-hero__content">
           <span className="recipe-kicker">Recipe Collection</span>
           <h1>오늘 먹을 메뉴를 더 빠르게 골라보세요</h1>
-          <p>
-            재료명이나 레시피 이름으로 바로 찾고, 상품과 잘 어울리는 레시피를
-            추천순과 난이도 기준으로 편하게 비교해보세요.
-          </p>
 
           <div className="recipe-hero__stats">
             <div className="recipe-hero-stat">
@@ -184,7 +180,6 @@ export default function RecipeListPage({
 
         <div className="recipe-toolbar-copy">
           <strong>자주 찾는 재료</strong>
-          <span>하나만 눌러도 해당 재료 기준으로 바로 레시피를 좁혀볼 수 있어요.</span>
         </div>
 
         <div className="recipe-chip-row">
@@ -204,33 +199,26 @@ export default function RecipeListPage({
           ))}
         </div>
 
-        <div className="recipe-toolbar-copy">
-          <strong>정렬 기준</strong>
-          <span>원하는 스타일에 맞춰 레시피를 빠르게 다시 정렬할 수 있어요.</span>
-        </div>
+        <div className="recipe-toolbar-footer">
+          <div className="recipe-result-meta">
+            <strong>총 {totalCount}개의 레시피</strong>
+          </div>
 
-        <div className="recipe-chip-row">
-          {SORT_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              className={`btn-chip ${sort === option.value ? 'active' : ''}`}
-              type="button"
-              onClick={() => setSort(option.value)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="recipe-result-meta">
-          <strong>총 {totalCount}개의 레시피</strong>
-          <span>
-            {ingredientKeyword
-              ? `${ingredientKeyword} 재료 기준 검색 결과`
-              : keyword
-                ? `"${keyword}" 검색 결과`
-                : '전체 레시피 기준'}
-          </span>
+          <div className="recipe-sort-row">
+            <strong className="recipe-sort-row__label">정렬</strong>
+            <div className="recipe-chip-row recipe-chip-row--compact">
+              {SORT_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  className={`btn-chip ${sort === option.value ? 'active' : ''}`}
+                  type="button"
+                  onClick={() => setSort(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -269,11 +257,6 @@ export default function RecipeListPage({
                     )}
                   </button>
                   <div className="recipe-list-card__badge-row">
-                    {recipe.cookTime ? (
-                      <span className="recipe-badge recipe-badge--soft">
-                        {recipe.cookTime}
-                      </span>
-                    ) : null}
                     {recipe.calories != null ? (
                       <span className="recipe-badge recipe-badge--green">
                         {Math.round(recipe.calories)} kcal
@@ -296,12 +279,11 @@ export default function RecipeListPage({
                     </p>
                   </div>
 
-                  <div className="recipe-list-card__meta">
-                    <span className="recipe-pill">{recipe.difficulty || '난이도 미정'}</span>
-                    <span className="recipe-pill">
-                      {ingredientKeyword || '전체 재료'}
-                    </span>
-                  </div>
+                  {ingredientKeyword ? (
+                    <div className="recipe-list-card__meta">
+                      <span className="recipe-pill">{ingredientKeyword}</span>
+                    </div>
+                  ) : null}
 
                   <div className="recipe-list-card__foot recipe-list-card__foot--compact">
                     <button
@@ -365,27 +347,6 @@ export default function RecipeListPage({
         </section>
       )}
 
-      <section className="recipe-note-grid">
-        <article className="recipe-note-card">
-          <h3>자주 찾는 재료</h3>
-          <div className="recipe-chip-row">
-            {ingredientChipList.map((item) => (
-              <span className="recipe-note-chip" key={item}>
-                {item}
-              </span>
-            ))}
-          </div>
-        </article>
-
-        <article className="recipe-note-card recipe-note-card--accent">
-          <h3>정렬 가이드</h3>
-          <ul className="recipe-note-list">
-            <li>추천순: 상품과 잘 어울리는 레시피를 먼저 보여줍니다.</li>
-            <li>쉬운 순: 비교적 만들기 쉬운 메뉴를 우선 정렬합니다.</li>
-            <li>빠른 조리: 조리 시간이 짧은 레시피를 먼저 확인할 수 있습니다.</li>
-          </ul>
-        </article>
-      </section>
     </div>
   );
 }

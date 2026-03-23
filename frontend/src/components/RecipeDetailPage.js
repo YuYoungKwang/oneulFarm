@@ -308,7 +308,6 @@ export default function RecipeDetailPage({
         <article className="recipe-hero-panel recipe-detail-panel">
           <div className="recipe-hero-topline">
             <span className="recipe-kicker">RECIPE / DETAIL</span>
-            <span className="recipe-detail-chip">바로 따라 하기 좋은 레시피</span>
           </div>
           <div className="recipe-hero-copy">
             <h1>{recipe.recipeName}</h1>
@@ -323,7 +322,7 @@ export default function RecipeDetailPage({
             <button className="btn-outline recipe-action-ghost" type="button" onClick={handleShare}>공유</button>
           </div>
           <div className="recipe-scale-row">
-            <div className="recipe-scale-copy"><strong>재료 양 조절</strong><span>선택한 배수에 맞춰 수량을 다시 계산합니다.</span></div>
+            <div className="recipe-scale-copy"><strong>재료 양 조절</strong></div>
             <div className="recipe-scale-options">
               {SCALE_OPTIONS.map((option) => <button key={option.value} className={`btn-chip ${servingScale === option.value ? 'active' : ''}`} type="button" onClick={() => setServingScale(option.value)}>{option.label}</button>)}
             </div>
@@ -334,14 +333,13 @@ export default function RecipeDetailPage({
 
       <section className="recipe-detail-info-layout">
         <article className="recipe-detail-panel recipe-detail-panel--tight recipe-detail-info-panel">
-          <div className="recipe-section-head"><div><span className="recipe-kicker">DETAIL INFO</span><h2>조리 전 체크</h2></div><p>조리 전에 보면 좋은 간단한 안내입니다.</p></div>
+          <div className="recipe-section-head"><div><span className="recipe-kicker">DETAIL INFO</span><h2>조리 전 체크</h2></div></div>
           <div className="recipe-insight-list">
             {detailInfo.map((item) => <div className="recipe-insight-row" key={item.label}><div className="recipe-insight-row__meta"><span className="recipe-insight-row__label">{item.label}</span><small className="recipe-insight-row__hint">{item.hint}</small></div><strong className="recipe-insight-row__value">{item.value}</strong></div>)}
           </div>
-          <div className="recipe-insight-note"><strong>장바구니 기준</strong><p>한번에 담기는 실제 판매 중인 매칭 상품만 담습니다. 일치하지 않는 재료는 자동 제외돼요.</p></div>
         </article>
         <article className="recipe-detail-panel recipe-detail-panel--tight recipe-detail-ingredient-panel">
-          <div className="recipe-section-head"><div><span className="recipe-kicker">INGREDIENTS</span><h2>재료 정리</h2></div><p>재료명과 수량을 그룹별로 빠르게 읽을 수 있게 정리했습니다.</p></div>
+          <div className="recipe-section-head"><div><span className="recipe-kicker">INGREDIENTS</span><h2>재료 정리</h2></div></div>
           <div className="recipe-ingredient-groups">
             {groupedIngredients.map((section) => <section className="recipe-ingredient-group" key={section.title}><div className="recipe-ingredient-group__head"><strong>{section.title}</strong><span>{section.items.length}개</span></div><ul className="recipe-ingredient-list">{section.items.map((item) => <li className="recipe-ingredient-row" key={item.key}><span className="recipe-ingredient-name" title={item.name}>{item.name}</span><strong className="recipe-ingredient-amount">{item.amount || '적당량'}</strong></li>)}</ul></section>)}
           </div>
@@ -352,7 +350,6 @@ export default function RecipeDetailPage({
         <section className="recipe-recommend-section recipe-detail-panel">
           <div className="recipe-section-head">
             <div><span className="recipe-kicker">MATCHED PRODUCT</span><h2>판매 중인 재료 상품</h2></div>
-            <p>레시피 재료와 실제 판매 상품이 일치하는 경우에만 보여줍니다.</p>
           </div>
           <div className="recipe-recommend-grid">
             {recommendedProductList.map((product) => {
@@ -402,7 +399,6 @@ export default function RecipeDetailPage({
         </div>
 
         <div className="recipe-review-toolbar">
-          <p className="recipe-review-toolbar__copy">직접 만들어본 후기를 남겨주세요. 별점, 사진, 텍스트를 함께 올릴 수 있고 내가 작성한 리뷰는 여기서 바로 수정하거나 삭제할 수 있습니다.</p>
           <div className="recipe-review-toolbar__actions">
             {!myReview ? (
               <button className="btn" type="button" onClick={startCreateReview}>리뷰 작성</button>
@@ -561,7 +557,6 @@ export default function RecipeDetailPage({
       <section className="recipe-step-section">
         <div className="recipe-step-section__head recipe-step-section__head--detail">
           <div><span className="recipe-kicker">STEP GUIDE</span><h2>조리 단계</h2></div>
-          <p>단계별로 짚고 읽기 좋게 정리한 조리 가이드입니다.</p>
         </div>
         {stepList.length ? (
           <div className="recipe-step-list recipe-step-list--dense">
@@ -847,7 +842,7 @@ function formatReviewDate(value) {
   if (!value) return '방금 전';
   const date = parseReviewDateValue(value);
   if (!date) return String(value);
-  return `${date.getFullYear()}.${padReviewDate(date.getMonth() + 1)}.${padReviewDate(date.getDate())}`;
+  return `${String(date.getFullYear()).slice(-2)}/${padReviewDate(date.getMonth() + 1)}/${padReviewDate(date.getDate())} ${padReviewDate(date.getHours())}:${padReviewDate(date.getMinutes())}`;
 }
 
 function formatReviewTimestamp(review) {
