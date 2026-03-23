@@ -29,6 +29,7 @@ import ProductDetailPage from './ProductDetailPage';
 import ProductListPage from './ProductListPage';
 import LoginPage from './LoginPage';
 import SignupPage from './SignupPage';
+import PriceAnalysisPage from './PriceAnalysisPage';
 import RecipeDetailPage from './RecipeDetailPage';
 import RecipeListPage from './RecipeListPage';
 import { createOrderFromCart } from './orderUiUtils';
@@ -379,6 +380,7 @@ export default function ProductApp({ authUser }) {
   const currentDetailState =
     route.productNo != null ? productDetailStates[route.productNo] : '';
   const routeNeedsProducts =
+    route.page === 'price-analysis' ||
     route.page === 'cart' ||
     route.page === 'checkout' ||
     route.page === 'product-detail' ||
@@ -719,6 +721,12 @@ export default function ProductApp({ authUser }) {
           <RecipeDetailPage recipeNo={route.recipeNo} onBack={openRecipeList} />
         ) : route.page === 'recipes' ? (
           <RecipeListPage onOpenRecipe={openRecipe} />
+        ) : route.page === 'price-analysis' ? (
+          <PriceAnalysisPage
+            products={products}
+            onOpenProduct={openProduct}
+            onOpenRecipe={openRecipe}
+          />
         ) : route.page === 'product-detail' ? (
           currentProduct ? (
             <ProductDetailPage
