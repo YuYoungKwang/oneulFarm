@@ -726,7 +726,9 @@ function MainPage() {
                 카테고리별 대표 상품을 먼저 보고 원하는 묶음으로 바로 이동할 수 있습니다.
               </div>
             </div>
-            <a href="#/products">상품 전체 보기</a>
+            <a className="section-link section-link--products" href="#/products">
+              상품 전체 보기
+            </a>
           </div>
 
           <div className="category-card-grid">
@@ -767,58 +769,73 @@ function MainPage() {
                 이미지부터 빠르게 보고 필요한 가격 정보는 바로 아래에서 확인할 수 있습니다.
               </div>
             </div>
-
-            <div className="spotlight-controls" aria-label="추천상품 이동">
-              <button type="button" onClick={() => scrollRecommendedProducts(-1)}>
-                ‹
-              </button>
-              <button type="button" onClick={() => scrollRecommendedProducts(1)}>
-                ›
-              </button>
-            </div>
           </div>
 
-          <div className="spotlight-rail" ref={recommendedProductsRef}>
-            {recommendedProducts.map((product) => {
-              const imageSources = getProductImageSources(product);
+          <div className="spotlight-slider">
+            <button
+              className="spotlight-nav spotlight-nav--left"
+              type="button"
+              aria-label="이전 추천상품 보기"
+              onClick={() => scrollRecommendedProducts(-1)}
+            >
+              <span aria-hidden="true" className="spotlight-nav__chevron spotlight-nav__chevron--left">
+                ›
+              </span>
+            </button>
 
-              return (
-                <a
-                  className="spotlight-card"
-                  href={`#/products/${product.productNo}`}
-                  key={product.productNo}
-                >
-                  <div className="spotlight-card__media">
-                    {imageSources.length ? (
-                      <img
-                        src={imageSources[0]}
-                        data-fallback-src={imageSources[1] || ""}
-                        onError={handleImageError}
-                        alt={product.productName}
-                      />
-                    ) : (
-                      <span>{product.productName?.slice(0, 1) || "?"}</span>
-                    )}
-                  </div>
+            <div className="spotlight-rail" ref={recommendedProductsRef}>
+              {recommendedProducts.map((product) => {
+                const imageSources = getProductImageSources(product);
 
-                  <div className="spotlight-card__body">
-                    <div className="spotlight-card__category">
-                      {product.categoryName || "농산물"}
+                return (
+                  <a
+                    className="spotlight-card"
+                    href={`#/products/${product.productNo}`}
+                    key={product.productNo}
+                  >
+                    <div className="spotlight-card__media">
+                      {imageSources.length ? (
+                        <img
+                          src={imageSources[0]}
+                          data-fallback-src={imageSources[1] || ""}
+                          onError={handleImageError}
+                          alt={product.productName}
+                        />
+                      ) : (
+                        <span>{product.productName?.slice(0, 1) || "?"}</span>
+                      )}
                     </div>
-                    <div className="spotlight-card__name">{product.productName}</div>
-                    <div className="spotlight-card__price">{formatCurrency(product.salePrice)}</div>
-                    <div className="spotlight-card__meta">
-                      평균가 {formatCurrency(product.avgPrice || product.salePrice)}
-                    </div>
-                    {getDiscountRate(product) > 0 ? (
-                      <div className="spotlight-card__saving">
-                        평균가 대비 {getDiscountRate(product).toFixed(1)}% 절약
+
+                    <div className="spotlight-card__body">
+                      <div className="spotlight-card__category">
+                        {product.categoryName || "농산물"}
                       </div>
-                    ) : null}
-                  </div>
-                </a>
-              );
-            })}
+                      <div className="spotlight-card__name">{product.productName}</div>
+                      <div className="spotlight-card__price">{formatCurrency(product.salePrice)}</div>
+                      <div className="spotlight-card__meta">
+                        평균가 {formatCurrency(product.avgPrice || product.salePrice)}
+                      </div>
+                      {getDiscountRate(product) > 0 ? (
+                        <div className="spotlight-card__saving">
+                          평균가 대비 {getDiscountRate(product).toFixed(1)}% 절약
+                        </div>
+                      ) : null}
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+
+            <button
+              className="spotlight-nav spotlight-nav--right"
+              type="button"
+              aria-label="다음 추천상품 보기"
+              onClick={() => scrollRecommendedProducts(1)}
+            >
+              <span aria-hidden="true" className="spotlight-nav__chevron">
+                ›
+              </span>
+            </button>
           </div>
 
           {!isLoading && recommendedProducts.length === 0 ? (
