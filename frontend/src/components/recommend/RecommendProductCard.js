@@ -1,4 +1,15 @@
+import { buildProductImageSources } from '../../api/productApi';
 import { formatCurrency } from '../productUiUtils';
+
+function handleImageError(event) {
+  const nextSource = event.currentTarget.dataset.fallbackSrc;
+  if (!nextSource || event.currentTarget.src === nextSource) {
+    return;
+  }
+
+  event.currentTarget.src = nextSource;
+  event.currentTarget.removeAttribute('data-fallback-src');
+}
 
 export default function RecommendProductCard({
   badges = [],
@@ -15,6 +26,7 @@ export default function RecommendProductCard({
   const displaySymbol = product?.display?.symbol || 'P';
   const salePrice = Number(product?.salePrice || 0);
   const averagePrice = Number(product?.priceSnapshot?.avgPrice || salePrice);
+  const imageSources = buildProductImageSources(product);
 
   return (
     <article className="recommend-product-card">
@@ -26,9 +38,19 @@ export default function RecommendProductCard({
         }}
       >
         <span className="recommend-product-card__type">{typeLabel}</span>
-        <div className="recommend-product-card__symbol" aria-hidden="true">
-          {displaySymbol}
-        </div>
+        {imageSources.length ? (
+          <img
+            alt={productName}
+            className="recommend-product-card__image"
+            data-fallback-src={imageSources[1] || ''}
+            onError={handleImageError}
+            src={imageSources[0]}
+          />
+        ) : (
+          <div className="recommend-product-card__symbol" aria-hidden="true">
+            {displaySymbol}
+          </div>
+        )}
       </div>
 
       <div className="recommend-product-card__body">

@@ -64,7 +64,7 @@ const HeroSlider = () => {
 
       {/* 오른쪽 배너 (이미지/API 연결 가능) */}
       <div className="hero-art">
-        <div className="hero-note">메인 히어로 배너</div>
+      
 
         <div className="art-card back"></div>
         <div className="art-card front"></div>
