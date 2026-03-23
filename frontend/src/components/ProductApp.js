@@ -532,7 +532,6 @@ export default function ProductApp({ authUser }) {
     if (stockLimit < 1 || safeQuantity < 1) {
       return;
     }
-
     if (process.env.NODE_ENV !== 'test') {
       try {
         const nextCart = await addCartItemToApi(productNo, safeQuantity);

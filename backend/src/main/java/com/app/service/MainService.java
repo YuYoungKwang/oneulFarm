@@ -1,8 +1,8 @@
 package com.app.service;
 
-import com.app.dto.main.MainPageDto;
+import java.util.Map;
 
 public interface MainService {
 
-    MainPageDto getMainPage();
+    Map<String, Object> getMainPage();
 }

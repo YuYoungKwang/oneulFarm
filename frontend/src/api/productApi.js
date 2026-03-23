@@ -170,6 +170,20 @@ function buildGalleryItems(rawProduct, display) {
   }));
 }
 
+export function buildProductImageSources(product) {
+  const mainImage = Array.isArray(product?.images)
+    ? product.images.find((image) => image?.isMain === 'Y') || product.images[0]
+    : null;
+
+  if (!mainImage?.imageNo) {
+    return [];
+  }
+
+  return API_BASE_PREFIXES.map(
+    (basePrefix) => `${basePrefix}/api/image/product/${mainImage.imageNo}`
+  );
+}
+
 function buildRecipes(rawRecipes = []) {
   return rawRecipes.map((recipe, index) => ({
     mapNo: recipe.mapNo,

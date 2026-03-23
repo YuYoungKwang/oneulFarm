@@ -22,7 +22,6 @@ import { fetchRecipeDetail, fetchRecipeList } from './components/recipeApi';
 
 const mockImageUrl =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
-
 jest.mock('./api/productApi', () => ({
   addCartItemToApi: jest.fn(),
   advanceOrderOnApi: jest.fn(),
@@ -75,7 +74,6 @@ jest.mock('./components/recipeApi', () => ({
   fetchRecipeDetail: jest.fn(),
   fetchRecipeList: jest.fn(),
 }));
-
 function buildProduct(overrides = {}) {
   const productNo = overrides.productNo ?? 1001;
   const productName =
@@ -448,6 +446,8 @@ describe('App', () => {
   });
 
   test('\uC0C1\uD488 \uD654\uBA74\uC758 \uB9C8\uC774\uD398\uC774\uC9C0 \uB124\uBE44\uB294 \uB9C8\uC774\uD398\uC774\uC9C0 \uACBD\uB85C\uB85C \uC774\uB3D9\uD55C\uB2E4', async () => {
+    window.location.hash = '#/products';
+
     render(<App />);
 
     await screen.findByText('\uC591\uD30C 1kg');

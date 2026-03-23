@@ -125,7 +125,7 @@ export function getBadgeLabel(product) {
   }
 
   if (product.priceMatch.badgeType === 'HOT_DEAL') {
-    return '특가';
+    return '핫딜';
   }
 
   if (product.isSeasonal === 'Y') {
