@@ -1190,6 +1190,22 @@ function AccountApp({ authUser: initialAuthUser }) {
     setWishlistProductNos(nextWishlist);
   }
 
+  function handleStartCreateReviewFromOrder(item, orderDetail) {
+    if (!item) {
+      return;
+    }
+
+    handleStartCreateReview({
+      orderItemNo: item.orderItemNo,
+      productNo: item.productNo,
+      productName: item.productName,
+      orderId: orderDetail?.orderId || '',
+      imageNo: item.imageNo || null,
+    });
+    setActiveTab('reviews');
+    moveToPage('activity');
+  }
+
   function handleStartCreateReview(review) {
     setReviewEditor({
       mode: 'create',
@@ -1493,6 +1509,7 @@ function AccountApp({ authUser: initialAuthUser }) {
             onOrderFilterSubmit={handleOrderFilterSubmit}
             onOrderFilterReset={handleOrderFilterReset}
             onSelectOrder={handleSelectOrder}
+            onStartCreateReview={handleStartCreateReviewFromOrder}
           />
         ) : (
           <DashboardView

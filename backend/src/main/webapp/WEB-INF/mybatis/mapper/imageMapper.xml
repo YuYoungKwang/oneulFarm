@@ -4,7 +4,6 @@
 
 <mapper namespace="imageMapper">
 
-    <!-- 배너 이미지 -->
     <select id="selectBannerImage" parameterType="long" resultType="byte[]">
         SELECT IMAGE_DATA
         FROM OFT_MAIN_BANNER
@@ -17,7 +16,6 @@
         WHERE BANNER_NO = #{_parameter}
     </select>
 
-    <!-- 상품 이미지 -->
     <select id="selectProductImage" parameterType="long" resultType="byte[]">
         SELECT IMAGE_DATA
         FROM OFT_PRODUCT_IMAGE

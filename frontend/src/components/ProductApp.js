@@ -511,6 +511,34 @@ export default function ProductApp({ authUser }) {
     }));
   }
 
+  async function addMatchedProductsToCart(productList) {
+    if (!isLoggedIn) {
+      navigateToHash('#/login');
+      return 0;
+    }
+
+    const uniqueProductNoList = Array.from(
+      new Set(
+        (Array.isArray(productList) ? productList : [])
+          .map((product) => Number(product?.productNo))
+          .filter((productNo) => Number.isFinite(productNo) && productNo > 0)
+      )
+    );
+
+    let addedCount = 0;
+    for (const productNo of uniqueProductNoList) {
+      const stockLimit = getProductStockLimit(productNo);
+      if (stockLimit < 1) {
+        continue;
+      }
+
+      await addToCart(productNo, 1);
+      addedCount += 1;
+    }
+
+    return addedCount;
+  }
+
   async function updateCartQuantity(productNo, nextQuantity) {
     const stockLimit = getProductStockLimit(productNo);
     const normalizedQuantity =
@@ -717,7 +745,12 @@ export default function ProductApp({ authUser }) {
             />
           )
         ) : route.page === 'recipe-detail' ? (
-          <RecipeDetailPage recipeNo={route.recipeNo} onBack={openRecipeList} />
+          <RecipeDetailPage
+            authUser={authUser}
+            onAddMatchedProductsToCart={addMatchedProductsToCart}
+            recipeNo={route.recipeNo}
+            onBack={openRecipeList}
+          />
         ) : route.page === 'recipes' ? (
           <RecipeListPage onOpenRecipe={openRecipe} />
         ) : route.page === 'price-analysis' ? (
