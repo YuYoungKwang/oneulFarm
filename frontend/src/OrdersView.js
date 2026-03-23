@@ -25,6 +25,7 @@ function OrdersView({
   onOrderFilterSubmit,
   onOrderFilterReset,
   onSelectOrder,
+  onStartCreateReview,
 }) {
   const stats = getOrderStats(orders);
 
@@ -170,7 +171,12 @@ function OrdersView({
                 </article>
 
                 {isSelected && (
-                  <OrderDetailPanel detail={orderDetail} loading={detailLoading} error={detailError} />
+                  <OrderDetailPanel
+                    detail={orderDetail}
+                    loading={detailLoading}
+                    error={detailError}
+                    onStartCreateReview={onStartCreateReview}
+                  />
                 )}
               </div>
             );

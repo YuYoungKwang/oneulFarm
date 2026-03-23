@@ -3,7 +3,6 @@ package com.app.dao;
 import java.util.List;
 
 import com.app.dto.RecipeDTO;
-import com.app.dto.RecipeDetailDTO;
 import com.app.dto.RecipeIngredientDTO;
 import com.app.dto.RecipeStepDTO;
 import com.app.dto.RecipeStepImageDTO;
@@ -24,9 +23,11 @@ public interface RecipeDAO {
 
     int insertRecipeStepImage(RecipeStepImageDTO recipeStepImageDTO);
 
-    List<RecipeDTO> selectRecipeList(String keyword, String ingredientKeyword, String sort, int limit);
+    List<RecipeDTO> selectRecipeList(String keyword, String ingredientKeyword, String sort, int offset, int pageSize);
 
-    RecipeDetailDTO selectRecipeDetail(Long recipeNo);
+    int countRecipeList(String keyword, String ingredientKeyword);
+
+    RecipeDTO selectRecipeDetail(Long recipeNo);
 
     List<RecipeIngredientDTO> selectRecipeIngredientList(Long recipeNo);
 

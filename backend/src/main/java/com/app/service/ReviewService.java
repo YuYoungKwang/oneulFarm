@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.app.dto.ActivityReviewDto;
+import com.app.dto.ReviewDto;
 import com.app.dto.ReviewRequestDto;
 
 public interface ReviewService {
@@ -18,4 +19,12 @@ public interface ReviewService {
     ActivityReviewDto updateReview(Long userNo, Long reviewNo, ReviewRequestDto request, MultipartFile reviewImage);
 
     void deleteReview(Long userNo, Long reviewNo);
+
+    List<ReviewDto> getRecipeReviews(Long recipeNo);
+
+    ReviewDto createRecipeReview(Long userNo, ReviewDto reviewDto);
+
+    ReviewDto updateRecipeReview(Long userNo, Long reviewNo, ReviewDto reviewDto);
+
+    void deleteRecipeReview(Long userNo, Long reviewNo);
 }
