@@ -148,10 +148,10 @@ function ActivityView({
               )}
 
               {!wishlistLoading && !wishlistError && wishlistItems.length > 0 && (
-                <div className="product-grid">
+                <div className="wishlist-list">
                   {wishlistItems.map((item) => (
-                    <article key={item.productNo} className="product-card">
-                      <a href={`#/products/${item.productNo}`} className="product-media wishlist-product-link-media">
+                    <article key={item.productNo} className="wishlist-card">
+                      <a href={`#/products/${item.productNo}`} className="wishlist-card__media wishlist-product-link-media">
                         {item.imageUrl ? (
                           <img className="wishlist-product-thumb" src={item.imageUrl} alt={item.name} />
                         ) : (
