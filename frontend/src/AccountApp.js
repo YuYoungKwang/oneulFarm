@@ -92,6 +92,8 @@ const EMPTY_REVIEW_FORM = {
   orderItemNo: '',
   rating: 5,
   content: '',
+  imageFile: null,
+  removeImage: false,
 };
 
 const ACCOUNT_ROUTES = {
@@ -246,6 +248,8 @@ function AccountApp({ authUser: initialAuthUser }) {
   const [profileForm, setProfileForm] = useState(EMPTY_PROFILE_FORM);
   const [profileSubmitError, setProfileSubmitError] = useState('');
   const [profileSubmitting, setProfileSubmitting] = useState(false);
+  const [profileImageUploading, setProfileImageUploading] = useState(false);
+  const [profileImageError, setProfileImageError] = useState('');
   const [duplicateState, setDuplicateState] = useState(EMPTY_DUPLICATE_STATE);
   const [passwordForm, setPasswordForm] = useState(EMPTY_PASSWORD_FORM);
   const [passwordError, setPasswordError] = useState('');
@@ -389,6 +393,7 @@ function AccountApp({ authUser: initialAuthUser }) {
             avg: buildWishlistSummary(product),
             savingRate: buildWishlistSavingRate(product),
             badge: buildWishlistBadge(product),
+            imageUrl: product.mainImage?.imageUrl || '',
             emoji: product.display?.symbol || '🛒',
           }));
 
@@ -679,6 +684,38 @@ function AccountApp({ authUser: initialAuthUser }) {
     setProfileForm(toProfileForm(profile));
     setProfileSubmitError('');
     setDuplicateState(EMPTY_DUPLICATE_STATE);
+  }
+
+  async function handleProfileImageUpload(file) {
+    if (!file) {
+      return false;
+    }
+
+    setProfileImageUploading(true);
+    setProfileImageError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('profileImage', file);
+
+      await requestAuthApi(
+        `${USER_API_PATH}/me/profile-image`,
+        {
+          method: 'PATCH',
+          headers: accountHeaders(authUser),
+          body: formData,
+        },
+        '프로필 사진 변경에 실패했습니다.'
+      );
+
+      await refreshProfile();
+      return true;
+    } catch (error) {
+      setProfileImageError(error.message || '프로필 사진 변경에 실패했습니다.');
+      return false;
+    } finally {
+      setProfileImageUploading(false);
+    }
   }
 
   async function handleDuplicateCheck(fieldKey) {
@@ -1159,11 +1196,15 @@ function AccountApp({ authUser: initialAuthUser }) {
       reviewNo: null,
       productName: review.productName,
       orderId: review.orderId,
+      imageNo: review.imageNo || null,
+      reviewImageNo: null,
     });
     setReviewForm({
       orderItemNo: review.orderItemNo,
       rating: 5,
       content: '',
+      imageFile: null,
+      removeImage: false,
     });
     setReviewFormError('');
   }
@@ -1174,11 +1215,15 @@ function AccountApp({ authUser: initialAuthUser }) {
       reviewNo: review.reviewNo,
       productName: review.productName,
       orderId: review.orderId,
+      imageNo: review.imageNo || null,
+      reviewImageNo: review.reviewImageNo || null,
     });
     setReviewForm({
       orderItemNo: review.orderItemNo,
       rating: Number(review.rating || 5),
       content: review.content || '',
+      imageFile: null,
+      removeImage: false,
     });
     setReviewFormError('');
   }
@@ -1198,6 +1243,25 @@ function AccountApp({ authUser: initialAuthUser }) {
     }));
   }
 
+  function handleReviewImageChange(event) {
+    const file = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+    setReviewFormError('');
+    setReviewForm((current) => ({
+      ...current,
+      imageFile: file,
+      removeImage: false,
+    }));
+  }
+
+  function handleRemoveReviewImage() {
+    setReviewFormError('');
+    setReviewForm((current) => ({
+      ...current,
+      imageFile: null,
+      removeImage: true,
+    }));
+  }
+
   async function handleReviewSubmit(event) {
     event.preventDefault();
     setReviewSubmitting(true);
@@ -1211,12 +1275,23 @@ function AccountApp({ authUser: initialAuthUser }) {
 
     try {
       const isEditMode = reviewEditor?.mode === 'edit' && reviewEditor?.reviewNo;
+      const formData = new FormData();
+      if (reviewForm.orderItemNo) {
+        formData.append('orderItemNo', String(reviewForm.orderItemNo));
+      }
+      formData.append('rating', String(reviewForm.rating));
+      formData.append('content', String(reviewForm.content || ''));
+      formData.append('removeImage', reviewForm.removeImage ? 'true' : 'false');
+      if (reviewForm.imageFile) {
+        formData.append('reviewImage', reviewForm.imageFile);
+      }
+
       await requestAuthApi(
         isEditMode ? `${REVIEW_API_PATH}/${reviewEditor.reviewNo}` : REVIEW_API_PATH,
         {
           method: isEditMode ? 'PATCH' : 'POST',
-          headers: accountHeaders(authUser, true),
-          body: JSON.stringify(reviewForm),
+          headers: accountHeaders(authUser),
+          body: formData,
         },
         isEditMode ? '리뷰 수정에 실패했습니다.' : '리뷰 작성에 실패했습니다.'
       );
@@ -1328,7 +1403,7 @@ function AccountApp({ authUser: initialAuthUser }) {
             className={`account-local-nav__link ${currentPage === 'activity' ? 'is-active' : ''}`}
             onClick={() => moveToPage('activity')}
           >
-            관심 활동
+              내 활동
           </button>
           <button
             type="button"
@@ -1355,9 +1430,12 @@ function AccountApp({ authUser: initialAuthUser }) {
             profileForm={profileForm}
             profileSubmitting={profileSubmitting}
             profileSubmitError={profileSubmitError}
+            profileImageUploading={profileImageUploading}
+            profileImageError={profileImageError}
             duplicateState={duplicateState}
             onProfileFormChange={handleProfileFormChange}
             onProfileSubmit={handleProfileSubmit}
+            onProfileImageUpload={handleProfileImageUpload}
             onResetProfileForm={resetProfileForm}
             onDuplicateCheck={handleDuplicateCheck}
             passwordForm={passwordForm}
@@ -1396,6 +1474,8 @@ function AccountApp({ authUser: initialAuthUser }) {
             onStartEditReview={handleStartEditReview}
             onCancelReviewEditor={handleCancelReviewEditor}
             onReviewFormChange={handleReviewFormChange}
+            onReviewImageChange={handleReviewImageChange}
+            onRemoveReviewImage={handleRemoveReviewImage}
             onReviewSubmit={handleReviewSubmit}
             onDeleteReview={handleDeleteReview}
           />

@@ -6,6 +6,11 @@ import {
   getOrderStats,
 } from './appUtils';
 import OrderDetailPanel from './OrderDetailPanel';
+import InlineInfoTip from './components/InlineInfoTip';
+
+function getOrderImageSrc(imageNo) {
+  return imageNo ? `/backend/api/image/product/${imageNo}` : '';
+}
 
 function OrdersView({
   orders,
@@ -27,13 +32,24 @@ function OrdersView({
     <>
       <section className="page-head">
         <div>
-          <h1>주문관리</h1>
-          <p>배송 상태와 기간 조건으로 주문을 찾고, 필요한 주문만 펼쳐서 상세를 확인하는 전용 화면입니다.</p>
+          <div className="page-title-row">
+            <h1>주문관리</h1>
+            <InlineInfoTip content="배송 상태와 기간으로 주문을 찾고, 필요한 주문만 열어서 상세 내용을 확인할 수 있습니다." />
+          </div>
         </div>
       </section>
 
       <section className="section">
         <article className="card order-filter-bar">
+          <div className="section-head">
+            <div>
+              <div className="section-title-row">
+                <div className="section-title">주문 조회 조건</div>
+                <InlineInfoTip content="배송 상태와 기간을 선택하면 원하는 주문만 빠르게 볼 수 있습니다." />
+              </div>
+            </div>
+          </div>
+
           <form className="order-filter-form" onSubmit={onOrderFilterSubmit}>
             <div className="order-filter-grid">
               <label className="form-field">
@@ -64,7 +80,7 @@ function OrdersView({
 
       <div className="quick-grid">
         <article className="quick-card">
-          <div className="quick-label">현재 조회 결과</div>
+          <div className="quick-label">조회 결과</div>
           <div className="quick-value">{stats.totalCount}건</div>
         </article>
         <article className="quick-card soft-yellow">
@@ -93,6 +109,7 @@ function OrdersView({
         <section className="order-list">
           {orders.map((order) => {
             const isSelected = selectedOrderNo === order.orderNo;
+            const previewImageNos = Array.isArray(order.previewImageNos) ? order.previewImageNos : [];
 
             return (
               <div key={order.orderNo} className="order-list-entry">
@@ -100,12 +117,30 @@ function OrdersView({
                   <div className="order-top">
                     <div>
                       <div className="card-title order-title">주문번호 {order.orderId}</div>
-                      <div className="section-sub">{formatDate(order.orderedAt)} 주문</div>
+                      <div className="section-sub">{formatDate(order.orderedAt)}</div>
                     </div>
                     <span className={`status-pill ${getDeliveryBadgeClass(order.deliveryStatus)}`}>
                       {getDeliveryLabel(order.deliveryStatus)}
                     </span>
                   </div>
+
+                  {previewImageNos.length > 0 && (
+                    <div className="order-preview-strip" aria-label="구매 상품 대표 이미지">
+                      {previewImageNos.map((imageNo, index) => (
+                        <img
+                          key={`${order.orderNo}-${imageNo}-${index}`}
+                          className="order-preview-thumb"
+                          src={getOrderImageSrc(imageNo)}
+                          alt={order.displayProductName || '주문 상품'}
+                        />
+                      ))}
+                      {Number(order.itemCount || 0) > previewImageNos.length && (
+                        <span className="order-preview-more">
+                          +{Number(order.itemCount || 0) - previewImageNos.length}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   <div className="order-summary-grid">
                     <div className="order-summary-item">
@@ -117,11 +152,11 @@ function OrdersView({
                       <span>{order.itemCount}건</span>
                     </div>
                     <div className="order-summary-item">
-                      <strong>최종 결제금액</strong>
+                      <strong>최종 결제 금액</strong>
                       <span>{formatPrice(order.finalAmount)}</span>
                     </div>
                     <div className="order-summary-item order-summary-item--saving">
-                      <strong>총 절약금액</strong>
+                      <strong>총 절약 금액</strong>
                       <span>{formatPrice(order.totalSavedAmount)}</span>
                     </div>
                   </div>
