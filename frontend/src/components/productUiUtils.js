@@ -76,6 +76,10 @@ export function parseHash(hash) {
     return { page: 'recipes' };
   }
 
+  if (segments[0] === 'price-analysis') {
+    return { page: 'price-analysis' };
+  }
+
   if (segments[0] === 'products' && segments[1]) {
     const productNo = Number(segments[1]);
 

@@ -18,6 +18,7 @@ const MAIN_ROUTE_SEGMENTS = new Set(['', 'main', 'mainpage', 'home']);
 const PRODUCT_ROUTE_SEGMENTS = new Set([
   'productapp',
   'products',
+  'price-analysis',
   'cart',
   'checkout',
   'orders',
@@ -97,6 +98,10 @@ function resolveActiveSection(hash) {
     return 'recommend';
   }
 
+  if (firstSegment === 'price-analysis') {
+    return 'market';
+  }
+
   if (
     firstSegment === 'orders' ||
     firstSegment === 'order-complete' ||
@@ -111,6 +116,7 @@ function resolveActiveSection(hash) {
 
   if (
     firstSegment === 'productapp' ||
+    firstSegment === 'price-analysis' ||
     firstSegment === 'products' ||
     firstSegment === 'cart' ||
     firstSegment === 'checkout' ||

@@ -384,7 +384,7 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
         }
 
         String resolvedMarketType = normalizeRequiredMarketType(marketType == null || marketType.isBlank() ? MARKET_TYPE_RETAIL : marketType);
-        int resolvedLimit = resolveLimit(limit, 30, 60);
+        int resolvedLimit = resolveLimit(limit, 30, 800);
 
         return priceSnapshotDAO.selectPriceSnapshotTrend(itemCode.trim(), resolvedMarketType, resolvedLimit);
     }
