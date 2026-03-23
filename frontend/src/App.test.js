@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App from './App';
 import { createOrderFromCart } from './components/orderUiUtils';
 import {
@@ -393,6 +393,53 @@ describe('App', () => {
         limit: 18,
       });
     });
+  });
+
+  test('\uB9AC\uBDF0 \uBCC0\uACBD \uC774\uBCA4\uD2B8\uAC00 \uC624\uBA74 \uC0C1\uD488 \uC0C1\uC138 \uB9AC\uBDF0\uB97C \uB2E4\uC2DC \uBD88\uB7EC\uC628\uB2E4', async () => {
+    fetchProductDetailFromApi
+      .mockResolvedValueOnce(
+        buildProduct({
+          productNo: 1002,
+          productName: '\uC591\uD30C 1kg',
+          reviews: [],
+        })
+      )
+      .mockResolvedValueOnce(
+        buildProduct({
+          productNo: 1002,
+          productName: '\uC591\uD30C 1kg',
+          reviews: [
+            {
+              reviewNo: 9101,
+              author: '\uD5C8\uB96D',
+              rating: 5,
+              content: '\uB9C8\uC774\uD398\uC774\uC9C0\uC5D0\uC11C \uC791\uC131\uD55C \uB9AC\uBDF0',
+              createdAt: '2026-03-23T09:30:00',
+            },
+          ],
+        })
+      );
+
+    window.location.hash = '#/products/1002';
+
+    render(<App />);
+
+    expect(
+      await screen.findByText('\uC544\uC9C1 \uB4F1\uB85D\uB41C \uB9AC\uBDF0\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.')
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent('oneulFarm:review-change', {
+          detail: { productNo: 1002 },
+        })
+      );
+    });
+
+    expect(
+      await screen.findByText('\uB9C8\uC774\uD398\uC774\uC9C0\uC5D0\uC11C \uC791\uC131\uD55C \uB9AC\uBDF0')
+    ).toBeInTheDocument();
+    expect(fetchProductDetailFromApi).toHaveBeenCalledTimes(2);
   });
 
   test('\uC0C1\uD488 \uD654\uBA74\uC758 \uB9C8\uC774\uD398\uC774\uC9C0 \uB124\uBE44\uB294 \uB9C8\uC774\uD398\uC774\uC9C0 \uACBD\uB85C\uB85C \uC774\uB3D9\uD55C\uB2E4', async () => {

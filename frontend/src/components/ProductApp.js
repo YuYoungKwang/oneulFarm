@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useState } from 'react';
+import { startTransition, useEffect, useRef, useState } from 'react';
 import '../styles/product.css';
 import {
   DEFAULT_TOSS_CONFIG,
@@ -59,6 +59,9 @@ export default function ProductApp({ authUser }) {
   const [productReloadToken, setProductReloadToken] = useState(0);
   const [productDetails, setProductDetails] = useState({});
   const [productDetailStates, setProductDetailStates] = useState({});
+  const [productDetailReloadTokens, setProductDetailReloadTokens] = useState({});
+  const productDetailsRef = useRef(productDetails);
+  const productDetailStatesRef = useRef(productDetailStates);
   const [tossConfig, setTossConfig] = useState(DEFAULT_TOSS_CONFIG);
   const [paymentFlowState, setPaymentFlowState] = useState({
     status: 'idle',
@@ -97,6 +100,14 @@ export default function ProductApp({ authUser }) {
   useEffect(() => {
     persistValue('oneulFarmOrders', orders);
   }, [orders]);
+
+  useEffect(() => {
+    productDetailsRef.current = productDetails;
+  }, [productDetails]);
+
+  useEffect(() => {
+    productDetailStatesRef.current = productDetailStates;
+  }, [productDetailStates]);
 
   useEffect(() => {
     let cancelled = false;
@@ -186,13 +197,14 @@ export default function ProductApp({ authUser }) {
       return;
     }
 
-    const existingDetail = productDetails[route.productNo];
-    const detailState = productDetailStates[route.productNo];
-    if (
-      existingDetail?.recipes?.length ||
-      existingDetail?.reviews?.length ||
-      detailState === 'loading'
-    ) {
+    const existingDetail = productDetailsRef.current[route.productNo];
+    const detailState = productDetailStatesRef.current[route.productNo];
+    if (detailState === 'loading') {
+      return;
+    }
+
+    const reloadToken = productDetailReloadTokens[route.productNo] || 0;
+    if (existingDetail && reloadToken < 1) {
       return;
     }
 
@@ -221,6 +233,10 @@ export default function ProductApp({ authUser }) {
           ...previousStates,
           [detailProduct.productNo]: 'success',
         }));
+        setProductDetailReloadTokens((previousTokens) => ({
+          ...previousTokens,
+          [detailProduct.productNo]: 0,
+        }));
       } catch (error) {
         if (!cancelled) {
           setProductDetailStates((previousStates) => ({
@@ -235,7 +251,27 @@ export default function ProductApp({ authUser }) {
     return () => {
       cancelled = true;
     };
-  }, [productDetailStates, productDetails, route.page, route.productNo]);
+  }, [productDetailReloadTokens, route.page, route.productNo]);
+
+  useEffect(() => {
+    const handleReviewChange = (event) => {
+      const productNo = Number(event.detail?.productNo);
+      if (!Number.isFinite(productNo) || productNo <= 0) {
+        return;
+      }
+
+      setProductDetailReloadTokens((previousTokens) => ({
+        ...previousTokens,
+        [productNo]: (previousTokens[productNo] || 0) + 1,
+      }));
+    };
+
+    window.addEventListener('oneulFarm:review-change', handleReviewChange);
+
+    return () => {
+      window.removeEventListener('oneulFarm:review-change', handleReviewChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (process.env.NODE_ENV === 'test') {
