@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.app.common.ProduceStandardWeightSupport;
 import com.app.dao.ProductDao;
 import com.app.dto.PriceSnapshotDTO;
 import com.app.dto.ProductDto;
@@ -212,19 +213,41 @@ public class ProductServiceImpl implements ProductService {
         if (productQuantity == null || snapshotQuantity == null) {
             return null;
         }
-        if (!productQuantity.type.equals(snapshotQuantity.type)) {
-            return null;
-        }
-        if (productQuantity.amount.compareTo(BigDecimal.ZERO) <= 0 || snapshotQuantity.amount.compareTo(BigDecimal.ZERO) <= 0) {
-            return null;
-        }
         if (snapshot.getAvgPrice() == null) {
             return null;
         }
 
+        if (productQuantity.type.equals(snapshotQuantity.type)) {
+            if (productQuantity.amount.compareTo(BigDecimal.ZERO) <= 0 || snapshotQuantity.amount.compareTo(BigDecimal.ZERO) <= 0) {
+                return null;
+            }
+
+            return snapshot.getAvgPrice()
+                .multiply(productQuantity.amount)
+                .divide(snapshotQuantity.amount, 2, RoundingMode.HALF_UP);
+        }
+
+        BigDecimal productAmountInGram = ProduceStandardWeightSupport.resolveProductAmountInGram(
+            product.getProductName(),
+            product.getUnit(),
+            product.getPackageWeight() == null || product.getPackageWeight().compareTo(BigDecimal.ZERO) <= 0
+                ? BigDecimal.ONE
+                : product.getPackageWeight()
+        );
+        BigDecimal snapshotAmountInGram = ProduceStandardWeightSupport.resolveSnapshotAmountInGram(
+            snapshot.getItemName() == null ? product.getProductName() : snapshot.getItemName(),
+            snapshot.getUnit()
+        );
+        if (productAmountInGram == null
+            || snapshotAmountInGram == null
+            || productAmountInGram.compareTo(BigDecimal.ZERO) <= 0
+            || snapshotAmountInGram.compareTo(BigDecimal.ZERO) <= 0) {
+            return null;
+        }
+
         return snapshot.getAvgPrice()
-            .multiply(productQuantity.amount)
-            .divide(snapshotQuantity.amount, 2, RoundingMode.HALF_UP);
+            .multiply(productAmountInGram)
+            .divide(snapshotAmountInGram, 2, RoundingMode.HALF_UP);
     }
 
     private Quantity resolveProductQuantity(ProductDto product) {
@@ -249,7 +272,7 @@ public class ProductServiceImpl implements ProductService {
             return new Quantity(UnitType.COUNT, packageWeight);
         }
 
-        return null;
+        return new Quantity(UnitType.COUNT, packageWeight);
     }
 
     private Quantity resolveSnapshotQuantity(String snapshotUnit) {
@@ -280,7 +303,7 @@ public class ProductServiceImpl implements ProductService {
         if (COUNT_UNIT_SET.contains(normalizedUnit)) {
             return new Quantity(UnitType.COUNT, amount);
         }
-        return null;
+        return new Quantity(UnitType.COUNT, amount);
     }
 
     private java.time.LocalDate parseSnapshotDate(String snapshotDate) {
