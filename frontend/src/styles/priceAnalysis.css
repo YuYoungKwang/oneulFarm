@@ -353,6 +353,10 @@
   border: 1px solid transparent;
 }
 
+.price-status-badge {
+  max-width: max-content;
+}
+
 .price-status-badge.tone-best,
 .price-tone-pill.tone-green,
 .market-product-card__badge.tone-green,
@@ -719,6 +723,7 @@
 .price-insight-hero__copy {
   display: grid;
   gap: 10px;
+  justify-items: start;
 }
 
 .price-insight-hero__copy strong {
@@ -1083,6 +1088,46 @@
   margin-top: 16px;
 }
 
+.price-ranking-pagination {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.price-ranking-pagination__dot {
+  appearance: none;
+  background: #d7dee6;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  height: 12px;
+  padding: 0;
+  transition:
+    background-color 0.18s ease,
+    opacity 0.18s ease,
+    transform 0.18s ease,
+    width 0.18s ease;
+  width: 12px;
+}
+
+.price-ranking-pagination__dot:hover {
+  opacity: 0.82;
+}
+
+.price-ranking-pagination__dot.is-active {
+  background: var(--price-green);
+  transform: translateY(-1px);
+  width: 28px;
+}
+
+.price-ranking-pagination__dot:disabled {
+  background: #e5e7eb;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .price-ranking-list {
   display: grid;
   gap: 10px;
@@ -1107,8 +1152,9 @@
 }
 
 .price-ranking-item:hover {
-  border-color: var(--price-green-line);
-  transform: translateY(-1px);
+  border-color: rgba(23, 146, 77, 0.38);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+  transform: translate3d(0, -4px, 0);
 }
 
 .price-ranking-item.is-active {
@@ -1175,14 +1221,24 @@
 }
 
 .market-product-card {
+  appearance: none;
+  border: 1px solid var(--price-border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  padding: 0;
+  text-align: left;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
 }
 
 .market-product-card__media {
-  aspect-ratio: 1.35 / 1;
+  aspect-ratio: 1.45 / 1;
   background: linear-gradient(180deg, rgba(23, 146, 77, 0.08) 0%, rgba(23, 146, 77, 0.02) 100%);
+  min-height: 196px;
+  overflow: hidden;
   position: relative;
 }
 
@@ -1191,6 +1247,7 @@
   display: block;
   height: 100%;
   object-fit: cover;
+  object-position: center center;
   width: 100%;
 }
 
@@ -1259,7 +1316,6 @@
 }
 
 .market-product-card__footer {
-  align-items: center;
   margin-top: auto;
 }
 
@@ -1279,12 +1335,22 @@
 }
 
 .price-recipe-card {
+  appearance: none;
+  border: 1px solid var(--price-border);
   overflow: hidden;
+  padding: 0;
+  text-align: left;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
 }
 
 .price-recipe-card__media {
   aspect-ratio: 1.45 / 1;
   background: linear-gradient(180deg, rgba(23, 146, 77, 0.08) 0%, rgba(23, 146, 77, 0.02) 100%);
+  min-height: 196px;
+  overflow: hidden;
 }
 
 .price-recipe-card__body {
@@ -1316,8 +1382,27 @@
 }
 
 .price-recipe-card__footer {
-  align-items: center;
   margin-top: auto;
+}
+
+.market-product-card--interactive,
+.price-recipe-card--interactive {
+  cursor: pointer;
+}
+
+.market-product-card--interactive:hover,
+.price-recipe-card--interactive:hover {
+  border-color: rgba(23, 146, 77, 0.38);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+  transform: translate3d(0, -5px, 0);
+}
+
+.market-product-card--interactive:focus-visible,
+.price-recipe-card--interactive:focus-visible {
+  border-color: rgba(23, 146, 77, 0.44);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+  outline: 3px solid rgba(23, 146, 77, 0.18);
+  outline-offset: 3px;
 }
 
 .price-empty-state {

@@ -12,22 +12,20 @@ function formatPercent(value) {
 
 function buildComparisonCopy(salePrice, averagePrice) {
   if (!averagePrice) {
-    return '평균가 정보가 부족합니다.';
+    return '평균가 정보가 아직 부족합니다.';
   }
 
   const gapRate = ((salePrice - averagePrice) / averagePrice) * 100;
-
   if (gapRate <= 0) {
-    return `평균가보다 ${Math.abs(gapRate).toFixed(1)}% 낮아요`;
+    return `평균가보다 ${Math.abs(gapRate).toFixed(1)}% 낮아요.`;
   }
 
-  return `평균가보다 ${gapRate.toFixed(1)}% 높아요`;
+  return `평균가보다 ${gapRate.toFixed(1)}% 높아요.`;
 }
 
 export default function PriceProductCard({
   badgeLabel,
   badgeTone = 'green',
-  ctaLabel = '상품 보러가기',
   onAction,
   product,
   reasonDetail,
@@ -41,7 +39,10 @@ export default function PriceProductCard({
   const imageUrl = product?.mainImage?.imageUrl || '';
   const salePrice = Number(product?.salePrice || 0);
   const averagePrice = Number(
-    product?.priceMatch?.comparedPrice || product?.priceSnapshot?.avgPrice || 0
+    product?.priceMatch?.comparedPrice ||
+      product?.priceSnapshot?.displayAvgPrice ||
+      product?.priceSnapshot?.avgPrice ||
+      0
   );
   const originLabel = product?.origin || '원산지 정보 없음';
   const unitLabel =
@@ -51,9 +52,15 @@ export default function PriceProductCard({
   const changeRate = Number(product?.priceSnapshot?.changeRate || 0);
   const savingRate = Number(product?.priceMatch?.savingRate || 0);
   const fallbackText = product?.productName?.slice(0, 2) || '상품';
+  const RootTag = onAction ? 'button' : 'article';
 
   return (
-    <article className={`market-product-card market-product-card--${variant}`}>
+    <RootTag
+      {...(onAction ? { type: 'button', onClick: onAction } : {})}
+      className={`market-product-card market-product-card--${variant} ${
+        onAction ? 'market-product-card--interactive' : ''
+      }`.trim()}
+    >
       <div className="market-product-card__media">
         <SafeImage
           alt={product?.productName || '추천 상품'}
@@ -103,12 +110,8 @@ export default function PriceProductCard({
             <span>변동 {formatPercent(changeRate)}</span>
             <span>절약 {formatPercent(savingRate)}</span>
           </div>
-
-          <button className="price-btn price-btn--primary" type="button" onClick={onAction}>
-            {ctaLabel}
-          </button>
         </div>
       </div>
-    </article>
+    </RootTag>
   );
 }

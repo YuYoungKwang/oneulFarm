@@ -6,7 +6,51 @@ import BestBuyProductsSection from './price/BestBuyProductsSection';
 import PriceEmptyState from './price/PriceEmptyState';
 import PriceInsightSection from './price/PriceInsightSection';
 import RecipeRecommendationSection from './price/RecipeRecommendationSection';
-import SimilarProductsSection from './price/SimilarProductsSection';
+
+const COUNT_UNIT_SET = new Set([
+  'ea',
+  'each',
+  '개',
+  '구',
+  '알',
+  '판',
+  '봉',
+  '팩',
+  'pack',
+  'pk',
+  '병',
+  '통',
+  '포기',
+  '단',
+  '망',
+  '묶음',
+  '송이',
+]);
+
+const VOLUME_UNIT_SET = new Set([
+  'ml',
+  'milliliter',
+  'milliliters',
+  'millilitre',
+  'millilitres',
+  'l',
+  'liter',
+  'liters',
+  'litre',
+  'litres',
+  '리터',
+]);
+
+const STANDARD_WEIGHT_BY_KEYWORD = [
+  { keyword: '무', grams: 1800 },
+  { keyword: '배추', grams: 3200 },
+  { keyword: '양배추', grams: 3300 },
+  { keyword: '브로콜리', grams: 320 },
+  { keyword: '참외', grams: 280 },
+  { keyword: '애호박', grams: 350 },
+  { keyword: '오이', grams: 230 },
+  { keyword: '수박', grams: 8000 },
+];
 
 export default function PriceAnalysisPage({
   onOpenProduct,
@@ -211,11 +255,12 @@ export default function PriceAnalysisPage({
         const rightGap = toNumber(right.product?.priceMatch?.priceGap, 0);
         return rightGap - leftGap;
       })
-      .slice(0, 8)
+      .slice(0, 20)
       .map((candidate, index) => ({
         ...candidate,
         currentPriceLabel: formatCurrency(
-          candidate.product?.priceMatch?.comparedPrice ||
+          candidate.product?.priceSnapshot?.displayAvgPrice ||
+            candidate.product?.priceMatch?.comparedPrice ||
             candidate.product?.priceSnapshot?.avgPrice
         ),
         changeRateLabel: formatPercent(candidate.product?.priceSnapshot?.changeRate || 0),
@@ -224,11 +269,6 @@ export default function PriceAnalysisPage({
         rank: index + 1,
       }));
   }, [filteredCandidateList, selectedCandidate]);
-
-  const similarProducts = useMemo(
-    () => buildSimilarCandidates(selectedCandidate, candidateList),
-    [candidateList, selectedCandidate]
-  );
 
   const bestBuyProducts = useMemo(
     () => buildBestBuyCandidates(candidateList, selectedCandidate),
@@ -316,13 +356,6 @@ export default function PriceAnalysisPage({
           onSelectRanking={handleSelectCandidate}
         />
 
-        <SimilarProductsSection
-          className="price-section--compact"
-          items={similarProducts}
-          onCompare={handleSelectCandidate}
-          onOpenAll={openAllProducts}
-        />
-
         <BestBuyProductsSection
           className="price-section--compact"
           items={bestBuyProducts}
@@ -385,6 +418,7 @@ function normalizeTrendRows(rows) {
   return [...rows]
     .map((row) => ({
       avgPrice: toNumber(row?.avgPrice, 0),
+      isComparable: false,
       snapshotDate: row?.snapshotDate,
     }))
     .filter((row) => row.snapshotDate && Number.isFinite(row.avgPrice))
@@ -394,7 +428,9 @@ function normalizeTrendRows(rows) {
 function buildFallbackTrendRows(product) {
   const snapshotDate = product?.priceSnapshot?.snapshotDate;
   const avgPrice = toNumber(
-    product?.priceMatch?.comparedPrice || product?.priceSnapshot?.avgPrice,
+    product?.priceSnapshot?.displayAvgPrice ||
+      product?.priceMatch?.comparedPrice ||
+      product?.priceSnapshot?.avgPrice,
     0
   );
 
@@ -402,7 +438,7 @@ function buildFallbackTrendRows(product) {
     return [];
   }
 
-  return [{ avgPrice, snapshotDate }];
+  return [{ avgPrice, isComparable: true, snapshotDate }];
 }
 
 function buildAnalysisData(product, trendRows) {
@@ -412,12 +448,17 @@ function buildAnalysisData(product, trendRows) {
   const chartPoints = safeRows.map((row) => ({
     date: row.snapshotDate,
     label: formatInsightDate(row.snapshotDate),
-    value: toNumber(row.avgPrice, 0) * conversionRatio,
+    value: toNumber(row.avgPrice, 0) * (row.isComparable ? 1 : conversionRatio),
   }));
   const values = chartPoints.map((point) => point.value);
   const currentPrice =
     lastNumber(values) ||
-    toNumber(product?.priceMatch?.comparedPrice || product?.priceSnapshot?.avgPrice, 0);
+    toNumber(
+      product?.priceSnapshot?.displayAvgPrice ||
+        product?.priceMatch?.comparedPrice ||
+        product?.priceSnapshot?.avgPrice,
+      0
+    );
   const previousPrice = values.length > 1 ? values[values.length - 2] : currentPrice;
   const previousWeekPrice = values.length > 7 ? values[values.length - 8] : previousPrice;
   const ma7Values = movingAverage(values, 7);
@@ -529,23 +570,6 @@ function buildSelectedMeta(candidate) {
     .join(' · ');
 }
 
-function buildSimilarCandidates(selectedCandidate, candidateList) {
-  if (!selectedCandidate) {
-    return [];
-  }
-
-  return candidateList
-    .filter((candidate) => candidate.optionKey !== selectedCandidate.optionKey)
-    .map((candidate) => ({
-      ...candidate,
-      reason: buildSimilarityReason(selectedCandidate, candidate),
-      similarityScore: calculateSimilarityScore(selectedCandidate, candidate),
-    }))
-    .filter((candidate) => candidate.similarityScore >= 25)
-    .sort((left, right) => right.similarityScore - left.similarityScore)
-    .slice(0, 4);
-}
-
 function buildBestBuyCandidates(candidateList, selectedCandidate) {
   return candidateList
     .filter((candidate) => candidate.optionKey !== selectedCandidate?.optionKey)
@@ -571,6 +595,7 @@ function calculateFocusScore(product) {
   return savingRate * 2 + Math.max(changeRate, 0) * 0.6 + seasonalBonus;
 }
 
+// eslint-disable-next-line no-unused-vars
 function calculateSimilarityScore(selectedCandidate, candidate) {
   const selectedProduct = selectedCandidate.product || {};
   const candidateProduct = candidate.product || {};
@@ -593,8 +618,18 @@ function calculateSimilarityScore(selectedCandidate, candidate) {
     score += 15;
   }
 
-  const selectedPrice = toNumber(selectedProduct?.priceSnapshot?.avgPrice, 0);
-  const candidatePrice = toNumber(candidateProduct?.priceSnapshot?.avgPrice, 0);
+  const selectedPrice = toNumber(
+    selectedProduct?.priceMatch?.comparedPrice ||
+      selectedProduct?.priceSnapshot?.displayAvgPrice ||
+      selectedProduct?.priceSnapshot?.avgPrice,
+    0
+  );
+  const candidatePrice = toNumber(
+    candidateProduct?.priceMatch?.comparedPrice ||
+      candidateProduct?.priceSnapshot?.displayAvgPrice ||
+      candidateProduct?.priceSnapshot?.avgPrice,
+    0
+  );
   if (selectedPrice > 0 && candidatePrice > 0) {
     const gapRate = Math.abs(selectedPrice - candidatePrice) / selectedPrice;
     if (gapRate <= 0.15) {
@@ -607,6 +642,7 @@ function calculateSimilarityScore(selectedCandidate, candidate) {
   return score;
 }
 
+// eslint-disable-next-line no-unused-vars
 function buildSimilarityReason(selectedCandidate, candidate) {
   const reasons = [];
 
@@ -663,14 +699,156 @@ function extractPrimaryKeyword(value) {
 }
 
 function resolveComparablePriceRatio(product) {
+  const productQuantity = resolveProductQuantity(product);
+  const snapshotQuantity = resolveSnapshotQuantity(
+    product?.priceSnapshot?.unit || product?.priceSnapshot?.snapshotUnit
+  );
+
+  if (productQuantity && snapshotQuantity) {
+    if (
+      productQuantity.type === snapshotQuantity.type &&
+      productQuantity.amount > 0 &&
+      snapshotQuantity.amount > 0
+    ) {
+      return productQuantity.amount / snapshotQuantity.amount;
+    }
+
+    const productAmountInGram = resolveProductAmountInGram(product);
+    const snapshotAmountInGram = resolveSnapshotAmountInGram(
+      product?.priceSnapshot?.itemName || product?.productName,
+      product?.priceSnapshot?.unit || product?.priceSnapshot?.snapshotUnit
+    );
+
+    if (productAmountInGram > 0 && snapshotAmountInGram > 0) {
+      return productAmountInGram / snapshotAmountInGram;
+    }
+  }
+
   const comparedPrice = toNumber(product?.priceMatch?.comparedPrice, 0);
+  const displayAveragePrice = toNumber(product?.priceSnapshot?.displayAvgPrice, 0);
   const snapshotAveragePrice = toNumber(product?.priceSnapshot?.avgPrice, 0);
 
   if (comparedPrice > 0 && snapshotAveragePrice > 0) {
     return comparedPrice / snapshotAveragePrice;
   }
 
+  if (displayAveragePrice > 0 && snapshotAveragePrice > 0) {
+    return displayAveragePrice / snapshotAveragePrice;
+  }
+
   return 1;
+}
+
+function resolveProductQuantity(product) {
+  const normalizedUnit = normalizeMeasurementUnit(product?.unit);
+  const packageWeight = toNumber(product?.packageWeight, 0) > 0 ? toNumber(product?.packageWeight, 0) : 1;
+
+  if (normalizedUnit === 'kg') {
+    return { type: 'weight', amount: packageWeight * 1000 };
+  }
+  if (normalizedUnit === 'g') {
+    return { type: 'weight', amount: packageWeight };
+  }
+  if (isVolumeUnit(normalizedUnit)) {
+    return { type: 'volume', amount: normalizeVolumeAmount(normalizedUnit, packageWeight) };
+  }
+  if (COUNT_UNIT_SET.has(normalizedUnit)) {
+    return { type: 'count', amount: packageWeight };
+  }
+
+  return null;
+}
+
+function resolveSnapshotQuantity(snapshotUnit) {
+  const normalizedValue = String(snapshotUnit || '').replace(/\s+/g, '').trim();
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const matched = normalizedValue.match(/^([0-9]+(?:\.[0-9]+)?)?([A-Za-z\uAC00-\uD7A3]+)$/);
+  if (!matched) {
+    return null;
+  }
+
+  const amount = toNumber(matched[1], 1);
+  const normalizedUnit = normalizeMeasurementUnit(matched[2]);
+
+  if (normalizedUnit === 'kg') {
+    return { type: 'weight', amount: amount * 1000 };
+  }
+  if (normalizedUnit === 'g') {
+    return { type: 'weight', amount };
+  }
+  if (isVolumeUnit(normalizedUnit)) {
+    return { type: 'volume', amount: normalizeVolumeAmount(normalizedUnit, amount) };
+  }
+  if (COUNT_UNIT_SET.has(normalizedUnit)) {
+    return { type: 'count', amount };
+  }
+
+  return null;
+}
+
+function resolveProductAmountInGram(product) {
+  const normalizedUnit = normalizeMeasurementUnit(product?.unit);
+  const packageWeight = toNumber(product?.packageWeight, 0) > 0 ? toNumber(product?.packageWeight, 0) : 1;
+
+  if (normalizedUnit === 'kg') {
+    return packageWeight * 1000;
+  }
+  if (normalizedUnit === 'g') {
+    return packageWeight;
+  }
+  if (COUNT_UNIT_SET.has(normalizedUnit)) {
+    const standardWeight = findStandardWeightInGram(product?.productName || product?.priceSnapshot?.itemName);
+    return standardWeight > 0 ? standardWeight * packageWeight : 0;
+  }
+
+  return 0;
+}
+
+function resolveSnapshotAmountInGram(itemName, snapshotUnit) {
+  const snapshotQuantity = resolveSnapshotQuantity(snapshotUnit);
+  if (!snapshotQuantity) {
+    return 0;
+  }
+
+  if (snapshotQuantity.type === 'weight') {
+    return snapshotQuantity.amount;
+  }
+
+  if (snapshotQuantity.type === 'count') {
+    const standardWeight = findStandardWeightInGram(itemName);
+    return standardWeight > 0 ? standardWeight * snapshotQuantity.amount : 0;
+  }
+
+  return 0;
+}
+
+function findStandardWeightInGram(name) {
+  const normalizedName = String(name || '').trim();
+  if (!normalizedName) {
+    return 0;
+  }
+
+  const matched = STANDARD_WEIGHT_BY_KEYWORD.find((item) => normalizedName.includes(item.keyword));
+  return matched ? matched.grams : 0;
+}
+
+function normalizeMeasurementUnit(unit) {
+  return String(unit || '').replace(/\s+/g, '').toLowerCase();
+}
+
+function isVolumeUnit(unit) {
+  return VOLUME_UNIT_SET.has(unit);
+}
+
+function normalizeVolumeAmount(unit, amount) {
+  if (unit === 'l' || unit === 'liter' || unit === 'liters' || unit === 'litre' || unit === 'litres' || unit === '리터') {
+    return amount * 1000;
+  }
+
+  return amount;
 }
 
 function buildRecentTrendSummary(dailyChangeRate, weeklyChangeRate) {

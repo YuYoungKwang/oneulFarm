@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react';
 import { SearchIcon } from '../ProductIcons';
 import PriceEmptyState from './PriceEmptyState';
 import PriceTrendChart from './PriceTrendChart';
@@ -52,6 +53,21 @@ export default function PriceInsightSection({
   onSelectRanking,
 }) {
   const deltaTone = getDeltaTone(dailyChangeRate);
+  const [rankingPage, setRankingPage] = useState('top10');
+  const hasNextRankingPage = rankingList.length > 10;
+
+  useEffect(() => {
+    if (rankingPage === 'next10' && !hasNextRankingPage) {
+      setRankingPage('top10');
+    }
+  }, [hasNextRankingPage, rankingPage]);
+
+  const visibleRankingList = useMemo(() => {
+    if (rankingPage === 'next10') {
+      return rankingList.slice(10, 20);
+    }
+    return rankingList.slice(0, 10);
+  }, [rankingList, rankingPage]);
 
   return (
     <section className="price-section price-insight-section">
@@ -126,13 +142,13 @@ export default function PriceInsightSection({
             <div className="price-insight-side__heading">
               <span className="price-chip-label">상품 검색</span>
               <strong>할인율 순 랭킹</strong>
-              <p>랭킹을 누르면 위 차트와 핵심 상품이 바로 바뀝니다.</p>
+              <p>랭킹을 누르면 차트와 연결 상품이 바로 바뀝니다.</p>
             </div>
 
             <label className="price-selector__search-field price-selector__search-field--compact">
               <SearchIcon />
               <input
-                placeholder="당근, 양파, 브로콜리 검색"
+                placeholder="상추, 양파, 브로콜리 검색"
                 type="search"
                 value={query}
                 onChange={(event) => onQueryChange(event.target.value)}
@@ -140,32 +156,56 @@ export default function PriceInsightSection({
             </label>
 
             {rankingList.length ? (
-              <div className="price-ranking-list">
-                {rankingList.map((item) => (
-                  <button
-                    key={item.optionKey}
-                    className={`price-ranking-item ${item.isSelected ? 'is-active' : ''}`}
-                    type="button"
-                    onClick={() => onSelectRanking(item)}
-                  >
-                    <span className="price-ranking-item__rank">
-                      {String(item.rank).padStart(2, '0')}
-                    </span>
-
-                    <span className="price-ranking-item__body">
-                      <strong>{item.displayName}</strong>
-                      <span>
-                        {item.currentPriceLabel} · 변동 {item.changeRateLabel}
+              <>
+                <div className="price-ranking-list">
+                  {visibleRankingList.map((item) => (
+                    <button
+                      key={item.optionKey}
+                      className={`price-ranking-item ${item.isSelected ? 'is-active' : ''}`}
+                      type="button"
+                      onClick={() => onSelectRanking(item)}
+                    >
+                      <span className="price-ranking-item__rank">
+                        {String(item.rank).padStart(2, '0')}
                       </span>
-                    </span>
 
-                    <span className="price-ranking-item__meta">
-                      <strong>{item.savingRateLabel}</strong>
-                      <span>할인율</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
+                      <span className="price-ranking-item__body">
+                        <strong>{item.displayName}</strong>
+                        <span>
+                          {item.currentPriceLabel} · 변동 {item.changeRateLabel}
+                        </span>
+                      </span>
+
+                      <span className="price-ranking-item__meta">
+                        <strong>{item.savingRateLabel}</strong>
+                        <span>할인율</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="price-ranking-pagination" role="tablist" aria-label="랭킹 범위 전환">
+                  <button
+                    aria-label="랭킹 1위부터 10위 보기"
+                    aria-pressed={rankingPage === 'top10'}
+                    className={`price-ranking-pagination__dot ${
+                      rankingPage === 'top10' ? 'is-active' : ''
+                    }`}
+                    type="button"
+                    onClick={() => setRankingPage('top10')}
+                  />
+                  <button
+                    aria-label="랭킹 11위부터 20위 보기"
+                    aria-pressed={rankingPage === 'next10'}
+                    className={`price-ranking-pagination__dot ${
+                      rankingPage === 'next10' ? 'is-active' : ''
+                    }`}
+                    disabled={!hasNextRankingPage}
+                    type="button"
+                    onClick={() => setRankingPage('next10')}
+                  />
+                </div>
+              </>
             ) : (
               <div className="price-empty-inline">검색 조건에 맞는 분석 상품이 없습니다.</div>
             )}

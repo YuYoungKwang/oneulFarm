@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.app.common.PriceSnapshotUnitSupport;
 import com.app.common.ProduceStandardWeightSupport;
 import com.app.dao.ProductPriceMatchDAO;
 import com.app.dto.ProductPriceCodeMapDTO;
@@ -250,10 +251,19 @@ public class ProductPriceMatchServiceImpl implements ProductPriceMatchService {
 
     private String resolveSnapshotUnit(ProductPriceCodeMapDTO productPriceCodeMapDTO) {
         String snapshotUnit = trimToNull(productPriceCodeMapDTO.getSnapshotUnit());
-        if (snapshotUnit != null) {
-            return snapshotUnit;
+        String normalizedSnapshotUnit = PriceSnapshotUnitSupport.normalizeConvertedRetailWeightUnit(
+            trimToNull(productPriceCodeMapDTO.getSnapshotItemCode()) == null
+                ? productPriceCodeMapDTO.getItemCode()
+                : productPriceCodeMapDTO.getSnapshotItemCode(),
+            snapshotUnit
+        );
+        if (normalizedSnapshotUnit != null) {
+            return normalizedSnapshotUnit;
         }
-        return trimToNull(productPriceCodeMapDTO.getUnitHint());
+        return PriceSnapshotUnitSupport.normalizeConvertedRetailWeightUnit(
+            productPriceCodeMapDTO.getItemCode(),
+            trimToNull(productPriceCodeMapDTO.getUnitHint())
+        );
     }
 
     private String normalizeUnit(String value) {
@@ -301,6 +311,10 @@ public class ProductPriceMatchServiceImpl implements ProductPriceMatchService {
 
         String trimmedValue = value.trim();
         if (trimmedValue.isEmpty()) {
+            return null;
+        }
+        String lowercaseValue = trimmedValue.toLowerCase(Locale.ROOT);
+        if ("null".equals(lowercaseValue) || "undefined".equals(lowercaseValue) || "nan".equals(lowercaseValue)) {
             return null;
         }
         return trimmedValue;

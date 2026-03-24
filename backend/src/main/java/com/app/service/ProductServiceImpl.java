@@ -1,4 +1,4 @@
-﻿package com.app.service;
+package com.app.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.app.common.PriceSnapshotUnitSupport;
 import com.app.common.ProduceStandardWeightSupport;
 import com.app.dao.ProductDao;
 import com.app.dto.PriceSnapshotDTO;
@@ -29,11 +30,17 @@ public class ProductServiceImpl implements ProductService {
         "ea",
         "each",
         "개",
+        "구",
+        "알",
+        "판",
         "포기",
         "단",
         "망",
         "봉",
         "봉지",
+        "팩",
+        "병",
+        "통",
         "pack",
         "pk"
     );
@@ -64,6 +71,8 @@ public class ProductServiceImpl implements ProductService {
         List<ProductDto> products = productDao.findSellingProducts();
         for (ProductDto product : products) {
             applyFallbackPriceInsight(product);
+            sanitizeExistingPriceInsight(product);
+            repairExistingPriceInsight(product);
             product.setImages(resolveDisplayImages(product.getProductNo()));
             product.setRecipes(Collections.emptyList());
             product.setReviews(Collections.emptyList());
@@ -79,6 +88,8 @@ public class ProductServiceImpl implements ProductService {
         }
 
         applyFallbackPriceInsight(product);
+        sanitizeExistingPriceInsight(product);
+        repairExistingPriceInsight(product);
         product.setImages(resolveDisplayImages(productNo));
         product.setRecipes(productDao.findProductRecipes(productNo));
         product.setReviews(productDao.findProductReviews(productNo));
@@ -165,6 +176,82 @@ public class ProductServiceImpl implements ProductService {
         product.setMinPrice(normalizedDisplayAvgPrice);
         product.setMaxPrice(normalizedDisplayAvgPrice);
         product.setComparedPrice(normalizedDisplayAvgPrice);
+        product.setPriceGap(priceGap);
+        product.setSavingRate(savingRate);
+        product.setBadgeType(badgeType);
+    }
+
+    private void sanitizeExistingPriceInsight(ProductDto product) {
+        if (product == null) {
+            return;
+        }
+        product.setItemCode(trimToNull(product.getItemCode()));
+        product.setItemName(trimToNull(product.getItemName()));
+        product.setMarketType(trimToNull(product.getMarketType()));
+        product.setSnapshotUnit(PriceSnapshotUnitSupport.normalizeConvertedRetailWeightUnit(
+            product.getItemCode(),
+            trimToNull(product.getSnapshotUnit())
+        ));
+        product.setSourceName(trimToNull(product.getSourceName()));
+    }
+
+    private void repairExistingPriceInsight(ProductDto product) {
+        if (product == null || product.getSnapshotNo() == null || trimToNull(product.getItemCode()) == null) {
+            return;
+        }
+
+        String effectiveSnapshotUnit = PriceSnapshotUnitSupport.normalizeConvertedRetailWeightUnit(
+            product.getItemCode(),
+            product.getSnapshotUnit()
+        );
+        if (effectiveSnapshotUnit == null) {
+            return;
+        }
+        product.setSnapshotUnit(effectiveSnapshotUnit);
+
+        if (!"1kg".equalsIgnoreCase(effectiveSnapshotUnit) || product.getAvgPrice() == null) {
+            return;
+        }
+
+        BigDecimal productAmountInGram = ProduceStandardWeightSupport.resolveProductAmountInGram(
+            product.getProductName(),
+            product.getUnit(),
+            product.getPackageWeight() == null || product.getPackageWeight().compareTo(BigDecimal.ZERO) <= 0
+                ? BigDecimal.ONE
+                : product.getPackageWeight()
+        );
+        if (productAmountInGram == null || productAmountInGram.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+
+        BigDecimal divisor = BigDecimal.valueOf(1000L);
+        BigDecimal displayAvgPrice = scaleMoney(
+            product.getAvgPrice().multiply(productAmountInGram).divide(divisor, 2, RoundingMode.HALF_UP)
+        );
+        BigDecimal displayMinPrice = product.getMinPrice() == null
+            ? displayAvgPrice
+            : scaleMoney(product.getMinPrice().multiply(productAmountInGram).divide(divisor, 2, RoundingMode.HALF_UP));
+        BigDecimal displayMaxPrice = product.getMaxPrice() == null
+            ? displayAvgPrice
+            : scaleMoney(product.getMaxPrice().multiply(productAmountInGram).divide(divisor, 2, RoundingMode.HALF_UP));
+
+        BigDecimal salePrice = scaleMoney(product.getSalePrice());
+        BigDecimal priceGap = displayAvgPrice.subtract(salePrice).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal savingRate = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        String badgeType = null;
+
+        if (displayAvgPrice.compareTo(BigDecimal.ZERO) > 0 && priceGap.compareTo(BADGE_THRESHOLD) >= 0) {
+            savingRate = priceGap
+                .divide(displayAvgPrice, 6, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100L))
+                .setScale(2, RoundingMode.HALF_UP);
+            badgeType = "UNDER_AVG";
+        }
+
+        product.setAvgPrice(displayAvgPrice);
+        product.setMinPrice(displayMinPrice);
+        product.setMaxPrice(displayMaxPrice);
+        product.setComparedPrice(displayAvgPrice);
         product.setPriceGap(priceGap);
         product.setSavingRate(savingRate);
         product.setBadgeType(badgeType);
@@ -427,6 +514,10 @@ public class ProductServiceImpl implements ProductService {
 
         String trimmedValue = value.trim();
         if (trimmedValue.isEmpty()) {
+            return null;
+        }
+        String lowercaseValue = trimmedValue.toLowerCase(Locale.ROOT);
+        if ("null".equals(lowercaseValue) || "undefined".equals(lowercaseValue) || "nan".equals(lowercaseValue)) {
             return null;
         }
         return trimmedValue;

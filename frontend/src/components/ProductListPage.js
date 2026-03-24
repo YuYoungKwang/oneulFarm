@@ -335,7 +335,9 @@ function ProductCard({
           </div>
         </div>
 
-        <div className="avg">평균가 {formatCurrency(product.priceSnapshot.avgPrice)}</div>
+        <div className="avg">
+          평균가 {formatCurrency(product.priceSnapshot.displayAvgPrice || product.priceSnapshot.avgPrice)}
+        </div>
 
         <div className="product-foot">
           <button
