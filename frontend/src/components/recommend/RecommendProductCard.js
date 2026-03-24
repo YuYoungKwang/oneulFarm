@@ -22,7 +22,7 @@ export default function RecommendProductCard({
   title,
   typeLabel,
 }) {
-  const productName = title || product?.productName || "추천 농산물";
+  const productName = title || product?.productName || "추천 상품";
   const displaySymbol = product?.display?.symbol || "P";
   const salePrice = Number(product?.salePrice || 0);
   const averagePrice = Number(product?.priceSnapshot?.avgPrice || salePrice);

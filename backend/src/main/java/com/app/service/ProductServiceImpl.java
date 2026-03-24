@@ -1,4 +1,4 @@
-package com.app.service;
+﻿package com.app.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -38,6 +38,20 @@ public class ProductServiceImpl implements ProductService {
         "pk"
     );
     private static final BigDecimal BADGE_THRESHOLD = BigDecimal.valueOf(100L);
+    private static final Set<String> VOLUME_UNIT_SET = Set.of(
+        "ml",
+        "milliliter",
+        "milliliters",
+        "millilitre",
+        "millilitres",
+        "l",
+        "liter",
+        "liters",
+        "litre",
+        "litres",
+        "ℓ",
+        "리터"
+    );
 
     @Autowired
     private ProductDao productDao;
@@ -73,6 +87,13 @@ public class ProductServiceImpl implements ProductService {
 
     private void applyFallbackPriceInsight(ProductDto product) {
         if (product == null) {
+            return;
+        }
+
+        // Keep the matched snapshot from OFT_PRODUCT_PRICE_MATCH when it already exists.
+        // Otherwise price analysis can be overwritten by a fuzzy daily snapshot name
+        // such as "당근/무세척" instead of the intended mapped commodity code.
+        if (product.getSnapshotNo() != null && trimToNull(product.getItemCode()) != null) {
             return;
         }
 
@@ -261,12 +282,15 @@ public class ProductServiceImpl implements ProductService {
             packageWeight = BigDecimal.ONE;
         }
 
-        String normalizedUnit = productUnit.toLowerCase(Locale.ROOT);
+        String normalizedUnit = normalizeMeasurementUnit(productUnit);
         if ("kg".equals(normalizedUnit)) {
             return new Quantity(UnitType.WEIGHT, packageWeight.multiply(BigDecimal.valueOf(1000L)));
         }
         if ("g".equals(normalizedUnit)) {
             return new Quantity(UnitType.WEIGHT, packageWeight);
+        }
+        if (isVolumeUnit(normalizedUnit)) {
+            return new Quantity(UnitType.VOLUME, normalizeVolumeAmount(normalizedUnit, packageWeight));
         }
         if (COUNT_UNIT_SET.contains(normalizedUnit)) {
             return new Quantity(UnitType.COUNT, packageWeight);
@@ -293,12 +317,15 @@ public class ProductServiceImpl implements ProductService {
         }
 
         BigDecimal amount = amountToken == null ? BigDecimal.ONE : new BigDecimal(amountToken);
-        String normalizedUnit = unitToken.toLowerCase(Locale.ROOT);
+        String normalizedUnit = normalizeMeasurementUnit(unitToken);
         if ("kg".equals(normalizedUnit)) {
             return new Quantity(UnitType.WEIGHT, amount.multiply(BigDecimal.valueOf(1000L)));
         }
         if ("g".equals(normalizedUnit)) {
             return new Quantity(UnitType.WEIGHT, amount);
+        }
+        if (isVolumeUnit(normalizedUnit)) {
+            return new Quantity(UnitType.VOLUME, normalizeVolumeAmount(normalizedUnit, amount));
         }
         if (COUNT_UNIT_SET.contains(normalizedUnit)) {
             return new Quantity(UnitType.COUNT, amount);
@@ -344,6 +371,55 @@ public class ProductServiceImpl implements ProductService {
         return trimmedValue.replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
     }
 
+    private String normalizeMeasurementUnit(String unit) {
+        String normalizedUnit = normalizeUnit(unit);
+        if (normalizedUnit == null) {
+            return null;
+        }
+
+        if ("\uAD6C".equals(normalizedUnit)
+            || "\uC54C".equals(normalizedUnit)
+            || "\uD310".equals(normalizedUnit)
+            || "\uBCD1".equals(normalizedUnit)
+            || "\uD1B5".equals(normalizedUnit)
+            || "\uD329".equals(normalizedUnit)) {
+            return "ea";
+        }
+
+        return normalizedUnit;
+    }
+
+    private String normalizeUnit(String value) {
+        String trimmedValue = trimToNull(value);
+        if (trimmedValue == null) {
+            return null;
+        }
+
+        return trimmedValue.replace(" ", "").toLowerCase(Locale.ROOT);
+    }
+
+    private boolean isVolumeUnit(String unit) {
+        return unit != null && VOLUME_UNIT_SET.contains(unit);
+    }
+
+    private BigDecimal normalizeVolumeAmount(String unit, BigDecimal amount) {
+        if (amount == null) {
+            return BigDecimal.ONE;
+        }
+
+        if ("l".equals(unit)
+            || "liter".equals(unit)
+            || "liters".equals(unit)
+            || "litre".equals(unit)
+            || "litres".equals(unit)
+            || "\u2113".equals(unit)
+            || "\uB9AC\uD130".equals(unit)) {
+            return amount.multiply(BigDecimal.valueOf(1000L));
+        }
+
+        return amount;
+    }
+
     private String trimToNull(String value) {
         if (value == null) {
             return null;
@@ -358,7 +434,8 @@ public class ProductServiceImpl implements ProductService {
 
     private enum UnitType {
         WEIGHT,
-        COUNT
+        COUNT,
+        VOLUME
     }
 
     private static final class Quantity {
@@ -390,3 +467,4 @@ public class ProductServiceImpl implements ProductService {
         return displayImages;
     }
 }
+

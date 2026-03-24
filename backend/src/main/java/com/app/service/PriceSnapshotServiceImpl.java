@@ -212,7 +212,7 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
         Map<String, PriceRange> priceRangeMap = new LinkedHashMap<String, PriceRange>();
 
         String resolvedItemName = trimToNull(itemNameHint);
-        String resolvedUnit = trimToNull(unitHint);
+        String resolvedUnit = null;
 
         for (String currentKindCode : kindCodeList) {
             PriceBackfillRequest kindRequest = createPriceBackfillRequest(
@@ -249,8 +249,9 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
                 if (resolvedItemName == null) {
                     resolvedItemName = trimToNull(priceSnapshotDTO.getItemName());
                 }
-                if (resolvedUnit == null) {
-                    resolvedUnit = trimToNull(priceSnapshotDTO.getUnit());
+                String snapshotUnit = trimToNull(priceSnapshotDTO.getUnit());
+                if (snapshotUnit != null) {
+                    resolvedUnit = snapshotUnit;
                 }
             }
         }
@@ -600,14 +601,15 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
 
     private HistoricalMetadata resolveHistoricalMetadata(JsonNode itemNode, PriceBackfillRequest priceBackfillRequest) {
         String itemName = trimToNull(priceBackfillRequest.getItemNameHint());
-        String unit = trimToNull(priceBackfillRequest.getUnitHint());
+        String unit = null;
 
         for (JsonNode rowNode : itemNode) {
             if (itemName == null) {
                 itemName = trimToNull(rowNode.path("itemname").asText());
             }
-            if (unit == null) {
-                unit = trimToNull(rowNode.path("kindname").asText());
+            String kindName = trimToNull(rowNode.path("kindname").asText());
+            if (kindName != null) {
+                unit = kindName;
             }
 
             if (itemName != null && unit != null) {

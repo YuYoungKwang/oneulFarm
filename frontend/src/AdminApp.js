@@ -97,6 +97,7 @@ function hasAdminValue(value) {
 }
 
 const COUNT_UNIT_SET = new Set(['ea', 'each', '개', '포기', '단', '망', '봉', '봉지', 'pack', 'pk']);
+const VOLUME_UNIT_SET = new Set(['ml', 'milliliter', 'milliliters', 'millilitre', 'millilitres', 'l', 'liter', 'liters', 'litre', 'litres', 'ℓ', '리터']);
 
 function formatDecimalInput(value, fractionDigits = 2) {
   const nextValue = Number(value);
@@ -113,7 +114,7 @@ function resolveUnitAmount(value, unit) {
     return null;
   }
 
-  const normalizedUnit = String(unit || '').trim().toLowerCase();
+  const normalizedUnit = normalizeMeasurementUnit(unit);
   if (!normalizedUnit) {
     return null;
   }
@@ -124,11 +125,58 @@ function resolveUnitAmount(value, unit) {
   if (normalizedUnit === 'g') {
     return { type: 'WEIGHT', amount };
   }
+  if (isVolumeUnit(normalizedUnit)) {
+    return { type: 'VOLUME', amount: normalizeVolumeAmount(normalizedUnit, amount) };
+  }
   if (COUNT_UNIT_SET.has(normalizedUnit)) {
     return { type: 'COUNT', amount };
   }
 
   return null;
+}
+
+function normalizeMeasurementUnit(unit) {
+  const normalizedUnit = normalizeUnitKey(unit);
+  if (!normalizedUnit) {
+    return null;
+  }
+
+  if (
+    normalizedUnit === '\uAD6C' ||
+    normalizedUnit === '\uC54C' ||
+    normalizedUnit === '\uD310' ||
+    normalizedUnit === '\uBCD1' ||
+    normalizedUnit === '\uD1B5' ||
+    normalizedUnit === '\uD329'
+  ) {
+    return 'ea';
+  }
+
+  return normalizedUnit;
+}
+
+function normalizeUnitKey(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized ? normalized.replace(/\s+/g, '') : '';
+}
+
+function isVolumeUnit(unit) {
+  return Boolean(unit && VOLUME_UNIT_SET.has(unit));
+}
+
+function normalizeVolumeAmount(unit, amount) {
+  if (
+    unit === 'l' ||
+    unit === 'liter' ||
+    unit === 'liters' ||
+    unit === 'litre' ||
+    unit === 'litres' ||
+    unit === '\u2113' ||
+    unit === '\uB9AC\uD130'
+  ) {
+    return amount * 1000;
+  }
+  return amount;
 }
 
 function calculatePurchasePriceFromQuote(purchaseQuote, purchaseQty, purchaseUnit) {
@@ -1147,7 +1195,7 @@ function LegacyPurchasePage({
     <>
       <AdminPageHeader
         title="매입 / 소분 관리"
-        description="농산물 원물 매입과 소분 작업, 재고 반영을 관리하는 화면"
+        description="원물 매입과 소분 작업, 재고 반영을 관리하는 화면"
       />
 
       <section className="admin-grid admin-grid--split">
@@ -2636,3 +2684,4 @@ function AdminApp() {
 }
 
 export default AdminApp;
+

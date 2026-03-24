@@ -12,32 +12,37 @@ export default function PriceAnalysisToolbar({
   suggestions = [],
 }) {
   return (
-    <section className="price-toolbar">
-      <div className="price-toolbar__row">
-        <label className="price-toolbar__search">
-          <SearchIcon />
-          <input
-            aria-label="농산물 이름 검색"
-            placeholder="판매 중인 농산물 이름으로 가격 흐름을 검색해보세요."
-            type="text"
-            value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && suggestions[0]) {
-                onSelectSuggestion(suggestions[0]);
-              }
-            }}
-          />
-        </label>
-      </div>
+    <section className="price-selector">
+      <div className="price-selector__lead">
+        <div className="price-selector__search-panel">
+          <div className="price-selector__section-copy">
+            <span className="price-chip-label">상품 선택</span>
+            <h2>오늘 뭘 먼저 봐야 하는지 빠르게 골라요</h2>
+            <p>
+              가격 메리트와 변동 폭이 함께 보이도록 정리해, 전체 상품을 다 눌러보지
+              않아도 우선순위를 쉽게 잡을 수 있습니다.
+            </p>
+          </div>
 
-      <div className="price-toolbar__summary">
-        <div className="price-toolbar__selected">
-          <span className="price-toolbar__label">현재 분석 상품</span>
+          <label className="price-selector__search-field">
+            <SearchIcon />
+            <input
+              aria-label="가격 분석 상품 검색"
+              placeholder="판매 중인 상품 이름으로 검색"
+              type="text"
+              value={query}
+              onChange={(event) => onQueryChange(event.target.value)}
+            />
+          </label>
+        </div>
+
+        <div className="price-selector__selected-panel">
+          <span className="price-chip-label">현재 분석 상품</span>
           <strong>{selectedItemLabel || '선택된 상품이 없습니다.'}</strong>
           {selectedMeta ? <p>{selectedMeta}</p> : null}
+
           {selectedStats.length ? (
-            <div className="price-toolbar__selected-stats">
+            <div className="price-selector__selected-stats">
               {selectedStats.map((stat) => (
                 <div key={stat.label}>
                   <span>{stat.label}</span>
@@ -46,54 +51,63 @@ export default function PriceAnalysisToolbar({
               ))}
             </div>
           ) : null}
-        </div>
 
-        {primaryActionLabel ? (
-          <button
-            className="price-btn price-btn--primary"
-            type="button"
-            onClick={onPrimaryAction}
-          >
+          <button className="price-btn price-btn--secondary" type="button" onClick={onPrimaryAction}>
             {primaryActionLabel}
           </button>
-        ) : null}
+        </div>
       </div>
 
-      {suggestions.length ? (
-        <>
-          <div className="price-toolbar__suggestions-head">
-            <strong>분석 상품 선택</strong>
-            <span>카드를 누르면 아래 차트가 바로 바뀝니다.</span>
-          </div>
-          <div className="price-toolbar__suggestions">
+      <div className="price-selector__quick-panel">
+        <div className="price-selector__section-copy">
+          <span className="price-chip-label">빠른 랭킹</span>
+          <h3>할인율이 큰 상품부터 바로 비교해보세요</h3>
+        </div>
+
+        {suggestions.length ? (
+          <div className="price-selector__grid">
             {suggestions.map((item) => (
               <button
                 key={item.optionKey}
-                className={`price-suggestion ${item.isSelected ? 'is-active' : ''}`}
+                className={`price-candidate-card ${item.isSelected ? 'is-active' : ''}`}
                 type="button"
                 onClick={() => onSelectSuggestion(item)}
               >
-                <span className="price-suggestion__name">{item.label}</span>
-                <span className="price-suggestion__meta">
-                  {item.productName} · {item.marketLabel} · {item.unitLabel}
-                </span>
-                <div className="price-suggestion__stats">
-                  <span>{item.currentPriceLabel}</span>
-                  <span>{item.changeRateLabel}</span>
-                  <span>{item.valueLabel}</span>
+                <div className="price-candidate-card__top">
+                  <span className="price-candidate-card__rank">
+                    {String(item.rank).padStart(2, '0')}
+                  </span>
+                  <span className={`price-tone-pill tone-${item.tone}`}>{item.toneLabel}</span>
                 </div>
-                <span className="price-suggestion__action">
-                  {item.isSelected ? '현재 차트' : '차트 보기'}
-                </span>
+
+                <div className="price-candidate-card__title">
+                  <strong>{item.displayName}</strong>
+                  <span>
+                    {item.origin || '산지 정보 없음'} · {item.unitLabel}
+                  </span>
+                </div>
+
+                <div className="price-candidate-card__price">
+                  <strong>{item.currentPriceLabel}</strong>
+                  <span>판매가 {item.salePriceLabel}</span>
+                </div>
+
+                <div className="price-candidate-card__stats">
+                  <span>변동 {item.changeRateLabel}</span>
+                  <span>할인 {item.savingRateLabel}</span>
+                </div>
+
+                <div className="price-candidate-card__bottom">
+                  <span>{item.reasonLabel}</span>
+                  <span>{item.isSelected ? '현재 보고 있음' : '차트 보기'}</span>
+                </div>
               </button>
             ))}
           </div>
-        </>
-      ) : (
-        <div className="price-toolbar__help">
-          검색 결과가 없습니다. 다른 상품명으로 다시 검색해보세요.
-        </div>
-      )}
+        ) : (
+          <div className="price-selector__empty">검색 결과가 없습니다. 다른 이름으로 다시 찾아보세요.</div>
+        )}
+      </div>
     </section>
   );
 }

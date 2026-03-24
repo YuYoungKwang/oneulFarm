@@ -1,4 +1,4 @@
-package com.app.service;
+﻿package com.app.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -27,14 +27,33 @@ public class ProductPriceMatchServiceImpl implements ProductPriceMatchService {
     private static final Set<String> COUNT_UNIT_SET = Set.of(
         "ea",
         "each",
-        "\uAC1C",
-        "\uD3EC\uAE30",
-        "\uB2E8",
-        "\uB9DD",
-        "\uBD09",
-        "\uBD09\uC9C0",
+        "개",
+        "구",
+        "알",
+        "판",
+        "단",
+        "망",
+        "봉",
+        "봉지",
+        "팩",
+        "병",
+        "통",
         "pack",
         "pk"
+    );
+    private static final Set<String> VOLUME_UNIT_SET = Set.of(
+        "ml",
+        "milliliter",
+        "milliliters",
+        "millilitre",
+        "millilitres",
+        "l",
+        "liter",
+        "liters",
+        "litre",
+        "litres",
+        "ℓ",
+        "리터"
     );
 
     private final ProductPriceMatchDAO productPriceMatchDAO;
@@ -175,12 +194,15 @@ public class ProductPriceMatchServiceImpl implements ProductPriceMatchService {
             packageWeight = BigDecimal.ONE;
         }
 
-        String normalizedUnit = productUnit.trim().toLowerCase(Locale.ROOT);
+        String normalizedUnit = normalizeUnit(productUnit);
         if ("kg".equals(normalizedUnit)) {
             return new Quantity(UnitType.WEIGHT, packageWeight.multiply(BigDecimal.valueOf(1000L)));
         }
         if ("g".equals(normalizedUnit)) {
             return new Quantity(UnitType.WEIGHT, packageWeight);
+        }
+        if (isVolumeUnit(normalizedUnit)) {
+            return new Quantity(UnitType.VOLUME, normalizeVolumeAmount(normalizedUnit, packageWeight));
         }
         if (COUNT_UNIT_SET.contains(normalizedUnit)) {
             return new Quantity(UnitType.COUNT, packageWeight);
@@ -208,13 +230,16 @@ public class ProductPriceMatchServiceImpl implements ProductPriceMatchService {
         }
 
         BigDecimal amount = amountToken == null ? BigDecimal.ONE : new BigDecimal(amountToken);
-        String normalizedUnitToken = unitToken.toLowerCase(Locale.ROOT);
+        String normalizedUnitToken = normalizeUnit(unitToken);
 
         if ("kg".equals(normalizedUnitToken)) {
             return new Quantity(UnitType.WEIGHT, amount.multiply(BigDecimal.valueOf(1000L)));
         }
         if ("g".equals(normalizedUnitToken)) {
             return new Quantity(UnitType.WEIGHT, amount);
+        }
+        if (isVolumeUnit(normalizedUnitToken)) {
+            return new Quantity(UnitType.VOLUME, normalizeVolumeAmount(normalizedUnitToken, amount));
         }
         if (COUNT_UNIT_SET.contains(normalizedUnitToken)) {
             return new Quantity(UnitType.COUNT, amount);
@@ -229,6 +254,37 @@ public class ProductPriceMatchServiceImpl implements ProductPriceMatchService {
             return snapshotUnit;
         }
         return trimToNull(productPriceCodeMapDTO.getUnitHint());
+    }
+
+    private String normalizeUnit(String value) {
+        String trimmedValue = trimToNull(value);
+        if (trimmedValue == null) {
+            return null;
+        }
+
+        return trimmedValue.replace(" ", "").toLowerCase(Locale.ROOT);
+    }
+
+    private boolean isVolumeUnit(String unit) {
+        return unit != null && VOLUME_UNIT_SET.contains(unit);
+    }
+
+    private BigDecimal normalizeVolumeAmount(String unit, BigDecimal amount) {
+        if (amount == null) {
+            return BigDecimal.ZERO;
+        }
+
+        if ("l".equals(unit)
+            || "liter".equals(unit)
+            || "liters".equals(unit)
+            || "litre".equals(unit)
+            || "litres".equals(unit)
+            || "\u2113".equals(unit)
+            || "\uB9AC\uD130".equals(unit)) {
+            return amount.multiply(BigDecimal.valueOf(1000L));
+        }
+
+        return amount;
     }
 
     private BigDecimal scaleMoney(BigDecimal value) {
@@ -252,7 +308,8 @@ public class ProductPriceMatchServiceImpl implements ProductPriceMatchService {
 
     private enum UnitType {
         WEIGHT,
-        COUNT
+        COUNT,
+        VOLUME
     }
 
     private static final class Quantity {
@@ -274,3 +331,4 @@ public class ProductPriceMatchServiceImpl implements ProductPriceMatchService {
         }
     }
 }
+
