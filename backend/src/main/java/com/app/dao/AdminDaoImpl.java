@@ -12,6 +12,7 @@ import com.app.dto.MainBannerDto;
 import com.app.dto.OrderDto;
 import com.app.dto.PackageHistoryDto;
 import com.app.dto.ProductCategoryDto;
+import com.app.dto.ProductPriceCodeMapDTO;
 import com.app.dto.ProductDto;
 import com.app.dto.ProductImageDto;
 import com.app.dto.ProductRecipeDto;
@@ -109,6 +110,11 @@ public class AdminDaoImpl implements AdminDao {
     @Override
     public int deleteProductPriceCodeMaps(Long productNo) {
         return sqlSessionTemplate.delete(NAMESPACE + "deleteAdminProductPriceCodeMaps", productNo);
+    }
+
+    @Override
+    public int insertProductPriceCodeMap(ProductPriceCodeMapDTO productPriceCodeMap) {
+        return sqlSessionTemplate.insert(NAMESPACE + "insertAdminProductPriceCodeMap", productPriceCodeMap);
     }
 
     @Override
@@ -301,6 +307,14 @@ public class AdminDaoImpl implements AdminDao {
     }
 
     @Override
+    public int updatePurchaseBatchProduct(Long batchNo, Long productNo) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("batchNo", batchNo);
+        params.put("productNo", productNo);
+        return sqlSessionTemplate.update(NAMESPACE + "updatePurchaseBatchProduct", params);
+    }
+
+    @Override
     public List<PackageHistoryDto> findPackageHistories() {
         return sqlSessionTemplate.selectList(NAMESPACE + "selectPackageHistories");
     }
@@ -308,6 +322,16 @@ public class AdminDaoImpl implements AdminDao {
     @Override
     public int insertPackageHistory(PackageHistoryDto packageHistory) {
         return sqlSessionTemplate.insert(NAMESPACE + "insertPackageHistory", packageHistory);
+    }
+
+    @Override
+    public int deletePackageHistoriesByBatch(Long batchNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deletePackageHistoriesByBatch", batchNo);
+    }
+
+    @Override
+    public int deletePurchaseBatch(Long batchNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deletePurchaseBatch", batchNo);
     }
 
     @Override

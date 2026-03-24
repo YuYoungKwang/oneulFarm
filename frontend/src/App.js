@@ -12,7 +12,6 @@ import MealPlanPlaceholderPage from './components/MealPlanPlaceholderPage';
 import PasswordChangeRequiredPage from './components/PasswordChangeRequiredPage';
 import ProductApp from './components/ProductApp';
 import MainPage from './components/Mainpage';
-import RecommendPage from './components/RecommendPage';
 import SiteFooter from './components/SiteFooter';
 
 const MAIN_ROUTE_SEGMENTS = new Set(['', 'main', 'mainpage', 'home']);
@@ -59,10 +58,6 @@ function getFirstSegment(hash) {
 function resolveAppFromHash(hash) {
   const firstSegment = getFirstSegment(hash);
 
-  if (firstSegment === 'recommend') {
-    return 'recommend';
-  }
-
   if (MAIN_ROUTE_SEGMENTS.has(firstSegment)) {
     return 'main';
   }
@@ -95,10 +90,6 @@ function resolveActiveSection(hash) {
 
   if (firstSegment === 'recipes') {
     return 'recipes';
-  }
-
-  if (firstSegment === 'recommend') {
-    return 'recommend';
   }
 
   if (firstSegment === 'meal-plan') {
@@ -209,11 +200,10 @@ function App() {
               navigateTo('#/login');
             }}
           />
-          {currentApp === 'main' && <MainPage />}
+          {currentApp === 'main' && <MainPage authUser={authUser} />}
           {currentApp === 'product' && <ProductApp authUser={authUser} />}
           {currentApp === 'account' && <AccountApp authUser={authUser} />}
           {currentApp === 'meal-plan' && <MealPlanPlaceholderPage />}
-          {currentApp === 'recommend' && <RecommendPage authUser={authUser} />}
           {currentApp === 'main' && <SiteFooter />}
         </>
       )}

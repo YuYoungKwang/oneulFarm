@@ -19,9 +19,9 @@ export default function RecommendRecipeCard({
       <div className="recommend-recipe-card__body">
         <div className="recommend-recipe-card__heading">
           <span className="recommend-recipe-card__eyebrow">
-            {keyword ? `${keyword} 활용 레시피` : '추천 레시피'}
+            {keyword ? `${keyword} 활용 레시피` : "추천 레시피"}
           </span>
-          <h3>{recipe?.recipeName || '레시피 추천'}</h3>
+          <h3>{recipe?.recipeName || "레시피 추천"}</h3>
           <p>{summarizeRecipeDescription(recipe?.description)}</p>
         </div>
 
@@ -33,7 +33,7 @@ export default function RecommendRecipeCard({
                 key={`${ingredient.ingredientNo || ingredient.ingredientName}-${index}`}
               >
                 <strong>{ingredient.ingredientName}</strong>
-                <span>{ingredient.amount || '적당량'}</span>
+                <span>{ingredient.amount || "적당량"}</span>
               </div>
             ))
           ) : (
@@ -54,10 +54,10 @@ export default function RecommendRecipeCard({
 
 function summarizeRecipeDescription(description) {
   if (!description) {
-    return '레시피 소개 문구는 상세 페이지에서 더 자세히 확인할 수 있습니다.';
+    return "레시피 소개 문구는 상세 페이지에서 더 자세히 확인할 수 있습니다.";
   }
 
-  const normalizedValue = description.replace(/\s+/g, ' ').trim();
+  const normalizedValue = description.replace(/\s+/g, " ").trim();
   if (normalizedValue.length <= 72) {
     return normalizedValue;
   }
@@ -66,17 +66,17 @@ function summarizeRecipeDescription(description) {
 }
 
 function getRecipeSymbol(recipeName) {
-  const normalizedValue = String(recipeName || '').toLowerCase();
+  const normalizedValue = String(recipeName || "").toLowerCase();
 
-  if (normalizedValue.includes('볶음') || normalizedValue.includes('구이')) {
-    return 'P';
+  if (normalizedValue.includes("볶음") || normalizedValue.includes("구이")) {
+    return "P";
   }
-  if (normalizedValue.includes('샐러드') || normalizedValue.includes('무침')) {
-    return 'S';
+  if (normalizedValue.includes("샐러드") || normalizedValue.includes("무침")) {
+    return "S";
   }
-  if (normalizedValue.includes('국') || normalizedValue.includes('탕')) {
-    return 'B';
+  if (normalizedValue.includes("국") || normalizedValue.includes("탕")) {
+    return "B";
   }
 
-  return 'R';
+  return "R";
 }
