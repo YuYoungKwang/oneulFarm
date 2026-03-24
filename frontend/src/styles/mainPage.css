@@ -33,6 +33,16 @@
   font-weight: 800;
 }
 
+.section-link--recipes {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.section-link--market {
+  font-size: 15px;
+  font-weight: 800;
+}
+
 .section-sub {
   font-size: 13px;
   color: var(--muted);

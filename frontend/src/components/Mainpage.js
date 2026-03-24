@@ -851,7 +851,9 @@ function MainPage() {
                 메인에서 눈에 띄는 농산물과 연결되는 레시피만 카드로 묶어 보여줍니다.
               </div>
             </div>
-            <a href="#/recipes">레시피 전체 보기</a>
+            <a className="section-link section-link--recipes" href="#/recipes">
+  레시피 전체 보기
+</a>
           </div>
 
           <div className="recipe-card-grid">
@@ -900,7 +902,10 @@ function MainPage() {
                 대표 품목의 가격 추세와 시세 인사이트를 함께 보면서 흐름을 빠르게 확인합니다.
               </div>
             </div>
-            <a href="#/price-analysis">시세분석 전체 보기</a>
+           <a className="section-link--market" href="#/price-analysis">
+  시세분석 전체 보기
+</a>
+
           </div>
 
           <div className="grid-2 market-overview__grid">
