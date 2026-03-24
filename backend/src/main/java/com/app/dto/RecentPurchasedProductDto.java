@@ -4,10 +4,19 @@ import java.math.BigDecimal;
 
 public class RecentPurchasedProductDto {
 
+    private Long productNo;
     private String productName;
     private String orderedAt;
     private Long quantity;
     private BigDecimal subtotal;
+
+    public Long getProductNo() {
+        return productNo;
+    }
+
+    public void setProductNo(Long productNo) {
+        this.productNo = productNo;
+    }
 
     public String getProductName() {
         return productName;

@@ -42,6 +42,7 @@
     <resultMap id="OrderItemResultMap" type="com.app.dto.OrderItemDto">
         <result property="orderItemNo" column="orderItemNo" />
         <result property="productNo" column="productNo" />
+        <result property="imageNo" column="imageNo" />
         <result property="productName" column="productName" />
         <result property="unitPrice" column="unitPrice" />
         <result property="quantity" column="quantity" />
@@ -137,6 +138,7 @@
         SELECT
             oi.ORDER_ITEM_NO AS orderItemNo,
             oi.PRODUCT_NO AS productNo,
+            img.IMAGE_NO AS imageNo,
             oi.PRODUCT_NAME AS productName,
             oi.UNIT_PRICE AS unitPrice,
             oi.QUANTITY AS quantity,
@@ -150,8 +152,46 @@
             ON r.ORDER_ITEM_NO = oi.ORDER_ITEM_NO
            AND r.PRODUCT_NO = oi.PRODUCT_NO
            AND r.DELETED_AT IS NULL
+        LEFT JOIN (
+            SELECT
+                PRODUCT_NO,
+                MIN(IMAGE_NO) KEEP (
+                    DENSE_RANK FIRST ORDER BY
+                        CASE WHEN IS_MAIN = 'Y' THEN 0 ELSE 1 END,
+                        NVL(SORT_ORDER, 99999),
+                        IMAGE_NO
+                ) AS IMAGE_NO
+            FROM OFT_PRODUCT_IMAGE
+            GROUP BY PRODUCT_NO
+        ) img
+            ON img.PRODUCT_NO = oi.PRODUCT_NO
         WHERE oi.ORDER_NO = #{_parameter}
         ORDER BY oi.ORDER_ITEM_NO ASC
+    </select>
+
+    <select id="selectOrderPreviewImageNos" parameterType="long" resultType="long">
+        SELECT imageNo
+        FROM (
+            SELECT
+                img.IMAGE_NO AS imageNo
+            FROM OFT_ORDER_ITEM oi
+            JOIN (
+                SELECT
+                    PRODUCT_NO,
+                    MIN(IMAGE_NO) KEEP (
+                        DENSE_RANK FIRST ORDER BY
+                            CASE WHEN IS_MAIN = 'Y' THEN 0 ELSE 1 END,
+                            NVL(SORT_ORDER, 99999),
+                            IMAGE_NO
+                    ) AS IMAGE_NO
+                FROM OFT_PRODUCT_IMAGE
+                GROUP BY PRODUCT_NO
+            ) img
+                ON img.PRODUCT_NO = oi.PRODUCT_NO
+            WHERE oi.ORDER_NO = #{_parameter}
+            ORDER BY oi.ORDER_ITEM_NO ASC
+        )
+        WHERE ROWNUM &lt;= 3
     </select>
 
     <select id="countOrdersByOrderIdPrefix" parameterType="string" resultType="int">

@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useState } from 'react';
+import { startTransition, useEffect, useRef, useState } from 'react';
 import '../styles/product.css';
 import {
   DEFAULT_TOSS_CONFIG,
@@ -7,7 +7,6 @@ import {
 } from '../api/paymentApi';
 import {
   addCartItemToApi,
-  advanceOrderOnApi,
   clearCartOnApi,
   createOrderOnApi,
   fetchCartFromApi,
@@ -19,12 +18,8 @@ import {
 } from '../api/productApi';
 import {
   clearPendingTossPayment,
-  createTossPaymentDraft,
-  isTossReady,
   readPendingTossPayment,
   readTossCallbackParams,
-  requestTossPayment,
-  storePendingTossPayment,
 } from '../payment/tossPayments';
 import CartPage from './CartPage';
 import CheckoutPage from './CheckoutPage';
@@ -34,9 +29,10 @@ import ProductDetailPage from './ProductDetailPage';
 import ProductListPage from './ProductListPage';
 import LoginPage from './LoginPage';
 import SignupPage from './SignupPage';
+import PriceAnalysisPage from './PriceAnalysisPage';
 import RecipeDetailPage from './RecipeDetailPage';
 import RecipeListPage from './RecipeListPage';
-import { advanceOrderStatus, createOrderFromCart } from './orderUiUtils';
+import { createOrderFromCart } from './orderUiUtils';
 import {
   DEFAULT_ROUTE,
   defaultFilters,
@@ -63,6 +59,9 @@ export default function ProductApp({ authUser }) {
   const [productReloadToken, setProductReloadToken] = useState(0);
   const [productDetails, setProductDetails] = useState({});
   const [productDetailStates, setProductDetailStates] = useState({});
+  const [productDetailReloadTokens, setProductDetailReloadTokens] = useState({});
+  const productDetailsRef = useRef(productDetails);
+  const productDetailStatesRef = useRef(productDetailStates);
   const [tossConfig, setTossConfig] = useState(DEFAULT_TOSS_CONFIG);
   const [paymentFlowState, setPaymentFlowState] = useState({
     status: 'idle',
@@ -101,6 +100,14 @@ export default function ProductApp({ authUser }) {
   useEffect(() => {
     persistValue('oneulFarmOrders', orders);
   }, [orders]);
+
+  useEffect(() => {
+    productDetailsRef.current = productDetails;
+  }, [productDetails]);
+
+  useEffect(() => {
+    productDetailStatesRef.current = productDetailStates;
+  }, [productDetailStates]);
 
   useEffect(() => {
     let cancelled = false;
@@ -186,21 +193,18 @@ export default function ProductApp({ authUser }) {
   }, [isLoggedIn]);
 
   useEffect(() => {
-    if (process.env.NODE_ENV === 'test') {
-      return;
-    }
-
     if (route.page !== 'product-detail' || route.productNo == null) {
       return;
     }
 
-    const existingDetail = productDetails[route.productNo];
-    const detailState = productDetailStates[route.productNo];
-    if (
-      existingDetail?.recipes?.length ||
-      existingDetail?.reviews?.length ||
-      detailState === 'loading'
-    ) {
+    const existingDetail = productDetailsRef.current[route.productNo];
+    const detailState = productDetailStatesRef.current[route.productNo];
+    if (detailState === 'loading') {
+      return;
+    }
+
+    const reloadToken = productDetailReloadTokens[route.productNo] || 0;
+    if (existingDetail && reloadToken < 1) {
       return;
     }
 
@@ -229,6 +233,10 @@ export default function ProductApp({ authUser }) {
           ...previousStates,
           [detailProduct.productNo]: 'success',
         }));
+        setProductDetailReloadTokens((previousTokens) => ({
+          ...previousTokens,
+          [detailProduct.productNo]: 0,
+        }));
       } catch (error) {
         if (!cancelled) {
           setProductDetailStates((previousStates) => ({
@@ -243,7 +251,27 @@ export default function ProductApp({ authUser }) {
     return () => {
       cancelled = true;
     };
-  }, [productDetailStates, productDetails, route.page, route.productNo]);
+  }, [productDetailReloadTokens, route.page, route.productNo]);
+
+  useEffect(() => {
+    const handleReviewChange = (event) => {
+      const productNo = Number(event.detail?.productNo);
+      if (!Number.isFinite(productNo) || productNo <= 0) {
+        return;
+      }
+
+      setProductDetailReloadTokens((previousTokens) => ({
+        ...previousTokens,
+        [productNo]: (previousTokens[productNo] || 0) + 1,
+      }));
+    };
+
+    window.addEventListener('oneulFarm:review-change', handleReviewChange);
+
+    return () => {
+      window.removeEventListener('oneulFarm:review-change', handleReviewChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (process.env.NODE_ENV === 'test') {
@@ -384,6 +412,7 @@ export default function ProductApp({ authUser }) {
   const currentDetailState =
     route.productNo != null ? productDetailStates[route.productNo] : '';
   const routeNeedsProducts =
+    route.page === 'price-analysis' ||
     route.page === 'cart' ||
     route.page === 'checkout' ||
     route.page === 'product-detail' ||
@@ -425,7 +454,15 @@ export default function ProductApp({ authUser }) {
     navigateToHash(`#/recipes/${recipeNo}`);
   }
 
-  function openRecipeList() {
+  function openRecipeList(searchState) {
+    if (searchState?.ingredientKeyword) {
+      const queryString = new URLSearchParams({
+        ingredientKeyword: searchState.ingredientKeyword,
+      }).toString();
+      navigateToHash(`#/recipes?${queryString}`);
+      return;
+    }
+
     navigateToHash('#/recipes');
   }
 
@@ -447,7 +484,25 @@ export default function ProductApp({ authUser }) {
     navigateToHash('#/checkout');
   }
 
-  function openOrders(orderId) {
+  function openMyOrders() {
+    if (!isLoggedIn) {
+      navigateToHash('#/login');
+      return;
+    }
+
+    navigateToHash('#/mypage/orders');
+  }
+
+  function openAddressSetup() {
+    if (!isLoggedIn) {
+      navigateToHash('#/login');
+      return;
+    }
+
+    navigateToHash('#/mypage?address=manage');
+  }
+
+  function openOrderPreview(orderId) {
     if (!isLoggedIn) {
       navigateToHash('#/login');
       return;
@@ -456,6 +511,12 @@ export default function ProductApp({ authUser }) {
     navigateToHash(
       orderId ? `#/orders/${encodeURIComponent(orderId)}` : '#/orders'
     );
+  }
+
+  function getProductStockLimit(productNo) {
+    const targetProduct = findProduct(products, productDetails, productNo);
+    const stockQty = Number(targetProduct?.stockQty || 0);
+    return Number.isFinite(stockQty) ? Math.max(stockQty, 0) : 0;
   }
 
   function toggleWishlist(productNo) {
@@ -472,9 +533,17 @@ export default function ProductApp({ authUser }) {
       return;
     }
 
+    const currentQuantity = Number(cart[productNo] || 0);
+    const stockLimit = getProductStockLimit(productNo);
+    const remainingStock = Math.max(stockLimit - currentQuantity, 0);
+    const safeQuantity = Math.min(Math.max(Number(quantity) || 1, 1), remainingStock);
+
+    if (stockLimit < 1 || safeQuantity < 1) {
+      return;
+    }
     if (process.env.NODE_ENV !== 'test') {
       try {
-        const nextCart = await addCartItemToApi(productNo, quantity);
+        const nextCart = await addCartItemToApi(productNo, safeQuantity);
         setCart(nextCart);
         return;
       } catch (error) {
@@ -484,14 +553,49 @@ export default function ProductApp({ authUser }) {
 
     setCart((previousCart) => ({
       ...previousCart,
-      [productNo]: (previousCart[productNo] || 0) + quantity,
+      [productNo]: Math.min(
+        stockLimit,
+        (previousCart[productNo] || 0) + safeQuantity
+      ),
     }));
   }
 
+  async function addMatchedProductsToCart(productList) {
+    if (!isLoggedIn) {
+      navigateToHash('#/login');
+      return 0;
+    }
+
+    const uniqueProductNoList = Array.from(
+      new Set(
+        (Array.isArray(productList) ? productList : [])
+          .map((product) => Number(product?.productNo))
+          .filter((productNo) => Number.isFinite(productNo) && productNo > 0)
+      )
+    );
+
+    let addedCount = 0;
+    for (const productNo of uniqueProductNoList) {
+      const stockLimit = getProductStockLimit(productNo);
+      if (stockLimit < 1) {
+        continue;
+      }
+
+      await addToCart(productNo, 1);
+      addedCount += 1;
+    }
+
+    return addedCount;
+  }
+
   async function updateCartQuantity(productNo, nextQuantity) {
+    const stockLimit = getProductStockLimit(productNo);
+    const normalizedQuantity =
+      nextQuantity <= 0 ? 0 : Math.min(Math.max(nextQuantity, 1), stockLimit);
+
     if (process.env.NODE_ENV !== 'test') {
       try {
-        const nextCart = await updateCartItemOnApi(productNo, nextQuantity);
+        const nextCart = await updateCartItemOnApi(productNo, normalizedQuantity);
         setCart(nextCart);
         return;
       } catch (error) {
@@ -500,7 +604,7 @@ export default function ProductApp({ authUser }) {
     }
 
     setCart((previousCart) => {
-      if (nextQuantity <= 0) {
+      if (normalizedQuantity <= 0) {
         const nextCart = { ...previousCart };
         delete nextCart[productNo];
         return nextCart;
@@ -508,7 +612,7 @@ export default function ProductApp({ authUser }) {
 
       return {
         ...previousCart,
-        [productNo]: nextQuantity,
+        [productNo]: normalizedQuantity,
       };
     });
   }
@@ -556,19 +660,6 @@ export default function ProductApp({ authUser }) {
       return;
     }
 
-    if (process.env.NODE_ENV !== 'test' && isTossReady(tossConfig)) {
-      const paymentDraft = createTossPaymentDraft(checkoutForm, cartItems);
-      storePendingTossPayment(paymentDraft);
-
-      try {
-        await requestTossPayment(tossConfig, paymentDraft);
-        return;
-      } catch (error) {
-        clearPendingTossPayment();
-        throw error;
-      }
-    }
-
     if (process.env.NODE_ENV !== 'test') {
       try {
         const newOrder = await createOrderOnApi(checkoutForm);
@@ -601,36 +692,6 @@ export default function ProductApp({ authUser }) {
     const nextHash = `#/order-complete/${encodeURIComponent(newOrder.orderId)}`;
     window.location.hash = nextHash;
     window.history.replaceState(null, '', `${window.location.pathname}${nextHash}`);
-  }
-
-  async function moveOrderToNextStatus(orderId) {
-    const targetOrder = orders.find((order) => order.orderId === orderId);
-    if (!targetOrder) {
-      return;
-    }
-
-    if (process.env.NODE_ENV !== 'test') {
-      try {
-        const updatedOrder = await advanceOrderOnApi(
-          targetOrder.orderNo,
-          targetOrder.deliveryMessage
-        );
-        setOrders((previousOrders) =>
-          previousOrders.map((order) =>
-            order.orderId === orderId ? updatedOrder : order
-          )
-        );
-        return;
-      } catch (error) {
-        // Fall back to local order state.
-      }
-    }
-
-    setOrders((previousOrders) =>
-      previousOrders.map((order) =>
-        order.orderId === orderId ? advanceOrderStatus(order) : order
-      )
-    );
   }
 
   return (
@@ -681,6 +742,7 @@ export default function ProductApp({ authUser }) {
             <CheckoutPage
               cartItems={cartItems}
               onBackToCart={openCart}
+              onOpenAddressSetup={openAddressSetup}
               onSubmitOrder={submitOrder}
               tossConfig={tossConfig}
             />
@@ -714,15 +776,14 @@ export default function ProductApp({ authUser }) {
           />
         ) : route.page === 'order-complete' ? (
           <OrderCompletePage
-            onOpenOrders={() => openOrders(route.orderId)}
+            onOpenOrders={openMyOrders}
             onReturnToProducts={openProductList}
             order={currentOrder}
           />
         ) : route.page === 'orders' ? (
           isLoggedIn ? (
             <OrdersPage
-              onAdvanceStatus={moveOrderToNextStatus}
-              onOpenOrder={openOrders}
+              onSelectOrder={openOrderPreview}
               onReturnToProducts={openProductList}
               orders={orders}
               selectedOrderId={route.orderId}
@@ -734,9 +795,25 @@ export default function ProductApp({ authUser }) {
             />
           )
         ) : route.page === 'recipe-detail' ? (
-          <RecipeDetailPage recipeNo={route.recipeNo} onBack={openRecipeList} />
+          <RecipeDetailPage
+            authUser={authUser}
+            onAddMatchedProductsToCart={addMatchedProductsToCart}
+            recipeNo={route.recipeNo}
+            onBack={openRecipeList}
+          />
         ) : route.page === 'recipes' ? (
-          <RecipeListPage onOpenRecipe={openRecipe} />
+          <RecipeListPage
+            initialIngredientKeyword={route.recipeIngredientKeyword}
+            initialKeyword={route.recipeKeyword}
+            initialSort={route.recipeSort}
+            onOpenRecipe={openRecipe}
+          />
+        ) : route.page === 'price-analysis' ? (
+          <PriceAnalysisPage
+            products={products}
+            onOpenProduct={openProduct}
+            onOpenRecipe={openRecipe}
+          />
         ) : route.page === 'product-detail' ? (
           currentProduct ? (
             <ProductDetailPage
@@ -744,6 +821,8 @@ export default function ProductApp({ authUser }) {
               isWished={wishlist.includes(currentProduct.productNo)}
               onAddToCart={addToCart}
               onBack={openProductList}
+              onOpenRecipe={openRecipe}
+              onOpenRecipeList={openRecipeList}
               onToggleWishlist={toggleWishlist}
               product={currentProduct}
             />

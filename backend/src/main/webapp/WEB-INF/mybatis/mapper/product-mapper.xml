@@ -177,6 +177,7 @@
             IMAGE_NAME AS imageName,
             IMAGE_EXT AS imageExt,
             MIME_TYPE AS mimeType,
+            IMAGE_SIZE AS imageSize,
             SORT_ORDER AS sortOrder,
             IS_MAIN AS isMain
         FROM OFT_PRODUCT_IMAGE

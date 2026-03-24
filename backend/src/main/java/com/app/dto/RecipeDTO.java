@@ -16,6 +16,8 @@ public class RecipeDTO {
     private String sourceName;
     private List<RecipeIngredientDTO> ingredientList;
     private List<RecipeStepDTO> stepList;
+    private List<ProductDto> recommendedProductList;
+    private List<ReviewDto> reviewList;
 
     public Long getRecipeNo() {
         return recipeNo;
@@ -103,5 +105,21 @@ public class RecipeDTO {
 
     public void setStepList(List<RecipeStepDTO> stepList) {
         this.stepList = stepList;
+    }
+
+    public List<ProductDto> getRecommendedProductList() {
+        return recommendedProductList;
+    }
+
+    public void setRecommendedProductList(List<ProductDto> recommendedProductList) {
+        this.recommendedProductList = recommendedProductList;
+    }
+
+    public List<ReviewDto> getReviewList() {
+        return reviewList;
+    }
+
+    public void setReviewList(List<ReviewDto> reviewList) {
+        this.reviewList = reviewList;
     }
 }

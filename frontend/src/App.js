@@ -1,5 +1,6 @@
 import { startTransition, useEffect, useState } from 'react';
 import AccountApp from './AccountApp';
+import AdminApp from './AdminApp';
 import {
   clearAuthUser,
   getAuthUser,
@@ -10,14 +11,17 @@ import MainNav from './components/MainNav';
 import PasswordChangeRequiredPage from './components/PasswordChangeRequiredPage';
 import ProductApp from './components/ProductApp';
 import MainPage from './components/Mainpage';
+import RecommendPage from './components/RecommendPage';
 import SiteFooter from './components/SiteFooter';
 
 const MAIN_ROUTE_SEGMENTS = new Set(['', 'main', 'mainpage', 'home']);
 const PRODUCT_ROUTE_SEGMENTS = new Set([
   'productapp',
   'products',
+  'price-analysis',
   'cart',
   'checkout',
+  'orders',
   'recipes',
   'order-complete',
   'payment-success',
@@ -26,7 +30,8 @@ const PRODUCT_ROUTE_SEGMENTS = new Set([
   'signup',
   'password-change',
 ]);
-const ACCOUNT_ROUTE_SEGMENTS = new Set(['dashboard', 'mypage', 'orders']);
+const ACCOUNT_ROUTE_SEGMENTS = new Set(['dashboard', 'mypage']);
+const ADMIN_ROUTE_SEGMENTS = new Set(['admin']);
 
 function getFirstSegment(hash) {
   const normalized = hash.replace(/^#\/?/, '').trim().toLowerCase();
@@ -44,12 +49,17 @@ function getFirstSegment(hash) {
     return pathnameSegment;
   }
 
-  const [firstSegment] = normalized.split('/');
+  const [normalizedPath] = normalized.split('?');
+  const [firstSegment] = normalizedPath.split('/');
   return firstSegment;
 }
 
 function resolveAppFromHash(hash) {
   const firstSegment = getFirstSegment(hash);
+
+  if (firstSegment === 'recommend') {
+    return 'recommend';
+  }
 
   if (MAIN_ROUTE_SEGMENTS.has(firstSegment)) {
     return 'main';
@@ -57,6 +67,10 @@ function resolveAppFromHash(hash) {
 
   if (ACCOUNT_ROUTE_SEGMENTS.has(firstSegment)) {
     return 'account';
+  }
+
+  if (ADMIN_ROUTE_SEGMENTS.has(firstSegment)) {
+    return 'admin';
   }
 
   if (PRODUCT_ROUTE_SEGMENTS.has(firstSegment)) {
@@ -69,12 +83,20 @@ function resolveAppFromHash(hash) {
 function resolveActiveSection(hash) {
   const firstSegment = getFirstSegment(hash);
 
-  if (MAIN_ROUTE_SEGMENTS.has(firstSegment)) {
+  if (MAIN_ROUTE_SEGMENTS.has(firstSegment) || ADMIN_ROUTE_SEGMENTS.has(firstSegment)) {
     return null;
   }
 
   if (firstSegment === 'recipes') {
     return 'recipes';
+  }
+
+  if (firstSegment === 'recommend') {
+    return 'recommend';
+  }
+
+  if (firstSegment === 'price-analysis') {
+    return 'market';
   }
 
   if (
@@ -160,7 +182,9 @@ function App() {
 
   return (
     <>
-      {isPasswordChangeRequired ? (
+      {currentApp === 'admin' ? (
+        <AdminApp />
+      ) : isPasswordChangeRequired ? (
         <PasswordChangeRequiredPage authUser={authUser} />
       ) : (
         <>
@@ -179,6 +203,7 @@ function App() {
           {currentApp === 'main' && <MainPage />}
           {currentApp === 'product' && <ProductApp authUser={authUser} />}
           {currentApp === 'account' && <AccountApp authUser={authUser} />}
+          {currentApp === 'recommend' && <RecommendPage authUser={authUser} />}
           {currentApp === 'main' && <SiteFooter />}
         </>
       )}

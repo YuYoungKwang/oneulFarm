@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { buildAuthHeaders, getAuthUser, isAuthenticated, requestAuthApi } from './auth';
 import './styles/account.css';
 import DashboardView from './DashboardView';
@@ -92,13 +92,28 @@ const EMPTY_REVIEW_FORM = {
   orderItemNo: '',
   rating: 5,
   content: '',
+  imageFile: null,
+  removeImage: false,
 };
+
+function notifyReviewChange(productNo) {
+  const safeProductNo = Number(productNo);
+  if (!Number.isFinite(safeProductNo) || safeProductNo <= 0) {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent('oneulFarm:review-change', {
+      detail: { productNo: safeProductNo },
+    })
+  );
+}
 
 const ACCOUNT_ROUTES = {
   dashboard: '#/dashboard',
   mypage: '#/mypage',
   activity: '#/mypage/activity',
-  orders: '#/orders',
+  orders: '#/mypage/orders',
 };
 
 function accountHeaders(authUser, includeJson = false) {
@@ -220,6 +235,7 @@ function AccountApp({ authUser: initialAuthUser }) {
   const [currentPage, setCurrentPage] = useState(() =>
     getAccountPageFromHash(window.location.hash)
   );
+  const addressModalRouteHandledRef = useRef(false);
   const [activeTab, setActiveTab] = useState('wishlist');
 
   const [orders, setOrders] = useState([]);
@@ -246,6 +262,8 @@ function AccountApp({ authUser: initialAuthUser }) {
   const [profileForm, setProfileForm] = useState(EMPTY_PROFILE_FORM);
   const [profileSubmitError, setProfileSubmitError] = useState('');
   const [profileSubmitting, setProfileSubmitting] = useState(false);
+  const [profileImageUploading, setProfileImageUploading] = useState(false);
+  const [profileImageError, setProfileImageError] = useState('');
   const [duplicateState, setDuplicateState] = useState(EMPTY_DUPLICATE_STATE);
   const [passwordForm, setPasswordForm] = useState(EMPTY_PASSWORD_FORM);
   const [passwordError, setPasswordError] = useState('');
@@ -389,6 +407,7 @@ function AccountApp({ authUser: initialAuthUser }) {
             avg: buildWishlistSummary(product),
             savingRate: buildWishlistSavingRate(product),
             badge: buildWishlistBadge(product),
+            imageUrl: product.mainImage?.imageUrl || '',
             emoji: product.display?.symbol || '🛒',
           }));
 
@@ -681,6 +700,38 @@ function AccountApp({ authUser: initialAuthUser }) {
     setDuplicateState(EMPTY_DUPLICATE_STATE);
   }
 
+  async function handleProfileImageUpload(file) {
+    if (!file) {
+      return false;
+    }
+
+    setProfileImageUploading(true);
+    setProfileImageError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('profileImage', file);
+
+      await requestAuthApi(
+        `${USER_API_PATH}/me/profile-image`,
+        {
+          method: 'PATCH',
+          headers: accountHeaders(authUser),
+          body: formData,
+        },
+        '프로필 사진 변경에 실패했습니다.'
+      );
+
+      await refreshProfile();
+      return true;
+    } catch (error) {
+      setProfileImageError(error.message || '프로필 사진 변경에 실패했습니다.');
+      return false;
+    } finally {
+      setProfileImageUploading(false);
+    }
+  }
+
   async function handleDuplicateCheck(fieldKey) {
     const rawValue = String(profileForm[fieldKey] || '').trim();
     const currentValue = String(profile[fieldKey] || '').trim();
@@ -926,7 +977,7 @@ function AccountApp({ authUser: initialAuthUser }) {
     }
   }
 
-  async function fetchAddresses() {
+  const fetchAddresses = useCallback(async () => {
     setAddressesLoading(true);
     setAddressesError('');
 
@@ -944,18 +995,19 @@ function AccountApp({ authUser: initialAuthUser }) {
     } finally {
       setAddressesLoading(false);
     }
-  }
+  }, [authUser]);
 
-  function openAddressModal() {
+  const openAddressModal = useCallback(() => {
     setIsAddressModalOpen(true);
     setAddressForm(EMPTY_ADDRESS_FORM);
     setAddressFormError('');
     setIsAddressFormOpen(false);
     setEditingAddressNo(null);
     fetchAddresses();
-  }
+  }, [fetchAddresses]);
 
   function closeAddressModal() {
+    addressModalRouteHandledRef.current = false;
     setIsAddressModalOpen(false);
     setAddressesError('');
     setChangingAddressNo(null);
@@ -965,6 +1017,29 @@ function AccountApp({ authUser: initialAuthUser }) {
     setAddressSubmitting(false);
     setIsAddressFormOpen(false);
   }
+
+  useEffect(() => {
+    if (currentPage !== 'mypage') {
+      addressModalRouteHandledRef.current = false;
+      return;
+    }
+
+    const [, queryString = ''] = window.location.hash.split('?');
+    const params = new URLSearchParams(queryString);
+    const shouldOpenAddressModal = params.get('address') === 'manage';
+
+    if (!shouldOpenAddressModal || addressModalRouteHandledRef.current) {
+      return;
+    }
+
+    addressModalRouteHandledRef.current = true;
+    openAddressModal();
+    window.history.replaceState(
+      null,
+      '',
+      `${window.location.pathname}${window.location.search}${ACCOUNT_ROUTES.mypage}`
+    );
+  }, [currentPage, openAddressModal]);
 
   function handleStartCreateAddress() {
     setAddressForm(EMPTY_ADDRESS_FORM);
@@ -1153,17 +1228,38 @@ function AccountApp({ authUser: initialAuthUser }) {
     setWishlistProductNos(nextWishlist);
   }
 
+  function handleStartCreateReviewFromOrder(item, orderDetail) {
+    if (!item) {
+      return;
+    }
+
+    handleStartCreateReview({
+      orderItemNo: item.orderItemNo,
+      productNo: item.productNo,
+      productName: item.productName,
+      orderId: orderDetail?.orderId || '',
+      imageNo: item.imageNo || null,
+    });
+    setActiveTab('reviews');
+    moveToPage('activity');
+  }
+
   function handleStartCreateReview(review) {
     setReviewEditor({
       mode: 'create',
       reviewNo: null,
+      productNo: review.productNo,
       productName: review.productName,
       orderId: review.orderId,
+      imageNo: review.imageNo || null,
+      reviewImageNo: null,
     });
     setReviewForm({
       orderItemNo: review.orderItemNo,
       rating: 5,
       content: '',
+      imageFile: null,
+      removeImage: false,
     });
     setReviewFormError('');
   }
@@ -1172,13 +1268,18 @@ function AccountApp({ authUser: initialAuthUser }) {
     setReviewEditor({
       mode: 'edit',
       reviewNo: review.reviewNo,
+      productNo: review.productNo,
       productName: review.productName,
       orderId: review.orderId,
+      imageNo: review.imageNo || null,
+      reviewImageNo: review.reviewImageNo || null,
     });
     setReviewForm({
       orderItemNo: review.orderItemNo,
       rating: Number(review.rating || 5),
       content: review.content || '',
+      imageFile: null,
+      removeImage: false,
     });
     setReviewFormError('');
   }
@@ -1198,6 +1299,25 @@ function AccountApp({ authUser: initialAuthUser }) {
     }));
   }
 
+  function handleReviewImageChange(event) {
+    const file = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+    setReviewFormError('');
+    setReviewForm((current) => ({
+      ...current,
+      imageFile: file,
+      removeImage: false,
+    }));
+  }
+
+  function handleRemoveReviewImage() {
+    setReviewFormError('');
+    setReviewForm((current) => ({
+      ...current,
+      imageFile: null,
+      removeImage: true,
+    }));
+  }
+
   async function handleReviewSubmit(event) {
     event.preventDefault();
     setReviewSubmitting(true);
@@ -1211,17 +1331,29 @@ function AccountApp({ authUser: initialAuthUser }) {
 
     try {
       const isEditMode = reviewEditor?.mode === 'edit' && reviewEditor?.reviewNo;
+      const formData = new FormData();
+      if (reviewForm.orderItemNo) {
+        formData.append('orderItemNo', String(reviewForm.orderItemNo));
+      }
+      formData.append('rating', String(reviewForm.rating));
+      formData.append('content', String(reviewForm.content || ''));
+      formData.append('removeImage', reviewForm.removeImage ? 'true' : 'false');
+      if (reviewForm.imageFile) {
+        formData.append('reviewImage', reviewForm.imageFile);
+      }
+
       await requestAuthApi(
         isEditMode ? `${REVIEW_API_PATH}/${reviewEditor.reviewNo}` : REVIEW_API_PATH,
         {
           method: isEditMode ? 'PATCH' : 'POST',
-          headers: accountHeaders(authUser, true),
-          body: JSON.stringify(reviewForm),
+          headers: accountHeaders(authUser),
+          body: formData,
         },
         isEditMode ? '리뷰 수정에 실패했습니다.' : '리뷰 작성에 실패했습니다.'
       );
 
       await loadReviewsData();
+      notifyReviewChange(reviewEditor?.productNo);
       handleCancelReviewEditor();
       return true;
     } catch (error) {
@@ -1242,6 +1374,15 @@ function AccountApp({ authUser: initialAuthUser }) {
       return;
     }
 
+    const targetReview = myReviews.find(
+      (currentReview) => Number(currentReview.reviewNo) === Number(reviewNo)
+    );
+    const targetProductNo =
+      targetReview?.productNo ||
+      (reviewEditor?.mode === 'edit' && reviewEditor.reviewNo === reviewNo
+        ? reviewEditor.productNo
+        : null);
+
     setDeletingReviewNo(reviewNo);
     setReviewsError('');
 
@@ -1255,6 +1396,7 @@ function AccountApp({ authUser: initialAuthUser }) {
         '리뷰 삭제에 실패했습니다.'
       );
       await loadReviewsData();
+      notifyReviewChange(targetProductNo);
 
       if (reviewEditor?.mode === 'edit' && reviewEditor.reviewNo === reviewNo) {
         handleCancelReviewEditor();
@@ -1328,7 +1470,7 @@ function AccountApp({ authUser: initialAuthUser }) {
             className={`account-local-nav__link ${currentPage === 'activity' ? 'is-active' : ''}`}
             onClick={() => moveToPage('activity')}
           >
-            관심 활동
+              내 활동
           </button>
           <button
             type="button"
@@ -1355,9 +1497,12 @@ function AccountApp({ authUser: initialAuthUser }) {
             profileForm={profileForm}
             profileSubmitting={profileSubmitting}
             profileSubmitError={profileSubmitError}
+            profileImageUploading={profileImageUploading}
+            profileImageError={profileImageError}
             duplicateState={duplicateState}
             onProfileFormChange={handleProfileFormChange}
             onProfileSubmit={handleProfileSubmit}
+            onProfileImageUpload={handleProfileImageUpload}
             onResetProfileForm={resetProfileForm}
             onDuplicateCheck={handleDuplicateCheck}
             passwordForm={passwordForm}
@@ -1396,6 +1541,8 @@ function AccountApp({ authUser: initialAuthUser }) {
             onStartEditReview={handleStartEditReview}
             onCancelReviewEditor={handleCancelReviewEditor}
             onReviewFormChange={handleReviewFormChange}
+            onReviewImageChange={handleReviewImageChange}
+            onRemoveReviewImage={handleRemoveReviewImage}
             onReviewSubmit={handleReviewSubmit}
             onDeleteReview={handleDeleteReview}
           />
@@ -1413,6 +1560,7 @@ function AccountApp({ authUser: initialAuthUser }) {
             onOrderFilterSubmit={handleOrderFilterSubmit}
             onOrderFilterReset={handleOrderFilterReset}
             onSelectOrder={handleSelectOrder}
+            onStartCreateReview={handleStartCreateReviewFromOrder}
           />
         ) : (
           <DashboardView

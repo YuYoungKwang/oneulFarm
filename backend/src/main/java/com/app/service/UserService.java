@@ -1,5 +1,7 @@
 package com.app.service;
 
+import org.springframework.web.multipart.MultipartFile;
+
 import com.app.dto.ChangePasswordRequestDto;
 import com.app.dto.CurrentPasswordRequestDto;
 import com.app.dto.DuplicateCheckResponseDto;
@@ -11,6 +13,8 @@ public interface UserService {
     UserProfileDto getMyProfile(Long userNo);
 
     UserProfileDto updateMyProfile(Long userNo, UpdateUserProfileRequestDto request);
+
+    UserProfileDto updateProfileImage(Long userNo, MultipartFile profileImage);
 
     void changePassword(Long userNo, ChangePasswordRequestDto request);
 

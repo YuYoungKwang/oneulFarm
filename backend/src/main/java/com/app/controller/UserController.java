@@ -6,9 +6,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.app.common.ApiResponse;
 import com.app.dto.ChangePasswordRequestDto;
@@ -38,6 +40,14 @@ public class UserController {
         @RequestBody UpdateUserProfileRequestDto request
     ) {
         return ApiResponse.success(userService.updateMyProfile(userNo, request), "회원정보 수정 성공");
+    }
+
+    @PatchMapping(value = "/me/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<UserProfileDto> updateProfileImage(
+        @RequestHeader("X-USER-NO") Long userNo,
+        @RequestPart("profileImage") MultipartFile profileImage
+    ) {
+        return ApiResponse.success(userService.updateProfileImage(userNo, profileImage), "프로필 사진 변경 성공");
     }
 
     @PatchMapping(value = "/me/password", consumes = MediaType.APPLICATION_JSON_VALUE)
