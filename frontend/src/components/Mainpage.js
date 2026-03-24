@@ -500,9 +500,7 @@ export default function MainPage({ authUser }) {
         key: "under-average",
         href: buildProductsHash({ tag: "UNDER_AVG", sort: "HIGH_SAVING" }),
         eyebrow: "평균가 이하 추천",
-        title: underAverageLead?.metricValue
-          ? `지금 사면 평균보다 ${underAverageLead.metricValue} 절약`
-          : "평균가보다 저렴한 상품을 먼저 확인하세요",
+        title: "지금 사기 좋아요",
         meta: underAverageLead?.product?.productName || "절약 폭이 큰 대표 상품",
         badge: underAverageLead?.badges?.[0] || "특가",
       },
@@ -513,9 +511,7 @@ export default function MainPage({ authUser }) {
           sort: "RECOMMENDED",
         }),
         eyebrow: "지금 구매 추천",
-        title: buyNowLead?.metricValue
-          ? `${buyNowLead.metricValue} 흐름을 보이는 상품`
-          : "오늘 사기 좋은 타이밍의 상품을 모았습니다",
+        title: "가격 괜찮은 시점이에요",
         meta: buyNowLead?.product?.productName || "가격 흐름이 좋은 대표 상품",
         badge: buyNowLead?.badges?.[0] || "타이밍",
       },
@@ -529,9 +525,7 @@ export default function MainPage({ authUser }) {
           sort: "RECOMMENDED",
         }),
         eyebrow: "인기 검색 농산물",
-        title: recommendSummary.popularSearchList.length
-          ? `${recommendSummary.popularSearchList[0].keyword} 관심도가 오르고 있어요`
-          : "지금 많이 찾는 농산물을 먼저 확인하세요",
+        title: "요즘 많이 찾는 상품이에요",
         meta: popularLead?.product?.productName || "검색 흐름과 연결된 대표 상품",
         badge: popularLead?.badges?.[0] || "인기",
       },
@@ -804,19 +798,6 @@ export default function MainPage({ authUser }) {
                           {summarizeRecipeDescription(item.description)}
                         </p>
                       </div>
-
-                      {item.matchedIngredients?.length ? (
-                        <div className="recipe-list-card__meta">
-                          {item.matchedIngredients.slice(0, 2).map((ingredient, index) => (
-                            <span
-                              className="recipe-pill"
-                              key={`${ingredient.ingredientNo || ingredient.ingredientName}-${index}`}
-                            >
-                              {ingredient.ingredientName}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
 
                       <div className="recipe-list-card__foot recipe-list-card__foot--compact">
                         <button

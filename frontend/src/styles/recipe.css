@@ -454,6 +454,7 @@
 .product-app .recipe-list-card__summary--compact {
   font-size: 13px;
   line-height: 1.55;
+  min-height: calc(13px * 1.55 * 2);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
