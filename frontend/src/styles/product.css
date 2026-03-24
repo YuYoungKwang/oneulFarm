@@ -569,11 +569,14 @@
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) 340px;
   gap: 18px;
+  align-items: start;
 }
 
 .product-app .cart-list{
   display: grid;
   gap: 16px;
+  align-content: start;
+  grid-auto-rows: max-content;
 }
 
 .product-app .cart-card,
@@ -589,6 +592,7 @@
   grid-template-columns: 156px 1fr;
   gap: 18px;
   padding: 18px;
+  align-self: start;
 }
 
 .product-app .cart-thumb{
