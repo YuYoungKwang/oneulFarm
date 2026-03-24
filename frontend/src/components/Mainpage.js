@@ -513,6 +513,22 @@ export default function MainPage({ authUser }) {
   const activeProductGroup =
     tabbedProductGroups[selectedProductTab] || tabbedProductGroups.recommended;
 
+  function handleQuickEntryOpen(tabKey) {
+    setSelectedProductTab(tabKey);
+
+    window.setTimeout(() => {
+      const targetSection = document.getElementById("main-shopping-picks");
+      if (!targetSection) {
+        return;
+      }
+
+      targetSection.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 0);
+  }
+
   return (
     <div className="page-shell">
       <main className="container">
@@ -530,7 +546,7 @@ export default function MainPage({ authUser }) {
                   key={card.key}
                   className="main-quick-entry-card"
                   type="button"
-                  onClick={() => setSelectedProductTab(card.tabKey)}
+                  onClick={() => handleQuickEntryOpen(card.tabKey)}
                 >
                   <span className="main-quick-entry-card__eyebrow">{card.eyebrow}</span>
                   <strong>{card.title}</strong>
