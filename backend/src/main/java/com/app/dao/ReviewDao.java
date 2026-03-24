@@ -31,8 +31,11 @@ public interface ReviewDao {
         String imageExt,
         String mimeType,
         Long imageSize,
+        Integer sortOrder,
         byte[] imageData
     );
+
+    int deleteReviewImage(Long reviewImageNo);
 
     int deleteReview(Long userNo, Long reviewNo);
 

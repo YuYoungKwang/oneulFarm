@@ -1,6 +1,7 @@
 package com.app.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -20,4 +21,5 @@ public class ActivityReviewDto {
     private String content;
     private LocalDateTime orderedAt;
     private LocalDateTime createdAt;
+    private List<ReviewImageDto> imageList;
 }
