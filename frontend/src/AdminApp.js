@@ -14,6 +14,7 @@ import {
 import {
   createAdminPackageHistory,
   createAdminPurchaseBatch,
+  deleteAdminPurchaseBatch,
   deleteAdminOrder,
   deleteAdminProduct,
   deleteAdminUser,
@@ -89,6 +90,10 @@ function parseAdminPage(hash) {
 function toNumber(value, fallback = 0) {
   const nextValue = Number(value);
   return Number.isFinite(nextValue) ? nextValue : fallback;
+}
+
+function hasAdminValue(value) {
+  return value !== null && value !== undefined && value !== '';
 }
 
 const COUNT_UNIT_SET = new Set(['ea', 'each', '개', '포기', '단', '망', '봉', '봉지', 'pack', 'pk']);
@@ -775,7 +780,7 @@ function LegacyProductsPage({
               </div>
             )}
           </div>
-          <div className="admin-page-actions">
+          <div className="admin-page-actions admin-page-actions--end">
             <button type="button" className="admin-action admin-action--line" disabled>
               이미지 업로드
             </button>
@@ -1132,6 +1137,7 @@ function LegacyPurchasePage({
   onPackageFormChange,
   onCreatePurchase,
   onCreatePackageHistory,
+  onDeletePurchaseBatch,
   submittingPurchase,
   submittingPackage,
 }) {
@@ -1189,7 +1195,7 @@ function LegacyPurchasePage({
             <label><span>1개당 중량</span><input name="packagedWeight" value={packageForm.packagedWeight} onChange={onPackageFormChange} /></label>
             <label className="admin-form-field admin-form-field--full"><span>메모</span><textarea name="note" value={packageForm.note} onChange={onPackageFormChange} /></label>
           </div>
-          <div className="admin-page-actions">
+          <div className="admin-page-actions admin-page-actions--end">
             <button type="button" className="admin-action admin-action--primary" onClick={onCreatePackageHistory} disabled={!selectedBatch || submittingPackage}>
               {submittingPackage ? '처리 중...' : '소분 실행'}
             </button>
@@ -1208,6 +1214,9 @@ function LegacyPurchasePage({
               <th>매입가</th>
               <th>상태</th>
               <th>최근 소분</th>
+              <th>관리</th>
+              <th>관리</th>
+              <th>관리</th>
             </tr>
           </thead>
           <tbody>
@@ -1225,6 +1234,19 @@ function LegacyPurchasePage({
                   <td>{formatAdminCurrency(purchase.purchasePrice)}</td>
                   <td><AdminStatusBadge status={purchase.status} /></td>
                   <td>{latestPackage ? formatAdminDate(latestPackage.packagedAt) : '-'}</td>
+                  <td className="admin-table__actions">
+                    <button
+                      type="button"
+                      className="admin-action admin-action--danger"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onDeletePurchaseBatch(purchase);
+                      }}
+                      disabled={submittingPurchase || submittingPackage}
+                    >
+                      삭제
+                    </button>
+                  </td>
                 </tr>
               );
             })}
@@ -1547,6 +1569,7 @@ function PurchasePage({
   onClearPurchaseImages,
   onCreatePurchase,
   onCreatePackageHistory,
+  onDeletePurchaseBatch,
   quotingPurchase,
   submittingPurchase,
   submittingPackage,
@@ -1608,26 +1631,35 @@ function PurchasePage({
             <div className="admin-summary-box admin-summary-box--note">
               <strong>시세 자동 채움 기준</strong>
               <div className="admin-muted">
-                {purchaseQuote.matchedItemName} · 기준일 {purchaseQuote.snapshotDate} · 도매 평균가{' '}
-                {formatAdminCurrency(purchaseQuote.wholesaleAvgPrice)} ({purchaseQuote.snapshotUnit} 기준)
+                {purchaseQuote.matchedItemName} · 기준일 {purchaseQuote.snapshotDate} · 계산 기준{' '}
+                {purchaseQuote.priceBasisUnit || '1kg'}
+              </div>
+              <div className="admin-muted">
+                도매 원시세 {formatAdminCurrency(purchaseQuote.wholesaleSourcePrice)} ({purchaseQuote.wholesaleSourceUnit || purchaseQuote.snapshotUnit} 기준)
+                {hasAdminValue(purchaseQuote.wholesaleAvgPrice) ? (
+                  <> · {purchaseQuote.wholesalePriceBasisUnit || purchaseQuote.priceBasisUnit || '1kg'} 환산 {formatAdminCurrency(purchaseQuote.wholesaleAvgPrice)}</>
+                ) : null}
               </div>
               <div className="admin-muted">
                 기준 단위 {purchaseQuote.snapshotUnit} · 자동 입력 {purchaseQuote.purchaseQty}
                 {purchaseQuote.purchaseUnit}
-                {purchaseQuote.retailAvgPrice ? (
+                {hasAdminValue(purchaseQuote.retailSourcePrice) ? (
                   <>
                     {' '}
-                    · 소매 평균가 {formatAdminCurrency(purchaseQuote.retailAvgPrice)}
+                    · 소매 원시세 {formatAdminCurrency(purchaseQuote.retailSourcePrice)}
                     {purchaseQuote.retailSnapshotUnit ? ` (${purchaseQuote.retailSnapshotUnit} 기준)` : ''}
                   </>
                 ) : null}
-                {purchaseQuote.retailComparablePrice ? (
-                  <> · 소매 환산가 {formatAdminCurrency(purchaseQuote.retailComparablePrice)}</>
+                {hasAdminValue(purchaseQuote.retailComparablePrice) ? (
+                  <> · {purchaseQuote.retailPriceBasisUnit || purchaseQuote.priceBasisUnit || '1kg'} 환산 {formatAdminCurrency(purchaseQuote.retailComparablePrice)}</>
                 ) : null}
-                {purchaseQuote.recommendedSalePrice ? (
-                  <> · 권장 판매가 {formatAdminCurrency(purchaseQuote.recommendedSalePrice)}</>
+                {hasAdminValue(purchaseQuote.recommendedSalePrice) ? (
+                  <> · 권장 판매가 {formatAdminCurrency(purchaseQuote.recommendedSalePrice)} ({purchaseQuote.recommendedPriceBasisUnit || purchaseQuote.priceBasisUnit || '1kg'} 기준)</>
                 ) : null}
               </div>
+              {purchaseQuote.pricingNote ? (
+                <div className="admin-muted">{purchaseQuote.pricingNote}</div>
+              ) : null}
             </div>
           ) : null}
           <div className="admin-form-field admin-form-field--full">
@@ -1733,7 +1765,7 @@ function PurchasePage({
             </label>
             <label className="admin-form-field admin-form-field--full"><span>메모</span><textarea name="note" value={packageForm.note} onChange={onPackageFormChange} /></label>
           </div>
-          <div className="admin-page-actions">
+          <div className="admin-page-actions admin-page-actions--end">
             <button type="button" className="admin-action admin-action--primary" onClick={onCreatePackageHistory} disabled={!selectedBatch || submittingPackage}>
               {submittingPackage ? '처리 중...' : '소분 실행'}
             </button>
@@ -1769,6 +1801,19 @@ function PurchasePage({
                   <td>{formatAdminCurrency(purchase.purchasePrice)}</td>
                   <td><AdminStatusBadge status={purchase.status} /></td>
                   <td>{latestPackage ? formatAdminDate(latestPackage.packagedAt) : '-'}</td>
+                  <td className="admin-table__actions">
+                    <button
+                      type="button"
+                      className="admin-action admin-action--danger"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onDeletePurchaseBatch(purchase);
+                      }}
+                      disabled={submittingPurchase || submittingPackage}
+                    >
+                      삭제
+                    </button>
+                  </td>
                 </tr>
               );
             })}
@@ -2389,6 +2434,41 @@ function AdminApp() {
     }
   }
 
+  async function handleDeletePurchaseBatch(purchase) {
+    if (!purchase?.batchNo) {
+      return;
+    }
+
+    const shouldDelete = window.confirm(
+      `'${purchase.productName}' 매입/소분 이력을 삭제하시겠습니까?\n\n연결된 소분 이력은 함께 삭제되고, 상품 정보는 유지됩니다.`
+    );
+    if (!shouldDelete) {
+      return;
+    }
+
+    setSavingPurchase(true);
+    setActionError('');
+    setActionSuccess('');
+
+    try {
+      await deleteAdminPurchaseBatch(purchase.batchNo);
+      const [nextPurchases, nextPackageHistories] = await Promise.all([
+        fetchAdminPurchases(),
+        fetchAdminPackageHistories(),
+      ]);
+      setPurchases(nextPurchases);
+      setPackageHistories(nextPackageHistories);
+      setSelectedBatchNo((currentSelectedBatchNo) =>
+        currentSelectedBatchNo === purchase.batchNo ? nextPurchases[0]?.batchNo || null : currentSelectedBatchNo
+      );
+      setActionSuccess('매입/소분 이력을 삭제했습니다.');
+    } catch (error) {
+      setActionError(error.message || '매입/소분 이력 삭제에 실패했습니다.');
+    } finally {
+      setSavingPurchase(false);
+    }
+  }
+
   async function handleSyncRecipes() {
     setSyncingRecipes(true);
     setActionError('');
@@ -2535,6 +2615,7 @@ function AdminApp() {
               onClearPurchaseImages={resetPurchaseImages}
               onCreatePurchase={handleCreatePurchase}
               onCreatePackageHistory={handleCreatePackageHistory}
+              onDeletePurchaseBatch={handleDeletePurchaseBatch}
               quotingPurchase={quotingPurchase}
               submittingPurchase={savingPurchase}
               submittingPackage={savingPackage}
