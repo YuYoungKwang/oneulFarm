@@ -8,6 +8,7 @@ import {
   requiresPasswordChange,
 } from './auth';
 import MainNav from './components/MainNav';
+import MealPlanPlaceholderPage from './components/MealPlanPlaceholderPage';
 import PasswordChangeRequiredPage from './components/PasswordChangeRequiredPage';
 import ProductApp from './components/ProductApp';
 import MainPage from './components/Mainpage';
@@ -18,6 +19,7 @@ const MAIN_ROUTE_SEGMENTS = new Set(['', 'main', 'mainpage', 'home']);
 const PRODUCT_ROUTE_SEGMENTS = new Set([
   'productapp',
   'products',
+  'price-analysis',
   'cart',
   'checkout',
   'orders',
@@ -30,6 +32,7 @@ const PRODUCT_ROUTE_SEGMENTS = new Set([
   'password-change',
 ]);
 const ACCOUNT_ROUTE_SEGMENTS = new Set(['dashboard', 'mypage']);
+const MEAL_PLAN_ROUTE_SEGMENTS = new Set(['meal-plan']);
 const ADMIN_ROUTE_SEGMENTS = new Set(['admin']);
 
 function getFirstSegment(hash) {
@@ -48,7 +51,8 @@ function getFirstSegment(hash) {
     return pathnameSegment;
   }
 
-  const [firstSegment] = normalized.split('/');
+  const [normalizedPath] = normalized.split('?');
+  const [firstSegment] = normalizedPath.split('/');
   return firstSegment;
 }
 
@@ -65,6 +69,10 @@ function resolveAppFromHash(hash) {
 
   if (ACCOUNT_ROUTE_SEGMENTS.has(firstSegment)) {
     return 'account';
+  }
+
+  if (MEAL_PLAN_ROUTE_SEGMENTS.has(firstSegment)) {
+    return 'meal-plan';
   }
 
   if (ADMIN_ROUTE_SEGMENTS.has(firstSegment)) {
@@ -97,6 +105,14 @@ function resolveActiveSection(hash) {
     return 'recommend';
   }
 
+  if (firstSegment === 'meal-plan') {
+    return 'meal-plan';
+  }
+
+  if (firstSegment === 'price-analysis') {
+    return 'market';
+  }
+
   if (
     firstSegment === 'orders' ||
     firstSegment === 'order-complete' ||
@@ -106,7 +122,7 @@ function resolveActiveSection(hash) {
   }
 
   if (firstSegment === 'dashboard') {
-    return 'dashboard';
+    return 'mypage';
   }
 
   if (
@@ -201,6 +217,7 @@ function App() {
           {currentApp === 'main' && <MainPage />}
           {currentApp === 'product' && <ProductApp authUser={authUser} />}
           {currentApp === 'account' && <AccountApp authUser={authUser} />}
+          {currentApp === 'meal-plan' && <MealPlanPlaceholderPage />}
           {currentApp === 'recommend' && <RecommendPage authUser={authUser} />}
           {currentApp === 'main' && <SiteFooter />}
         </>
