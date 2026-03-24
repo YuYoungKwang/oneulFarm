@@ -282,6 +282,25 @@ function openHash(hash) {
   window.location.hash = hash;
 }
 
+function buildProductsHash({ search = "", sort = "", tag = "" }) {
+  const searchParams = new URLSearchParams();
+
+  if (tag) {
+    searchParams.set("tag", tag);
+  }
+
+  if (search) {
+    searchParams.set("search", search);
+  }
+
+  if (sort) {
+    searchParams.set("sort", sort);
+  }
+
+  const queryString = searchParams.toString();
+  return queryString ? `#/products?${queryString}` : "#/products";
+}
+
 export default function MainPage({ authUser }) {
   const [mainData, setMainData] = useState(EMPTY_MAIN_DATA);
   const [isLoading, setIsLoading] = useState(true);
@@ -432,7 +451,7 @@ export default function MainPage({ authUser }) {
     return [
       {
         key: "under-average",
-        tabKey: "value",
+        href: buildProductsHash({ tag: "UNDER_AVG", sort: "HIGH_SAVING" }),
         eyebrow: "평균가 이하 추천",
         title: underAverageLead?.metricValue
           ? `지금 사면 평균보다 ${underAverageLead.metricValue} 절약`
@@ -442,7 +461,10 @@ export default function MainPage({ authUser }) {
       },
       {
         key: "buy-now",
-        tabKey: "recommended",
+        href: buildProductsHash({
+          search: buyNowLead?.product?.productName || "",
+          sort: "RECOMMENDED",
+        }),
         eyebrow: "지금 구매 추천",
         title: buyNowLead?.metricValue
           ? `${buyNowLead.metricValue} 흐름을 보이는 상품`
@@ -452,7 +474,13 @@ export default function MainPage({ authUser }) {
       },
       {
         key: "popular-search",
-        tabKey: "popular",
+        href: buildProductsHash({
+          search:
+            recommendSummary.popularSearchList[0]?.keyword ||
+            popularLead?.product?.productName ||
+            "",
+          sort: "RECOMMENDED",
+        }),
         eyebrow: "인기 검색 농산물",
         title: recommendSummary.popularSearchList.length
           ? `${recommendSummary.popularSearchList[0].keyword} 관심도가 오르고 있어요`
@@ -513,22 +541,6 @@ export default function MainPage({ authUser }) {
   const activeProductGroup =
     tabbedProductGroups[selectedProductTab] || tabbedProductGroups.recommended;
 
-  function handleQuickEntryOpen(tabKey) {
-    setSelectedProductTab(tabKey);
-
-    window.setTimeout(() => {
-      const targetSection = document.getElementById("main-shopping-picks");
-      if (!targetSection) {
-        return;
-      }
-
-      targetSection.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }, 0);
-  }
-
   return (
     <div className="page-shell">
       <main className="container">
@@ -546,7 +558,7 @@ export default function MainPage({ authUser }) {
                   key={card.key}
                   className="main-quick-entry-card"
                   type="button"
-                  onClick={() => handleQuickEntryOpen(card.tabKey)}
+                  onClick={() => openHash(card.href)}
                 >
                   <span className="main-quick-entry-card__eyebrow">{card.eyebrow}</span>
                   <strong>{card.title}</strong>
