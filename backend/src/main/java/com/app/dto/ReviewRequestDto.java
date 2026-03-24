@@ -1,5 +1,7 @@
 package com.app.dto;
 
+import java.util.List;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -11,4 +13,5 @@ public class ReviewRequestDto {
     private Integer rating;
     private String content;
     private Boolean removeImage;
+    private List<Long> removeImageNos;
 }

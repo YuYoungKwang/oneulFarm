@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.app.common.ProduceStandardWeightSupport;
 import com.app.dao.ProductPriceMatchDAO;
 import com.app.dto.ProductPriceCodeMapDTO;
 
@@ -130,16 +131,37 @@ public class ProductPriceMatchServiceImpl implements ProductPriceMatchService {
         if (productQuantity == null || snapshotQuantity == null) {
             return null;
         }
-        if (!productQuantity.getType().equals(snapshotQuantity.getType())) {
-            return null;
+        if (productQuantity.getType().equals(snapshotQuantity.getType())) {
+            if (productQuantity.getAmount().compareTo(BigDecimal.ZERO) <= 0 || snapshotQuantity.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                return null;
+            }
+
+            return productPriceCodeMapDTO.getAvgPrice()
+                .multiply(productQuantity.getAmount())
+                .divide(snapshotQuantity.getAmount(), 2, RoundingMode.HALF_UP);
         }
-        if (productQuantity.getAmount().compareTo(BigDecimal.ZERO) <= 0 || snapshotQuantity.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+
+        BigDecimal productAmountInGram = ProduceStandardWeightSupport.resolveProductAmountInGram(
+            productPriceCodeMapDTO.getProductName(),
+            productPriceCodeMapDTO.getProductUnit(),
+            productPriceCodeMapDTO.getPackageWeight() == null || productPriceCodeMapDTO.getPackageWeight().compareTo(BigDecimal.ZERO) <= 0
+                ? BigDecimal.ONE
+                : productPriceCodeMapDTO.getPackageWeight()
+        );
+        BigDecimal snapshotAmountInGram = ProduceStandardWeightSupport.resolveSnapshotAmountInGram(
+            productPriceCodeMapDTO.getSnapshotItemName() == null ? productPriceCodeMapDTO.getProductName() : productPriceCodeMapDTO.getSnapshotItemName(),
+            resolveSnapshotUnit(productPriceCodeMapDTO)
+        );
+        if (productAmountInGram == null
+            || snapshotAmountInGram == null
+            || productAmountInGram.compareTo(BigDecimal.ZERO) <= 0
+            || snapshotAmountInGram.compareTo(BigDecimal.ZERO) <= 0) {
             return null;
         }
 
         return productPriceCodeMapDTO.getAvgPrice()
-            .multiply(productQuantity.getAmount())
-            .divide(snapshotQuantity.getAmount(), 2, RoundingMode.HALF_UP);
+            .multiply(productAmountInGram)
+            .divide(snapshotAmountInGram, 2, RoundingMode.HALF_UP);
     }
 
     private Quantity resolveProductQuantity(ProductPriceCodeMapDTO productPriceCodeMapDTO) {
@@ -164,7 +186,7 @@ public class ProductPriceMatchServiceImpl implements ProductPriceMatchService {
             return new Quantity(UnitType.COUNT, packageWeight);
         }
 
-        return null;
+        return new Quantity(UnitType.COUNT, packageWeight);
     }
 
     private Quantity resolveSnapshotQuantity(ProductPriceCodeMapDTO productPriceCodeMapDTO) {
@@ -198,7 +220,7 @@ public class ProductPriceMatchServiceImpl implements ProductPriceMatchService {
             return new Quantity(UnitType.COUNT, amount);
         }
 
-        return null;
+        return new Quantity(UnitType.COUNT, amount);
     }
 
     private String resolveSnapshotUnit(ProductPriceCodeMapDTO productPriceCodeMapDTO) {

@@ -92,8 +92,9 @@ const EMPTY_REVIEW_FORM = {
   orderItemNo: '',
   rating: 5,
   content: '',
-  imageFile: null,
-  removeImage: false,
+  imageFiles: [],
+  existingImages: [],
+  removedImageNos: [],
 };
 
 function notifyReviewChange(productNo) {
@@ -1221,6 +1222,11 @@ function AccountApp({ authUser: initialAuthUser }) {
   }
 
   function handleRemoveWishlistItem(productNo) {
+    const confirmed = window.confirm('찜한 상품에서 제거하시겠습니까?');
+    if (!confirmed) {
+      return;
+    }
+
     const nextWishlist = wishlistProductNos.filter(
       (currentProductNo) => Number(currentProductNo) !== Number(productNo)
     );
@@ -1258,8 +1264,9 @@ function AccountApp({ authUser: initialAuthUser }) {
       orderItemNo: review.orderItemNo,
       rating: 5,
       content: '',
-      imageFile: null,
-      removeImage: false,
+      imageFiles: [],
+      existingImages: [],
+      removedImageNos: [],
     });
     setReviewFormError('');
   }
@@ -1278,8 +1285,9 @@ function AccountApp({ authUser: initialAuthUser }) {
       orderItemNo: review.orderItemNo,
       rating: Number(review.rating || 5),
       content: review.content || '',
-      imageFile: null,
-      removeImage: false,
+      imageFiles: [],
+      existingImages: Array.isArray(review.imageList) ? review.imageList : [],
+      removedImageNos: [],
     });
     setReviewFormError('');
   }
@@ -1300,21 +1308,36 @@ function AccountApp({ authUser: initialAuthUser }) {
   }
 
   function handleReviewImageChange(event) {
-    const file = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+    const files = Array.from(event.target.files || []).filter(Boolean);
+    const activeExistingCount = (reviewForm.existingImages || []).filter(
+      (image) => !reviewForm.removedImageNos.includes(image.reviewImageNo)
+    ).length;
+    const nextImageFiles = [...(reviewForm.imageFiles || []), ...files];
+
+    if (activeExistingCount + nextImageFiles.length > 3) {
+      setReviewFormError('리뷰 사진은 최대 3장까지 등록할 수 있습니다.');
+      event.target.value = '';
+      return;
+    }
+
     setReviewFormError('');
     setReviewForm((current) => ({
       ...current,
-      imageFile: file,
-      removeImage: false,
+      imageFiles: nextImageFiles,
     }));
+    event.target.value = '';
   }
 
-  function handleRemoveReviewImage() {
+  function handleRemoveReviewImage(target) {
     setReviewFormError('');
     setReviewForm((current) => ({
       ...current,
-      imageFile: null,
-      removeImage: true,
+      imageFiles: target?.type === 'new'
+        ? current.imageFiles.filter((_, index) => index !== target.index)
+        : current.imageFiles,
+      removedImageNos: target?.type === 'existing' && target.reviewImageNo
+        ? Array.from(new Set([...current.removedImageNos, target.reviewImageNo]))
+        : current.removedImageNos,
     }));
   }
 
@@ -1337,10 +1360,13 @@ function AccountApp({ authUser: initialAuthUser }) {
       }
       formData.append('rating', String(reviewForm.rating));
       formData.append('content', String(reviewForm.content || ''));
-      formData.append('removeImage', reviewForm.removeImage ? 'true' : 'false');
-      if (reviewForm.imageFile) {
-        formData.append('reviewImage', reviewForm.imageFile);
-      }
+      formData.append('removeImage', 'false');
+      (reviewForm.removedImageNos || []).forEach((reviewImageNo) => {
+        formData.append('removeImageNos', String(reviewImageNo));
+      });
+      (reviewForm.imageFiles || []).forEach((imageFile) => {
+        formData.append('reviewImages', imageFile);
+      });
 
       await requestAuthApi(
         isEditMode ? `${REVIEW_API_PATH}/${reviewEditor.reviewNo}` : REVIEW_API_PATH,

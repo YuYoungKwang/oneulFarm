@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.app.common.ProduceStandardWeightSupport;
 import com.app.common.ApiResponse;
 import com.app.dto.MainBannerDto;
 import com.app.dto.OrderDto;
@@ -247,29 +248,34 @@ public class AdminController {
         data.put("pricingBasePrice", resolvedQuote.getPricingBasePrice());
         BigDecimal wholesaleSourcePrice = scaleMoney(wholesaleSnapshot.getAvgPrice());
         BigDecimal retailSourcePrice = retailSnapshot == null ? null : scaleMoney(retailSnapshot.getAvgPrice());
-        BigDecimal wholesalePerKgPrice = calculatePricePerKg(wholesaleSnapshot);
-        BigDecimal retailPerKgPrice = retailSnapshot == null ? null : calculatePricePerKg(retailSnapshot);
+        ParsedUnit wholesaleParsedUnit = parseSnapshotUnit(wholesaleSnapshot.getUnit());
+        PricingBasis pricingBasis = resolvePricingBasis(wholesaleParsedUnit);
+        BigDecimal wholesaleComparablePrice = calculateComparablePriceForBasis(wholesaleSnapshot, pricingBasis);
+        BigDecimal retailComparablePrice = retailSnapshot == null
+            ? null
+            : calculateComparablePriceForBasis(retailSnapshot, pricingBasis);
+        String priceBasisUnit = pricingBasis == null ? null : pricingBasis.getLabel();
 
-        data.put("priceBasisUnit", "1kg");
-        data.put("wholesalePriceBasisUnit", "1kg");
-        data.put("retailPriceBasisUnit", "1kg");
-        data.put("recommendedPriceBasisUnit", "1kg");
+        data.put("priceBasisUnit", priceBasisUnit);
+        data.put("wholesalePriceBasisUnit", priceBasisUnit);
+        data.put("retailPriceBasisUnit", priceBasisUnit);
+        data.put("recommendedPriceBasisUnit", priceBasisUnit);
         data.put("wholesaleSourcePrice", wholesaleSourcePrice);
         data.put("retailSourcePrice", retailSourcePrice);
-        data.put("wholesaleAvgPrice", wholesalePerKgPrice);
-        data.put("wholesaleComparablePrice", wholesalePerKgPrice);
-        data.put("retailAvgPrice", retailPerKgPrice);
+        data.put("wholesaleAvgPrice", wholesaleComparablePrice);
+        data.put("wholesaleComparablePrice", wholesaleComparablePrice);
+        data.put("retailAvgPrice", retailComparablePrice);
         data.put("retailSnapshotUnit", retailSnapshot == null ? null : retailSnapshot.getUnit());
-        data.put("retailComparablePrice", retailPerKgPrice);
+        data.put("retailComparablePrice", retailComparablePrice);
         data.put(
             "recommendedSalePrice",
-            wholesalePerKgPrice == null || retailPerKgPrice == null
+            wholesaleComparablePrice == null || retailComparablePrice == null
                 ? null
-                : calculateRecommendedSalePrice(wholesalePerKgPrice, retailPerKgPrice)
+                : calculateRecommendedSalePrice(wholesaleComparablePrice, retailComparablePrice)
         );
         data.put(
             "pricingNote",
-            buildPricingNote(wholesaleSnapshot, retailSnapshot, wholesalePerKgPrice, retailPerKgPrice)
+            buildPricingNoteForBasis(wholesaleSnapshot, retailSnapshot, pricingBasis, wholesaleComparablePrice, retailComparablePrice)
         );
         data.put("wholesaleItemCode", trimToNull(wholesaleSnapshot.getItemCode()));
         data.put("retailItemCode", retailSnapshot == null ? null : trimToNull(retailSnapshot.getItemCode()));
@@ -405,26 +411,105 @@ public class AdminController {
             .divide(sourceUnit.getQuantity(), 2, RoundingMode.HALF_UP);
     }
 
-    private BigDecimal calculatePricePerKg(PriceSnapshotDTO snapshot) {
-        if (snapshot == null || snapshot.getAvgPrice() == null) {
+    private BigDecimal calculateComparablePriceForBasis(PriceSnapshotDTO snapshot, PricingBasis pricingBasis) {
+        if (snapshot == null || snapshot.getAvgPrice() == null || pricingBasis == null) {
             return null;
         }
 
         ParsedUnit parsedUnit = parseSnapshotUnit(snapshot.getUnit());
-        if (parsedUnit == null || parsedUnit.getUnitType() != UnitType.WEIGHT) {
+        if (parsedUnit == null) {
             return null;
         }
 
-        BigDecimal quantityInGram = "kg".equals(parsedUnit.getDisplayUnit())
-            ? parsedUnit.getQuantity().multiply(BigDecimal.valueOf(1000L))
-            : parsedUnit.getQuantity();
-        if (quantityInGram.compareTo(BigDecimal.ZERO) <= 0) {
+        if (parsedUnit.getUnitType() == pricingBasis.getUnitType()) {
+            BigDecimal sourceQuantity = parsedUnit.getQuantity();
+            BigDecimal basisQuantity = pricingBasis.getQuantity();
+            if (parsedUnit.getUnitType() == UnitType.WEIGHT) {
+                if ("kg".equalsIgnoreCase(parsedUnit.getDisplayUnit())) {
+                    sourceQuantity = sourceQuantity.multiply(BigDecimal.valueOf(1000L));
+                }
+                if ("kg".equalsIgnoreCase(pricingBasis.getDisplayUnit())) {
+                    basisQuantity = basisQuantity.multiply(BigDecimal.valueOf(1000L));
+                }
+            }
+
+            if (sourceQuantity.compareTo(BigDecimal.ZERO) <= 0
+                || basisQuantity.compareTo(BigDecimal.ZERO) <= 0) {
+                return null;
+            }
+
+            return scaleMoney(snapshot.getAvgPrice())
+                .multiply(basisQuantity)
+                .divide(sourceQuantity, 2, RoundingMode.HALF_UP);
+        }
+
+        BigDecimal sourceAmountInGram = ProduceStandardWeightSupport.resolveSnapshotAmountInGram(
+            snapshot.getItemName(),
+            snapshot.getUnit()
+        );
+        BigDecimal basisAmountInGram = ProduceStandardWeightSupport.resolveProductAmountInGram(
+            snapshot.getItemName(),
+            pricingBasis.getDisplayUnit(),
+            pricingBasis.getQuantity()
+        );
+        if (sourceAmountInGram == null
+            || basisAmountInGram == null
+            || sourceAmountInGram.compareTo(BigDecimal.ZERO) <= 0
+            || basisAmountInGram.compareTo(BigDecimal.ZERO) <= 0) {
             return null;
         }
 
         return scaleMoney(snapshot.getAvgPrice())
-            .multiply(BigDecimal.valueOf(1000L))
-            .divide(quantityInGram, 2, RoundingMode.HALF_UP);
+            .multiply(basisAmountInGram)
+            .divide(sourceAmountInGram, 2, RoundingMode.HALF_UP);
+    }
+
+    private PricingBasis resolvePricingBasis(ParsedUnit parsedUnit) {
+        if (parsedUnit == null) {
+            return null;
+        }
+        if (parsedUnit.getUnitType() == UnitType.WEIGHT) {
+            return new PricingBasis("kg", BigDecimal.ONE, UnitType.WEIGHT, "1kg");
+        }
+        return new PricingBasis(
+            normalizeCountDisplayUnit(parsedUnit.getDisplayUnit()),
+            BigDecimal.ONE,
+            UnitType.COUNT,
+            buildCountBasisLabelSafe(parsedUnit.getDisplayUnit())
+        );
+    }
+
+    private String buildCountBasisLabelSafe(String displayUnit) {
+        String normalizedDisplayUnit = trimToNull(displayUnit);
+        if (normalizedDisplayUnit == null) {
+            return "1개";
+        }
+        if ("ea".equalsIgnoreCase(normalizedDisplayUnit) || "each".equalsIgnoreCase(normalizedDisplayUnit)) {
+            return "1개";
+        }
+        return "1" + normalizedDisplayUnit;
+    }
+
+    private String normalizeCountDisplayUnit(String displayUnit) {
+        String normalizedDisplayUnit = trimToNull(displayUnit);
+        if (normalizedDisplayUnit == null) {
+            return "개";
+        }
+        if ("ea".equalsIgnoreCase(normalizedDisplayUnit) || "each".equalsIgnoreCase(normalizedDisplayUnit)) {
+            return "개";
+        }
+        return normalizedDisplayUnit;
+    }
+
+    private String buildCountBasisLabel(String displayUnit) {
+        String normalizedDisplayUnit = trimToNull(displayUnit);
+        if (normalizedDisplayUnit == null) {
+            return "1개";
+        }
+        if ("ea".equalsIgnoreCase(normalizedDisplayUnit) || "each".equalsIgnoreCase(normalizedDisplayUnit)) {
+            return "1개";
+        }
+        return "1" + normalizedDisplayUnit;
     }
 
     private ParsedUnit parseSnapshotUnit(String snapshotUnit) {
@@ -477,7 +562,7 @@ public class AdminController {
             return new ParsedUnit(displayUnit, quantity, UnitType.COUNT);
         }
 
-        return null;
+        return new ParsedUnit(displayUnit, quantity, UnitType.COUNT);
     }
 
     private BigDecimal calculateRecommendedSalePrice(BigDecimal wholesaleAvgPrice, BigDecimal retailAvgPrice) {
@@ -486,6 +571,35 @@ public class AdminController {
         return wholesale
             .add(retail)
             .divide(BigDecimal.valueOf(2L), 0, RoundingMode.HALF_UP);
+    }
+
+    private String buildPricingNoteForBasis(
+        PriceSnapshotDTO wholesaleSnapshot,
+        PriceSnapshotDTO retailSnapshot,
+        PricingBasis pricingBasis,
+        BigDecimal wholesaleComparablePrice,
+        BigDecimal retailComparablePrice
+    ) {
+        String basisLabel = pricingBasis == null ? "기준 단위" : pricingBasis.getLabel();
+        if (wholesaleComparablePrice == null) {
+            return String.format(
+                Locale.KOREAN,
+                "도매 시세 단위를 %s 기준으로 환산할 수 없어 권장 판매가를 계산하지 않았습니다.",
+                basisLabel
+            );
+        }
+        if (retailSnapshot == null) {
+            return "연결된 소매 시세가 없어 권장 판매가를 계산하지 않았습니다.";
+        }
+        if (retailComparablePrice == null) {
+            return String.format(
+                Locale.KOREAN,
+                "소매 시세 단위(%s)가 %s 기준과 맞지 않아 환산값과 권장 판매가를 계산하지 않았습니다.",
+                retailSnapshot.getUnit(),
+                basisLabel
+            );
+        }
+        return null;
     }
 
     private String buildPricingNote(
@@ -568,6 +682,37 @@ public class AdminController {
 
         private UnitType getUnitType() {
             return unitType;
+        }
+    }
+
+    private static final class PricingBasis {
+
+        private final String displayUnit;
+        private final BigDecimal quantity;
+        private final UnitType unitType;
+        private final String label;
+
+        private PricingBasis(String displayUnit, BigDecimal quantity, UnitType unitType, String label) {
+            this.displayUnit = displayUnit;
+            this.quantity = quantity;
+            this.unitType = unitType;
+            this.label = label;
+        }
+
+        private String getDisplayUnit() {
+            return displayUnit;
+        }
+
+        private BigDecimal getQuantity() {
+            return quantity;
+        }
+
+        private UnitType getUnitType() {
+            return unitType;
+        }
+
+        private String getLabel() {
+            return label;
         }
     }
 
