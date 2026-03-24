@@ -93,7 +93,9 @@ function matchesCategory(product, categoryLabel) {
   const source = `${product?.productName || ""} ${product?.categoryName || ""}`;
 
   if (categoryLabel === "과일") {
-    return /과일|사과|배|감귤|단감|홍시|곶감|감(?!자)|딸기|포도|복숭아|바나나|오렌지/i.test(source);
+    return /과일|사과|배(?!추)|감귤|단감|홍시|곶감|감(?!자)|딸기|포도|복숭아|바나나|오렌지/i.test(
+      source
+    );
   }
 
   if (categoryLabel === "채소") {
@@ -676,7 +678,11 @@ export default function MainPage({ authUser }) {
               <button
                 type="button"
                 role="tab"
-                className={selectedProductTab === "recommended" ? "main-product-tab is-active" : "main-product-tab"}
+                className={
+                  selectedProductTab === "recommended"
+                    ? "main-product-tab is-active"
+                    : "main-product-tab"
+                }
                 aria-selected={selectedProductTab === "recommended"}
                 onClick={() => setSelectedProductTab("recommended")}
               >
@@ -685,7 +691,11 @@ export default function MainPage({ authUser }) {
               <button
                 type="button"
                 role="tab"
-                className={selectedProductTab === "popular" ? "main-product-tab is-active" : "main-product-tab"}
+                className={
+                  selectedProductTab === "popular"
+                    ? "main-product-tab is-active"
+                    : "main-product-tab"
+                }
                 aria-selected={selectedProductTab === "popular"}
                 onClick={() => setSelectedProductTab("popular")}
               >
@@ -694,7 +704,11 @@ export default function MainPage({ authUser }) {
               <button
                 type="button"
                 role="tab"
-                className={selectedProductTab === "seasonal" ? "main-product-tab is-active" : "main-product-tab"}
+                className={
+                  selectedProductTab === "seasonal"
+                    ? "main-product-tab is-active"
+                    : "main-product-tab"
+                }
                 aria-selected={selectedProductTab === "seasonal"}
                 onClick={() => setSelectedProductTab("seasonal")}
               >
@@ -703,7 +717,11 @@ export default function MainPage({ authUser }) {
               <button
                 type="button"
                 role="tab"
-                className={selectedProductTab === "value" ? "main-product-tab is-active" : "main-product-tab"}
+                className={
+                  selectedProductTab === "value"
+                    ? "main-product-tab is-active"
+                    : "main-product-tab"
+                }
                 aria-selected={selectedProductTab === "value"}
                 onClick={() => setSelectedProductTab("value")}
               >
@@ -764,9 +782,7 @@ export default function MainPage({ authUser }) {
                       </button>
 
                       <div className="recipe-list-card__badge-row">
-                        {item.keyword ? (
-                          <span className="recipe-pill">{item.keyword}</span>
-                        ) : null}
+                        {item.keyword ? <span className="recipe-pill">{item.keyword}</span> : null}
                         {item.matchedIngredients?.length ? (
                           <span className="recipe-badge recipe-badge--green">
                             재료 {item.matchedIngredients.length}개 연결
