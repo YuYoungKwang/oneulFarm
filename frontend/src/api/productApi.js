@@ -312,6 +312,7 @@ function adaptOrderDetail(rawDetail, options = {}) {
     orderedAt: orderInfo.orderedAt,
     payment: {
       paymentMethod: paymentInfo.paymentMethod || 'CARD',
+      paymentProvider: paymentInfo.paymentProvider || '',
       paymentStatus: paymentInfo.paymentStatus || 'READY',
       paidAmount: toNumber(paymentInfo.paidAmount, 0),
       paidAt: paymentInfo.paidAt || null,

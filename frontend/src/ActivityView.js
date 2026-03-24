@@ -1,8 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { formatDate, formatPrice } from './appUtils';
 import InlineInfoTip from './components/InlineInfoTip';
 
-const myPageTabs = [
+const activityTabs = [
   { id: 'wishlist', label: '찜한 상품' },
   { id: 'reviews', label: '리뷰 관리' },
 ];
@@ -16,7 +16,11 @@ function getProductImageSrc(imageNo) {
   return imageNo ? `/backend/api/image/product/${imageNo}` : '';
 }
 
-function getReviewDisplayImageSrc(review) {
+function getReviewPrimaryImageSrc(review) {
+  if (Array.isArray(review?.imageList) && review.imageList.length > 0) {
+    return `/backend/api/image/review/${review.imageList[0].reviewImageNo}`;
+  }
+
   if (review?.reviewImageNo) {
     return `/backend/api/image/review/${review.reviewImageNo}`;
   }
@@ -24,24 +28,30 @@ function getReviewDisplayImageSrc(review) {
   return getProductImageSrc(review?.imageNo);
 }
 
-function getReviewEditorImageSrc(reviewEditor, reviewForm) {
-  if (!reviewEditor) {
-    return '';
-  }
+function buildReviewPreviewItems(reviewForm) {
+  const existingImages = Array.isArray(reviewForm?.existingImages) ? reviewForm.existingImages : [];
+  const removedImageNos = Array.isArray(reviewForm?.removedImageNos) ? reviewForm.removedImageNos : [];
+  const imageFiles = Array.isArray(reviewForm?.imageFiles) ? reviewForm.imageFiles : [];
 
-  if (reviewForm?.imageFile) {
-    return URL.createObjectURL(reviewForm.imageFile);
-  }
+  const existingPreviewItems = existingImages
+    .filter((image) => !removedImageNos.includes(image.reviewImageNo))
+    .map((image) => ({
+      key: `existing-${image.reviewImageNo}`,
+      type: 'existing',
+      reviewImageNo: image.reviewImageNo,
+      src: `/backend/api/image/review/${image.reviewImageNo}`,
+      isBlob: false,
+    }));
 
-  if (reviewForm?.removeImage) {
-    return '';
-  }
+  const newPreviewItems = imageFiles.map((imageFile, index) => ({
+    key: `new-${index}-${imageFile.name}`,
+    type: 'new',
+    index,
+    src: URL.createObjectURL(imageFile),
+    isBlob: true,
+  }));
 
-  if (reviewEditor.reviewImageNo) {
-    return `/backend/api/image/review/${reviewEditor.reviewImageNo}`;
-  }
-
-  return '';
+  return [...existingPreviewItems, ...newPreviewItems];
 }
 
 function ActivityView({
@@ -72,7 +82,17 @@ function ActivityView({
   onDeleteReview,
 }) {
   const reviewEditorRef = useRef(null);
-  const reviewPreviewUrl = getReviewEditorImageSrc(reviewEditor, reviewForm);
+  const existingReviewImages = reviewForm?.existingImages;
+  const removedReviewImageNos = reviewForm?.removedImageNos;
+  const selectedReviewImageFiles = reviewForm?.imageFiles;
+  const reviewPreviewItems = useMemo(
+    () => buildReviewPreviewItems({
+      existingImages: Array.isArray(existingReviewImages) ? existingReviewImages : [],
+      removedImageNos: Array.isArray(removedReviewImageNos) ? removedReviewImageNos : [],
+      imageFiles: Array.isArray(selectedReviewImageFiles) ? selectedReviewImageFiles : [],
+    }),
+    [existingReviewImages, removedReviewImageNos, selectedReviewImageFiles]
+  );
 
   useEffect(() => {
     if (!reviewEditor || !reviewEditorRef.current) {
@@ -88,15 +108,13 @@ function ActivityView({
     });
   }, [reviewEditor]);
 
-  useEffect(() => {
-    if (!reviewForm?.imageFile || !reviewPreviewUrl.startsWith('blob:')) {
-      return undefined;
-    }
-
-    return () => {
-      URL.revokeObjectURL(reviewPreviewUrl);
-    };
-  }, [reviewForm?.imageFile, reviewPreviewUrl]);
+  useEffect(() => () => {
+    reviewPreviewItems.forEach((item) => {
+      if (item.isBlob) {
+        URL.revokeObjectURL(item.src);
+      }
+    });
+  }, [reviewPreviewItems]);
 
   return (
     <>
@@ -112,7 +130,7 @@ function ActivityView({
       <section className="section">
         <div className="mypage-section-header mypage-section-header--activity">
           <div className="tab-row">
-            {myPageTabs.map((tab) => (
+            {activityTabs.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
@@ -129,11 +147,9 @@ function ActivityView({
           {activeTab === 'wishlist' && (
             <section className="activity-panel-block">
               <div className="section-head">
-                <div>
-                  <div className="section-title-row">
-                    <div className="section-title">찜한 상품</div>
-                    <InlineInfoTip content="상품 화면에서 찜한 항목을 모아 보고, 장바구니 담기나 상품 상세 이동으로 이어갈 수 있습니다." />
-                  </div>
+                <div className="section-title-row">
+                  <div className="section-title">찜한 상품</div>
+                  <InlineInfoTip content="상품 화면에서 찜한 항목을 모아 보고, 장바구니 담기나 상품 상세 이동으로 이어갈 수 있습니다." />
                 </div>
               </div>
 
@@ -151,7 +167,10 @@ function ActivityView({
                 <div className="wishlist-list">
                   {wishlistItems.map((item) => (
                     <article key={item.productNo} className="wishlist-card">
-                      <a href={`#/products/${item.productNo}`} className="wishlist-card__media wishlist-product-link-media">
+                      <a
+                        href={`#/products/${item.productNo}`}
+                        className="wishlist-card__media wishlist-product-link-media"
+                      >
                         {item.imageUrl ? (
                           <img className="wishlist-product-thumb" src={item.imageUrl} alt={item.name} />
                         ) : (
@@ -183,7 +202,7 @@ function ActivityView({
                           onClick={() => onAddWishlistItemToCart(item.productNo)}
                           disabled={wishlistActionProductNo === item.productNo}
                         >
-                          {wishlistActionProductNo === item.productNo ? '담는 중..' : '장바구니 담기'}
+                          {wishlistActionProductNo === item.productNo ? '담는 중...' : '장바구니 담기'}
                         </button>
                         <a href={`#/products/${item.productNo}`} className="btn-outline">
                           상품 보러가기
@@ -211,7 +230,7 @@ function ActivityView({
                     <div>
                       <div className="section-title-row">
                         <div className="card-title">{reviewEditor.mode === 'edit' ? '리뷰 수정' : '리뷰 작성'}</div>
-                        <InlineInfoTip content="별점과 내용을 바꾸고, 리뷰 사진도 새로 올리거나 제거할 수 있습니다." />
+                        <InlineInfoTip content="별점과 내용을 바꾸고 리뷰 사진을 여러 장까지 등록하거나 정리할 수 있습니다." />
                       </div>
                       <div className="section-sub">
                         {reviewEditor.productName}
@@ -224,16 +243,24 @@ function ActivityView({
                   </div>
 
                   <form className="review-editor-form" onSubmit={onReviewSubmit}>
-                    <label className="form-field">
+                    <div className="form-field">
                       <span>별점</span>
-                      <select name="rating" value={reviewForm.rating} onChange={onReviewFormChange}>
-                        {[5, 4, 3, 2, 1].map((rating) => (
-                          <option key={rating} value={rating}>
-                            {rating}점
-                          </option>
+                      <div className="review-star-picker" role="radiogroup" aria-label="별점 선택">
+                        {[1, 2, 3, 4, 5].map((rating) => (
+                          <button
+                            key={rating}
+                            type="button"
+                            className={`review-star-picker__button ${Number(reviewForm.rating) >= rating ? 'is-active' : ''}`}
+                            onClick={() => onReviewFormChange({ target: { name: 'rating', value: String(rating) } })}
+                            aria-label={`${rating}점`}
+                          >
+                            ★
+                          </button>
                         ))}
-                      </select>
-                    </label>
+                        <span className="review-star-picker__value">{Number(reviewForm.rating || 5)}점</span>
+                      </div>
+                    </div>
+
                     <label className="form-field">
                       <span>리뷰 내용</span>
                       <textarea
@@ -244,38 +271,46 @@ function ActivityView({
                         placeholder="상품 상태, 가격 만족도, 다시 구매하고 싶은 이유를 자유롭게 적어 주세요."
                       />
                     </label>
+
                     <div className="review-image-editor">
                       <div className="review-image-editor__label">리뷰 사진</div>
-                      <div className="review-image-editor__body">
-                        {reviewPreviewUrl ? (
-                          <img
-                            className="review-image-editor__preview"
-                            src={reviewPreviewUrl}
-                            alt={reviewEditor.productName}
-                          />
+                      <div className="review-image-editor__body review-image-editor__body--stacked">
+                        {reviewPreviewItems.length > 0 ? (
+                          <div className="review-image-editor__grid">
+                            {reviewPreviewItems.map((item) => (
+                              <div key={item.key} className="review-image-editor__item">
+                                <img
+                                  className="review-image-editor__preview"
+                                  src={item.src}
+                                  alt={reviewEditor.productName}
+                                />
+                                <button
+                                  type="button"
+                                  className="review-image-editor__remove-chip"
+                                  onClick={() => onRemoveReviewImage(item)}
+                                >
+                                  제거
+                                </button>
+                              </div>
+                            ))}
+                          </div>
                         ) : (
-                          <div className="review-image-editor__placeholder">사진 없음</div>
+                          <div className="review-image-editor__placeholder review-image-editor__placeholder--wide">
+                            사진 없음
+                          </div>
                         )}
                         <div className="review-image-editor__controls">
                           <label className="btn-outline review-image-editor__file">
-                            <input type="file" accept="image/*" onChange={onReviewImageChange} />
+                            <input type="file" accept="image/*" multiple onChange={onReviewImageChange} />
                             사진 선택
                           </label>
-                          {reviewPreviewUrl && (
-                            <button
-                              type="button"
-                              className="btn-outline review-image-editor__remove"
-                              onClick={onRemoveReviewImage}
-                            >
-                              사진 제거
-                            </button>
-                          )}
                           <div className="review-image-editor__hint">
-                            JPG, PNG, WEBP 파일을 1장까지 등록할 수 있습니다.
+                            JPG, PNG, WEBP 파일을 최대 3장까지 등록할 수 있습니다.
                           </div>
                         </div>
                       </div>
                     </div>
+
                     {reviewFormError && <div className="form-error">{reviewFormError}</div>}
                     <div className="review-editor-actions">
                       <button type="button" className="btn-outline" onClick={onCancelReviewEditor}>
@@ -283,7 +318,7 @@ function ActivityView({
                       </button>
                       <button type="submit" className="btn" disabled={reviewSubmitting}>
                         {reviewSubmitting
-                          ? (reviewEditor.mode === 'edit' ? '수정 중..' : '작성 중..')
+                          ? (reviewEditor.mode === 'edit' ? '수정 중...' : '작성 중...')
                           : (reviewEditor.mode === 'edit' ? '리뷰 수정' : '리뷰 등록')}
                       </button>
                     </div>
@@ -302,11 +337,9 @@ function ActivityView({
                 <>
                   <article className="card review-panel">
                     <div className="section-head">
-                      <div>
-                        <div className="section-title-row">
-                          <div className="card-title">작성 가능한 리뷰</div>
-                          <InlineInfoTip content="배송이 끝난 주문 중 아직 리뷰를 작성하지 않은 상품입니다." />
-                        </div>
+                      <div className="section-title-row">
+                        <div className="card-title">작성 가능한 리뷰</div>
+                        <InlineInfoTip content="배송이 끝난 주문 중 아직 리뷰를 작성하지 않은 상품입니다." />
                       </div>
                       <span className="badge green">{writableReviews.length}건</span>
                     </div>
@@ -316,17 +349,13 @@ function ActivityView({
                     ) : (
                       <div className="review-card-list">
                         {writableReviews.map((review) => {
-                          const reviewImageSrc = getReviewDisplayImageSrc(review);
+                          const reviewImageSrc = getReviewPrimaryImageSrc(review);
 
                           return (
                             <article key={review.orderItemNo} className="review-card review-card--draft">
                               <div className="review-card__media">
                                 {reviewImageSrc ? (
-                                  <img
-                                    className="review-card__thumb"
-                                    src={reviewImageSrc}
-                                    alt={review.productName}
-                                  />
+                                  <img className="review-card__thumb" src={reviewImageSrc} alt={review.productName} />
                                 ) : (
                                   <div className="thumb-mini">리뷰</div>
                                 )}
@@ -365,11 +394,9 @@ function ActivityView({
 
                   <article className="card review-panel">
                     <div className="section-head">
-                      <div>
-                        <div className="section-title-row">
-                          <div className="card-title">내가 작성한 리뷰</div>
-                          <InlineInfoTip content="등록한 리뷰를 다시 확인하고, 필요하면 수정하거나 삭제할 수 있습니다." />
-                        </div>
+                      <div className="section-title-row">
+                        <div className="card-title">내가 작성한 리뷰</div>
+                        <InlineInfoTip content="등록한 리뷰를 다시 확인하고, 필요하면 수정하거나 삭제할 수 있습니다." />
                       </div>
                       <span className="badge green">{myReviews.length}건</span>
                     </div>
@@ -379,17 +406,14 @@ function ActivityView({
                     ) : (
                       <div className="review-card-list">
                         {myReviews.map((review) => {
-                          const reviewImageSrc = getReviewDisplayImageSrc(review);
+                          const reviewImageSrc = getReviewPrimaryImageSrc(review);
+                          const extraImages = Array.isArray(review.imageList) ? review.imageList.slice(1) : [];
 
                           return (
                             <article key={review.reviewNo} className="review-card review-card--published">
                               <div className="review-card__media">
                                 {reviewImageSrc ? (
-                                  <img
-                                    className="review-card__thumb"
-                                    src={reviewImageSrc}
-                                    alt={review.productName}
-                                  />
+                                  <img className="review-card__thumb" src={reviewImageSrc} alt={review.productName} />
                                 ) : (
                                   <div className="thumb-mini">리뷰</div>
                                 )}
@@ -412,6 +436,18 @@ function ActivityView({
                                 </div>
                                 <div className="review-rating">{renderStars(review.rating)}</div>
                                 <div className="review-quote">{review.content}</div>
+                                {extraImages.length > 0 && (
+                                  <div className="review-card__gallery">
+                                    {extraImages.map((image) => (
+                                      <img
+                                        key={image.reviewImageNo}
+                                        className="review-card__gallery-thumb"
+                                        src={`/backend/api/image/review/${image.reviewImageNo}`}
+                                        alt={review.productName}
+                                      />
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                               <div className="review-card__actions review-card__actions--stacked">
                                 <button type="button" className="btn-outline" onClick={() => onStartEditReview(review)}>
@@ -423,7 +459,7 @@ function ActivityView({
                                   onClick={() => onDeleteReview(review.reviewNo)}
                                   disabled={deletingReviewNo === review.reviewNo}
                                 >
-                                  {deletingReviewNo === review.reviewNo ? '삭제 중..' : '삭제'}
+                                  {deletingReviewNo === review.reviewNo ? '삭제 중...' : '삭제'}
                                 </button>
                               </div>
                             </article>

@@ -44,7 +44,7 @@
 
 .product-app .recipe-toolbar-card__top {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
@@ -58,6 +58,10 @@
 .product-app .recipe-toolbar-copy {
   display: grid;
   gap: 4px;
+}
+
+.product-app .recipe-toolbar-copy--search {
+  gap: 6px;
 }
 
 .product-app .recipe-toolbar-copy strong {
@@ -82,6 +86,12 @@
   border: 1px solid var(--line);
   background: #fff;
   box-shadow: var(--shadow-soft);
+}
+
+.product-app .recipe-search-shell--full {
+  width: 100%;
+  max-width: none;
+  padding: 16px 18px;
 }
 
 .product-app .recipe-search-shell:focus-within {
@@ -116,12 +126,19 @@
 }
 
 .product-app .recipe-result-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  display: grid;
+  gap: 4px;
   color: var(--muted);
   font-size: 14px;
+}
+
+.product-app .recipe-result-meta strong {
+  color: #102033;
+}
+
+.product-app .recipe-result-meta span {
+  color: #64748b;
+  font-size: 13px;
 }
 
 .product-app .recipe-toolbar-footer {
@@ -345,6 +362,7 @@
 .product-app .recipe-list-card__body {
   display: grid;
   gap: 12px;
+  align-content: start;
 }
 
 .product-app .recipe-list-card__head {
@@ -374,6 +392,8 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  min-height: 34px;
+  align-content: flex-start;
 }
 
 .product-app .recipe-list-card__foot {
@@ -381,6 +401,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-top: auto;
 }
 
 .product-app .recipe-list-card__hint {
@@ -398,12 +419,15 @@
 .product-app .recipe-list-grid--compact {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
+  align-items: stretch;
 }
 
 .product-app .recipe-list-card--compact {
+  height: 100%;
   gap: 12px;
   padding: 12px;
   border-radius: 24px;
+  grid-template-rows: auto 1fr;
 }
 
 .product-app .recipe-list-card__media--compact {
@@ -923,6 +947,21 @@
   border: 1px solid rgba(235, 240, 237, 0.95);
 }
 
+.product-app .recipe-ingredient-row.is-purchasable {
+  border-color: rgba(21, 154, 85, 0.3);
+  background: linear-gradient(135deg, #f5fbf6, #ffffff);
+  box-shadow: 0 12px 24px rgba(21, 154, 85, 0.08);
+  cursor: pointer;
+}
+
+.product-app .recipe-ingredient-name-group {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .product-app .recipe-ingredient-name {
   min-width: 0;
   color: #0f172a;
@@ -931,6 +970,127 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.product-app .recipe-ingredient-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(21, 154, 85, 0.12);
+  color: #166534;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.product-app .recipe-ingredient-cart-button {
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.product-app .recipe-ingredient-row {
+  position: relative;
+}
+
+.product-app .recipe-ingredient-hover-card {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: calc(100% + 10px);
+  z-index: 8;
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(21, 154, 85, 0.18);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.14);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.product-app .recipe-ingredient-row.is-purchasable:hover .recipe-ingredient-hover-card,
+.product-app .recipe-ingredient-row.is-purchasable:focus-within .recipe-ingredient-hover-card {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.product-app .recipe-ingredient-row.is-purchasable:hover,
+.product-app .recipe-ingredient-row.is-purchasable:focus-within {
+  border-color: rgba(21, 154, 85, 0.48);
+  box-shadow: 0 16px 28px rgba(21, 154, 85, 0.12);
+}
+
+.product-app .recipe-ingredient-hover-item {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  background: #f8fbf8;
+  border: 1px solid rgba(222, 229, 224, 0.92);
+}
+
+.product-app .recipe-ingredient-hover-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.product-app .recipe-ingredient-hover-head strong {
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.product-app .recipe-ingredient-hover-head span,
+.product-app .recipe-ingredient-hover-meta span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.product-app .recipe-ingredient-hover-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.product-app .recipe-ingredient-hover-chart {
+  display: grid;
+  gap: 6px;
+}
+
+.product-app .recipe-ingredient-hover-chart__svg {
+  width: 100%;
+  height: 72px;
+  color: #16a34a;
+  overflow: visible;
+}
+
+.product-app .recipe-ingredient-hover-chart__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.product-app .recipe-ingredient-hover-chart__meta span,
+.product-app .recipe-ingredient-hover-empty {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .product-app .recipe-ingredient-amount {
@@ -947,7 +1107,7 @@
 }
 
 .product-app .recipe-recommend-section {
-  gap: 16px;
+  display: none;
 }
 
 .product-app .recipe-review-section {
@@ -999,6 +1159,18 @@
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.product-app .recipe-review-toolbar__actions:has(.btn-outline) > .btn,
+.product-app .recipe-review-toolbar__actions:has(.btn-outline) > .btn-outline {
+  display: none;
+}
+
+.product-app .recipe-review-toolbar__actions:has(.btn-outline)::after {
+  content: '내 리뷰를 작성한 상태예요.';
+  color: #166534;
+  font-size: 14px;
+  font-weight: 800;
 }
 
 .product-app .recipe-review-login-note {

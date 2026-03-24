@@ -228,6 +228,19 @@ export async function fetchAdminPackageHistories() {
   );
 }
 
+export async function fetchAdminPurchaseQuote(productName) {
+  const searchParams = new URLSearchParams();
+  searchParams.set('productName', productName);
+
+  return requestApi(
+    `${ADMIN_API_BASE}/purchases/quote?${searchParams.toString()}`,
+    {
+      headers: apiHeaders(),
+    },
+    '시세 기반 매입 정보를 불러오지 못했습니다.'
+  );
+}
+
 export async function createAdminPurchaseBatch(payload) {
   return requestApi(
     `${ADMIN_API_BASE}/purchases`,
@@ -237,6 +250,17 @@ export async function createAdminPurchaseBatch(payload) {
       body: JSON.stringify(payload),
     },
     '매입 등록에 실패했습니다.'
+  );
+}
+
+export async function deleteAdminPurchaseBatch(batchNo) {
+  return requestApi(
+    `${ADMIN_API_BASE}/purchases/${batchNo}`,
+    {
+      method: 'DELETE',
+      headers: apiHeaders(),
+    },
+    '매입/소분 이력 삭제에 실패했습니다.'
   );
 }
 

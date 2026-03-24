@@ -1,9 +1,23 @@
 .main-nav-shell {
   position: sticky;
-  top: 16px;
+  top: 0;
   z-index: 30;
   width: var(--container);
-  margin: 16px auto 22px;
+  margin: 0 auto 22px;
+  padding-top: 16px;
+  padding-bottom: 8px;
+}
+
+.main-nav-shell::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 100vw;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, rgba(247, 247, 246, 0.98) 0%, rgba(247, 247, 246, 0.9) 70%, rgba(247, 247, 246, 0) 100%);
+  z-index: -1;
 }
 
 .main-nav {
@@ -56,6 +70,24 @@
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.main-nav__link-label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.main-nav__link-sup {
+  position: absolute;
+  top: -0.55em;
+  right: -1.2em;
+  font-size: 0.58em;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--green-dark);
+  text-transform: lowercase;
 }
 
 .main-nav__link.is-active {

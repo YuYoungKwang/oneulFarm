@@ -1,5 +1,5 @@
-import { buildProductImageSources } from '../../api/productApi';
-import { formatCurrency } from '../productUiUtils';
+import { buildProductImageSources } from "../../api/productApi";
+import { formatCurrency } from "../productUiUtils";
 
 function handleImageError(event) {
   const nextSource = event.currentTarget.dataset.fallbackSrc;
@@ -8,7 +8,7 @@ function handleImageError(event) {
   }
 
   event.currentTarget.src = nextSource;
-  event.currentTarget.removeAttribute('data-fallback-src');
+  event.currentTarget.removeAttribute("data-fallback-src");
 }
 
 export default function RecommendProductCard({
@@ -22,8 +22,8 @@ export default function RecommendProductCard({
   title,
   typeLabel,
 }) {
-  const productName = title || product?.productName || '추천 농산물';
-  const displaySymbol = product?.display?.symbol || 'P';
+  const productName = title || product?.productName || "추천 농산물";
+  const displaySymbol = product?.display?.symbol || "P";
   const salePrice = Number(product?.salePrice || 0);
   const averagePrice = Number(product?.priceSnapshot?.avgPrice || salePrice);
   const imageSources = buildProductImageSources(product);
@@ -33,8 +33,8 @@ export default function RecommendProductCard({
       <div
         className="recommend-product-card__media"
         style={{
-          '--recommend-media-glow': product?.display?.glowColor || 'rgba(21, 154, 85, 0.18)',
-          '--recommend-media-soft': product?.display?.softColor || '#eef6ef',
+          "--recommend-media-glow": product?.display?.glowColor || "rgba(21, 154, 85, 0.18)",
+          "--recommend-media-soft": product?.display?.softColor || "#eef6ef",
         }}
       >
         <span className="recommend-product-card__type">{typeLabel}</span>
@@ -42,7 +42,7 @@ export default function RecommendProductCard({
           <img
             alt={productName}
             className="recommend-product-card__image"
-            data-fallback-src={imageSources[1] || ''}
+            data-fallback-src={imageSources[1] || ""}
             onError={handleImageError}
             src={imageSources[0]}
           />
@@ -56,7 +56,7 @@ export default function RecommendProductCard({
       <div className="recommend-product-card__body">
         <div className="recommend-product-card__heading">
           <h3>{productName}</h3>
-          <p>{product?.origin || product?.categoryName || '오늘의 추천 상품'}</p>
+          <p>{product?.origin || product?.categoryName || "오늘의 추천 상품"}</p>
         </div>
 
         <div className="recommend-product-card__price">
