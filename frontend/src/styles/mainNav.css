@@ -72,6 +72,24 @@
   cursor: pointer;
 }
 
+.main-nav__link-label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.main-nav__link-sup {
+  position: absolute;
+  top: -0.55em;
+  right: -1.2em;
+  font-size: 0.58em;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--green-dark);
+  text-transform: lowercase;
+}
+
 .main-nav__link.is-active {
   color: var(--green-dark);
 }

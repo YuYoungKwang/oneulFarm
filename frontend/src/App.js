@@ -8,6 +8,7 @@ import {
   requiresPasswordChange,
 } from './auth';
 import MainNav from './components/MainNav';
+import MealPlanPlaceholderPage from './components/MealPlanPlaceholderPage';
 import PasswordChangeRequiredPage from './components/PasswordChangeRequiredPage';
 import ProductApp from './components/ProductApp';
 import MainPage from './components/Mainpage';
@@ -30,6 +31,7 @@ const PRODUCT_ROUTE_SEGMENTS = new Set([
   'password-change',
 ]);
 const ACCOUNT_ROUTE_SEGMENTS = new Set(['dashboard', 'mypage']);
+const MEAL_PLAN_ROUTE_SEGMENTS = new Set(['meal-plan']);
 const ADMIN_ROUTE_SEGMENTS = new Set(['admin']);
 
 function getFirstSegment(hash) {
@@ -64,6 +66,10 @@ function resolveAppFromHash(hash) {
     return 'account';
   }
 
+  if (MEAL_PLAN_ROUTE_SEGMENTS.has(firstSegment)) {
+    return 'meal-plan';
+  }
+
   if (ADMIN_ROUTE_SEGMENTS.has(firstSegment)) {
     return 'admin';
   }
@@ -86,6 +92,9 @@ function resolveActiveSection(hash) {
     return 'recipes';
   }
 
+  if (firstSegment === 'meal-plan') {
+    return 'meal-plan';
+  }
   if (firstSegment === 'price-analysis') {
     return 'market';
   }
@@ -99,7 +108,7 @@ function resolveActiveSection(hash) {
   }
 
   if (firstSegment === 'dashboard') {
-    return 'dashboard';
+    return 'mypage';
   }
 
   if (
@@ -194,6 +203,7 @@ function App() {
           {currentApp === 'main' && <MainPage authUser={authUser} />}
           {currentApp === 'product' && <ProductApp authUser={authUser} />}
           {currentApp === 'account' && <AccountApp authUser={authUser} />}
+          {currentApp === 'meal-plan' && <MealPlanPlaceholderPage />}
           {currentApp === 'main' && <SiteFooter />}
         </>
       )}

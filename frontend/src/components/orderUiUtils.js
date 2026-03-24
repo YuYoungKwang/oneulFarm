@@ -31,12 +31,20 @@ export function formatOrderDateTime(value) {
   return orderDateFormatter.format(date);
 }
 
-export function getPaymentMethodLabel(method) {
+export function getPaymentMethodLabel(method, provider = '') {
   if (method === 'BANK') {
-    return '\uBB34\uD1B5\uC7A5\uC785\uAE08';
+    return '\uAC00\uC0C1\uACC4\uC88C';
   }
 
   if (method === 'EASY_PAY') {
+    if (provider === 'KAKAOPAY') {
+      return '\uCE74\uCE74\uC624\uD398\uC774';
+    }
+
+    if (provider === 'TOSSPAY') {
+      return '\uD1A0\uC2A4\uD398\uC774';
+    }
+
     return '\uAC04\uD3B8\uACB0\uC81C';
   }
 
