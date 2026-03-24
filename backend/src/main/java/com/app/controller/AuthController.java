@@ -7,6 +7,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.app.common.ApiResponse;
+import com.app.dto.SocialLoginRequestDto;
 import com.app.dto.UserDto;
 import com.app.service.AuthService;
 
@@ -32,6 +34,14 @@ public class AuthController {
     @PostMapping(value = "/login", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ApiResponse<Map<String, Object>> login(@RequestBody UserDto request) {
         return ApiResponse.success(authService.login(request), "Login completed.");
+    }
+
+    @PostMapping(value = "/social/{provider}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ApiResponse<Map<String, Object>> socialLogin(
+        @PathVariable String provider,
+        @RequestBody SocialLoginRequestDto request
+    ) {
+        return ApiResponse.success(authService.socialLogin(provider, request), "Social login completed.");
     }
 
     @PostMapping(value = "/find-userid", consumes = MediaType.APPLICATION_JSON_VALUE)

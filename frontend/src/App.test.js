@@ -296,6 +296,20 @@ describe('App', () => {
     global.fetch = jest.fn((input) => {
       const requestUrl = String(input);
 
+      if (requestUrl.includes('/api/auth/social/kakao')) {
+        return buildJsonResponse({
+          success: true,
+          data: {
+            userNo: 21,
+            userId: 'kakao_test_user',
+            nickname: '\uCE74\uCE74\uC624\uD14C\uC2A4\uD130',
+            email: 'kakao@example.com',
+            accessToken: 'social-access-token',
+            passwordChangeRequired: false,
+          },
+        });
+      }
+
       if (requestUrl.includes('/api/users/me/addresses')) {
         return buildJsonResponse({
           success: true,
@@ -360,7 +374,9 @@ describe('App', () => {
 
   afterEach(() => {
     window.location.hash = '';
+    window.history.replaceState({}, '', '/');
     window.localStorage.clear();
+    window.sessionStorage.clear();
     jest.clearAllMocks();
   });
 
@@ -377,6 +393,32 @@ describe('App', () => {
 
     await waitFor(() => {
       expect(navigation.querySelectorAll('.main-nav__link.is-active')).toHaveLength(0);
+    });
+  });
+
+  test('\uC18C\uC15C \uB85C\uADF8\uC778 \uCF5C\uBC31 \uACBD\uB85C\uC5D0\uC11C \uC778\uC99D\uC744 \uC644\uB8CC\uD558\uACE0 \uBA54\uC778\uC73C\uB85C \uC774\uB3D9\uD55C\uB2E4', async () => {
+    const state = 'kakao-state-token';
+    window.sessionStorage.setItem('oneulFarmSocialLoginState:kakao', state);
+    window.history.replaceState({}, '', `/oauth/kakao/callback?code=test-code&state=${state}`);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/backend/api/auth/social/kakao',
+        expect.objectContaining({
+          method: 'POST',
+        })
+      );
+    });
+
+    await waitFor(() => {
+      expect(window.location.hash).toBe('#/');
+    });
+
+    expect(JSON.parse(window.localStorage.getItem('oneulFarmAuthUser'))).toMatchObject({
+      userNo: 21,
+      accessToken: 'social-access-token',
     });
   });
 

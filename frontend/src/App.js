@@ -12,7 +12,9 @@ import PasswordChangeRequiredPage from './components/PasswordChangeRequiredPage'
 import ProductApp from './components/ProductApp';
 import MainPage from './components/Mainpage';
 import RecommendPage from './components/RecommendPage';
+import SocialLoginCallbackPage from './components/SocialLoginCallbackPage';
 import SiteFooter from './components/SiteFooter';
+import { resolveSocialCallbackContext } from './socialAuth';
 
 const MAIN_ROUTE_SEGMENTS = new Set(['', 'main', 'mainpage', 'home']);
 const PRODUCT_ROUTE_SEGMENTS = new Set([
@@ -142,6 +144,7 @@ function readCartCount(authUser) {
 }
 
 function App() {
+  const socialCallbackContext = resolveSocialCallbackContext(window.location.pathname);
   const [currentApp, setCurrentApp] = useState(() =>
     resolveAppFromHash(window.location.hash)
   );
@@ -179,6 +182,10 @@ function App() {
   }, []);
 
   const isPasswordChangeRequired = requiresPasswordChange(authUser);
+
+  if (socialCallbackContext) {
+    return <SocialLoginCallbackPage callbackContext={socialCallbackContext} />;
+  }
 
   return (
     <>
