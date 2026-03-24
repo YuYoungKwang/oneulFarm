@@ -12,8 +12,8 @@ import MealPlanPlaceholderPage from './components/MealPlanPlaceholderPage';
 import PasswordChangeRequiredPage from './components/PasswordChangeRequiredPage';
 import ProductApp from './components/ProductApp';
 import MainPage from './components/Mainpage';
-import SiteFooter from './components/SiteFooter';
 import RecommendPage from './components/RecommendPage';
+import SiteFooter from './components/SiteFooter';
 
 const MAIN_ROUTE_SEGMENTS = new Set(['', 'main', 'mainpage', 'home']);
 const PRODUCT_ROUTE_SEGMENTS = new Set([
@@ -89,11 +89,7 @@ function resolveAppFromHash(hash) {
 function resolveActiveSection(hash) {
   const firstSegment = getFirstSegment(hash);
 
-  if (MAIN_ROUTE_SEGMENTS.has(firstSegment)) {
-    return null;
-  }
-
-  if (ADMIN_ROUTE_SEGMENTS.has(firstSegment)) {
+  if (MAIN_ROUTE_SEGMENTS.has(firstSegment) || ADMIN_ROUTE_SEGMENTS.has(firstSegment)) {
     return null;
   }
 
@@ -108,7 +104,6 @@ function resolveActiveSection(hash) {
   if (firstSegment === 'meal-plan') {
     return 'meal-plan';
   }
-
   if (firstSegment === 'price-analysis') {
     return 'market';
   }

@@ -26,7 +26,8 @@ export function formatPercent(value) {
 
 export function parseHash(hash) {
   const normalized = hash.replace(/^#/, '').trim();
-  const [hashPath] = normalized.split('?');
+  const [hashPath, hashQuery = ''] = normalized.split('?');
+  const searchParams = new URLSearchParams(hashQuery);
 
   if (!hashPath || hashPath === '/') {
     return { page: 'products' };
@@ -73,7 +74,16 @@ export function parseHash(hash) {
   }
 
   if (segments[0] === 'recipes') {
-    return { page: 'recipes' };
+    return {
+      page: 'recipes',
+      recipeKeyword: searchParams.get('keyword') || '',
+      recipeIngredientKeyword: searchParams.get('ingredientKeyword') || '',
+      recipeSort: searchParams.get('sort') || 'RECOMMENDED',
+    };
+  }
+
+  if (segments[0] === 'price-analysis') {
+    return { page: 'price-analysis' };
   }
 
   if (segments[0] === 'products' && segments[1]) {
@@ -115,7 +125,7 @@ export function getBadgeLabel(product) {
   }
 
   if (product.priceMatch.badgeType === 'HOT_DEAL') {
-    return '특가';
+    return '핫딜';
   }
 
   if (product.isSeasonal === 'Y') {

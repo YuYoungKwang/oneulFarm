@@ -34,7 +34,7 @@ function buildApiBasePrefixes(explicitBaseUrl) {
     return [normalizedBaseUrl];
   }
 
-  return ['', '/backend'];
+  return ['/backend'];
 }
 
 function normalizeBaseUrl(value) {
@@ -168,6 +168,20 @@ function buildGalleryItems(rawProduct, display) {
     sortOrder: index + 1,
     isPlaceholder: true,
   }));
+}
+
+export function buildProductImageSources(product) {
+  const mainImage = Array.isArray(product?.images)
+    ? product.images.find((image) => image?.isMain === 'Y') || product.images[0]
+    : null;
+
+  if (!mainImage?.imageNo) {
+    return [];
+  }
+
+  return API_BASE_PREFIXES.map(
+    (basePrefix) => `${basePrefix}/api/image/product/${mainImage.imageNo}`
+  );
 }
 
 function buildRecipes(rawRecipes = []) {

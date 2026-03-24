@@ -50,6 +50,7 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
     private static final String DEFAULT_CONVERT_KG_YN = "Y";
     private static final int DEFAULT_BACKFILL_DAYS = 365;
     private static final int MAX_BACKFILL_DAYS = 365;
+    private static final int MAX_SNAPSHOT_UNIT_LENGTH = 20;
 
     private static final DateTimeFormatter SNAPSHOT_DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
     private static final DateTimeFormatter REGDAY_SLASH_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
@@ -384,7 +385,7 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
         }
 
         String resolvedMarketType = normalizeRequiredMarketType(marketType == null || marketType.isBlank() ? MARKET_TYPE_RETAIL : marketType);
-        int resolvedLimit = resolveLimit(limit, 30, 60);
+        int resolvedLimit = resolveLimit(limit, 30, 800);
 
         return priceSnapshotDAO.selectPriceSnapshotTrend(itemCode.trim(), resolvedMarketType, resolvedLimit);
     }
@@ -393,10 +394,19 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
         int processedCount = 0;
 
         for (PriceSnapshotDTO priceSnapshotDTO : priceSnapshotList) {
+            sanitizePriceSnapshot(priceSnapshotDTO);
             processedCount += priceSnapshotDAO.mergePriceSnapshot(priceSnapshotDTO);
         }
 
         return processedCount;
+    }
+
+    private void sanitizePriceSnapshot(PriceSnapshotDTO priceSnapshotDTO) {
+        if (priceSnapshotDTO == null) {
+            return;
+        }
+
+        priceSnapshotDTO.setUnit(normalizeSnapshotUnit(priceSnapshotDTO.getUnit(), priceSnapshotDTO.getItemCode()));
     }
 
     private List<PriceSnapshotDTO> fetchDailyPriceSnapshotListFromKamis() {
@@ -1104,6 +1114,37 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
             return null;
         }
         return trimmed;
+    }
+
+    private String normalizeSnapshotUnit(String unit, String itemCode) {
+        String originalUnit = trimToNull(unit);
+        if (originalUnit == null) {
+            return null;
+        }
+
+        String normalizedUnit = originalUnit
+            .replaceAll("\\([^)]*\\)", " ")
+            .replaceAll("\\[[^\\]]*\\]", " ")
+            .replaceAll("\\s+", " ")
+            .trim();
+
+        if (normalizedUnit.isEmpty()) {
+            normalizedUnit = originalUnit;
+        }
+
+        if (normalizedUnit.length() <= MAX_SNAPSHOT_UNIT_LENGTH) {
+            return normalizedUnit;
+        }
+
+        String truncatedUnit = normalizedUnit.substring(0, MAX_SNAPSHOT_UNIT_LENGTH).trim();
+        logger.warn(
+            "KAMIS 시세 단위가 컬럼 길이를 초과해 잘라 저장합니다 - itemCode={}, originalUnit={}, normalizedUnit={}, truncatedUnit={}",
+            itemCode,
+            originalUnit,
+            normalizedUnit,
+            truncatedUnit
+        );
+        return truncatedUnit;
     }
 
     private static final class HistoricalMetadata {

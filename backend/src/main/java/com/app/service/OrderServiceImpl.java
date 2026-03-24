@@ -44,6 +44,7 @@ public class OrderServiceImpl implements OrderService {
         for (OrderDto response : responses) {
             response.setFinalAmount(defaultAmount(response.getFinalAmount()));
             response.setTotalSavedAmount(defaultAmount(response.getTotalSavedAmount()));
+            response.setPreviewImageNos(orderDao.findOrderPreviewImageNos(response.getOrderNo()));
         }
 
         return responses;

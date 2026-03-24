@@ -89,6 +89,18 @@ public class UserDaoImpl implements UserDao {
     }
 
     @Override
+    public int updateProfileImage(Long userNo, UserDto user) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("userNo", userNo);
+        params.put("profileImageUrl", user.getProfileImageUrl());
+        params.put("profileImageName", user.getProfileImageName());
+        params.put("profileImageExt", user.getProfileImageExt());
+        params.put("profileImageMimeType", user.getProfileImageMimeType());
+        params.put("profileImageSize", user.getProfileImageSize());
+        return sqlSessionTemplate.update(NAMESPACE + "updateProfileImage", params);
+    }
+
+    @Override
     public int countByPassword(Long userNo, String password) {
         Map<String, Object> params = new HashMap<>();
         params.put("userNo", userNo);

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App from './App';
 import { createOrderFromCart } from './components/orderUiUtils';
 import {
@@ -17,11 +17,13 @@ import {
   fetchAdminUsers,
   saveAdminProduct,
 } from './admin/adminApi';
-import { fetchProductsFromApi } from './api/productApi';
+import { fetchProductDetailFromApi, fetchProductsFromApi } from './api/productApi';
+import { fetchRecipeDetail, fetchRecipeList } from './components/recipeApi';
+
+const originalFetch = global.fetch;
 
 const mockImageUrl =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
-
 jest.mock('./api/productApi', () => ({
   addCartItemToApi: jest.fn(),
   advanceOrderOnApi: jest.fn(),
@@ -70,6 +72,10 @@ jest.mock('./admin/adminApi', () => ({
   updateAdminUserStatus: jest.fn(),
 }));
 
+jest.mock('./components/recipeApi', () => ({
+  fetchRecipeDetail: jest.fn(),
+  fetchRecipeList: jest.fn(),
+}));
 function buildProduct(overrides = {}) {
   const productNo = overrides.productNo ?? 1001;
   const productName =
@@ -180,6 +186,79 @@ const PRODUCT_FIXTURES = [
   buildProduct({ productNo: 1002, productName: '\uC591\uD30C 1kg', salePrice: 2800 }),
 ];
 
+const RECIPE_FIXTURES = [
+  {
+    recipeNo: 501,
+    recipeName: '\uC591\uD30C \uACC4\uB780\uBCF6\uC74C',
+    description:
+      '\uC591\uD30C\uC640 \uACC4\uB780\uC744 \uAC04\uB2E8\uD558\uAC8C \uBCF6\uC544 \uB9CC\uB4DC\uB294 \uC9D1\uBC25 \uB808\uC2DC\uD53C',
+    cookTime: '10\uBD84',
+    difficulty: '\uC26C\uC6C0',
+    calories: 220,
+    imageUrl: mockImageUrl,
+    sourceName: 'oneulFarm',
+  },
+  {
+    recipeNo: 502,
+    recipeName: '\uC591\uD30C \uAC10\uC790\uC870\uB9BC',
+    description:
+      '\uC591\uD30C\uC640 \uAC10\uC790\uB97C \uD568\uAED8 \uC870\uB9AC\uD574 \uB4E0\uB4E0\uD558\uAC8C \uBA39\uB294 \uBC18\uCC2C',
+    cookTime: '20\uBD84',
+    difficulty: '\uBCF4\uD1B5',
+    calories: 280,
+    imageUrl: '',
+    sourceName: 'oneulFarm',
+  },
+  {
+    recipeNo: 503,
+    recipeName: '\uC591\uD30C \uB458\uB7EC\uD0D5',
+    description: '\uB2F4\uBC31\uD558\uAC8C \uB04A\uC5EC \uBA39\uAE30 \uC88B\uC740 \uAD6D \uC694\uB9AC',
+    cookTime: '25\uBD84',
+    difficulty: '\uBCF4\uD1B5',
+    calories: 160,
+    imageUrl: '',
+    sourceName: 'oneulFarm',
+  },
+  {
+    recipeNo: 504,
+    recipeName: '\uC591\uD30C \uC0D0\uB7EC\uB4DC',
+    description: '\uC0C1\uD07C\uD558\uAC8C \uACF0\uB4E4\uC778 \uC591\uD30C \uAE30\uBC18 \uC0D0\uB7EC\uB4DC',
+    cookTime: '8\uBD84',
+    difficulty: '\uC26C\uC6C0',
+    calories: 120,
+    imageUrl: '',
+    sourceName: 'oneulFarm',
+  },
+];
+
+const DEFAULT_ADDRESS_FIXTURE = {
+  addressNo: 1,
+  addressName: '집',
+  recipientName: '허륜',
+  recipientPhone: '010-1234-5678',
+  zipCode: '06236',
+  address1: '서울 강남구 테헤란로 123',
+  address2: '8층 oneulFarm',
+  deliveryMessage: '문 앞에 놓아주세요',
+  isDefault: 'Y',
+};
+
+function buildJsonResponse(payload, status = 200) {
+  return Promise.resolve({
+    ok: status >= 200 && status < 300,
+    status,
+    headers: {
+      get(name) {
+        return String(name || '').toLowerCase() === 'content-type'
+          ? 'application/json; charset=utf-8'
+          : '';
+      },
+    },
+    json: async () => payload,
+    text: async () => JSON.stringify(payload),
+  });
+}
+
 function findFixtureProduct(productNo) {
   return PRODUCT_FIXTURES.find((product) => product.productNo === productNo);
 }
@@ -214,7 +293,55 @@ function signInTestUser() {
 
 describe('App', () => {
   beforeEach(() => {
+    global.fetch = jest.fn((input) => {
+      const requestUrl = String(input);
+
+      if (requestUrl.includes('/api/users/me/addresses')) {
+        return buildJsonResponse({
+          success: true,
+          data: [DEFAULT_ADDRESS_FIXTURE],
+        });
+      }
+
+      return Promise.reject(new Error(`Unhandled fetch in test: ${requestUrl}`));
+    });
+
     fetchProductsFromApi.mockResolvedValue(PRODUCT_FIXTURES);
+    fetchProductDetailFromApi.mockResolvedValue(
+      buildProduct({
+        productNo: 1002,
+        productName: '\uC591\uD30C 1kg',
+        priceSnapshot: {
+          sourceName: 'KAMIS_PERIOD_RETAIL_PRODUCT_LIST',
+          snapshotDate: '2026-03-18',
+        },
+        reviews: [
+          {
+            reviewNo: 9001,
+            author: '\uD5C8\uB96D',
+            rating: 5,
+            content: '\uC0C1\uC138 \uD398\uC774\uC9C0 \uB9AC\uBDF0 \uC5F0\uB3D9 \uD14C\uC2A4\uD2B8',
+            createdAt: '2026-03-21T10:30:00',
+          },
+        ],
+      })
+    );
+    fetchRecipeList.mockResolvedValue({
+      count: RECIPE_FIXTURES.length,
+      recipeList: RECIPE_FIXTURES,
+    });
+    fetchRecipeDetail.mockResolvedValue({
+      recipeNo: 501,
+      recipeName: '\uC591\uD30C \uACC4\uB780\uBCF6\uC74C',
+      description: '\uB808\uC2DC\uD53C \uC0C1\uC138 \uD14C\uC2A4\uD2B8',
+      cookTime: '10\uBD84',
+      difficulty: '\uC26C\uC6C0',
+      calories: 220,
+      ingredientList: [],
+      stepList: [],
+      imageUrl: mockImageUrl,
+      sourceName: 'oneulFarm',
+    });
     fetchTossPaymentConfigFromApi.mockResolvedValue(DEFAULT_TOSS_CONFIG);
     fetchAdminProductCategories.mockResolvedValue([
       { categoryNo: 1, categoryName: '\uCC44\uC18C' },
@@ -235,6 +362,10 @@ describe('App', () => {
     window.location.hash = '';
     window.localStorage.clear();
     jest.clearAllMocks();
+  });
+
+  afterAll(() => {
+    global.fetch = originalFetch;
   });
 
   test('\uAE30\uBCF8 \uBA54\uC778 \uD398\uC774\uC9C0\uC5D0\uC11C\uB294 \uD65C\uC131 \uB124\uBE44\uAC00 \uC5C6\uB2E4', async () => {
@@ -265,12 +396,105 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findAllByText('\uC591\uD30C 1kg')).not.toHaveLength(0);
+    expect(fetchProductDetailFromApi).toHaveBeenCalledWith(1002);
     expect(
       screen.getByRole('button', { name: '\uBAA9\uB85D\uC73C\uB85C' })
     ).toBeInTheDocument();
+    expect(await screen.findByText('KAMIS')).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        '\uB9AC\uBDF0'
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Image 1')).not.toBeInTheDocument();
+    expect(screen.queryByText('Main image')).not.toBeInTheDocument();
+  });
+
+  test('\uC0C1\uD488 \uC0C1\uC138\uC5D0\uC11C \uAD00\uB828 \uB808\uC2DC\uD53C 4\uAC1C\uB97C \uBD88\uB7EC\uC624\uACE0 \uB354 \uBCF4\uAE30 \uC2DC \uC7AC\uB8CC \uAC80\uC0C9 \uC0C1\uD0DC\uB85C \uC774\uB3D9\uD55C\uB2E4', async () => {
+    window.location.hash = '#/products/1002';
+
+    render(<App />);
+
+    expect(await screen.findByText('\uC591\uD30C \uACC4\uB780\uBCF6\uC74C')).toBeInTheDocument();
+    expect(fetchRecipeList).toHaveBeenCalledWith({
+      ingredientKeyword: '\uC591\uD30C',
+      sort: 'RECOMMENDED',
+      limit: 4,
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '\uB808\uC2DC\uD53C \uB354 \uBCF4\uAE30' }));
+
+    await waitFor(() => {
+      expect(window.location.hash).toBe('#/recipes?ingredientKeyword=%EC%96%91%ED%8C%8C');
+    });
+
+    expect(
+      await screen.findByRole('heading', {
+        name: '\uC624\uB298 \uBA39\uC744 \uBA54\uB274\uB97C \uB354 \uBE60\uB974\uAC8C \uACE8\uB77C\uBCF4\uC138\uC694',
+      })
+    ).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(fetchRecipeList).toHaveBeenCalledWith({
+        keyword: '',
+        ingredientKeyword: '\uC591\uD30C',
+        sort: 'RECOMMENDED',
+        page: 1,
+        pageSize: 8,
+      });
+    });
+  });
+
+  test('\uB9AC\uBDF0 \uBCC0\uACBD \uC774\uBCA4\uD2B8\uAC00 \uC624\uBA74 \uC0C1\uD488 \uC0C1\uC138 \uB9AC\uBDF0\uB97C \uB2E4\uC2DC \uBD88\uB7EC\uC628\uB2E4', async () => {
+    fetchProductDetailFromApi
+      .mockResolvedValueOnce(
+        buildProduct({
+          productNo: 1002,
+          productName: '\uC591\uD30C 1kg',
+          reviews: [],
+        })
+      )
+      .mockResolvedValueOnce(
+        buildProduct({
+          productNo: 1002,
+          productName: '\uC591\uD30C 1kg',
+          reviews: [
+            {
+              reviewNo: 9101,
+              author: '\uD5C8\uB96D',
+              rating: 5,
+              content: '\uB9C8\uC774\uD398\uC774\uC9C0\uC5D0\uC11C \uC791\uC131\uD55C \uB9AC\uBDF0',
+              createdAt: '2026-03-23T09:30:00',
+            },
+          ],
+        })
+      );
+
+    window.location.hash = '#/products/1002';
+
+    render(<App />);
+
+    expect(
+      await screen.findByText('\uC544\uC9C1 \uB4F1\uB85D\uB41C \uB9AC\uBDF0\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.')
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent('oneulFarm:review-change', {
+          detail: { productNo: 1002 },
+        })
+      );
+    });
+
+    expect(
+      await screen.findByText('\uB9C8\uC774\uD398\uC774\uC9C0\uC5D0\uC11C \uC791\uC131\uD55C \uB9AC\uBDF0')
+    ).toBeInTheDocument();
+    expect(fetchProductDetailFromApi).toHaveBeenCalledTimes(2);
   });
 
   test('\uC0C1\uD488 \uD654\uBA74\uC758 \uB9C8\uC774\uD398\uC774\uC9C0 \uB124\uBE44\uB294 \uB9C8\uC774\uD398\uC774\uC9C0 \uACBD\uB85C\uB85C \uC774\uB3D9\uD55C\uB2E4', async () => {
+    window.location.hash = '#/products';
+
     render(<App />);
 
     await screen.findByText('\uC591\uD30C 1kg');
@@ -392,9 +616,17 @@ describe('App', () => {
       await screen.findByText('\uC8FC\uBB38\uC11C \uC791\uC131')
     ).toBeInTheDocument();
 
-    fireEvent.click(
-      screen.getByText('\uC8FC\uBB38 \uC644\uB8CC\uD558\uAE30')
-    );
+    expect(await screen.findByDisplayValue('허륜')).toBeInTheDocument();
+
+    const submitButton = screen.getByRole('button', {
+      name: '\uC8FC\uBB38 \uC644\uB8CC\uD558\uAE30',
+    });
+
+    await waitFor(() => {
+      expect(submitButton).toBeEnabled();
+    });
+
+    fireEvent.click(submitButton);
 
     expect(
       await screen.findByText('\uC8FC\uBB38 \uC644\uB8CC!')

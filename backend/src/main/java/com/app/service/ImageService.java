@@ -6,7 +6,11 @@ public interface ImageService {
 
     byte[] getProductImage(Long imageNo);
 
+    byte[] getReviewImage(Long reviewImageNo);
+
     String getBannerMimeType(Long bannerNo);
 
     String getProductMimeType(Long imageNo);
+
+    String getReviewMimeType(Long reviewImageNo);
 }

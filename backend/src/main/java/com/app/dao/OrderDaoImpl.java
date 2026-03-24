@@ -45,6 +45,11 @@ public class OrderDaoImpl implements OrderDao {
     }
 
     @Override
+    public List<Long> findOrderPreviewImageNos(Long orderNo) {
+        return sqlSessionTemplate.selectList(NAMESPACE + "selectOrderPreviewImageNos", orderNo);
+    }
+
+    @Override
     public int countOrdersByOrderIdPrefix(String orderIdPrefix) {
         Integer count = sqlSessionTemplate.selectOne(NAMESPACE + "countOrdersByOrderIdPrefix", orderIdPrefix);
         return count == null ? 0 : count;

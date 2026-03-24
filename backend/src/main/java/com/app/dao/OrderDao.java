@@ -18,6 +18,8 @@ public interface OrderDao {
 
     List<OrderItemDto> findOrderItems(Long orderNo);
 
+    List<Long> findOrderPreviewImageNos(Long orderNo);
+
     int countOrdersByOrderIdPrefix(String orderIdPrefix);
 
     int insertOrder(OrderDto order);

@@ -3,10 +3,36 @@
     "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="reviewMapper">
 
+    <resultMap id="ReviewResultMap" type="com.app.dto.ReviewDto">
+        <id property="reviewNo" column="reviewNo" />
+        <result property="userNo" column="userNo" />
+        <result property="productNo" column="productNo" />
+        <result property="recipeNo" column="recipeNo" />
+        <result property="orderItemNo" column="orderItemNo" />
+        <result property="rating" column="rating" />
+        <result property="content" column="content" />
+        <result property="nickname" column="nickname" />
+        <result property="createdAt" column="createdAt" />
+        <result property="updatedAt" column="updatedAt" />
+    </resultMap>
+
+    <resultMap id="ReviewImageResultMap" type="com.app.dto.ReviewImageDto">
+        <id property="reviewImageNo" column="reviewImageNo" />
+        <result property="reviewNo" column="reviewNo" />
+        <result property="imageName" column="imageName" />
+        <result property="imageExt" column="imageExt" />
+        <result property="mimeType" column="mimeType" />
+        <result property="imageSize" column="imageSize" />
+        <result property="sortOrder" column="sortOrder" />
+        <result property="createdAt" column="createdAt" />
+    </resultMap>
+
     <resultMap id="ActivityReviewResultMap" type="com.app.dto.ActivityReviewDto">
         <result property="reviewNo" column="reviewNo" />
         <result property="orderItemNo" column="orderItemNo" />
         <result property="productNo" column="productNo" />
+        <result property="imageNo" column="imageNo" />
+        <result property="reviewImageNo" column="reviewImageNo" />
         <result property="productName" column="productName" />
         <result property="orderId" column="orderId" />
         <result property="rating" column="rating" />
@@ -19,6 +45,8 @@
         SELECT
             oi.ORDER_ITEM_NO AS orderItemNo,
             oi.PRODUCT_NO AS productNo,
+            img.IMAGE_NO AS imageNo,
+            revImg.REVIEW_IMAGE_NO AS reviewImageNo,
             oi.PRODUCT_NAME AS productName,
             o.ORDER_ID AS orderId,
             o.ORDERED_AT AS orderedAt
@@ -30,6 +58,19 @@
         LEFT JOIN OFT_REVIEW r
             ON r.ORDER_ITEM_NO = oi.ORDER_ITEM_NO
            AND r.DELETED_AT IS NULL
+        LEFT JOIN (
+            SELECT PRODUCT_NO, MIN(IMAGE_NO) AS IMAGE_NO
+            FROM OFT_PRODUCT_IMAGE
+            WHERE IS_MAIN = 'Y'
+            GROUP BY PRODUCT_NO
+        ) img
+            ON img.PRODUCT_NO = oi.PRODUCT_NO
+        LEFT JOIN (
+            SELECT REVIEW_NO, MIN(REVIEW_IMAGE_NO) AS REVIEW_IMAGE_NO
+            FROM OFT_REVIEW_IMAGE
+            GROUP BY REVIEW_NO
+        ) revImg
+            ON revImg.REVIEW_NO = r.REVIEW_NO
         WHERE o.USER_NO = #{_parameter}
           AND NVL(d.DELIVERY_STATUS, 'READY') = 'DELIVERED'
           AND r.REVIEW_NO IS NULL
@@ -41,6 +82,8 @@
             r.REVIEW_NO AS reviewNo,
             r.ORDER_ITEM_NO AS orderItemNo,
             r.PRODUCT_NO AS productNo,
+            img.IMAGE_NO AS imageNo,
+            revImg.REVIEW_IMAGE_NO AS reviewImageNo,
             oi.PRODUCT_NAME AS productName,
             o.ORDER_ID AS orderId,
             r.RATING AS rating,
@@ -53,6 +96,19 @@
            AND oi.PRODUCT_NO = r.PRODUCT_NO
         JOIN OFT_ORDERS o
             ON o.ORDER_NO = oi.ORDER_NO
+        LEFT JOIN (
+            SELECT PRODUCT_NO, MIN(IMAGE_NO) AS IMAGE_NO
+            FROM OFT_PRODUCT_IMAGE
+            WHERE IS_MAIN = 'Y'
+            GROUP BY PRODUCT_NO
+        ) img
+            ON img.PRODUCT_NO = r.PRODUCT_NO
+        LEFT JOIN (
+            SELECT REVIEW_NO, MIN(REVIEW_IMAGE_NO) AS REVIEW_IMAGE_NO
+            FROM OFT_REVIEW_IMAGE
+            GROUP BY REVIEW_NO
+        ) revImg
+            ON revImg.REVIEW_NO = r.REVIEW_NO
         WHERE r.USER_NO = #{_parameter}
           AND r.DELETED_AT IS NULL
         ORDER BY r.CREATED_AT DESC, r.REVIEW_NO DESC
@@ -62,6 +118,8 @@
         SELECT
             oi.ORDER_ITEM_NO AS orderItemNo,
             oi.PRODUCT_NO AS productNo,
+            img.IMAGE_NO AS imageNo,
+            revImg.REVIEW_IMAGE_NO AS reviewImageNo,
             oi.PRODUCT_NAME AS productName,
             o.ORDER_ID AS orderId,
             o.ORDERED_AT AS orderedAt
@@ -73,6 +131,19 @@
         LEFT JOIN OFT_REVIEW r
             ON r.ORDER_ITEM_NO = oi.ORDER_ITEM_NO
            AND r.DELETED_AT IS NULL
+        LEFT JOIN (
+            SELECT PRODUCT_NO, MIN(IMAGE_NO) AS IMAGE_NO
+            FROM OFT_PRODUCT_IMAGE
+            WHERE IS_MAIN = 'Y'
+            GROUP BY PRODUCT_NO
+        ) img
+            ON img.PRODUCT_NO = oi.PRODUCT_NO
+        LEFT JOIN (
+            SELECT REVIEW_NO, MIN(REVIEW_IMAGE_NO) AS REVIEW_IMAGE_NO
+            FROM OFT_REVIEW_IMAGE
+            GROUP BY REVIEW_NO
+        ) revImg
+            ON revImg.REVIEW_NO = r.REVIEW_NO
         WHERE o.USER_NO = #{userNo}
           AND oi.ORDER_ITEM_NO = #{orderItemNo}
           AND NVL(d.DELIVERY_STATUS, 'READY') = 'DELIVERED'
@@ -84,6 +155,8 @@
             r.REVIEW_NO AS reviewNo,
             r.ORDER_ITEM_NO AS orderItemNo,
             r.PRODUCT_NO AS productNo,
+            img.IMAGE_NO AS imageNo,
+            revImg.REVIEW_IMAGE_NO AS reviewImageNo,
             oi.PRODUCT_NAME AS productName,
             o.ORDER_ID AS orderId,
             r.RATING AS rating,
@@ -96,6 +169,19 @@
            AND oi.PRODUCT_NO = r.PRODUCT_NO
         JOIN OFT_ORDERS o
             ON o.ORDER_NO = oi.ORDER_NO
+        LEFT JOIN (
+            SELECT PRODUCT_NO, MIN(IMAGE_NO) AS IMAGE_NO
+            FROM OFT_PRODUCT_IMAGE
+            WHERE IS_MAIN = 'Y'
+            GROUP BY PRODUCT_NO
+        ) img
+            ON img.PRODUCT_NO = r.PRODUCT_NO
+        LEFT JOIN (
+            SELECT REVIEW_NO, MIN(REVIEW_IMAGE_NO) AS REVIEW_IMAGE_NO
+            FROM OFT_REVIEW_IMAGE
+            GROUP BY REVIEW_NO
+        ) revImg
+            ON revImg.REVIEW_NO = r.REVIEW_NO
         WHERE r.USER_NO = #{userNo}
           AND r.REVIEW_NO = #{reviewNo}
           AND r.DELETED_AT IS NULL
@@ -106,6 +192,8 @@
             r.REVIEW_NO AS reviewNo,
             r.ORDER_ITEM_NO AS orderItemNo,
             r.PRODUCT_NO AS productNo,
+            img.IMAGE_NO AS imageNo,
+            revImg.REVIEW_IMAGE_NO AS reviewImageNo,
             oi.PRODUCT_NAME AS productName,
             o.ORDER_ID AS orderId,
             r.RATING AS rating,
@@ -118,6 +206,19 @@
            AND oi.PRODUCT_NO = r.PRODUCT_NO
         JOIN OFT_ORDERS o
             ON o.ORDER_NO = oi.ORDER_NO
+        LEFT JOIN (
+            SELECT PRODUCT_NO, MIN(IMAGE_NO) AS IMAGE_NO
+            FROM OFT_PRODUCT_IMAGE
+            WHERE IS_MAIN = 'Y'
+            GROUP BY PRODUCT_NO
+        ) img
+            ON img.PRODUCT_NO = r.PRODUCT_NO
+        LEFT JOIN (
+            SELECT REVIEW_NO, MIN(REVIEW_IMAGE_NO) AS REVIEW_IMAGE_NO
+            FROM OFT_REVIEW_IMAGE
+            GROUP BY REVIEW_NO
+        ) revImg
+            ON revImg.REVIEW_NO = r.REVIEW_NO
         WHERE r.USER_NO = #{userNo}
           AND r.ORDER_ITEM_NO = #{orderItemNo}
           AND r.DELETED_AT IS NULL
@@ -149,12 +250,200 @@
           AND DELETED_AT IS NULL
     </update>
 
+    <delete id="deleteReviewImages" parameterType="long">
+        DELETE FROM OFT_REVIEW_IMAGE
+        WHERE REVIEW_NO = #{_parameter}
+    </delete>
+
+    <insert id="insertActivityReviewImage" parameterType="map">
+        INSERT INTO OFT_REVIEW_IMAGE (
+            REVIEW_NO,
+            IMAGE_NAME,
+            IMAGE_EXT,
+            MIME_TYPE,
+            IMAGE_SIZE,
+            IMAGE_DATA,
+            SORT_ORDER
+        ) VALUES (
+            #{reviewNo},
+            #{imageName},
+            #{imageExt},
+            #{mimeType},
+            #{imageSize},
+            #{imageData},
+            1
+        )
+    </insert>
+
     <update id="deleteReview" parameterType="map">
         UPDATE OFT_REVIEW
         SET DELETED_AT = SYSTIMESTAMP,
             UPDATED_AT = SYSTIMESTAMP
         WHERE REVIEW_NO = #{reviewNo}
           AND USER_NO = #{userNo}
+          AND DELETED_AT IS NULL
+    </update>
+
+    <select id="selectRecipeReviews" parameterType="long" resultMap="ReviewResultMap">
+        SELECT
+            r.REVIEW_NO AS reviewNo,
+            r.USER_NO AS userNo,
+            r.PRODUCT_NO AS productNo,
+            r.RECIPE_NO AS recipeNo,
+            r.ORDER_ITEM_NO AS orderItemNo,
+            r.RATING AS rating,
+            DBMS_LOB.SUBSTR(r.CONTENT, 4000, 1) AS content,
+            u.NICKNAME AS nickname,
+            r.CREATED_AT AS createdAt,
+            r.UPDATED_AT AS updatedAt
+        FROM OFT_REVIEW r
+        JOIN OFT_USERS u
+            ON u.USER_NO = r.USER_NO
+        WHERE r.RECIPE_NO = #{_parameter}
+          AND r.DELETED_AT IS NULL
+        ORDER BY r.CREATED_AT DESC, r.REVIEW_NO DESC
+    </select>
+
+    <select id="selectRecipeReviewImages" parameterType="long" resultMap="ReviewImageResultMap">
+        SELECT
+            ri.REVIEW_IMAGE_NO AS reviewImageNo,
+            ri.REVIEW_NO AS reviewNo,
+            ri.IMAGE_NAME AS imageName,
+            ri.IMAGE_EXT AS imageExt,
+            ri.MIME_TYPE AS mimeType,
+            ri.IMAGE_SIZE AS imageSize,
+            ri.SORT_ORDER AS sortOrder,
+            ri.CREATED_AT AS createdAt
+        FROM OFT_REVIEW_IMAGE ri
+        JOIN OFT_REVIEW r
+            ON r.REVIEW_NO = ri.REVIEW_NO
+        WHERE r.RECIPE_NO = #{_parameter}
+          AND r.DELETED_AT IS NULL
+        ORDER BY ri.REVIEW_NO DESC, ri.SORT_ORDER ASC, ri.REVIEW_IMAGE_NO ASC
+    </select>
+
+    <select id="selectReviewImagesByReviewNo" parameterType="long" resultMap="ReviewImageResultMap">
+        SELECT
+            REVIEW_IMAGE_NO AS reviewImageNo,
+            REVIEW_NO AS reviewNo,
+            IMAGE_NAME AS imageName,
+            IMAGE_EXT AS imageExt,
+            MIME_TYPE AS mimeType,
+            IMAGE_SIZE AS imageSize,
+            SORT_ORDER AS sortOrder,
+            CREATED_AT AS createdAt
+        FROM OFT_REVIEW_IMAGE
+        WHERE REVIEW_NO = #{_parameter}
+        ORDER BY SORT_ORDER ASC, REVIEW_IMAGE_NO ASC
+    </select>
+
+    <select id="selectRecipeReviewByNo" parameterType="long" resultMap="ReviewResultMap">
+        SELECT
+            r.REVIEW_NO AS reviewNo,
+            r.USER_NO AS userNo,
+            r.PRODUCT_NO AS productNo,
+            r.RECIPE_NO AS recipeNo,
+            r.ORDER_ITEM_NO AS orderItemNo,
+            r.RATING AS rating,
+            DBMS_LOB.SUBSTR(r.CONTENT, 4000, 1) AS content,
+            u.NICKNAME AS nickname,
+            r.CREATED_AT AS createdAt,
+            r.UPDATED_AT AS updatedAt
+        FROM OFT_REVIEW r
+        JOIN OFT_USERS u
+            ON u.USER_NO = r.USER_NO
+        WHERE r.REVIEW_NO = #{_parameter}
+          AND r.DELETED_AT IS NULL
+    </select>
+
+    <select id="selectRecipeReviewByUserAndRecipe" parameterType="map" resultMap="ReviewResultMap">
+        SELECT
+            r.REVIEW_NO AS reviewNo,
+            r.USER_NO AS userNo,
+            r.PRODUCT_NO AS productNo,
+            r.RECIPE_NO AS recipeNo,
+            r.ORDER_ITEM_NO AS orderItemNo,
+            r.RATING AS rating,
+            DBMS_LOB.SUBSTR(r.CONTENT, 4000, 1) AS content,
+            u.NICKNAME AS nickname,
+            r.CREATED_AT AS createdAt,
+            r.UPDATED_AT AS updatedAt
+        FROM OFT_REVIEW r
+        JOIN OFT_USERS u
+            ON u.USER_NO = r.USER_NO
+        WHERE r.USER_NO = #{userNo}
+          AND r.RECIPE_NO = #{recipeNo}
+          AND r.DELETED_AT IS NULL
+        ORDER BY r.REVIEW_NO DESC
+        FETCH FIRST 1 ROW ONLY
+    </select>
+
+    <insert id="insertRecipeReview" parameterType="com.app.dto.ReviewDto">
+        INSERT INTO OFT_REVIEW (
+            USER_NO,
+            RECIPE_NO,
+            RATING,
+            CONTENT
+        ) VALUES (
+            #{userNo},
+            #{recipeNo},
+            #{rating},
+            #{content}
+        )
+        <selectKey keyProperty="reviewNo" resultType="long" order="AFTER">
+            SELECT REVIEW_NO
+            FROM OFT_REVIEW
+            WHERE USER_NO = #{userNo}
+              AND RECIPE_NO = #{recipeNo}
+              AND DELETED_AT IS NULL
+            ORDER BY REVIEW_NO DESC
+            FETCH FIRST 1 ROW ONLY
+        </selectKey>
+    </insert>
+
+    <insert id="insertReviewImage" parameterType="com.app.dto.ReviewImageDto">
+        INSERT INTO OFT_REVIEW_IMAGE (
+            REVIEW_NO,
+            IMAGE_NAME,
+            IMAGE_EXT,
+            MIME_TYPE,
+            IMAGE_SIZE,
+            IMAGE_DATA,
+            SORT_ORDER
+        ) VALUES (
+            #{reviewNo},
+            #{imageName},
+            #{imageExt},
+            #{mimeType},
+            #{imageSize},
+            #{imageData, jdbcType=BLOB},
+            #{sortOrder}
+        )
+    </insert>
+
+    <delete id="deleteReviewImagesByReviewNo" parameterType="long">
+        DELETE FROM OFT_REVIEW_IMAGE
+        WHERE REVIEW_NO = #{_parameter}
+    </delete>
+
+    <update id="updateRecipeReview" parameterType="com.app.dto.ReviewDto">
+        UPDATE OFT_REVIEW
+        SET RATING = #{rating},
+            CONTENT = #{content},
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE REVIEW_NO = #{reviewNo}
+          AND USER_NO = #{userNo}
+          AND RECIPE_NO = #{recipeNo}
+          AND DELETED_AT IS NULL
+    </update>
+
+    <update id="deleteRecipeReview" parameterType="com.app.dto.ReviewDto">
+        UPDATE OFT_REVIEW
+        SET DELETED_AT = SYSTIMESTAMP,
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE REVIEW_NO = #{reviewNo}
+          AND USER_NO = #{userNo}
+          AND RECIPE_NO = #{recipeNo}
           AND DELETED_AT IS NULL
     </update>
 

@@ -3,6 +3,8 @@ package com.app.dao;
 import java.util.List;
 
 import com.app.dto.ActivityReviewDto;
+import com.app.dto.ReviewDto;
+import com.app.dto.ReviewImageDto;
 import com.app.dto.ReviewRequestDto;
 
 public interface ReviewDao {
@@ -21,5 +23,36 @@ public interface ReviewDao {
 
     int updateReview(Long userNo, Long reviewNo, ReviewRequestDto request);
 
+    int deleteReviewImages(Long reviewNo);
+
+    int insertReviewImage(
+        Long reviewNo,
+        String imageName,
+        String imageExt,
+        String mimeType,
+        Long imageSize,
+        byte[] imageData
+    );
+
     int deleteReview(Long userNo, Long reviewNo);
+
+    List<ReviewDto> findRecipeReviews(Long recipeNo);
+
+    List<ReviewImageDto> findRecipeReviewImages(Long recipeNo);
+
+    List<ReviewImageDto> findReviewImagesByReviewNo(Long reviewNo);
+
+    ReviewDto findRecipeReviewByNo(Long reviewNo);
+
+    ReviewDto findRecipeReviewByUserAndRecipe(Long userNo, Long recipeNo);
+
+    int insertRecipeReview(ReviewDto reviewDto);
+
+    int insertReviewImage(ReviewImageDto reviewImageDto);
+
+    int deleteReviewImagesByReviewNo(Long reviewNo);
+
+    int updateRecipeReview(ReviewDto reviewDto);
+
+    int deleteRecipeReview(ReviewDto reviewDto);
 }

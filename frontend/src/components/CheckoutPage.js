@@ -1,24 +1,42 @@
-import { useState } from 'react';
-import { formatCurrency, getSavingAmount } from './productUiUtils';
+import { useEffect, useState } from 'react';
+import { buildAuthHeaders, requestAuthApi } from '../auth';
 import { getPaymentMethodLabel } from './orderUiUtils';
+import { formatCurrency, getSavingAmount } from './productUiUtils';
+
+const ADDRESS_API_PATH = '/api/users/me/addresses';
 
 const initialCheckoutForm = {
-  recipientName: '허륜',
-  recipientPhone: '010-1234-5678',
-  zipCode: '06236',
-  address1: '서울 강남구 테헤란로 123',
-  address2: '8층 oneulFarm',
-  deliveryMessage: '문 앞에 놓아주세요.',
+  recipientName: '',
+  recipientPhone: '',
+  zipCode: '',
+  address1: '',
+  address2: '',
+  deliveryMessage: '',
   paymentMethod: 'CARD',
 };
+
+function mapAddressToCheckoutForm(address, paymentMethod = 'CARD') {
+  return {
+    recipientName: address?.recipientName || '',
+    recipientPhone: address?.recipientPhone || '',
+    zipCode: address?.zipCode || '',
+    address1: address?.address1 || '',
+    address2: address?.address2 || '',
+    deliveryMessage: address?.deliveryMessage || '',
+    paymentMethod,
+  };
+}
 
 export default function CheckoutPage({
   cartItems,
   onBackToCart,
+  onOpenAddressSetup,
   onSubmitOrder,
   tossConfig,
 }) {
   const [checkoutForm, setCheckoutForm] = useState(initialCheckoutForm);
+  const [defaultAddress, setDefaultAddress] = useState(null);
+  const [addressStatus, setAddressStatus] = useState('loading');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -31,6 +49,61 @@ export default function CheckoutPage({
     0
   );
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDefaultAddress() {
+      try {
+        setAddressStatus('loading');
+        setError('');
+
+        const payload = await requestAuthApi(
+          ADDRESS_API_PATH,
+          {
+            headers: buildAuthHeaders(),
+          },
+          '기본 배송지를 불러오지 못했습니다.'
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        const addresses = Array.isArray(payload.data) ? payload.data : [];
+        const nextDefaultAddress =
+          addresses.find((address) => address.isDefault === 'Y') || null;
+
+        if (!nextDefaultAddress) {
+          setDefaultAddress(null);
+          setAddressStatus('missing');
+          setError('기본 배송지를 먼저 등록해주세요.');
+          onOpenAddressSetup?.();
+          return;
+        }
+
+        setDefaultAddress(nextDefaultAddress);
+        setCheckoutForm((previousForm) =>
+          mapAddressToCheckoutForm(nextDefaultAddress, previousForm.paymentMethod)
+        );
+        setAddressStatus('ready');
+      } catch (loadError) {
+        if (cancelled) {
+          return;
+        }
+
+        setDefaultAddress(null);
+        setAddressStatus('error');
+        setError(loadError?.message || '기본 배송지를 불러오지 못했습니다.');
+      }
+    }
+
+    loadDefaultAddress();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [onOpenAddressSetup]);
+
   function updateField(key, value) {
     setCheckoutForm((previousForm) => ({
       ...previousForm,
@@ -40,6 +113,12 @@ export default function CheckoutPage({
 
   async function handleSubmit(event) {
     event.preventDefault();
+
+    if (addressStatus !== 'ready' || !defaultAddress) {
+      setError('기본 배송지를 먼저 등록해주세요.');
+      onOpenAddressSetup?.();
+      return;
+    }
 
     if (
       !checkoutForm.recipientName.trim() ||
@@ -82,7 +161,7 @@ export default function CheckoutPage({
         <div>
           <span className="eyebrow">Checkout</span>
           <h1>주문서 작성</h1>
-          <p>배송 정보를 입력하고 결제 수단을 선택한 뒤 주문을 완료합니다.</p>
+          <p>회원별 기본 배송지를 불러오고, 결제 정보를 확인한 뒤 주문을 완료합니다.</p>
         </div>
         <div className="page-actions">
           <button className="btn-outline" type="button" onClick={onBackToCart}>
@@ -95,7 +174,7 @@ export default function CheckoutPage({
         <article className="quick-card soft-green">
           <div className="quick-label">주문 상품 수</div>
           <div className="quick-value">{cartItems.length}건</div>
-          <div className="section-sub">지금 결제할 상품 종류</div>
+          <div className="section-sub">지금 결제할 상품 종류 수</div>
         </article>
         <article className="quick-card">
           <div className="quick-label">총 상품 금액</div>
@@ -120,8 +199,18 @@ export default function CheckoutPage({
         <form className="checkout-form card" onSubmit={handleSubmit}>
           <div className="card-title">배송 정보 입력</div>
           <div className="card-sub">
-            주문 완료 후 입력한 주소로 상품이 배송됩니다.
+            기본 배송지가 있으면 자동으로 채워지고, 필요하면 주문 전에 수정할 수 있습니다.
           </div>
+
+          {addressStatus === 'loading' ? (
+            <div className="section-sub">기본 배송지를 불러오는 중입니다.</div>
+          ) : null}
+
+          {addressStatus === 'missing' ? (
+            <div className="form-error">
+              기본 배송지가 없습니다. 기본 주소지를 등록한 뒤 다시 주문해주세요.
+            </div>
+          ) : null}
 
           <div className="form-grid">
             <label className="field">
@@ -197,22 +286,33 @@ export default function CheckoutPage({
           >
             <div className="toss-status-head">
               <strong>결제 안내</strong>
-              <span>
-                {tossConfig?.ready ? '연동 준비 완료' : '간편 결제 준비 중'}
-              </span>
+              <span>{tossConfig?.ready ? '연동 준비 완료' : '간편 결제 준비 중'}</span>
             </div>
             <p className="section-sub">
-              지금은 주문 완료 흐름이 우선 동작하고 있습니다. 실제 결제 연동은
-              다음 단계에서 자연스럽게 이어지도록 준비되어 있습니다.
+              지금은 주문 완료 흐름을 우선 동작시키고 있습니다. 실제 결제 연동은 같은
+              주문서에서 자연스럽게 이어지도록 준비된 상태입니다.
             </p>
           </div>
 
           {error ? <div className="form-error">{error}</div> : null}
 
           <div className="summary-actions">
-            <button className="btn" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? '처리 중...' : '주문 완료하기'}
+            <button
+              className="btn"
+              type="submit"
+              disabled={isSubmitting || addressStatus !== 'ready'}
+            >
+              {isSubmitting ? '처리 중..' : '주문 완료하기'}
             </button>
+            {addressStatus !== 'ready' ? (
+              <button
+                className="btn-outline"
+                type="button"
+                onClick={onOpenAddressSetup}
+              >
+                기본 주소지 등록하기
+              </button>
+            ) : null}
             <button className="btn-outline" type="button" onClick={onBackToCart}>
               장바구니 다시 보기
             </button>
@@ -229,8 +329,8 @@ export default function CheckoutPage({
                   <span>{formatCurrency(product.salePrice * quantity)}</span>
                 </div>
                 <div className="section-sub">
-                  수량 {quantity}개 · 개당 {formatCurrency(product.salePrice)} ·
-                  평균가 {formatCurrency(product.priceSnapshot.avgPrice)}
+                  수량 {quantity}개 · 개당 {formatCurrency(product.salePrice)} · 평균가{' '}
+                  {formatCurrency(product.priceSnapshot.avgPrice)}
                 </div>
               </div>
             ))}

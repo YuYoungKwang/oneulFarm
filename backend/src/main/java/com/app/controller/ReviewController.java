@@ -6,13 +6,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.app.common.ApiResponse;
 import com.app.dto.ActivityReviewDto;
@@ -40,21 +42,23 @@ public class ReviewController {
         return ApiResponse.success(reviewService.getMyReviews(userNo), "내 리뷰 목록 조회 성공");
     }
 
-    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<ActivityReviewDto> createReview(
         @RequestHeader("X-USER-NO") Long userNo,
-        @RequestBody ReviewRequestDto request
+        @ModelAttribute ReviewRequestDto request,
+        @RequestPart(value = "reviewImage", required = false) MultipartFile reviewImage
     ) {
-        return ApiResponse.success(reviewService.createReview(userNo, request), "리뷰 작성 성공");
+        return ApiResponse.success(reviewService.createReview(userNo, request, reviewImage), "리뷰 작성 성공");
     }
 
-    @PatchMapping(value = "/{reviewNo}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PatchMapping(value = "/{reviewNo}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<ActivityReviewDto> updateReview(
         @RequestHeader("X-USER-NO") Long userNo,
         @PathVariable("reviewNo") Long reviewNo,
-        @RequestBody ReviewRequestDto request
+        @ModelAttribute ReviewRequestDto request,
+        @RequestPart(value = "reviewImage", required = false) MultipartFile reviewImage
     ) {
-        return ApiResponse.success(reviewService.updateReview(userNo, reviewNo, request), "리뷰 수정 성공");
+        return ApiResponse.success(reviewService.updateReview(userNo, reviewNo, request, reviewImage), "리뷰 수정 성공");
     }
 
     @DeleteMapping("/{reviewNo}")
