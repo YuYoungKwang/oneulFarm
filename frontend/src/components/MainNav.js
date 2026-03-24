@@ -7,7 +7,13 @@ const NAV_ITEMS = [
   { id: 'products', label: '상품', hash: '#/products', section: 'products' },
   { id: 'recipes', label: '레시피', hash: '#/recipes', section: 'recipes' },
   { id: 'recommend', label: '추천', hash: '#/recommend', section: 'recommend' },
-  { id: 'dashboard', label: '대시보드', hash: '#/dashboard', section: 'dashboard' },
+  {
+    id: 'meal-plan',
+    label: '맞춤 식단',
+    hash: '#/meal-plan',
+    section: 'meal-plan',
+    supLabel: 'ai',
+  },
   { id: 'mypage', label: '마이페이지', hash: '#/mypage', section: 'mypage' },
 ];
 
@@ -15,7 +21,7 @@ function navigateTo(hash) {
   window.location.hash = hash;
 }
 
-function MainNav({
+export default function MainNav({
   activeSection,
   authUser,
   cartCount = 0,
@@ -41,12 +47,18 @@ function MainNav({
             <button
               key={item.id}
               type="button"
+              aria-label={item.supLabel ? `${item.label} ${item.supLabel}` : item.label}
               className={`main-nav__link ${
                 item.section && item.section === activeSection ? 'is-active' : ''
               }`}
               onClick={() => navigateTo(item.hash)}
             >
-              {item.label}
+              <span className="main-nav__link-label">
+                {item.label}
+                {item.supLabel ? (
+                  <span className="main-nav__link-sup">{item.supLabel}</span>
+                ) : null}
+              </span>
             </button>
           ))}
           <button
@@ -109,5 +121,3 @@ function MainNav({
     </header>
   );
 }
-
-export default MainNav;
