@@ -1,8 +1,14 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { fetchMainPage } from "../api/mainApi";
 import HeroSlider from "./HeroSlider";
-import { fetchRecipeDetail, fetchRecipeList } from "./recipeApi";
+import RecommendInsightCard from "./recommend/RecommendInsightCard";
+import RecommendProductCard from "./recommend/RecommendProductCard";
+import RecommendRecipeCard from "./recommend/RecommendRecipeCard";
+import RecommendSearchSignalCard from "./recommend/RecommendSearchSignalCard";
+import RecommendSection from "./recommend/RecommendSection";
+import { buildEmptyRecommendData, loadRecommendData } from "./recommend/recommendData";
 import "../styles/mainPage.css";
+import "../styles/recommend.css";
 
 const CATEGORY_SECTIONS = [
   {
@@ -59,9 +65,7 @@ const EMPTY_MAIN_DATA = {
   recipes: [],
 };
 
-const API_BASE_PREFIXES = buildApiBasePrefixes(
-  process.env.REACT_APP_API_BASE_URL || ""
-);
+const API_BASE_PREFIXES = buildApiBasePrefixes(process.env.REACT_APP_API_BASE_URL || "");
 
 function buildApiBasePrefixes(explicitBaseUrl) {
   const normalizedBaseUrl = normalizeBaseUrl(explicitBaseUrl);
@@ -84,10 +88,6 @@ function normalizeBaseUrl(value) {
 function toNumber(value, fallback = 0) {
   const nextValue = Number(value);
   return Number.isFinite(nextValue) ? nextValue : fallback;
-}
-
-function formatCurrency(value) {
-  return `${toNumber(value).toLocaleString("ko-KR")}원`;
 }
 
 function matchesCategory(product, categoryLabel) {
@@ -220,9 +220,10 @@ function pickDistinctCategoryProducts(products) {
 
     const distinctProduct =
       matchedProducts.find(
-        (product) =>
-          product?.productNo && !usedProductNos.has(String(product.productNo))
-      ) || matchedProducts[0] || null;
+        (product) => product?.productNo && !usedProductNos.has(String(product.productNo))
+      ) ||
+      matchedProducts[0] ||
+      null;
 
     if (distinctProduct?.productNo) {
       usedProductNos.add(String(distinctProduct.productNo));
@@ -235,119 +236,63 @@ function pickDistinctCategoryProducts(products) {
   });
 }
 
-function extractCoreKeyword(value) {
-  return String(value || "")
-    .replace(/\([^)]*\)/g, " ")
-    .replace(/\[[^\]]*\]/g, " ")
-    .replace(/\d+(?:\.\d+)?\s*(kg|g|ml|l|개|봉|EA|ea)/gi, " ")
-    .replace(/[\\/,+]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .split(" ")[0];
-}
-
-function normalizeMatchText(value) {
-  return String(value || "")
-    .toLowerCase()
-    .replace(/[\s\-_/.,]/g, "");
-}
-
-function buildPopularProduceKeywords(insights, products) {
-  const keywordSet = new Set();
-  const sourceList = [
-    ...(Array.isArray(insights) ? insights : []),
-    ...(Array.isArray(products) ? products : []),
-  ];
-
-  sourceList.forEach((item) => {
-    if (keywordSet.size >= 6) {
-      return;
-    }
-
-    const keyword = extractCoreKeyword(item?.itemName || item?.productName);
-    if (keyword) {
-      keywordSet.add(keyword);
-    }
-  });
-
-  return Array.from(keywordSet);
-}
-
-function selectRecipeCandidates(recipeList, keywordList) {
-  const normalizedKeywordList = keywordList
-    .map((keyword) => normalizeMatchText(keyword))
-    .filter(Boolean);
-
-  return [...recipeList]
-    .map((recipe) => {
-      const combinedText = normalizeMatchText(
-        `${recipe?.recipeName || ""} ${recipe?.description || ""}`
-      );
-      let matchScore = 0;
-
-      normalizedKeywordList.forEach((keyword) => {
-        if (combinedText.includes(keyword)) {
-          matchScore += 10;
-        }
-      });
-
-      return {
-        ...recipe,
-        matchScore,
-      };
-    })
-    .sort((left, right) => right.matchScore - left.matchScore)
-    .filter((recipe, index) => recipe.matchScore > 0 || index < 2);
-}
-
-function buildMatchedIngredientList(ingredientList, keyword) {
-  const keywordText = normalizeMatchText(keyword);
-  return ingredientList
-    .filter((ingredient) =>
-      normalizeMatchText(ingredient?.ingredientName).includes(keywordText)
-    )
-    .slice(0, 4);
-}
-
-function findRecipeKeyword(recipe, keywordList) {
-  const combinedText = normalizeMatchText(
-    `${recipe?.recipeName || ""} ${recipe?.description || ""}`
-  );
-
-  const matchedKeyword = keywordList.find((keyword) =>
-    combinedText.includes(normalizeMatchText(keyword))
-  );
-
-  return matchedKeyword || keywordList[0] || "";
-}
-
-function getRecipeIngredientPreview(recipe) {
-  if (!Array.isArray(recipe?.ingredientList) || recipe.ingredientList.length === 0) {
-    return "재료 정보를 준비 중입니다.";
+function buildCategoryBadge(product) {
+  if (product?.isSeasonal === "Y") {
+    return "제철";
   }
 
-  return recipe.ingredientList
-    .slice(0, 3)
-    .map((ingredient) => ingredient.ingredientName)
-    .filter(Boolean)
-    .join(", ");
+  if (getDiscountRate(product) > 0) {
+    return "특가";
+  }
+
+  if (toNumber(product?.reviewCount) > 0) {
+    return "인기";
+  }
+
+  return "추천";
 }
 
-function MainPage() {
+function buildCategoryLead(product) {
+  const discountRate = getDiscountRate(product);
+
+  if (discountRate > 0) {
+    return `평균가 대비 ${discountRate.toFixed(1)}% 절약`;
+  }
+
+  if (product?.isSeasonal === "Y") {
+    return "지금 보기 좋은 제철 상품";
+  }
+
+  if (toNumber(product?.reviewCount) > 0) {
+    return "최근 관심이 높은 대표 상품";
+  }
+
+  return "오늘 먼저 볼 대표 상품";
+}
+
+function openProduct(productNo) {
+  window.location.hash = `#/products/${productNo}`;
+}
+
+function openRecipe(recipeNo) {
+  window.location.hash = `#/recipes/${recipeNo}`;
+}
+
+function openHash(hash) {
+  window.location.hash = hash;
+}
+
+export default function MainPage({ authUser }) {
   const [mainData, setMainData] = useState(EMPTY_MAIN_DATA);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
-  const [recipeRecommendationState, setRecipeRecommendationState] = useState({
-    error: "",
-    loading: false,
-    list: [],
-  });
-  const recommendedProductsRef = useRef(null);
+  const [recommendSummary, setRecommendSummary] = useState(() => buildEmptyRecommendData());
+  const [selectedProductTab, setSelectedProductTab] = useState("recommended");
 
   useEffect(() => {
     let isMounted = true;
 
-    async function loadMainPage() {
+    async function loadMainData() {
       try {
         const data = await fetchMainPage();
         if (!isMounted) {
@@ -374,26 +319,47 @@ function MainPage() {
       }
     }
 
-    loadMainPage();
+    loadMainData();
 
     return () => {
       isMounted = false;
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSummary() {
+      try {
+        const data = await loadRecommendData(authUser);
+        if (!cancelled) {
+          setRecommendSummary(data);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setRecommendSummary(buildEmptyRecommendData());
+        }
+      }
+    }
+
+    loadSummary();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authUser]);
+
   const products = useMemo(
     () => (Array.isArray(mainData.products) ? mainData.products : []),
     [mainData.products]
   );
-  const insights = useMemo(
-    () => (Array.isArray(mainData.insights) ? mainData.insights : []),
-    [mainData.insights]
-  );
 
   const recommendedProducts = useMemo(() => {
-    const insightProducts = insights.filter(Boolean);
-    const combinedProducts = [...insightProducts, ...products];
-    const uniqueProducts = combinedProducts.filter((product, index, list) => {
+    const sourceProducts = recommendSummary.popularProductList.length
+      ? recommendSummary.popularProductList.map((item) => item.product)
+      : products;
+
+    const uniqueProducts = sourceProducts.filter((product, index, list) => {
       return (
         product?.productNo &&
         list.findIndex((item) => item?.productNo === product.productNo) === index
@@ -401,91 +367,12 @@ function MainPage() {
     });
 
     return sortProductsByPriority(uniqueProducts).slice(0, 8);
-  }, [insights, products]);
+  }, [products, recommendSummary.popularProductList]);
 
   const categoryCards = useMemo(
     () => pickDistinctCategoryProducts(products).filter((section) => section.product),
     [products]
   );
-
-  useEffect(() => {
-    const keywordList = buildPopularProduceKeywords(insights, recommendedProducts);
-
-    if (!keywordList.length) {
-      setRecipeRecommendationState({
-        error: "",
-        loading: false,
-        list: [],
-      });
-      return;
-    }
-
-    let cancelled = false;
-
-    async function loadRecipeRecommendations() {
-      setRecipeRecommendationState({
-        error: "",
-        loading: true,
-        list: [],
-      });
-
-      try {
-        const recipePayload = await fetchRecipeList({
-          limit: 18,
-          sort: "RECOMMENDED",
-        });
-        const recipeList = Array.isArray(recipePayload?.recipeList)
-          ? recipePayload.recipeList
-          : [];
-        const selectedRecipeList = selectRecipeCandidates(recipeList, keywordList);
-        const recipeDetailList = await Promise.all(
-          selectedRecipeList.slice(0, 2).map(async (recipe) => {
-            try {
-              return await fetchRecipeDetail(recipe.recipeNo);
-            } catch (error) {
-              return recipe;
-            }
-          })
-        );
-
-        if (cancelled) {
-          return;
-        }
-
-        setRecipeRecommendationState({
-          error: "",
-          loading: false,
-          list: recipeDetailList.map((recipe) => {
-            const keyword = findRecipeKeyword(recipe, keywordList);
-            return {
-              ...recipe,
-              keyword,
-              matchedIngredients: buildMatchedIngredientList(
-                recipe?.ingredientList || [],
-                keyword
-              ),
-            };
-          }),
-        });
-      } catch (error) {
-        if (cancelled) {
-          return;
-        }
-
-        setRecipeRecommendationState({
-          error: error?.message || "추천 레시피를 불러오지 못했습니다.",
-          loading: false,
-          list: [],
-        });
-      }
-    }
-
-    loadRecipeRecommendations();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [insights, recommendedProducts]);
 
   const heroSlides = useMemo(() => {
     const seasonalProduct =
@@ -495,276 +382,347 @@ function MainPage() {
     const discountProduct =
       [...recommendedProducts]
         .sort((left, right) => getDiscountRate(right) - getDiscountRate(left))
-        .find((product) => getDiscountRate(product) > 0) || recommendedProducts[1] || null;
-    const recipeHero = recipeRecommendationState.list[0] || null;
+        .find((product) => getDiscountRate(product) > 0) ||
+      recommendedProducts[1] ||
+      null;
+    const recipeHero = recommendSummary.recipeRecommendationList[0] || null;
 
     return [
       {
         key: "seasonal",
-        eyebrow: "Seasonal Pick",
-        title: "제철추천",
-        desc: "지금 가장 신선한 제철 상품을 먼저 보고 바로 상품 페이지로 이어집니다.",
+        eyebrow: "Today Suggestion",
+        title: "지금 사기 좋은 제철 상품",
+        desc: "오늘 장보기에서 먼저 챙기면 좋은 제철 상품을 바로 보고 상품 페이지로 이어집니다.",
         primaryLabel: "제철 상품 보기",
         primaryHref: "#/products?tag=SEASONAL",
-        secondaryLabel: "오늘 추천상품",
-        secondaryHref: "#main-recommended-products",
+        secondaryLabel: "추천 상품 보기",
+        secondaryHref: "#main-shopping-picks",
         imageUrl: getProductImageSources(seasonalProduct)[0] || "",
       },
       {
         key: "sale",
-        eyebrow: "Special Price",
-        title: "특가 할인상품",
-        desc: "가격 메리트가 큰 상품을 먼저 보여주고 평균가 대비 이점을 바로 확인하게 합니다.",
+        eyebrow: "Price Advantage",
+        title: "평균가보다 저렴한 특가 상품",
+        desc: "평균가 대비 메리트가 큰 상품을 먼저 보여주고 절약 포인트를 바로 확인하게 합니다.",
         primaryLabel: "특가 상품 보기",
         primaryHref: "#/products?tag=UNDER_AVG",
-        secondaryLabel: "상품 전체 보기",
-        secondaryHref: "#/products",
+        secondaryLabel: "지금 사면 아끼는 상품",
+        secondaryHref: "#main-shopping-picks",
         imageUrl: getProductImageSources(discountProduct)[0] || "",
       },
       {
         key: "recipe",
         eyebrow: "Recipe Match",
-        title: "인기 추천레시피",
-        desc: "메인에서 추천 중인 레시피 사진을 바로 보여주고 레시피 페이지로 연결합니다.",
+        title: "인기 농산물 기반 추천 레시피",
+        desc: "오늘 많이 보는 농산물과 연결된 레시피를 바로 보고 식탁 아이디어까지 이어집니다.",
         primaryLabel: "레시피 보러가기",
         primaryHref: "#/recipes",
-        secondaryLabel: "추천 레시피",
+        secondaryLabel: "추천 레시피 보기",
         secondaryHref: "#main-recommended-recipes",
         imageUrl: recipeHero?.imageUrl || "",
       },
     ];
-  }, [products, recommendedProducts, recipeRecommendationState.list]);
+  }, [products, recommendedProducts, recommendSummary.recipeRecommendationList]);
 
-  function scrollRecommendedProducts(direction) {
-    if (!recommendedProductsRef.current) {
-      return;
-    }
+  const quickEntryCards = useMemo(() => {
+    const underAverageLead = recommendSummary.underAverageProductList[0] || null;
+    const buyNowLead = recommendSummary.buyNowProductList[0] || null;
+    const popularLead = recommendSummary.popularProductList[0] || null;
 
-    const railElement = recommendedProductsRef.current;
-    const cardElement = railElement.querySelector(".spotlight-card");
-    if (!cardElement) {
-      return;
-    }
+    return [
+      {
+        key: "under-average",
+        tabKey: "value",
+        eyebrow: "평균가 이하 추천",
+        title: underAverageLead?.metricValue
+          ? `지금 사면 평균보다 ${underAverageLead.metricValue} 절약`
+          : "평균가보다 저렴한 상품을 먼저 확인하세요",
+        meta: underAverageLead?.product?.productName || "절약 폭이 큰 대표 상품",
+        badge: underAverageLead?.badges?.[0] || "특가",
+      },
+      {
+        key: "buy-now",
+        tabKey: "recommended",
+        eyebrow: "지금 구매 추천",
+        title: buyNowLead?.metricValue
+          ? `${buyNowLead.metricValue} 흐름을 보이는 상품`
+          : "오늘 사기 좋은 타이밍의 상품을 모았습니다",
+        meta: buyNowLead?.product?.productName || "가격 흐름이 좋은 대표 상품",
+        badge: buyNowLead?.badges?.[0] || "타이밍",
+      },
+      {
+        key: "popular-search",
+        tabKey: "popular",
+        eyebrow: "인기 검색 농산물",
+        title: recommendSummary.popularSearchList.length
+          ? `${recommendSummary.popularSearchList[0].keyword} 관심도가 오르고 있어요`
+          : "지금 많이 찾는 농산물을 먼저 확인하세요",
+        meta: popularLead?.product?.productName || "검색 흐름과 연결된 대표 상품",
+        badge: popularLead?.badges?.[0] || "인기",
+      },
+    ];
+  }, [
+    recommendSummary.buyNowProductList,
+    recommendSummary.popularProductList,
+    recommendSummary.popularSearchList,
+    recommendSummary.underAverageProductList,
+  ]);
 
-    const cardWidth = cardElement.getBoundingClientRect().width + 18;
-    railElement.scrollBy({
-      left: cardWidth * direction,
-      behavior: "smooth",
-    });
-  }
+  const tabbedProductGroups = useMemo(
+    () => ({
+      recommended: {
+        title: "오늘 사기 좋은 타이밍",
+        subtitle: "추천 흐름을 반영해 오늘 장보기에서 먼저 보면 좋은 상품을 골랐습니다.",
+        items: recommendedProducts.map((product) => ({
+          product,
+          badges: [buildCategoryBadge(product)],
+          detail: buildCategoryLead(product),
+          metricLabel: "평균가 비교",
+          metricValue:
+            getDiscountRate(product) > 0
+              ? `${getDiscountRate(product).toFixed(1)}% 절약`
+              : "대표 추천",
+          summary: `${product?.categoryName || "농산물"} 대표 상품으로 먼저 보기 좋습니다.`,
+          typeLabel: "추천",
+        })),
+      },
+      popular: {
+        title: "지금 많이 찾는 농산물",
+        subtitle: "검색 흐름과 현재 판매 후보를 함께 반영해 관심이 높은 상품을 골랐습니다.",
+        items: recommendSummary.popularProductList,
+      },
+      seasonal: {
+        title: "오늘 사기 좋은 제철 상품",
+        subtitle: "계절성과 현재 시세 메리트를 함께 고려해 지금 보기 좋은 제철 상품을 추렸습니다.",
+        items: recommendSummary.seasonalProductList,
+      },
+      value: {
+        title: "지금 사면 아끼는 상품",
+        subtitle: "최신 시장 평균가와 현재 판매가를 비교해 절약 폭이 큰 상품부터 보여줍니다.",
+        items: recommendSummary.underAverageProductList,
+      },
+    }),
+    [
+      recommendSummary.popularProductList,
+      recommendSummary.seasonalProductList,
+      recommendSummary.underAverageProductList,
+      recommendedProducts,
+    ]
+  );
 
-  useEffect(() => {
-    if (!recommendedProductsRef.current || recommendedProducts.length <= 1) {
-      return undefined;
-    }
-
-    const railElement = recommendedProductsRef.current;
-
-    const interval = window.setInterval(() => {
-      const cardElement = railElement.querySelector(".spotlight-card");
-      if (!cardElement) {
-        return;
-      }
-
-      const cardWidth = cardElement.getBoundingClientRect().width + 18;
-      const maxScrollLeft = railElement.scrollWidth - railElement.clientWidth;
-      const nextScrollLeft = railElement.scrollLeft + cardWidth;
-
-      railElement.scrollTo({
-        left: nextScrollLeft >= maxScrollLeft - 4 ? 0 : nextScrollLeft,
-        behavior: "smooth",
-      });
-    }, 3200);
-
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [recommendedProducts]);
+  const activeProductGroup =
+    tabbedProductGroups[selectedProductTab] || tabbedProductGroups.recommended;
 
   return (
     <div className="page-shell">
       <main className="container">
         <HeroSlider slides={heroSlides} />
 
-        <section className="section">
-          <div className="section-head">
-            <div>
-              <div className="section-title">오늘 주목할 농산물</div>
-              <div className="section-sub">
-                카테고리별 대표 상품을 먼저 보고 원하는 묶음으로 바로 이동할 수 있습니다.
-              </div>
-            </div>
-            <a className="section-link section-link--products" href="#/products">
-              상품 전체 보기
-            </a>
-          </div>
-
-          <div className="category-card-grid">
-            {categoryCards.map((categoryCard) => {
-              const imageSources = getProductImageSources(categoryCard.product);
-
-              return (
-                <a className="category-card" href={categoryCard.href} key={categoryCard.key}>
-                  <div className="category-card__copy">
-                    <span className="category-card__eyebrow">{categoryCard.label}</span>
-                    <strong>
-                      {categoryCard.product?.productName || `${categoryCard.label} 상품 보기`}
-                    </strong>
-                    <p>{categoryCard.description}</p>
+        <section className="section recommend-page main-recommend-bridge">
+          <RecommendSection
+            eyebrow="TODAY / FLOW"
+            title="오늘의 장보기 흐름"
+            subtitle="오늘 왜 이 상품을 먼저 봐야 하는지부터 카테고리별 대표 제안까지 한 번에 정리했습니다."
+          >
+            <div className="main-quick-entry-grid">
+              {quickEntryCards.map((card) => (
+                <button
+                  key={card.key}
+                  className="main-quick-entry-card"
+                  type="button"
+                  onClick={() => setSelectedProductTab(card.tabKey)}
+                >
+                  <span className="main-quick-entry-card__eyebrow">{card.eyebrow}</span>
+                  <strong>{card.title}</strong>
+                  <p>{card.meta}</p>
+                  <div className="main-quick-entry-card__meta">
+                    <span className="main-quick-entry-card__badge">{card.badge}</span>
+                    <span className="main-quick-entry-card__action">보러가기</span>
                   </div>
-
-                  <div className="category-card__media">
-                    {imageSources.length ? (
-                      <img
-                        src={imageSources[0]}
-                        data-fallback-src={imageSources[1] || ""}
-                        onError={handleImageError}
-                        alt={categoryCard.product?.productName || categoryCard.label}
-                      />
-                    ) : (
-                      <span>{categoryCard.label.slice(0, 2)}</span>
-                    )}
-                  </div>
-                </a>
-              );
-            })}
-          </div>
-
-          <div className="subsection-head" id="main-recommended-products">
-            <div>
-              <div className="subsection-title">오늘 추천상품</div>
-              <div className="section-sub">
-                이미지를 먼저 빠르게 보고 필요한 가격 정보는 아래에서 바로 확인할 수 있습니다.
-              </div>
+                </button>
+              ))}
             </div>
-          </div>
 
-          <div className="spotlight-slider">
-            <button
-              className="spotlight-nav spotlight-nav--left"
-              type="button"
-              aria-label="이전 추천상품 보기"
-              onClick={() => scrollRecommendedProducts(-1)}
-            >
-              <span
-                aria-hidden="true"
-                className="spotlight-nav__chevron spotlight-nav__chevron--left"
-              />
-            </button>
+            <div className="section-head">
+              <div>
+                <div className="section-title">카테고리별 대표 제안</div>
+                <div className="section-sub">
+                  카테고리명보다 오늘 먼저 볼 대표 상품과 가격 메리트를 중심으로 보여줍니다.
+                </div>
+              </div>
+              <a className="section-link section-link--products" href="#/products">
+                상품 전체 보기
+              </a>
+            </div>
 
-            <div className="spotlight-rail" ref={recommendedProductsRef}>
-              {recommendedProducts.map((product) => {
-                const imageSources = getProductImageSources(product);
+            <div className="category-card-grid">
+              {categoryCards.map((categoryCard) => {
+                const imageSources = getProductImageSources(categoryCard.product);
 
                 return (
-                  <a
-                    className="spotlight-card"
-                    href={`#/products/${product.productNo}`}
-                    key={product.productNo}
-                  >
-                    <div className="spotlight-card__media">
+                  <a className="category-card" href={categoryCard.href} key={categoryCard.key}>
+                    <div className="category-card__copy">
+                      <span className="category-card__eyebrow">{categoryCard.label}</span>
+                      <strong>
+                        {categoryCard.product?.productName || `${categoryCard.label} 상품 보기`}
+                      </strong>
+                      <div className="category-card__topline">
+                        <span className="category-card__badge">
+                          {buildCategoryBadge(categoryCard.product)}
+                        </span>
+                        <span>{buildCategoryLead(categoryCard.product)}</span>
+                      </div>
+                      <p>{categoryCard.description}</p>
+                    </div>
+
+                    <div className="category-card__media">
                       {imageSources.length ? (
                         <img
                           src={imageSources[0]}
                           data-fallback-src={imageSources[1] || ""}
                           onError={handleImageError}
-                          alt={product.productName}
+                          alt={categoryCard.product?.productName || categoryCard.label}
                         />
                       ) : (
-                        <span>{product.productName?.slice(0, 1) || "?"}</span>
+                        <span>{categoryCard.label.slice(0, 2)}</span>
                       )}
-                    </div>
-
-                    <div className="spotlight-card__body">
-                      <div className="spotlight-card__category">
-                        {product.categoryName || "농산물"}
-                      </div>
-                      <div className="spotlight-card__name">{product.productName}</div>
-                      <div className="spotlight-card__price">{formatCurrency(product.salePrice)}</div>
-                      <div className="spotlight-card__meta">
-                        평균가 {formatCurrency(product.avgPrice || product.salePrice)}
-                      </div>
-                      {getDiscountRate(product) > 0 ? (
-                        <div className="spotlight-card__saving">
-                          평균가 대비 {getDiscountRate(product).toFixed(1)}% 절약
-                        </div>
-                      ) : null}
                     </div>
                   </a>
                 );
               })}
             </div>
+          </RecommendSection>
 
-            <button
-              className="spotlight-nav spotlight-nav--right"
-              type="button"
-              aria-label="다음 추천상품 보기"
-              onClick={() => scrollRecommendedProducts(1)}
-            >
-              <span aria-hidden="true" className="spotlight-nav__chevron" />
-            </button>
-          </div>
-
-          {!isLoading && recommendedProducts.length === 0 ? (
-            <div className="section-empty">주목할 농산물 데이터가 없습니다.</div>
-          ) : null}
-        </section>
-
-        <section className="section" id="main-recommended-recipes">
-          <div className="section-head">
-            <div>
-              <div className="section-title">인기 농산물로 만드는 추천 레시피</div>
-              <div className="section-sub">
-                메인에서 눈에 띄는 농산물과 연결되는 레시피만 카드로 묶어 보여줍니다.
-              </div>
+          <RecommendSection
+            id="main-shopping-picks"
+            eyebrow="SHOPPING / PICKS"
+            title={activeProductGroup.title}
+            subtitle={activeProductGroup.subtitle}
+          >
+            <div className="main-product-tabs" role="tablist" aria-label="상품 추천 분류">
+              <button
+                type="button"
+                role="tab"
+                className={selectedProductTab === "recommended" ? "main-product-tab is-active" : "main-product-tab"}
+                aria-selected={selectedProductTab === "recommended"}
+                onClick={() => setSelectedProductTab("recommended")}
+              >
+                추천상품
+              </button>
+              <button
+                type="button"
+                role="tab"
+                className={selectedProductTab === "popular" ? "main-product-tab is-active" : "main-product-tab"}
+                aria-selected={selectedProductTab === "popular"}
+                onClick={() => setSelectedProductTab("popular")}
+              >
+                인기상품
+              </button>
+              <button
+                type="button"
+                role="tab"
+                className={selectedProductTab === "seasonal" ? "main-product-tab is-active" : "main-product-tab"}
+                aria-selected={selectedProductTab === "seasonal"}
+                onClick={() => setSelectedProductTab("seasonal")}
+              >
+                제철상품
+              </button>
+              <button
+                type="button"
+                role="tab"
+                className={selectedProductTab === "value" ? "main-product-tab is-active" : "main-product-tab"}
+                aria-selected={selectedProductTab === "value"}
+                onClick={() => setSelectedProductTab("value")}
+              >
+                특가상품
+              </button>
             </div>
-            <a className="section-link section-link--recipes" href="#/recipes">
-              레시피 전체 보기
-            </a>
-          </div>
 
-          <div className="recipe-card-grid">
-            {recipeRecommendationState.list.map((recipe) => (
-              <a className="recipe-card" href={`#/recipes/${recipe.recipeNo}`} key={recipe.recipeNo}>
-                <div className="recipe-card__media">
-                  {recipe.imageUrl ? (
-                    <img alt={recipe.recipeName} src={recipe.imageUrl} />
-                  ) : (
-                    <span>{recipe.recipeName?.slice(0, 1) || "R"}</span>
-                  )}
-                </div>
+            {activeProductGroup.items.length ? (
+              <div className="recommend-product-grid is-compact">
+                {activeProductGroup.items.map((item) => (
+                  <RecommendProductCard
+                    key={item.product.productNo}
+                    badges={item.badges}
+                    detail={item.detail}
+                    metricLabel={item.metricLabel}
+                    metricValue={item.metricValue}
+                    onOpen={() => openProduct(item.product.productNo)}
+                    product={item.product}
+                    summary={item.summary}
+                    typeLabel={item.typeLabel}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="recommend-section-empty">
+                <strong>추천할 상품이 아직 없습니다.</strong>
+                <p>연결 가능한 상품 데이터가 더 모이면 여기에서 바로 보여드립니다.</p>
+              </div>
+            )}
+          </RecommendSection>
 
-                <div className="recipe-card__body">
-                  <span className="recipe-card__eyebrow">
-                    {recipe.keyword ? `${recipe.keyword} 활용 레시피` : "추천 레시피"}
-                  </span>
-                  <strong>{recipe.recipeName}</strong>
-                  <p>
-                    {recipe.matchedIngredients?.length
-                      ? recipe.matchedIngredients
-                          .map((ingredient) => ingredient.ingredientName)
-                          .filter(Boolean)
-                          .join(", ")
-                      : getRecipeIngredientPreview(recipe)}
-                  </p>
-                </div>
-              </a>
-            ))}
-          </div>
+          <RecommendSection
+            id="main-recommended-recipes"
+            eyebrow="RECIPE / MATCH"
+            title="이 농산물, 이렇게 먹어보세요"
+            subtitle="인기 농산물과 연결되는 레시피를 카드로 묶어 바로 볼 수 있게 구성했습니다."
+            actionLabel="레시피 전체 보기"
+            actionType="ghost"
+            onAction={() => openHash("#/recipes")}
+          >
+            {recommendSummary.recipeRecommendationList.length ? (
+              <div className="recommend-recipe-grid">
+                {recommendSummary.recipeRecommendationList.map((item) => (
+                  <RecommendRecipeCard
+                    key={item.recipeNo}
+                    keyword={item.keyword}
+                    matchedIngredients={item.matchedIngredients}
+                    onOpen={() => openRecipe(item.recipeNo)}
+                    recipe={item}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="recommend-section-empty">
+                <strong>추천할 레시피가 아직 없습니다.</strong>
+                <p>레시피 데이터가 더 모이면 인기 농산물과 연결된 추천을 보여드릴게요.</p>
+              </div>
+            )}
+          </RecommendSection>
 
-          {recipeRecommendationState.loading ? (
-            <div className="section-sub">추천 레시피를 불러오는 중입니다.</div>
-          ) : recipeRecommendationState.error ? (
-            <div className="section-error">{recipeRecommendationState.error}</div>
-          ) : !isLoading && recipeRecommendationState.list.length === 0 ? (
-            <div className="section-empty">추천 레시피 데이터가 없습니다.</div>
-          ) : null}
+          <RecommendSection
+            eyebrow="SIGNAL / WHY"
+            title="추천을 뒷받침하는 정보"
+            subtitle="검색 관심도와 추천 근거 카드는 페이지 하단에서 가볍게 확인할 수 있게 정리했습니다."
+          >
+            {recommendSummary.popularSearchError ? (
+              <div className="recommend-inline-alert">{recommendSummary.popularSearchError}</div>
+            ) : null}
+
+            {recommendSummary.searchSignalList.length ? (
+              <div className="recommend-signal-grid">
+                {recommendSummary.searchSignalList.map((item) => (
+                  <RecommendSearchSignalCard key={item.keyword} item={item} />
+                ))}
+              </div>
+            ) : null}
+
+            <div className="recommend-insight-grid">
+              {recommendSummary.insightCardList.map((item) => (
+                <RecommendInsightCard
+                  key={item.title}
+                  description={item.description}
+                  meta={item.meta}
+                  title={item.title}
+                />
+              ))}
+            </div>
+          </RecommendSection>
         </section>
 
-        {errorMessage ? <div className="section-error">{errorMessage}</div> : null}
+        {!isLoading && errorMessage ? <div className="section-error">{errorMessage}</div> : null}
       </main>
     </div>
   );
 }
-
-export default MainPage;
