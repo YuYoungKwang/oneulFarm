@@ -14,9 +14,9 @@ public interface ReviewService {
 
     List<ActivityReviewDto> getMyReviews(Long userNo);
 
-    ActivityReviewDto createReview(Long userNo, ReviewRequestDto request, MultipartFile reviewImage);
+    ActivityReviewDto createReview(Long userNo, ReviewRequestDto request, List<MultipartFile> reviewImages);
 
-    ActivityReviewDto updateReview(Long userNo, Long reviewNo, ReviewRequestDto request, MultipartFile reviewImage);
+    ActivityReviewDto updateReview(Long userNo, Long reviewNo, ReviewRequestDto request, List<MultipartFile> reviewImages);
 
     void deleteReview(Long userNo, Long reviewNo);
 

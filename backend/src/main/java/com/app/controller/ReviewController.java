@@ -46,9 +46,9 @@ public class ReviewController {
     public ApiResponse<ActivityReviewDto> createReview(
         @RequestHeader("X-USER-NO") Long userNo,
         @ModelAttribute ReviewRequestDto request,
-        @RequestPart(value = "reviewImage", required = false) MultipartFile reviewImage
+        @RequestPart(value = "reviewImages", required = false) List<MultipartFile> reviewImages
     ) {
-        return ApiResponse.success(reviewService.createReview(userNo, request, reviewImage), "리뷰 작성 성공");
+        return ApiResponse.success(reviewService.createReview(userNo, request, reviewImages), "리뷰 작성 성공");
     }
 
     @PatchMapping(value = "/{reviewNo}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -56,9 +56,9 @@ public class ReviewController {
         @RequestHeader("X-USER-NO") Long userNo,
         @PathVariable("reviewNo") Long reviewNo,
         @ModelAttribute ReviewRequestDto request,
-        @RequestPart(value = "reviewImage", required = false) MultipartFile reviewImage
+        @RequestPart(value = "reviewImages", required = false) List<MultipartFile> reviewImages
     ) {
-        return ApiResponse.success(reviewService.updateReview(userNo, reviewNo, request, reviewImage), "리뷰 수정 성공");
+        return ApiResponse.success(reviewService.updateReview(userNo, reviewNo, request, reviewImages), "리뷰 수정 성공");
     }
 
     @DeleteMapping("/{reviewNo}")
