@@ -93,7 +93,7 @@ function matchesCategory(product, categoryLabel) {
   const source = `${product?.productName || ""} ${product?.categoryName || ""}`;
 
   if (categoryLabel === "과일") {
-    return /과일|사과|배|감귤|감|딸기|포도|복숭아|바나나|오렌지/i.test(source);
+    return /과일|사과|배|감귤|단감|홍시|곶감|감(?!자)|딸기|포도|복숭아|바나나|오렌지/i.test(source);
   }
 
   if (categoryLabel === "채소") {
