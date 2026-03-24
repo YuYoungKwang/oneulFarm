@@ -1,24 +1,17 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import '../styles/recipe.css';
 import { fetchRecipeList } from './recipeApi';
 
 const PAGE_SIZE = 8;
-const SORT_OPTIONS = [
-  { value: 'RECOMMENDED', label: '추천순' },
-  { value: 'EASY', label: '쉬운 순' },
-  { value: 'FAST', label: '빠른 조리' },
-];
 const QUICK_INGREDIENTS = ['양파', '감자', '토마토', '오이', '버섯'];
 
 export default function RecipeListPage({
   initialIngredientKeyword = '',
   initialKeyword = '',
-  initialSort = 'RECOMMENDED',
   onOpenRecipe,
 }) {
   const [keyword, setKeyword] = useState(initialKeyword);
   const [ingredientKeyword, setIngredientKeyword] = useState(initialIngredientKeyword);
-  const [sort, setSort] = useState(initialSort || 'RECOMMENDED');
   const [currentPage, setCurrentPage] = useState(1);
   const [recipeResponse, setRecipeResponse] = useState({
     count: 0,
@@ -32,21 +25,34 @@ export default function RecipeListPage({
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const deferredKeyword = useDeferredValue(keyword);
+  const listAnchorRef = useRef(null);
+  const paginationScrollPendingRef = useRef(false);
   const recipeList = recipeResponse.recipeList || [];
   const totalCount = recipeResponse.totalCount || recipeResponse.count || 0;
   const totalPages = recipeResponse.totalPages || 0;
-  const hasFilters = Boolean(keyword.trim() || ingredientKeyword || sort !== 'RECOMMENDED');
+  const hasFilters = Boolean(keyword.trim() || ingredientKeyword);
 
   useEffect(() => {
     setKeyword(initialKeyword || '');
     setIngredientKeyword(initialIngredientKeyword || '');
-    setSort(initialSort || 'RECOMMENDED');
     setCurrentPage(1);
-  }, [initialIngredientKeyword, initialKeyword, initialSort]);
+  }, [initialIngredientKeyword, initialKeyword]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [deferredKeyword, ingredientKeyword, sort]);
+  }, [deferredKeyword, ingredientKeyword]);
+
+  useEffect(() => {
+    if (!paginationScrollPendingRef.current) {
+      return;
+    }
+
+    paginationScrollPendingRef.current = false;
+    listAnchorRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  }, [currentPage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,7 +65,6 @@ export default function RecipeListPage({
         const data = await fetchRecipeList({
           keyword: deferredKeyword,
           ingredientKeyword,
-          sort,
           page: currentPage,
           pageSize: PAGE_SIZE,
         });
@@ -104,7 +109,7 @@ export default function RecipeListPage({
     return () => {
       cancelled = true;
     };
-  }, [currentPage, deferredKeyword, ingredientKeyword, sort]);
+  }, [currentPage, deferredKeyword, ingredientKeyword]);
 
   const paginationNumbers = useMemo(
     () => buildPaginationNumbers(currentPage, totalPages),
@@ -122,8 +127,16 @@ export default function RecipeListPage({
   function resetFilters() {
     setKeyword('');
     setIngredientKeyword('');
-    setSort('RECOMMENDED');
     setCurrentPage(1);
+  }
+
+  function handlePageChange(nextPage) {
+    if (nextPage === currentPage) {
+      return;
+    }
+
+    paginationScrollPendingRef.current = true;
+    setCurrentPage(nextPage);
   }
 
   return (
@@ -131,7 +144,7 @@ export default function RecipeListPage({
       <section className="recipe-hero recipe-hero--list">
         <div className="recipe-hero__content">
           <span className="recipe-kicker">Recipe Collection</span>
-          <h1>오늘 먹을 메뉴를 더 빠르게 골라보세요</h1>
+          <h1>오늘 먹을 메뉴를 한눈에 골라보세요.</h1>
 
           <div className="recipe-hero__stats">
             <div className="recipe-hero-stat">
@@ -143,29 +156,19 @@ export default function RecipeListPage({
               <span>선택 재료</span>
             </div>
             <div className="recipe-hero-stat">
-              <strong>
-                {totalPages ? `${currentPage} / ${totalPages}` : '1 / 1'}
-              </strong>
+              <strong>{totalPages ? `${currentPage} / ${totalPages}` : '1 / 1'}</strong>
               <span>{PAGE_SIZE}개씩 보기</span>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="recipe-toolbar-card">
+      <section className="recipe-toolbar-card" ref={listAnchorRef}>
         <div className="recipe-toolbar-card__top">
-          <label className="recipe-search-shell">
-            <span className="recipe-search-label">검색</span>
-            <input
-              type="text"
-              placeholder="재료명 또는 레시피 이름을 입력하세요"
-              value={keyword}
-              onChange={(event) => setKeyword(event.target.value)}
-            />
-            <span className="recipe-search-icon" aria-hidden="true">
-              SEARCH
-            </span>
-          </label>
+          <div className="recipe-toolbar-copy recipe-toolbar-copy--search">
+            <strong>레시피 검색</strong>
+            <span>재료명이나 레시피 이름으로 원하는 메뉴를 빠르게 찾아보세요.</span>
+          </div>
 
           {hasFilters ? (
             <button
@@ -178,6 +181,18 @@ export default function RecipeListPage({
           ) : null}
         </div>
 
+        <label className="recipe-search-shell recipe-search-shell--full">
+          <span className="recipe-search-icon" aria-hidden="true">
+            SEARCH
+          </span>
+          <input
+            type="text"
+            placeholder="재료명 또는 레시피 이름을 입력하세요"
+            value={keyword}
+            onChange={(event) => setKeyword(event.target.value)}
+          />
+        </label>
+
         <div className="recipe-toolbar-copy">
           <strong>자주 찾는 재료</strong>
         </div>
@@ -189,9 +204,7 @@ export default function RecipeListPage({
               className={`btn-chip ${ingredientKeyword === item ? 'active' : ''}`}
               type="button"
               onClick={() =>
-                setIngredientKeyword((currentValue) =>
-                  currentValue === item ? '' : item
-                )
+                setIngredientKeyword((currentValue) => (currentValue === item ? '' : item))
               }
             >
               {item}
@@ -202,35 +215,24 @@ export default function RecipeListPage({
         <div className="recipe-toolbar-footer">
           <div className="recipe-result-meta">
             <strong>총 {totalCount}개의 레시피</strong>
-          </div>
-
-          <div className="recipe-sort-row">
-            <strong className="recipe-sort-row__label">정렬</strong>
-            <div className="recipe-chip-row recipe-chip-row--compact">
-              {SORT_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  className={`btn-chip ${sort === option.value ? 'active' : ''}`}
-                  type="button"
-                  onClick={() => setSort(option.value)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+            <span>
+              {ingredientKeyword
+                ? `선택 재료 · ${ingredientKeyword}`
+                : '재료 칩으로 빠르게 범위를 좁혀보세요.'}
+            </span>
           </div>
         </div>
       </section>
 
       {loading ? (
         <section className="recipe-state-card">
-          <div className="recipe-state-icon">🍽️</div>
+          <div className="recipe-state-icon">LOADING</div>
           <h2>레시피를 불러오는 중입니다</h2>
           <p>검색 조건에 맞는 메뉴를 준비하고 있어요.</p>
         </section>
       ) : errorMessage ? (
         <section className="recipe-state-card">
-          <div className="recipe-state-icon">⚠️</div>
+          <div className="recipe-state-icon">ERROR</div>
           <h2>레시피 목록을 가져오지 못했습니다</h2>
           <p>{errorMessage}</p>
         </section>
@@ -305,7 +307,7 @@ export default function RecipeListPage({
                 className="recipe-pagination__button"
                 disabled={currentPage <= 1}
                 type="button"
-                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
               >
                 이전
               </button>
@@ -319,7 +321,7 @@ export default function RecipeListPage({
                       pageNumber === currentPage ? 'is-active' : ''
                     }`}
                     type="button"
-                    onClick={() => setCurrentPage(pageNumber)}
+                    onClick={() => handlePageChange(pageNumber)}
                   >
                     {pageNumber}
                   </button>
@@ -330,9 +332,7 @@ export default function RecipeListPage({
                 className="recipe-pagination__button"
                 disabled={currentPage >= totalPages}
                 type="button"
-                onClick={() =>
-                  setCurrentPage((page) => Math.min(totalPages, page + 1))
-                }
+                onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
               >
                 다음
               </button>
@@ -341,12 +341,11 @@ export default function RecipeListPage({
         </>
       ) : (
         <section className="recipe-state-card">
-          <div className="recipe-state-icon">📂</div>
+          <div className="recipe-state-icon">EMPTY</div>
           <h2>조건에 맞는 레시피가 없습니다</h2>
           <p>검색어를 줄이거나 재료 필터를 해제한 뒤 다시 확인해보세요.</p>
         </section>
       )}
-
     </div>
   );
 }
@@ -371,36 +370,30 @@ function getRecipeEmoji(recipeName) {
     normalizedName.includes('국') ||
     normalizedName.includes('찌개') ||
     normalizedName.includes('탕') ||
-    normalizedName.includes('수프') ||
-    normalizedName.includes('스프')
+    normalizedName.includes('스프') ||
+    normalizedName.includes('수프')
   ) {
     return '🍲';
   }
 
-  if (
-    normalizedName.includes('샐러드') ||
-    normalizedName.includes('무침')
-  ) {
+  if (normalizedName.includes('샐러드') || normalizedName.includes('무침')) {
     return '🥗';
   }
 
   if (
     normalizedName.includes('볶음') ||
     normalizedName.includes('전') ||
-    normalizedName.includes('덮밥') ||
-    normalizedName.includes('구이')
+    normalizedName.includes('구이') ||
+    normalizedName.includes('찜')
   ) {
     return '🍳';
   }
 
-  if (
-    normalizedName.includes('파스타') ||
-    normalizedName.includes('국수')
-  ) {
+  if (normalizedName.includes('파스타') || normalizedName.includes('국수')) {
     return '🍝';
   }
 
-  return '🥘';
+  return '🍽️';
 }
 
 function buildPaginationNumbers(currentPage, totalPages) {
