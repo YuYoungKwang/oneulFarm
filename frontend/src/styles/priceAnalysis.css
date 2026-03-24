@@ -414,23 +414,68 @@
   font-size: 14px;
 }
 
-.price-toolbar__suggestions {
+.price-toolbar__selected-stats {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  overflow-x: auto;
-  padding-bottom: 2px;
+}
+
+.price-toolbar__selected-stats div {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(21, 154, 85, 0.1);
+  display: grid;
+  gap: 4px;
+}
+
+.price-toolbar__selected-stats span {
+  color: var(--price-text-soft);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.price-toolbar__selected-stats strong {
+  color: var(--price-text);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.price-toolbar__suggestions-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.price-toolbar__suggestions-head strong {
+  color: var(--price-text);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.price-toolbar__suggestions-head span {
+  color: var(--price-text-soft);
+  font-size: 13px;
+}
+
+.price-toolbar__suggestions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .price-suggestion {
-  min-width: 188px;
+  min-width: 0;
   padding: 12px 14px;
   display: grid;
-  gap: 4px;
+  gap: 8px;
   text-align: left;
   background: var(--price-surface-strong);
   border-color: var(--price-border);
   cursor: pointer;
+  align-content: start;
 }
 
 .price-suggestion.is-active {
@@ -448,6 +493,31 @@
 .price-suggestion__meta {
   color: var(--price-text-soft);
   font-size: 12px;
+}
+
+.price-suggestion__stats {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.price-suggestion__stats span {
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: #f8fafb;
+  color: var(--price-text-soft);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.price-suggestion__action {
+  color: var(--price-green-deep);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.price-suggestion.is-active .price-suggestion__action {
+  color: var(--price-text);
 }
 
 .price-metrics {
@@ -1148,6 +1218,12 @@
   min-width: 120px;
 }
 
+.price-product-card__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .price-product-card__footer {
   display: flex;
   align-items: center;
@@ -1270,6 +1346,10 @@
   .price-recipe-grid {
     grid-template-columns: 1fr;
   }
+
+  .price-toolbar__suggestions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
@@ -1300,6 +1380,10 @@
 
   .price-toolbar__search {
     min-width: 100%;
+  }
+
+  .price-toolbar__suggestions {
+    grid-template-columns: 1fr;
   }
 
   .price-signal-card__metrics,

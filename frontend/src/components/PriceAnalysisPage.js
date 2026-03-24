@@ -183,13 +183,14 @@ export default function PriceAnalysisPage({
     };
   }, [selectedCandidate]);
 
-  const analysis = useMemo(() => {
-    return buildAnalysisData(selectedCandidate?.product, trendState.rows);
-  }, [selectedCandidate, trendState.rows]);
+  const analysis = useMemo(
+    () => buildAnalysisData(selectedCandidate?.product, trendState.rows),
+    [selectedCandidate, trendState.rows]
+  );
 
   const trendSummaryMessage = useMemo(() => {
     if (trendState.loading) {
-      return '최근 시세 데이터를 불러오는 중입니다.';
+      return '최신 시세 데이터를 불러오는 중입니다.';
     }
 
     if (trendState.error) {
@@ -197,7 +198,7 @@ export default function PriceAnalysisPage({
     }
 
     if (trendState.source === 'fallback') {
-      return '과거 추이 데이터가 부족해 최신 1건만 기준으로 표시 중입니다.';
+      return '과거 추이 데이터가 부족해 최신 1건 기준으로 표시 중입니다.';
     }
 
     if (trendState.source === 'trend') {
@@ -210,10 +211,34 @@ export default function PriceAnalysisPage({
   const suggestionList = useMemo(() => {
     return filteredCandidateList.slice(0, 8).map((candidate) => ({
       ...candidate,
+      changeRateLabel: `변동 ${formatPercent(candidate.product?.priceSnapshot?.changeRate || 0)}`,
+      currentPriceLabel: `현재 ${formatCurrency(candidate.product?.priceSnapshot?.avgPrice)}`,
       isSelected: candidate.optionKey === selectedCandidate?.optionKey,
       marketLabel: candidate.marketType === 'WHOLESALE' ? '도매' : '소매',
+      valueLabel:
+        Number(candidate.product?.priceMatch?.savingRate || 0) > 0
+          ? `절약 ${formatPercent(candidate.product?.priceMatch?.savingRate || 0)}`
+          : `판매가 ${formatCurrency(candidate.product?.salePrice)}`,
     }));
   }, [filteredCandidateList, selectedCandidate]);
+
+  const selectedStats = useMemo(
+    () => [
+      {
+        label: '현재 평균가',
+        value: formatCurrency(analysis.currentPrice),
+      },
+      {
+        label: '최근 변동률',
+        value: formatPercent(selectedCandidate?.product?.priceSnapshot?.changeRate || 0),
+      },
+      {
+        label: '절약률',
+        value: formatPercent(selectedCandidate?.product?.priceMatch?.savingRate || 0),
+      },
+    ],
+    [analysis.currentPrice, selectedCandidate]
+  );
 
   const underAverageList = useMemo(() => {
     return [...candidateList]
@@ -237,6 +262,20 @@ export default function PriceAnalysisPage({
       .slice(0, 4);
   }, [candidateList]);
 
+  function selectCandidate(candidate, options = {}) {
+    if (!candidate?.optionKey) {
+      return;
+    }
+
+    setSelectedOptionKey(candidate.optionKey);
+
+    if (options.scrollToChart) {
+      window.requestAnimationFrame(() => {
+        scrollToId('analysis-chart');
+      });
+    }
+  }
+
   if (!candidateList.length) {
     return (
       <main className="price-analysis price-analysis-page">
@@ -244,7 +283,7 @@ export default function PriceAnalysisPage({
           <PriceEmptyState
             actionLabel="상품 페이지로 이동"
             icon="PR"
-            subtitle="시세 분석은 실제 판매 중이며 시세 코드가 연결된 상품을 기준으로 제공됩니다."
+            subtitle="시세 분석은 실제 판매 중이고 시세 코드가 연결된 상품을 기준으로 제공합니다."
             title="분석 가능한 상품이 아직 없습니다."
             onAction={() => {
               window.location.hash = '#/products';
@@ -265,7 +304,7 @@ export default function PriceAnalysisPage({
               <p className="price-hero__summary-label">현재 분석 대상</p>
               <h1>{selectedCandidate.label}</h1>
               <p className="price-hero__summary-meta">
-                {selectedCandidate.productName} · {selectedCandidate.origin || '산지 정보 없음'} ·{' '}
+                {selectedCandidate.productName} · {selectedCandidate.origin || '원산지 정보 없음'} ·{' '}
                 {selectedCandidate.unitLabel}
               </p>
             </div>
@@ -316,9 +355,9 @@ export default function PriceAnalysisPage({
               </div>
             </div>
             <ul className="price-hero__spotlight-points">
-              <li>{analysis.heroPoints[0]}</li>
-              <li>{analysis.heroPoints[1]}</li>
-              <li>{analysis.heroPoints[2]}</li>
+              {analysis.heroPoints.map((point) => (
+                <li key={point}>{point}</li>
+              ))}
             </ul>
           </aside>
         </section>
@@ -328,10 +367,11 @@ export default function PriceAnalysisPage({
           query={query}
           selectedItemLabel={selectedCandidate.label}
           selectedMeta={`현재 선택 · ${buildSelectedMeta(selectedCandidate)}`}
+          selectedStats={selectedStats}
           suggestions={suggestionList}
           onPrimaryAction={() => onOpenProduct?.(selectedCandidate.product?.productNo)}
           onQueryChange={setQuery}
-          onSelectSuggestion={(candidate) => setSelectedOptionKey(candidate.optionKey)}
+          onSelectSuggestion={(candidate) => selectCandidate(candidate)}
         />
 
         <section className="price-metrics">
@@ -342,14 +382,6 @@ export default function PriceAnalysisPage({
 
         <section className="price-stage" id="analysis-chart">
           <article className="price-stage__chart-card">
-            <div className="price-stage__lede">
-              <span className="price-eyebrow">TREND CHART</span>
-              <div>
-                <h2>{selectedCandidate.label} 가격 흐름</h2>
-                <p>차트에서 흐름을 먼저 보고, 오른쪽 해석 카드로 구매 판단을 마무리하세요.</p>
-              </div>
-            </div>
-
             {!trendState.loading ? (
               <div className="price-stage__status">{trendSummaryMessage}</div>
             ) : null}
@@ -368,7 +400,7 @@ export default function PriceAnalysisPage({
               <PriceEmptyState
                 actionLabel="다시 시도"
                 icon="CH"
-                subtitle="선택한 품목과 연결된 시세 이력이 아직 충분하지 않습니다."
+                subtitle="선택한 상품과 연결된 시세 이력이 아직 충분하지 않습니다."
                 title="차트에 표시할 가격 데이터가 없습니다."
                 onAction={() => setRefreshToken((value) => value + 1)}
               />
@@ -376,8 +408,7 @@ export default function PriceAnalysisPage({
               <PriceTrendChart
                 points={analysis.chartPoints}
                 productLabel={selectedCandidate.label}
-                subtitle="현재 평균가를 중심으로 최근 구간의 가격 움직임을 직관적으로 보여줍니다."
-                title="가격 추세 차트"
+                title={`${selectedCandidate.label} 가격 추이`}
               />
             )}
           </article>
@@ -439,6 +470,7 @@ export default function PriceAnalysisPage({
                 reasonLabel="절약 포인트"
                 variant="value"
                 onOpen={() => onOpenProduct?.(candidate.product?.productNo)}
+                onViewChart={() => selectCandidate(candidate, { scrollToChart: true })}
               />
             ))}
           </div>
@@ -462,6 +494,7 @@ export default function PriceAnalysisPage({
                 reasonLabel="추천 사유"
                 variant="timing"
                 onOpen={() => onOpenProduct?.(candidate.product?.productNo)}
+                onViewChart={() => selectCandidate(candidate, { scrollToChart: true })}
               />
             ))}
           </div>
@@ -479,7 +512,7 @@ export default function PriceAnalysisPage({
           }}
         >
           {recipeState.loading ? (
-            <div className="price-stage__status">연관 레시피를 불러오는 중입니다.</div>
+            <div className="price-stage__status">연결 레시피를 불러오는 중입니다.</div>
           ) : recipeState.list.length ? (
             <div className="price-recipe-grid">
               {recipeState.list.map((recipe) => (
@@ -489,7 +522,7 @@ export default function PriceAnalysisPage({
                   </div>
                   <div className="price-recipe-card__body">
                     <span className="price-recipe-card__eyebrow">
-                      {selectedCandidate.keyword} 소비 아이디어
+                      {selectedCandidate.keyword} 활용 아이디어
                     </span>
                     <h3>{recipe.recipeName}</h3>
                     <span className="price-recipe-card__linkage">
@@ -658,7 +691,8 @@ function buildSignal(currentPrice, currentMa7, currentMa30, changeRate) {
   if (currentPrice <= currentMa30 && changeRate <= 0) {
     return {
       badge: '하락 가능성',
-      description: '현재 가격이 30일 평균보다 낮고 최근 구간도 약세여서 구매 타이밍으로 보기 좋습니다.',
+      description:
+        '현재 가격이 30일 평균보다 낮고 최근 구간도 약세라서 구매 타이밍으로 보기 좋습니다.',
       title: '구매 적기 신호',
       tone: 'green',
     };
@@ -667,7 +701,8 @@ function buildSignal(currentPrice, currentMa7, currentMa30, changeRate) {
   if (currentPrice >= currentMa30 && changeRate > 0) {
     return {
       badge: '상승 가능성',
-      description: '현재 가격이 기준선 위에 있고 최근 구간도 상승세라 추가 상승 가능성을 주의해서 봐야 합니다.',
+      description:
+        '현재 가격이 기준선 위에 있고 최근 구간도 상승세라 추가 상승 가능성을 주의해서 봐야 합니다.',
       title: '상승 경계 신호',
       tone: 'amber',
     };
@@ -675,18 +710,21 @@ function buildSignal(currentPrice, currentMa7, currentMa30, changeRate) {
 
   return {
     badge: '보합 흐름',
-    description: '가격이 기준선 부근에서 움직이고 있어 재고와 체감 가격을 함께 보는 것이 좋습니다.',
+    description:
+      '가격이 기준선 부근에서 움직이고 있어 재고와 체감 가격을 함께 보는 것이 좋습니다.',
     title: '관망 신호',
     tone: 'slate',
   };
 }
 
 function buildSelectedMeta(candidate) {
-  return `${candidate.productName} · ${candidate.origin || '산지 정보 없음'} · ${candidate.unitLabel}`;
+  return `${candidate.productName} · ${candidate.origin || '원산지 정보 없음'} · ${candidate.unitLabel}`;
 }
 
 function buildUnderAverageReason(product) {
-  return `평균가 대비 ${Math.round(Number(product?.priceMatch?.savingRate || 0))}% 저렴 · 시장 평균 ${formatCurrency(product?.priceSnapshot?.avgPrice)}`;
+  return `평균가 대비 ${Math.round(
+    Number(product?.priceMatch?.savingRate || 0)
+  )}% 저렴 · 시장 평균 ${formatCurrency(product?.priceSnapshot?.avgPrice)}`;
 }
 
 function buildBuyTimingReason(product, score) {
