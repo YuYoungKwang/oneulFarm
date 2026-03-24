@@ -36,7 +36,7 @@ export default function PasswordChangeRequiredPage({ authUser }) {
       }, '비밀번호를 변경하지 못했습니다.');
       if (payload.data) {
         setAuthUser(payload.data);
-        window.location.hash = '#/mypage';
+        window.location.hash = '#/';
       }
     } catch (requestError) {
       setError(requestError.message || '비밀번호를 변경하지 못했습니다.');
