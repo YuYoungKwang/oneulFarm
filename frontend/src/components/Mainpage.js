@@ -3,7 +3,6 @@ import { fetchMainPage } from "../api/mainApi";
 import HeroSlider from "./HeroSlider";
 import RecommendInsightCard from "./recommend/RecommendInsightCard";
 import RecommendProductCard from "./recommend/RecommendProductCard";
-import RecommendRecipeCard from "./recommend/RecommendRecipeCard";
 import RecommendSearchSignalCard from "./recommend/RecommendSearchSignalCard";
 import RecommendSection from "./recommend/RecommendSection";
 import { buildEmptyRecommendData, loadRecommendData } from "./recommend/recommendData";
@@ -299,6 +298,52 @@ function buildProductsHash({ search = "", sort = "", tag = "" }) {
 
   const queryString = searchParams.toString();
   return queryString ? `#/products?${queryString}` : "#/products";
+}
+
+function summarizeRecipeDescription(description) {
+  if (!description) {
+    return "레시피 소개 문구는 상세 페이지에서 확인할 수 있습니다.";
+  }
+
+  const normalizedDescription = String(description).replace(/\s+/g, " ").trim();
+  if (normalizedDescription.length <= 84) {
+    return normalizedDescription;
+  }
+
+  return `${normalizedDescription.slice(0, 84).trim()}...`;
+}
+
+function getRecipeSymbol(recipeName) {
+  const normalizedName = String(recipeName || "").toLowerCase();
+
+  if (
+    normalizedName.includes("국") ||
+    normalizedName.includes("찌개") ||
+    normalizedName.includes("탕") ||
+    normalizedName.includes("스프") ||
+    normalizedName.includes("수프")
+  ) {
+    return "🍲";
+  }
+
+  if (normalizedName.includes("샐러드") || normalizedName.includes("무침")) {
+    return "🥗";
+  }
+
+  if (
+    normalizedName.includes("볶음") ||
+    normalizedName.includes("전") ||
+    normalizedName.includes("구이") ||
+    normalizedName.includes("찜")
+  ) {
+    return "🍳";
+  }
+
+  if (normalizedName.includes("파스타") || normalizedName.includes("국수")) {
+    return "🍝";
+  }
+
+  return "🍽️";
 }
 
 export default function MainPage({ authUser }) {
@@ -700,15 +745,74 @@ export default function MainPage({ authUser }) {
             onAction={() => openHash("#/recipes")}
           >
             {recommendSummary.recipeRecommendationList.length ? (
-              <div className="recommend-recipe-grid">
-                {recommendSummary.recipeRecommendationList.map((item) => (
-                  <RecommendRecipeCard
-                    key={item.recipeNo}
-                    keyword={item.keyword}
-                    matchedIngredients={item.matchedIngredients}
-                    onOpen={() => openRecipe(item.recipeNo)}
-                    recipe={item}
-                  />
+              <div className="recipe-list-grid recipe-list-grid--compact main-recipe-grid">
+                {recommendSummary.recipeRecommendationList.slice(0, 3).map((item) => (
+                  <article className="recipe-list-card recipe-list-card--compact" key={item.recipeNo}>
+                    <div className="recipe-list-card__visual">
+                      <button
+                        className="recipe-list-card__media recipe-list-card__media--compact"
+                        type="button"
+                        onClick={() => openRecipe(item.recipeNo)}
+                      >
+                        {item.imageUrl ? (
+                          <img alt={item.recipeName} src={item.imageUrl} />
+                        ) : (
+                          <div className="recipe-list-card__fallback recipe-list-card__fallback--compact">
+                            {getRecipeSymbol(item.recipeName)}
+                          </div>
+                        )}
+                      </button>
+
+                      <div className="recipe-list-card__badge-row">
+                        {item.keyword ? (
+                          <span className="recipe-pill">{item.keyword}</span>
+                        ) : null}
+                        {item.matchedIngredients?.length ? (
+                          <span className="recipe-badge recipe-badge--green">
+                            재료 {item.matchedIngredients.length}개 연결
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="recipe-list-card__body">
+                      <div className="recipe-list-card__head">
+                        <button
+                          className="recipe-list-card__title recipe-list-card__title--compact"
+                          type="button"
+                          onClick={() => openRecipe(item.recipeNo)}
+                        >
+                          {item.recipeName}
+                        </button>
+                        <p className="recipe-list-card__summary recipe-list-card__summary--compact">
+                          {summarizeRecipeDescription(item.description)}
+                        </p>
+                      </div>
+
+                      {item.matchedIngredients?.length ? (
+                        <div className="recipe-list-card__meta">
+                          {item.matchedIngredients.slice(0, 2).map((ingredient, index) => (
+                            <span
+                              className="recipe-pill"
+                              key={`${ingredient.ingredientNo || ingredient.ingredientName}-${index}`}
+                            >
+                              {ingredient.ingredientName}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      <div className="recipe-list-card__foot recipe-list-card__foot--compact">
+                        <button
+                          className="btn recipe-list-card__action recipe-list-card__action--compact"
+                          type="button"
+                          onClick={() => openRecipe(item.recipeNo)}
+                        >
+                          상세 보기
+                        </button>
+                      </div>
+                    </div>
+                  </article>
                 ))}
               </div>
             ) : (
