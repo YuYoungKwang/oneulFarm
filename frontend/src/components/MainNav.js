@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import "../styles/mainNav.css";
 import { openAdminPage } from "../admin/adminSession";
 import { CartIcon, SearchIcon } from "./ProductIcons";
+import logo from "../assets/logo.png";
 
 const NAV_ITEMS = [
   { id: "market", label: "시세분석", hash: "#/price-analysis", section: "market" },
@@ -87,8 +88,10 @@ export default function MainNav({
     <header className={`main-nav-shell ${isSearchOpen ? "is-search-open" : ""}`}>
       <div className="main-nav">
         <button type="button" className="main-nav__logo" onClick={() => navigateTo("#/")}>
-          <span className="main-nav__logo-mark" />
-          <span>oneulFarm</span>
+          <span className="main-nav__logo-mark" aria-hidden="true">
+            <img src={logo} alt="" />
+          </span>
+          <span className="main-nav__logo-text">oneulFarm</span>
         </button>
 
         <nav className="main-nav__links" aria-label="주요 메뉴">
