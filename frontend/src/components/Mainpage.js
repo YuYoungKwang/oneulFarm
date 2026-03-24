@@ -129,7 +129,9 @@ function matchesCategory(product, categoryLabel) {
   const source = `${product?.productName || ""} ${product?.categoryName || ""}`;
 
   if (categoryLabel === "과일") {
-    return /과일|사과|배|감귤|단감|홍시|곶감|감(?!자)|딸기|포도|복숭아|바나나|오렌지|샤인머스켓/i.test(source);
+    return /과일|사과|배(?!추)|감귤|단감|홍시|곶감|감(?!자)|딸기|포도|복숭아|바나나|오렌지/i.test(
+      source
+    );
   }
 
   if (categoryLabel === "채소") {
@@ -550,9 +552,7 @@ export default function MainPage({ authUser }) {
         key: "under-average",
         href: buildProductsHash({ tag: "UNDER_AVG", sort: "HIGH_SAVING" }),
         eyebrow: "평균가 이하 추천",
-        title: underAverageLead?.metricValue
-          ? `지금 사면 평균보다 ${underAverageLead.metricValue} 절약`
-          : "평균가보다 저렴한 상품을 먼저 확인하세요",
+        title: "지금 사기 좋아요",
         meta: underAverageLead?.product?.productName || "절약 폭이 큰 대표 상품",
         badge: underAverageLead?.badges?.[0] || "특가",
       },
@@ -563,9 +563,7 @@ export default function MainPage({ authUser }) {
           sort: "RECOMMENDED",
         }),
         eyebrow: "지금 구매 추천",
-        title: buyNowLead?.metricValue
-          ? `${buyNowLead.metricValue} 흐름을 보이는 상품`
-          : "오늘 사기 좋은 타이밍의 상품을 모았습니다",
+        title: "가격 괜찮은 시점이에요",
         meta: buyNowLead?.product?.productName || "가격 흐름이 좋은 대표 상품",
         badge: buyNowLead?.badges?.[0] || "타이밍",
       },
@@ -728,7 +726,11 @@ export default function MainPage({ authUser }) {
               <button
                 type="button"
                 role="tab"
-                className={selectedProductTab === "recommended" ? "main-product-tab is-active" : "main-product-tab"}
+                className={
+                  selectedProductTab === "recommended"
+                    ? "main-product-tab is-active"
+                    : "main-product-tab"
+                }
                 aria-selected={selectedProductTab === "recommended"}
                 onClick={() => setSelectedProductTab("recommended")}
               >
@@ -737,7 +739,11 @@ export default function MainPage({ authUser }) {
               <button
                 type="button"
                 role="tab"
-                className={selectedProductTab === "popular" ? "main-product-tab is-active" : "main-product-tab"}
+                className={
+                  selectedProductTab === "popular"
+                    ? "main-product-tab is-active"
+                    : "main-product-tab"
+                }
                 aria-selected={selectedProductTab === "popular"}
                 onClick={() => setSelectedProductTab("popular")}
               >
@@ -746,7 +752,11 @@ export default function MainPage({ authUser }) {
               <button
                 type="button"
                 role="tab"
-                className={selectedProductTab === "seasonal" ? "main-product-tab is-active" : "main-product-tab"}
+                className={
+                  selectedProductTab === "seasonal"
+                    ? "main-product-tab is-active"
+                    : "main-product-tab"
+                }
                 aria-selected={selectedProductTab === "seasonal"}
                 onClick={() => setSelectedProductTab("seasonal")}
               >
@@ -755,7 +765,11 @@ export default function MainPage({ authUser }) {
               <button
                 type="button"
                 role="tab"
-                className={selectedProductTab === "value" ? "main-product-tab is-active" : "main-product-tab"}
+                className={
+                  selectedProductTab === "value"
+                    ? "main-product-tab is-active"
+                    : "main-product-tab"
+                }
                 aria-selected={selectedProductTab === "value"}
                 onClick={() => setSelectedProductTab("value")}
               >
@@ -816,9 +830,7 @@ export default function MainPage({ authUser }) {
                       </button>
 
                       <div className="recipe-list-card__badge-row">
-                        {item.keyword ? (
-                          <span className="recipe-pill">{item.keyword}</span>
-                        ) : null}
+                        {item.keyword ? <span className="recipe-pill">{item.keyword}</span> : null}
                         {item.matchedIngredients?.length ? (
                           <span className="recipe-badge recipe-badge--green">
                             재료 {item.matchedIngredients.length}개 연결
@@ -840,19 +852,6 @@ export default function MainPage({ authUser }) {
                           {summarizeRecipeDescription(item.description)}
                         </p>
                       </div>
-
-                      {item.matchedIngredients?.length ? (
-                        <div className="recipe-list-card__meta">
-                          {item.matchedIngredients.slice(0, 2).map((ingredient, index) => (
-                            <span
-                              className="recipe-pill"
-                              key={`${ingredient.ingredientNo || ingredient.ingredientName}-${index}`}
-                            >
-                              {ingredient.ingredientName}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
 
                       <div className="recipe-list-card__foot recipe-list-card__foot--compact">
                         <button
