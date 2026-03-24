@@ -1,18 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { fetchMainPage } from "../api/mainApi";
-import { fetchPriceTrendFromApi } from "../api/priceAnalysisApi";
 import HeroSlider from "./HeroSlider";
-import { SearchIcon } from "./ProductIcons";
-import PriceTrendChart from "./price/PriceTrendChart";
 import { fetchRecipeDetail, fetchRecipeList } from "./recipeApi";
 import "../styles/mainPage.css";
-import "../styles/priceAnalysis.css";
 
 const CATEGORY_SECTIONS = [
   {
     key: "seasonal",
     label: "제철 추천",
-    description: "지금 가장 맛있고 신선한 제철 농산물",
+    description: "지금 가장 맛있고 신선한 제철 농산물입니다.",
     href: "#/products?tag=SEASONAL",
     matches(product) {
       return product?.isSeasonal === "Y";
@@ -21,7 +17,7 @@ const CATEGORY_SECTIONS = [
   {
     key: "fruit",
     label: "과일",
-    description: "가볍게 고르기 좋은 달콤한 과일",
+    description: "가볍게 고르기 좋은 달콤한 과일입니다.",
     href: "#/products?category=과일",
     matches(product) {
       return matchesCategory(product, "과일");
@@ -30,7 +26,7 @@ const CATEGORY_SECTIONS = [
   {
     key: "vegetable",
     label: "채소",
-    description: "식탁 기본 재료가 되는 신선 채소",
+    description: "식탁 기본 재료가 되는 신선 채소입니다.",
     href: "#/products?category=채소",
     matches(product) {
       return matchesCategory(product, "채소");
@@ -39,7 +35,7 @@ const CATEGORY_SECTIONS = [
   {
     key: "grain",
     label: "곡물",
-    description: "든든하게 채우기 좋은 곡물과 잡곡",
+    description: "든든하게 채우기 좋은 곡물과 잡곡입니다.",
     href: "#/products?category=곡물",
     matches(product) {
       return matchesCategory(product, "곡물");
@@ -48,7 +44,7 @@ const CATEGORY_SECTIONS = [
   {
     key: "mushroom",
     label: "버섯",
-    description: "한 끼 풍미를 더해주는 버섯류",
+    description: "한 끼 풍미를 더해주는 버섯류입니다.",
     href: "#/products?category=버섯",
     matches(product) {
       return matchesCategory(product, "버섯");
@@ -94,39 +90,6 @@ function formatCurrency(value) {
   return `${toNumber(value).toLocaleString("ko-KR")}원`;
 }
 
-function formatChartDate(value) {
-  if (!value) {
-    return "";
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return String(value);
-  }
-
-  return `${date.getMonth() + 1}.${date.getDate()}`;
-}
-
-function buildTrendPoints(chartData) {
-  return (Array.isArray(chartData) ? chartData : [])
-    .map((item) => ({
-      date: item?.snapshotDate,
-      label: formatChartDate(item?.snapshotDate),
-      value: toNumber(item?.avgPrice),
-    }))
-    .filter((item) => item.date && Number.isFinite(item.value));
-}
-
-function normalizeTrendRows(rows) {
-  return (Array.isArray(rows) ? rows : [])
-    .map((row) => ({
-      date: row?.snapshotDate,
-      label: formatChartDate(row?.snapshotDate),
-      value: toNumber(row?.avgPrice),
-    }))
-    .filter((row) => row.date && Number.isFinite(row.value));
-}
-
 function matchesCategory(product, categoryLabel) {
   const source = `${product?.productName || ""} ${product?.categoryName || ""}`;
 
@@ -135,11 +98,11 @@ function matchesCategory(product, categoryLabel) {
   }
 
   if (categoryLabel === "채소") {
-    return /채소|양파|대파|오이|호박|감자|시금치|배추|무|상추|깻잎/i.test(source);
+    return /채소|양파|대파|오이|호박|감자|시금치|배추|무|상추|깻잎|열무/i.test(source);
   }
 
   if (categoryLabel === "곡물") {
-    return /곡물|쌀|보리|콩|현미|잡곡/i.test(source);
+    return /곡물|쌀|보리|콩|옥수수|잡곡/i.test(source);
   }
 
   if (categoryLabel === "버섯") {
@@ -276,7 +239,7 @@ function extractCoreKeyword(value) {
   return String(value || "")
     .replace(/\([^)]*\)/g, " ")
     .replace(/\[[^\]]*\]/g, " ")
-    .replace(/\d+(?:\.\d+)?\s*(kg|g|ml|l|개|봉|팩|EA|ea)/gi, " ")
+    .replace(/\d+(?:\.\d+)?\s*(kg|g|ml|l|개|봉|EA|ea)/gi, " ")
     .replace(/[\\/,+]/g, " ")
     .replace(/\s+/g, " ")
     .trim()
@@ -374,12 +337,6 @@ function MainPage() {
   const [mainData, setMainData] = useState(EMPTY_MAIN_DATA);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
-  const [selectedInsightKey, setSelectedInsightKey] = useState("");
-  const [trendState, setTrendState] = useState({
-    error: "",
-    loading: false,
-    rows: [],
-  });
   const [recipeRecommendationState, setRecipeRecommendationState] = useState({
     error: "",
     loading: false,
@@ -432,88 +389,6 @@ function MainPage() {
     () => (Array.isArray(mainData.insights) ? mainData.insights : []),
     [mainData.insights]
   );
-  const chart = useMemo(
-    () => (Array.isArray(mainData.chart) ? mainData.chart : []),
-    [mainData.chart]
-  );
-
-  useEffect(() => {
-    if (!insights.length) {
-      setSelectedInsightKey("");
-      return;
-    }
-
-    const hasSelectedInsight = insights.some(
-      (insight) => String(insight?.productNo || "") === selectedInsightKey
-    );
-
-    if (!hasSelectedInsight) {
-      setSelectedInsightKey(String(insights[0]?.productNo || ""));
-    }
-  }, [insights, selectedInsightKey]);
-
-  const selectedInsight =
-    insights.find((insight) => String(insight?.productNo || "") === selectedInsightKey) ||
-    insights[0] ||
-    null;
-
-  useEffect(() => {
-    if (!selectedInsight?.itemCode) {
-      setTrendState({
-        error: "",
-        loading: false,
-        rows: [],
-      });
-      return;
-    }
-
-    let cancelled = false;
-    const abortController = new AbortController();
-
-    async function loadTrend() {
-      setTrendState({
-        error: "",
-        loading: true,
-        rows: [],
-      });
-
-      try {
-        const payload = await fetchPriceTrendFromApi({
-          days: 365,
-          itemCode: selectedInsight.itemCode,
-          marketType: selectedInsight.marketType || "RETAIL",
-          signal: abortController.signal,
-        });
-
-        if (cancelled) {
-          return;
-        }
-
-        setTrendState({
-          error: "",
-          loading: false,
-          rows: normalizeTrendRows(payload?.trend || payload || []),
-        });
-      } catch (error) {
-        if (cancelled) {
-          return;
-        }
-
-        setTrendState({
-          error: error?.message || "시세 추이를 불러오지 못했습니다.",
-          loading: false,
-          rows: [],
-        });
-      }
-    }
-
-    loadTrend();
-
-    return () => {
-      cancelled = true;
-      abortController.abort();
-    };
-  }, [selectedInsight]);
 
   const recommendedProducts = useMemo(() => {
     const insightProducts = insights.filter(Boolean);
@@ -650,7 +525,7 @@ function MainPage() {
         key: "recipe",
         eyebrow: "Recipe Match",
         title: "인기 추천레시피",
-        desc: "메인에서 추천 중인 인기 레시피 사진을 바로 보여주고 레시피 페이지로 연결합니다.",
+        desc: "메인에서 추천 중인 레시피 사진을 바로 보여주고 레시피 페이지로 연결합니다.",
         primaryLabel: "레시피 보러가기",
         primaryHref: "#/recipes",
         secondaryLabel: "추천 레시피",
@@ -659,13 +534,6 @@ function MainPage() {
       },
     ];
   }, [products, recommendedProducts, recipeRecommendationState.list]);
-
-  const trendPoints = trendState.rows.length ? trendState.rows : buildTrendPoints(chart);
-  const chartHeadline =
-    selectedInsight?.itemName ||
-    selectedInsight?.productName ||
-    chart[chart.length - 1]?.itemName ||
-    "대표 품목";
 
   function scrollRecommendedProducts(direction) {
     if (!recommendedProductsRef.current) {
@@ -766,7 +634,7 @@ function MainPage() {
             <div>
               <div className="subsection-title">오늘 추천상품</div>
               <div className="section-sub">
-                이미지부터 빠르게 보고 필요한 가격 정보는 바로 아래에서 확인할 수 있습니다.
+                이미지를 먼저 빠르게 보고 필요한 가격 정보는 아래에서 바로 확인할 수 있습니다.
               </div>
             </div>
           </div>
@@ -778,9 +646,10 @@ function MainPage() {
               aria-label="이전 추천상품 보기"
               onClick={() => scrollRecommendedProducts(-1)}
             >
-              <span aria-hidden="true" className="spotlight-nav__chevron spotlight-nav__chevron--left">
-                ›
-              </span>
+              <span
+                aria-hidden="true"
+                className="spotlight-nav__chevron spotlight-nav__chevron--left"
+              />
             </button>
 
             <div className="spotlight-rail" ref={recommendedProductsRef}>
@@ -832,9 +701,7 @@ function MainPage() {
               aria-label="다음 추천상품 보기"
               onClick={() => scrollRecommendedProducts(1)}
             >
-              <span aria-hidden="true" className="spotlight-nav__chevron">
-                ›
-              </span>
+              <span aria-hidden="true" className="spotlight-nav__chevron" />
             </button>
           </div>
 
@@ -852,8 +719,8 @@ function MainPage() {
               </div>
             </div>
             <a className="section-link section-link--recipes" href="#/recipes">
-  레시피 전체 보기
-</a>
+              레시피 전체 보기
+            </a>
           </div>
 
           <div className="recipe-card-grid">
@@ -892,86 +759,6 @@ function MainPage() {
           ) : !isLoading && recipeRecommendationState.list.length === 0 ? (
             <div className="section-empty">추천 레시피 데이터가 없습니다.</div>
           ) : null}
-        </section>
-
-        <section className="section market-overview">
-          <div className="section-head market-overview__head">
-            <div>
-              <div className="section-title">시장 한눈에 보기</div>
-              <div className="section-sub">
-                대표 품목의 가격 추세와 시세 인사이트를 함께 보면서 흐름을 빠르게 확인합니다.
-              </div>
-            </div>
-           <a className="section-link--market" href="#/price-analysis">
-  시세분석 전체 보기
-</a>
-
-          </div>
-
-          <div className="grid-2 market-overview__grid">
-            <article className="card">
-              <div className="card-title">시세 그래프</div>
-              <div className="card-sub">{chartHeadline} 최근 가격 추이</div>
-
-              <div className="chart-shell">
-                {trendState.loading ? (
-                  <div className="section-sub">선택한 품목의 시세 추이를 불러오는 중입니다.</div>
-                ) : trendState.error ? (
-                  <div className="section-error">{trendState.error}</div>
-                ) : trendPoints.length ? (
-                  <PriceTrendChart
-                    points={trendPoints}
-                    productLabel={chartHeadline}
-                    subtitle="오른쪽 시세 인사이트 품목을 선택하면 차트가 해당 품목 기준으로 바뀝니다."
-                    title="가격 추세 차트"
-                  />
-                ) : (
-                  <div className="section-empty">시세 그래프 데이터가 없습니다.</div>
-                )}
-              </div>
-            </article>
-
-            <article className="card">
-              <div className="card-title">시세 인사이트</div>
-              <div className="insight-list">
-                {insights.map((product) => {
-                  const isActive =
-                    String(product?.productNo || "") === String(selectedInsight?.productNo || "");
-                  const imageSources = getProductImageSources(product);
-
-                  return (
-                    <button
-                      className={`insight-item ${isActive ? "is-active" : ""}`}
-                      key={product.productNo}
-                      type="button"
-                      onClick={() => setSelectedInsightKey(String(product.productNo))}
-                    >
-                      <span className="insight-item__icon" aria-hidden="true">
-                        <SearchIcon />
-                      </span>
-                      <strong className="insight-item__name">{product.productName}</strong>
-                      <span className="insight-item__thumb">
-                        {imageSources.length ? (
-                          <img
-                            src={imageSources[0]}
-                            data-fallback-src={imageSources[1] || ""}
-                            onError={handleImageError}
-                            alt={product.productName}
-                          />
-                        ) : (
-                          product.productName?.slice(0, 1) || "?"
-                        )}
-                      </span>
-                    </button>
-                  );
-                })}
-
-                {!isLoading && insights.length === 0 ? (
-                  <div className="section-empty">시세 인사이트 데이터가 없습니다.</div>
-                ) : null}
-              </div>
-            </article>
-          </div>
         </section>
 
         {errorMessage ? <div className="section-error">{errorMessage}</div> : null}
