@@ -1,8 +1,17 @@
 package com.app.controller;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,11 +24,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.app.common.ApiResponse;
 import com.app.dto.MainBannerDto;
 import com.app.dto.OrderDto;
 import com.app.dto.PackageHistoryDto;
+import com.app.dto.PriceSnapshotDTO;
 import com.app.dto.ProductCategoryDto;
 import com.app.dto.ProductDto;
 import com.app.dto.ProductImageDto;
@@ -27,13 +38,32 @@ import com.app.dto.ProductRecipeDto;
 import com.app.dto.PurchaseBatchDto;
 import com.app.dto.UserProfileDto;
 import com.app.service.AdminService;
+import com.app.service.PriceSnapshotService;
 
 @RestController
 @RequestMapping(value = "/api/admin", produces = MediaType.APPLICATION_JSON_VALUE)
 public class AdminController {
 
+    private static final Pattern SNAPSHOT_UNIT_PATTERN =
+        Pattern.compile("^([0-9]+(?:\\.[0-9]+)?)?\\s*([A-Za-z\\uAC00-\\uD7A3]+)$");
+    private static final Set<String> COUNT_UNIT_SET = Set.of(
+        "ea",
+        "each",
+        "개",
+        "포기",
+        "단",
+        "망",
+        "봉",
+        "봉지",
+        "pack",
+        "pk"
+    );
+
     @Autowired
     private AdminService adminService;
+
+    @Autowired
+    private PriceSnapshotService priceSnapshotService;
 
     @GetMapping("/product-categories")
     public ApiResponse<List<ProductCategoryDto>> getProductCategories() {
@@ -139,6 +169,13 @@ public class AdminController {
         return ApiResponse.success(adminService.getPackageHistories(), "Package histories loaded.");
     }
 
+    @GetMapping("/purchases/quote")
+    public ApiResponse<Map<String, Object>> getPurchaseQuote(
+        @RequestParam("productName") String productName
+    ) {
+        return ApiResponse.success(buildPurchaseQuote(productName), "Purchase quote loaded.");
+    }
+
     @PostMapping(value = "/purchases", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ApiResponse<PurchaseBatchDto> createPurchase(
         @RequestBody PurchaseBatchDto request
@@ -163,5 +200,337 @@ public class AdminController {
     @GetMapping("/content/recipe-mappings")
     public ApiResponse<List<ProductRecipeDto>> getRecipeMappings() {
         return ApiResponse.success(adminService.getRecipeMappings(), "Recipe mappings loaded.");
+    }
+
+    private Map<String, Object> buildPurchaseQuote(String productName) {
+        String normalizedProductName = trimToNull(productName);
+        if (normalizedProductName == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "상품명을 입력해주세요.");
+        }
+
+        List<PriceSnapshotDTO> wholesaleCandidates =
+            priceSnapshotService.getPriceSnapshotList(normalizedProductName, "WHOLESALE", null, 40);
+        PriceSnapshotDTO wholesaleSnapshot = findBestSnapshot(normalizedProductName, wholesaleCandidates);
+        if (wholesaleSnapshot == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "해당 품목의 최신 도매 시세를 찾지 못했습니다.");
+        }
+
+        List<PriceSnapshotDTO> retailCandidates =
+            priceSnapshotService.getPriceSnapshotList(normalizedProductName, "RETAIL", null, 40);
+        PriceSnapshotDTO retailSnapshot = findRelatedRetailSnapshot(
+            normalizedProductName,
+            wholesaleSnapshot,
+            retailCandidates
+        );
+
+        ResolvedPurchaseQuote resolvedQuote = resolvePurchaseQuote(wholesaleSnapshot);
+
+        Map<String, Object> data = new LinkedHashMap<String, Object>();
+        data.put("queryName", normalizedProductName);
+        data.put("matchedItemName", wholesaleSnapshot.getItemName());
+        data.put("snapshotDate", wholesaleSnapshot.getSnapshotDate());
+        data.put("snapshotUnit", wholesaleSnapshot.getUnit());
+        data.put("purchaseUnit", resolvedQuote.getPurchaseUnit());
+        data.put("purchaseQty", resolvedQuote.getPurchaseQty());
+        data.put("purchasePrice", resolvedQuote.getPurchasePrice());
+        data.put("pricingBaseUnit", resolvedQuote.getPricingBaseUnit());
+        data.put("pricingBaseQty", resolvedQuote.getPricingBaseQty());
+        data.put("pricingBasePrice", resolvedQuote.getPricingBasePrice());
+        BigDecimal wholesaleComparablePrice = resolvedQuote.getPurchasePrice();
+        BigDecimal retailComparablePrice = retailSnapshot == null
+            ? null
+            : calculateComparablePriceForBase(retailSnapshot, resolvedQuote);
+
+        data.put("wholesaleAvgPrice", scaleMoney(wholesaleSnapshot.getAvgPrice()));
+        data.put("wholesaleComparablePrice", wholesaleComparablePrice);
+        data.put("retailAvgPrice", retailSnapshot == null ? null : scaleMoney(retailSnapshot.getAvgPrice()));
+        data.put("retailSnapshotUnit", retailSnapshot == null ? null : retailSnapshot.getUnit());
+        data.put("retailComparablePrice", retailComparablePrice);
+        data.put(
+            "recommendedSalePrice",
+            retailComparablePrice == null
+                ? null
+                : calculateRecommendedSalePrice(wholesaleComparablePrice, retailComparablePrice)
+        );
+        data.put("wholesaleItemCode", trimToNull(wholesaleSnapshot.getItemCode()));
+        data.put("retailItemCode", retailSnapshot == null ? null : trimToNull(retailSnapshot.getItemCode()));
+        return data;
+    }
+
+    private PriceSnapshotDTO findBestSnapshot(String query, List<PriceSnapshotDTO> candidates) {
+        if (candidates == null || candidates.isEmpty()) {
+            return null;
+        }
+
+        PriceSnapshotDTO bestCandidate = null;
+        int bestScore = Integer.MIN_VALUE;
+
+        for (PriceSnapshotDTO candidate : candidates) {
+            int score = calculateSnapshotMatchScore(query, candidate);
+            if (bestCandidate == null || score > bestScore) {
+                bestCandidate = candidate;
+                bestScore = score;
+            }
+        }
+
+        return bestCandidate;
+    }
+
+    private PriceSnapshotDTO findRelatedRetailSnapshot(
+        String query,
+        PriceSnapshotDTO wholesaleSnapshot,
+        List<PriceSnapshotDTO> retailCandidates
+    ) {
+        if (retailCandidates == null || retailCandidates.isEmpty()) {
+            return null;
+        }
+
+        String wholesaleItemCode = trimToNull(wholesaleSnapshot.getItemCode());
+        String wholesaleItemName = normalizeSearchKey(wholesaleSnapshot.getItemName());
+        PriceSnapshotDTO bestCandidate = null;
+        int bestScore = Integer.MIN_VALUE;
+
+        for (PriceSnapshotDTO candidate : retailCandidates) {
+            int score = calculateSnapshotMatchScore(query, candidate);
+
+            if (wholesaleItemCode != null && wholesaleItemCode.equals(trimToNull(candidate.getItemCode()))) {
+                score += 200;
+            }
+
+            if (wholesaleItemName.equals(normalizeSearchKey(candidate.getItemName()))) {
+                score += 120;
+            }
+
+            if (bestCandidate == null || score > bestScore) {
+                bestCandidate = candidate;
+                bestScore = score;
+            }
+        }
+
+        return bestCandidate;
+    }
+
+    private int calculateSnapshotMatchScore(String query, PriceSnapshotDTO candidate) {
+        if (candidate == null) {
+            return Integer.MIN_VALUE;
+        }
+
+        String normalizedQuery = normalizeSearchKey(query);
+        String normalizedItemName = normalizeSearchKey(candidate.getItemName());
+        if (normalizedItemName.isEmpty()) {
+            return Integer.MIN_VALUE;
+        }
+
+        int score = 0;
+        if (normalizedItemName.equals(normalizedQuery)) {
+            score += 1000;
+        } else if (normalizedItemName.startsWith(normalizedQuery)) {
+            score += 700;
+        } else if (normalizedItemName.contains(normalizedQuery)) {
+            score += 500;
+        }
+
+        String rawItemName = trimToNull(candidate.getItemName());
+        if (rawItemName != null && rawItemName.equalsIgnoreCase(query.trim())) {
+            score += 150;
+        }
+
+        score -= Math.max(normalizedItemName.length() - normalizedQuery.length(), 0);
+        return score;
+    }
+
+    private ResolvedPurchaseQuote resolvePurchaseQuote(PriceSnapshotDTO wholesaleSnapshot) {
+        String snapshotUnit = trimToNull(wholesaleSnapshot.getUnit());
+        BigDecimal avgPrice = scaleMoney(wholesaleSnapshot.getAvgPrice());
+        if (snapshotUnit == null) {
+            return new ResolvedPurchaseQuote("ea", BigDecimal.ONE, avgPrice);
+        }
+
+        ParsedUnit parsedUnit = parseSnapshotUnit(snapshotUnit);
+        if (parsedUnit == null) {
+            return new ResolvedPurchaseQuote(snapshotUnit, BigDecimal.ONE, avgPrice);
+        }
+
+        return new ResolvedPurchaseQuote(parsedUnit.getDisplayUnit(), parsedUnit.getQuantity(), avgPrice);
+    }
+
+    private BigDecimal calculateComparablePriceForBase(
+        PriceSnapshotDTO snapshot,
+        ResolvedPurchaseQuote baseQuote
+    ) {
+        if (snapshot == null || baseQuote == null || snapshot.getAvgPrice() == null) {
+            return null;
+        }
+
+        ParsedUnit sourceUnit = parseSnapshotUnit(snapshot.getUnit());
+        ParsedUnit targetUnit = resolveUnit(baseQuote.getPricingBaseUnit(), baseQuote.getPricingBaseQty());
+        if (sourceUnit == null || targetUnit == null) {
+            return null;
+        }
+        if (sourceUnit.getUnitType() != targetUnit.getUnitType()) {
+            return null;
+        }
+        if (sourceUnit.getQuantity().compareTo(BigDecimal.ZERO) <= 0
+            || targetUnit.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+            return null;
+        }
+
+        return scaleMoney(snapshot.getAvgPrice())
+            .multiply(targetUnit.getQuantity())
+            .divide(sourceUnit.getQuantity(), 2, RoundingMode.HALF_UP);
+    }
+
+    private ParsedUnit parseSnapshotUnit(String snapshotUnit) {
+        String normalizedValue = trimToNull(snapshotUnit);
+        if (normalizedValue == null) {
+            return null;
+        }
+
+        Matcher matcher = SNAPSHOT_UNIT_PATTERN.matcher(normalizedValue.replace(" ", ""));
+        if (!matcher.matches()) {
+            return null;
+        }
+
+        String amountToken = trimToNull(matcher.group(1));
+        String unitToken = trimToNull(matcher.group(2));
+        if (unitToken == null) {
+            return null;
+        }
+
+        BigDecimal quantity = amountToken == null ? BigDecimal.ONE : new BigDecimal(amountToken);
+        String normalizedUnitToken = unitToken.toLowerCase(Locale.ROOT);
+
+        return resolveUnit(normalizedUnitToken, unitToken, quantity);
+    }
+
+    private ParsedUnit resolveUnit(String unit, BigDecimal quantity) {
+        if (quantity == null) {
+            return null;
+        }
+
+        String normalizedUnit = trimToNull(unit);
+        if (normalizedUnit == null) {
+            return null;
+        }
+
+        return resolveUnit(normalizedUnit.toLowerCase(Locale.ROOT), normalizedUnit, quantity);
+    }
+
+    private ParsedUnit resolveUnit(String normalizedUnitToken, String displayUnit, BigDecimal quantity) {
+        if ("kg".equals(normalizedUnitToken)) {
+            return new ParsedUnit("kg", quantity, UnitType.WEIGHT);
+        }
+        if ("g".equals(normalizedUnitToken)) {
+            return new ParsedUnit("g", quantity, UnitType.WEIGHT);
+        }
+        if ("ea".equals(normalizedUnitToken) || "each".equals(normalizedUnitToken)) {
+            return new ParsedUnit("ea", quantity, UnitType.COUNT);
+        }
+        if (COUNT_UNIT_SET.contains(normalizedUnitToken)) {
+            return new ParsedUnit(displayUnit, quantity, UnitType.COUNT);
+        }
+
+        return null;
+    }
+
+    private BigDecimal calculateRecommendedSalePrice(BigDecimal wholesaleAvgPrice, BigDecimal retailAvgPrice) {
+        BigDecimal wholesale = scaleMoney(wholesaleAvgPrice);
+        BigDecimal retail = scaleMoney(retailAvgPrice);
+        return wholesale
+            .add(retail)
+            .divide(BigDecimal.valueOf(2L), 0, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal scaleMoney(BigDecimal value) {
+        if (value == null) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private String normalizeSearchKey(String value) {
+        String trimmedValue = trimToNull(value);
+        if (trimmedValue == null) {
+            return "";
+        }
+        return trimmedValue
+            .replaceAll("[^0-9A-Za-z\\uAC00-\\uD7A3]", "")
+            .toUpperCase(Locale.ROOT);
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmedValue = value.trim();
+        return trimmedValue.isEmpty() ? null : trimmedValue;
+    }
+
+    private static final class ParsedUnit {
+
+        private final String displayUnit;
+        private final BigDecimal quantity;
+        private final UnitType unitType;
+
+        private ParsedUnit(String displayUnit, BigDecimal quantity, UnitType unitType) {
+            this.displayUnit = displayUnit;
+            this.quantity = quantity;
+            this.unitType = unitType;
+        }
+
+        private String getDisplayUnit() {
+            return displayUnit;
+        }
+
+        private BigDecimal getQuantity() {
+            return quantity;
+        }
+
+        private UnitType getUnitType() {
+            return unitType;
+        }
+    }
+
+    private static final class ResolvedPurchaseQuote {
+
+        private final String purchaseUnit;
+        private final BigDecimal purchaseQty;
+        private final BigDecimal purchasePrice;
+
+        private ResolvedPurchaseQuote(String purchaseUnit, BigDecimal purchaseQty, BigDecimal purchasePrice) {
+            this.purchaseUnit = purchaseUnit;
+            this.purchaseQty = purchaseQty;
+            this.purchasePrice = purchasePrice;
+        }
+
+        private String getPurchaseUnit() {
+            return purchaseUnit;
+        }
+
+        private BigDecimal getPurchaseQty() {
+            return purchaseQty;
+        }
+
+        private BigDecimal getPurchasePrice() {
+            return purchasePrice;
+        }
+
+        private String getPricingBaseUnit() {
+            return purchaseUnit;
+        }
+
+        private BigDecimal getPricingBaseQty() {
+            return purchaseQty;
+        }
+
+        private BigDecimal getPricingBasePrice() {
+            return purchasePrice;
+        }
+    }
+
+    private enum UnitType {
+        WEIGHT,
+        COUNT
     }
 }

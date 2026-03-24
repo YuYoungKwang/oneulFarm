@@ -12,6 +12,7 @@ import com.app.dto.MainBannerDto;
 import com.app.dto.OrderDto;
 import com.app.dto.PackageHistoryDto;
 import com.app.dto.ProductCategoryDto;
+import com.app.dto.ProductPriceCodeMapDTO;
 import com.app.dto.ProductDto;
 import com.app.dto.ProductImageDto;
 import com.app.dto.ProductRecipeDto;
@@ -109,6 +110,11 @@ public class AdminDaoImpl implements AdminDao {
     @Override
     public int deleteProductPriceCodeMaps(Long productNo) {
         return sqlSessionTemplate.delete(NAMESPACE + "deleteAdminProductPriceCodeMaps", productNo);
+    }
+
+    @Override
+    public int insertProductPriceCodeMap(ProductPriceCodeMapDTO productPriceCodeMap) {
+        return sqlSessionTemplate.insert(NAMESPACE + "insertAdminProductPriceCodeMap", productPriceCodeMap);
     }
 
     @Override
@@ -298,6 +304,14 @@ public class AdminDaoImpl implements AdminDao {
     @Override
     public int insertPurchaseBatch(PurchaseBatchDto purchaseBatch) {
         return sqlSessionTemplate.insert(NAMESPACE + "insertPurchaseBatch", purchaseBatch);
+    }
+
+    @Override
+    public int updatePurchaseBatchProduct(Long batchNo, Long productNo) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("batchNo", batchNo);
+        params.put("productNo", productNo);
+        return sqlSessionTemplate.update(NAMESPACE + "updatePurchaseBatchProduct", params);
     }
 
     @Override
