@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -14,15 +15,19 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.app.dao.AdminDao;
 import com.app.dao.OrderDao;
+import com.app.dao.UserDao;
 import com.app.dto.MainBannerDto;
 import com.app.dto.OrderDto;
 import com.app.dto.OrderItemDto;
 import com.app.dto.PackageHistoryDto;
 import com.app.dto.ProductCategoryDto;
+import com.app.dto.ProductPriceCodeMapDTO;
 import com.app.dto.ProductDto;
 import com.app.dto.ProductImageDto;
 import com.app.dto.ProductRecipeDto;
 import com.app.dto.PurchaseBatchDto;
+import com.app.dto.PriceSnapshotDTO;
+import com.app.dto.UserDto;
 import com.app.dto.UserProfileDto;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -34,6 +39,15 @@ public class AdminServiceImpl implements AdminService {
 
     @Autowired
     private OrderDao orderDao;
+
+    @Autowired
+    private UserDao userDao;
+
+    @Autowired
+    private PriceSnapshotService priceSnapshotService;
+
+    @Autowired
+    private ProductPriceMatchService productPriceMatchService;
 
     @Override
     public List<ProductCategoryDto> getProductCategories() {
@@ -355,6 +369,9 @@ public class AdminServiceImpl implements AdminService {
     public PurchaseBatchDto createPurchaseBatch(PurchaseBatchDto request) {
         validatePurchaseBatchRequest(request);
         normalizePurchaseBatchRequest(request);
+        ProductDto draftProduct = createDraftProductFromPurchase(request);
+        ensureRetailPriceCodeMap(draftProduct);
+        request.setProductNo(draftProduct.getProductNo());
         adminDao.insertPurchaseBatch(request);
         if (request.getBatchNo() == null) {
             PurchaseBatchDto newestPurchaseBatch = adminDao.findNewestPurchaseBatch(request);
@@ -378,13 +395,38 @@ public class AdminServiceImpl implements AdminService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Purchase batch not found.");
         }
 
+        Long productNo = purchaseBatch.getProductNo() != null
+            ? purchaseBatch.getProductNo()
+            : request.getProductNo();
+        if (productNo == null) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "No linked product exists for this purchase batch."
+            );
+        }
+
+        ProductDto product = adminDao.findAdminProduct(productNo);
+        if (product == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Linked product not found.");
+        }
+
         validatePackageHistoryRequest(request);
+        normalizePackageHistoryRequest(request);
 
         request.setBatchNo(batchNo);
-        request.setUserNo(userNo);
+        request.setProductNo(productNo);
+        request.setUserNo(resolvePackageActorUserNo(userNo));
+        applyPackageResultToProduct(product, purchaseBatch, request);
+        adminDao.updateAdminProduct(product);
+        ensureRetailPriceCodeMap(product);
         adminDao.insertPackageHistory(request);
-        adminDao.increaseProductStock(request.getProductNo(), request.getPackagedQty());
+        if (purchaseBatch.getProductNo() == null) {
+            adminDao.updatePurchaseBatchProduct(batchNo, productNo);
+        }
         adminDao.updatePurchaseBatchStatus(batchNo, "PACKAGED");
+        if ("SELLING".equalsIgnoreCase(product.getSaleStatus())) {
+            productPriceMatchService.refreshProductPriceMatch();
+        }
         return request;
     }
 
@@ -430,6 +472,7 @@ public class AdminServiceImpl implements AdminService {
 
     private void validatePurchaseBatchRequest(PurchaseBatchDto request) {
         if (request == null
+            || request.getCategoryNo() == null
             || isBlank(request.getProductName())
             || isBlank(request.getPurchaseUnit())
             || request.getPurchaseQty() == null
@@ -450,11 +493,25 @@ public class AdminServiceImpl implements AdminService {
 
     private void validatePackageHistoryRequest(PackageHistoryDto request) {
         if (request == null
-            || request.getProductNo() == null
             || request.getPackagedQty() == null
             || request.getPackagedQty() < 1
-            || request.getPackagedWeight() == null) {
+            || request.getPackagedWeight() == null
+            || request.getSalePrice() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Required package fields are missing.");
+        }
+
+        if (request.getPackagedWeight().compareTo(BigDecimal.ZERO) <= 0
+            || request.getSalePrice().compareTo(BigDecimal.ZERO) < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Package values cannot be negative.");
+        }
+
+        String saleStatus = trimToNull(request.getSaleStatus());
+        if (saleStatus != null
+            && !"READY".equals(saleStatus)
+            && !"SELLING".equals(saleStatus)
+            && !"SOLD_OUT".equals(saleStatus)
+            && !"STOP".equals(saleStatus)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported package sale status.");
         }
     }
 
@@ -522,6 +579,187 @@ public class AdminServiceImpl implements AdminService {
         request.setPurchaseUnit(request.getPurchaseUnit().trim());
         request.setSupplierName(trimToNull(request.getSupplierName()));
         request.setStatus(request.getStatus().trim());
+    }
+
+    private void normalizePackageHistoryRequest(PackageHistoryDto request) {
+        request.setNote(trimToNull(request.getNote()));
+        String saleStatus = trimToNull(request.getSaleStatus());
+        request.setSaleStatus(saleStatus == null ? "SELLING" : saleStatus);
+    }
+
+    private ProductDto createDraftProductFromPurchase(PurchaseBatchDto request) {
+        ProductDto draftProduct = new ProductDto();
+        draftProduct.setCategoryNo(request.getCategoryNo());
+        draftProduct.setProductName(request.getProductName());
+        draftProduct.setOrigin(request.getOrigin());
+        draftProduct.setUnit(request.getPurchaseUnit());
+        draftProduct.setPackageWeight(BigDecimal.ZERO);
+        draftProduct.setSalePrice(BigDecimal.ZERO);
+        draftProduct.setStockQty(0L);
+        draftProduct.setDescription(null);
+        draftProduct.setIsSeasonal("N");
+        draftProduct.setSaleStatus("READY");
+        adminDao.insertAdminProduct(draftProduct);
+        if (draftProduct.getProductNo() == null) {
+            ProductDto newestProduct = adminDao.findNewestAdminProduct(draftProduct);
+            if (newestProduct != null) {
+                draftProduct.setProductNo(newestProduct.getProductNo());
+            }
+        }
+
+        if (draftProduct.getProductNo() == null) {
+            throw new ResponseStatusException(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Failed to create linked draft product."
+            );
+        }
+        return draftProduct;
+    }
+
+    private void applyPackageResultToProduct(
+        ProductDto product,
+        PurchaseBatchDto purchaseBatch,
+        PackageHistoryDto request
+    ) {
+        if (purchaseBatch.getCategoryNo() != null) {
+            product.setCategoryNo(purchaseBatch.getCategoryNo());
+        }
+        product.setProductName(purchaseBatch.getProductName());
+        product.setOrigin(purchaseBatch.getOrigin());
+        product.setUnit(purchaseBatch.getPurchaseUnit());
+        product.setPackageWeight(request.getPackagedWeight());
+        product.setSalePrice(request.getSalePrice());
+        long currentStock = product.getStockQty() == null ? 0L : product.getStockQty();
+        product.setStockQty(currentStock + request.getPackagedQty());
+        product.setSaleStatus(request.getSaleStatus());
+        if (product.getStockQty() == 0L && "SELLING".equals(product.getSaleStatus())) {
+            product.setSaleStatus("SOLD_OUT");
+        }
+        if (!"Y".equals(product.getIsSeasonal()) && !"N".equals(product.getIsSeasonal())) {
+            product.setIsSeasonal("N");
+        }
+    }
+
+    private Long resolvePackageActorUserNo(Long requestedUserNo) {
+        if (requestedUserNo != null) {
+            UserDto requestedUser = userDao.findByUserNo(requestedUserNo);
+            if (requestedUser != null) {
+                return requestedUserNo;
+            }
+        }
+
+        return adminDao.findAdminUsers().stream()
+            .filter(user -> user.getUserNo() != null)
+            .filter(user -> !"WITHDRAWN".equalsIgnoreCase(user.getStatus()))
+            .map(UserProfileDto::getUserNo)
+            .findFirst()
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "No valid user exists for package history."
+            ));
+    }
+
+    private void ensureRetailPriceCodeMap(ProductDto product) {
+        if (product == null || product.getProductNo() == null || isBlank(product.getProductName())) {
+            return;
+        }
+
+        PriceSnapshotDTO retailSnapshot = findBestRetailSnapshot(product.getProductName());
+        if (retailSnapshot == null) {
+            return;
+        }
+
+        ProductPriceCodeMapDTO retailMap = buildRetailPriceCodeMap(product.getProductNo(), retailSnapshot);
+        if (retailMap == null) {
+            return;
+        }
+
+        adminDao.deleteProductPriceCodeMaps(product.getProductNo());
+        adminDao.insertProductPriceCodeMap(retailMap);
+    }
+
+    private PriceSnapshotDTO findBestRetailSnapshot(String productName) {
+        List<PriceSnapshotDTO> retailSnapshots =
+            priceSnapshotService.getPriceSnapshotList(productName, "RETAIL", null, 40);
+        if (retailSnapshots == null || retailSnapshots.isEmpty()) {
+            return null;
+        }
+
+        PriceSnapshotDTO bestSnapshot = null;
+        int bestScore = Integer.MIN_VALUE;
+        for (PriceSnapshotDTO candidate : retailSnapshots) {
+            int score = calculateSnapshotMatchScore(productName, candidate);
+            if (bestSnapshot == null || score > bestScore) {
+                bestSnapshot = candidate;
+                bestScore = score;
+            }
+        }
+        return bestSnapshot;
+    }
+
+    private int calculateSnapshotMatchScore(String query, PriceSnapshotDTO candidate) {
+        if (candidate == null) {
+            return Integer.MIN_VALUE;
+        }
+
+        String normalizedQuery = normalizeSearchKey(query);
+        String normalizedItemName = normalizeSearchKey(candidate.getItemName());
+        if (normalizedItemName.isEmpty()) {
+            return Integer.MIN_VALUE;
+        }
+
+        int score = 0;
+        if (normalizedItemName.equals(normalizedQuery)) {
+            score += 1000;
+        } else if (normalizedItemName.startsWith(normalizedQuery)) {
+            score += 700;
+        } else if (normalizedItemName.contains(normalizedQuery)) {
+            score += 500;
+        }
+
+        String rawItemName = trimToNull(candidate.getItemName());
+        if (rawItemName != null && rawItemName.equalsIgnoreCase(query.trim())) {
+            score += 150;
+        }
+
+        score -= Math.max(normalizedItemName.length() - normalizedQuery.length(), 0);
+        return score;
+    }
+
+    private ProductPriceCodeMapDTO buildRetailPriceCodeMap(Long productNo, PriceSnapshotDTO retailSnapshot) {
+        String itemCode = trimToNull(retailSnapshot.getItemCode());
+        if (itemCode == null) {
+            return null;
+        }
+
+        String[] codeTokens = itemCode.split("_", 7);
+        if (codeTokens.length != 7 || !"RETAIL".equalsIgnoreCase(codeTokens[0])) {
+            return null;
+        }
+
+        ProductPriceCodeMapDTO productPriceCodeMap = new ProductPriceCodeMapDTO();
+        productPriceCodeMap.setProductNo(productNo);
+        productPriceCodeMap.setMarketType("RETAIL");
+        productPriceCodeMap.setItemCategoryCode(codeTokens[1]);
+        productPriceCodeMap.setItemCode(codeTokens[2]);
+        productPriceCodeMap.setKindCode(codeTokens[3]);
+        productPriceCodeMap.setProductRankCode(codeTokens[4]);
+        productPriceCodeMap.setCountryCode(codeTokens[5]);
+        productPriceCodeMap.setConvertKgYn(codeTokens[6]);
+        productPriceCodeMap.setItemNameHint(trimToNull(retailSnapshot.getItemName()));
+        productPriceCodeMap.setUnitHint(trimToNull(retailSnapshot.getUnit()));
+        return productPriceCodeMap;
+    }
+
+    private String normalizeSearchKey(String value) {
+        String trimmedValue = trimToNull(value);
+        if (trimmedValue == null) {
+            return "";
+        }
+
+        return trimmedValue
+            .replaceAll("\\s+", "")
+            .toLowerCase(Locale.ROOT);
     }
 
     private void hydrateUserDefaults(UserProfileDto user) {

@@ -228,6 +228,19 @@ export async function fetchAdminPackageHistories() {
   );
 }
 
+export async function fetchAdminPurchaseQuote(productName) {
+  const searchParams = new URLSearchParams();
+  searchParams.set('productName', productName);
+
+  return requestApi(
+    `${ADMIN_API_BASE}/purchases/quote?${searchParams.toString()}`,
+    {
+      headers: apiHeaders(),
+    },
+    '시세 기반 매입 정보를 불러오지 못했습니다.'
+  );
+}
+
 export async function createAdminPurchaseBatch(payload) {
   return requestApi(
     `${ADMIN_API_BASE}/purchases`,

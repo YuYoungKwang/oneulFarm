@@ -11,6 +11,7 @@ import {
   fetchAdminOrders,
   fetchAdminPackageHistories,
   fetchAdminProductCategories,
+  fetchAdminPurchaseQuote,
   fetchAdminProducts,
   fetchAdminPurchases,
   fetchAdminRecipeMappings,
@@ -59,6 +60,7 @@ jest.mock('./admin/adminApi', () => ({
   fetchAdminOrders: jest.fn(),
   fetchAdminPackageHistories: jest.fn(),
   fetchAdminProductCategories: jest.fn(),
+  fetchAdminPurchaseQuote: jest.fn(),
   fetchAdminProducts: jest.fn(),
   fetchAdminPurchases: jest.fn(),
   fetchAdminRecipeMappings: jest.fn(),
@@ -351,6 +353,20 @@ describe('App', () => {
     fetchAdminUsers.mockResolvedValue([]);
     fetchAdminPurchases.mockResolvedValue([]);
     fetchAdminPackageHistories.mockResolvedValue([]);
+    fetchAdminPurchaseQuote.mockResolvedValue({
+      matchedItemName: '\uC591\uD30C',
+      snapshotDate: '2026-03-24',
+      snapshotUnit: '20kg',
+      purchaseUnit: 'kg',
+      purchaseQty: 20,
+      purchasePrice: 31000,
+      pricingBaseUnit: 'kg',
+      pricingBaseQty: 20,
+      pricingBasePrice: 31000,
+      wholesaleAvgPrice: 31000,
+      retailAvgPrice: 42000,
+      recommendedSalePrice: 36500,
+    });
     fetchAdminBanners.mockResolvedValue([]);
     fetchAdminRecipeMappings.mockResolvedValue([]);
     deleteAdminProduct.mockResolvedValue(null);
@@ -644,5 +660,27 @@ describe('App', () => {
     expect(screen.queryByText('\uBC30\uC1A1 \uC2DC\uC791')).not.toBeInTheDocument();
     expect(screen.queryByText('\uBC30\uC1A1 \uC644\uB8CC')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '\uC0C1\uC138 \uBCF4\uAE30' })).not.toBeInTheDocument();
+  });
+
+  test('관리자 매입 등록에서 시세 자동 채움으로 단위와 수량, 총 매입가를 채운다', async () => {
+    window.localStorage.setItem('oneulFarmAdminMode', 'true');
+    window.location.hash = '#/admin/purchase';
+
+    render(<App />);
+
+    const productNameInput = await screen.findByRole('textbox', { name: '품목명' });
+    fireEvent.change(productNameInput, { target: { value: '양파' } });
+    fireEvent.blur(productNameInput);
+
+    await waitFor(() => {
+      expect(fetchAdminPurchaseQuote).toHaveBeenCalledWith('양파');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('kg')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('20')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('31000')).toBeInTheDocument();
+      expect(screen.getByText('시세 자동 채움 기준')).toBeInTheDocument();
+    });
   });
 });

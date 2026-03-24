@@ -6,6 +6,7 @@ import com.app.dto.MainBannerDto;
 import com.app.dto.OrderDto;
 import com.app.dto.PackageHistoryDto;
 import com.app.dto.ProductCategoryDto;
+import com.app.dto.ProductPriceCodeMapDTO;
 import com.app.dto.ProductDto;
 import com.app.dto.ProductImageDto;
 import com.app.dto.ProductRecipeDto;
@@ -47,6 +48,8 @@ public interface AdminDao {
     int deleteProductPriceMatches(Long productNo);
 
     int deleteProductPriceCodeMaps(Long productNo);
+
+    int insertProductPriceCodeMap(ProductPriceCodeMapDTO productPriceCodeMap);
 
     int deletePackageHistoriesByProduct(Long productNo);
 
@@ -117,6 +120,8 @@ public interface AdminDao {
     PurchaseBatchDto findNewestPurchaseBatch(PurchaseBatchDto purchaseBatch);
 
     int insertPurchaseBatch(PurchaseBatchDto purchaseBatch);
+
+    int updatePurchaseBatchProduct(Long batchNo, Long productNo);
 
     List<PackageHistoryDto> findPackageHistories();
 

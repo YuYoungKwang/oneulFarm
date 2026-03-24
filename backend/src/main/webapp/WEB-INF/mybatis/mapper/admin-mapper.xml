@@ -299,6 +299,34 @@
         WHERE PRODUCT_NO = #{_parameter}
     </delete>
 
+    <insert id="insertAdminProductPriceCodeMap" parameterType="com.app.dto.ProductPriceCodeMapDTO">
+        INSERT INTO OFT_PRODUCT_PRICE_CODE_MAP (
+            PRODUCT_NO,
+            MARKET_TYPE,
+            ITEM_CATEGORY_CODE,
+            ITEM_CODE,
+            KIND_CODE,
+            PRODUCT_RANK_CODE,
+            COUNTRY_CODE,
+            CONVERT_KG_YN,
+            ITEM_NAME_HINT,
+            UNIT_HINT,
+            IS_ACTIVE
+        ) VALUES (
+            #{productNo},
+            #{marketType},
+            #{itemCategoryCode},
+            #{itemCode},
+            #{kindCode},
+            #{productRankCode},
+            #{countryCode},
+            #{convertKgYn},
+            #{itemNameHint},
+            #{unitHint},
+            'Y'
+        )
+    </insert>
+
     <delete id="deleteAdminPackageHistoriesByProduct" parameterType="long">
         DELETE FROM OFT_PACKAGE_HISTORY
         WHERE PRODUCT_NO = #{_parameter}
@@ -648,6 +676,8 @@
     <select id="selectPurchaseBatches" resultType="com.app.dto.PurchaseBatchDto">
         SELECT
             BATCH_NO AS batchNo,
+            PRODUCT_NO AS productNo,
+            CATEGORY_NO AS categoryNo,
             PRODUCT_NAME AS productName,
             ORIGIN AS origin,
             PURCHASE_UNIT AS purchaseUnit,
@@ -664,6 +694,8 @@
     <select id="selectPurchaseBatch" parameterType="long" resultType="com.app.dto.PurchaseBatchDto">
         SELECT
             BATCH_NO AS batchNo,
+            PRODUCT_NO AS productNo,
+            CATEGORY_NO AS categoryNo,
             PRODUCT_NAME AS productName,
             ORIGIN AS origin,
             PURCHASE_UNIT AS purchaseUnit,
@@ -682,6 +714,8 @@
         FROM (
             SELECT
                 BATCH_NO AS batchNo,
+                PRODUCT_NO AS productNo,
+                CATEGORY_NO AS categoryNo,
                 PRODUCT_NAME AS productName,
                 ORIGIN AS origin,
                 PURCHASE_UNIT AS purchaseUnit,
@@ -693,6 +727,8 @@
                 CREATED_AT AS createdAt
             FROM OFT_PURCHASE_BATCH
             WHERE PRODUCT_NAME = #{productName}
+              AND CATEGORY_NO = #{categoryNo}
+              AND PRODUCT_NO = #{productNo}
               AND NVL(ORIGIN, ' ') = NVL(#{origin}, ' ')
               AND PURCHASE_UNIT = #{purchaseUnit}
               AND PURCHASE_QTY = #{purchaseQty}
@@ -707,6 +743,8 @@
 
     <insert id="insertPurchaseBatch" parameterType="com.app.dto.PurchaseBatchDto">
         INSERT INTO OFT_PURCHASE_BATCH (
+            PRODUCT_NO,
+            CATEGORY_NO,
             PRODUCT_NAME,
             ORIGIN,
             PURCHASE_UNIT,
@@ -716,6 +754,8 @@
             SUPPLIER_NAME,
             STATUS
         ) VALUES (
+            #{productNo},
+            #{categoryNo},
             #{productName},
             #{origin},
             #{purchaseUnit},
@@ -727,6 +767,12 @@
         )
     </insert>
 
+    <update id="updatePurchaseBatchProduct" parameterType="map">
+        UPDATE OFT_PURCHASE_BATCH
+        SET PRODUCT_NO = #{productNo}
+        WHERE BATCH_NO = #{batchNo}
+    </update>
+
     <select id="selectPackageHistories" resultType="com.app.dto.PackageHistoryDto">
         SELECT
             PACKAGE_NO AS packageNo,
@@ -734,6 +780,8 @@
             PRODUCT_NO AS productNo,
             PACKAGED_QTY AS packagedQty,
             PACKAGED_WEIGHT AS packagedWeight,
+            SALE_PRICE AS salePrice,
+            SALE_STATUS AS saleStatus,
             PACKAGED_AT AS packagedAt,
             NOTE AS note,
             USER_NO AS userNo
@@ -741,12 +789,14 @@
         ORDER BY PACKAGED_AT DESC, PACKAGE_NO DESC
     </select>
 
-    <insert id="insertPackageHistory" parameterType="com.app.dto.PackageHistoryDto" useGeneratedKeys="true" keyProperty="packageNo">
+    <insert id="insertPackageHistory" parameterType="com.app.dto.PackageHistoryDto">
         INSERT INTO OFT_PACKAGE_HISTORY (
             BATCH_NO,
             PRODUCT_NO,
             PACKAGED_QTY,
             PACKAGED_WEIGHT,
+            SALE_PRICE,
+            SALE_STATUS,
             NOTE,
             USER_NO
         ) VALUES (
@@ -754,6 +804,8 @@
             #{productNo},
             #{packagedQty},
             #{packagedWeight},
+            #{salePrice},
+            #{saleStatus},
             #{note},
             #{userNo}
         )
