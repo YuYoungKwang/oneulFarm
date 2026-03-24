@@ -431,6 +431,25 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @Transactional
+    public void deletePurchaseBatch(Long batchNo) {
+        PurchaseBatchDto purchaseBatch = adminDao.findPurchaseBatch(batchNo);
+        if (purchaseBatch == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Purchase batch not found.");
+        }
+
+        adminDao.deletePackageHistoriesByBatch(batchNo);
+
+        int deletedCount = adminDao.deletePurchaseBatch(batchNo);
+        if (deletedCount == 0) {
+            throw new ResponseStatusException(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Failed to delete purchase batch."
+            );
+        }
+    }
+
+    @Override
     public List<MainBannerDto> getMainBanners() {
         return adminDao.findMainBanners();
     }

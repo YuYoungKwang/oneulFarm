@@ -127,6 +127,10 @@ public interface AdminDao {
 
     int insertPackageHistory(PackageHistoryDto packageHistory);
 
+    int deletePackageHistoriesByBatch(Long batchNo);
+
+    int deletePurchaseBatch(Long batchNo);
+
     int updatePurchaseBatchStatus(Long batchNo, String status);
 
     int increaseProductStock(Long productNo, Integer quantity);

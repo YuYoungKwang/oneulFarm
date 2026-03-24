@@ -811,6 +811,16 @@
         )
     </insert>
 
+    <delete id="deletePackageHistoriesByBatch" parameterType="long">
+        DELETE FROM OFT_PACKAGE_HISTORY
+        WHERE BATCH_NO = #{_parameter}
+    </delete>
+
+    <delete id="deletePurchaseBatch" parameterType="long">
+        DELETE FROM OFT_PURCHASE_BATCH
+        WHERE BATCH_NO = #{_parameter}
+    </delete>
+
     <update id="updatePurchaseBatchStatus" parameterType="map">
         UPDATE OFT_PURCHASE_BATCH
         SET STATUS = #{status}

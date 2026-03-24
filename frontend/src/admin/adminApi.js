@@ -253,6 +253,17 @@ export async function createAdminPurchaseBatch(payload) {
   );
 }
 
+export async function deleteAdminPurchaseBatch(batchNo) {
+  return requestApi(
+    `${ADMIN_API_BASE}/purchases/${batchNo}`,
+    {
+      method: 'DELETE',
+      headers: apiHeaders(),
+    },
+    '매입/소분 이력 삭제에 실패했습니다.'
+  );
+}
+
 export async function createAdminPackageHistory(batchNo, payload) {
   return requestApi(
     `${ADMIN_API_BASE}/purchases/${batchNo}/package`,

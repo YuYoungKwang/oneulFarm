@@ -325,6 +325,16 @@ public class AdminDaoImpl implements AdminDao {
     }
 
     @Override
+    public int deletePackageHistoriesByBatch(Long batchNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deletePackageHistoriesByBatch", batchNo);
+    }
+
+    @Override
+    public int deletePurchaseBatch(Long batchNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deletePurchaseBatch", batchNo);
+    }
+
+    @Override
     public int updatePurchaseBatchStatus(Long batchNo, String status) {
         Map<String, Object> params = new HashMap<>();
         params.put("batchNo", batchNo);

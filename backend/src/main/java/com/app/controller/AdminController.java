@@ -183,6 +183,14 @@ public class AdminController {
         return ApiResponse.success(adminService.createPurchaseBatch(request), "Purchase batch created.");
     }
 
+    @DeleteMapping("/purchases/{batchNo}")
+    public ApiResponse<Void> deletePurchase(
+        @PathVariable Long batchNo
+    ) {
+        adminService.deletePurchaseBatch(batchNo);
+        return ApiResponse.success(null, "Purchase batch deleted.");
+    }
+
     @PostMapping(value = "/purchases/{batchNo}/package", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ApiResponse<PackageHistoryDto> packageBatch(
         @RequestHeader("X-USER-NO") Long userNo,
@@ -230,27 +238,38 @@ public class AdminController {
         data.put("matchedItemName", wholesaleSnapshot.getItemName());
         data.put("snapshotDate", wholesaleSnapshot.getSnapshotDate());
         data.put("snapshotUnit", wholesaleSnapshot.getUnit());
+        data.put("wholesaleSourceUnit", wholesaleSnapshot.getUnit());
         data.put("purchaseUnit", resolvedQuote.getPurchaseUnit());
         data.put("purchaseQty", resolvedQuote.getPurchaseQty());
         data.put("purchasePrice", resolvedQuote.getPurchasePrice());
         data.put("pricingBaseUnit", resolvedQuote.getPricingBaseUnit());
         data.put("pricingBaseQty", resolvedQuote.getPricingBaseQty());
         data.put("pricingBasePrice", resolvedQuote.getPricingBasePrice());
-        BigDecimal wholesaleComparablePrice = resolvedQuote.getPurchasePrice();
-        BigDecimal retailComparablePrice = retailSnapshot == null
-            ? null
-            : calculateComparablePriceForBase(retailSnapshot, resolvedQuote);
+        BigDecimal wholesaleSourcePrice = scaleMoney(wholesaleSnapshot.getAvgPrice());
+        BigDecimal retailSourcePrice = retailSnapshot == null ? null : scaleMoney(retailSnapshot.getAvgPrice());
+        BigDecimal wholesalePerKgPrice = calculatePricePerKg(wholesaleSnapshot);
+        BigDecimal retailPerKgPrice = retailSnapshot == null ? null : calculatePricePerKg(retailSnapshot);
 
-        data.put("wholesaleAvgPrice", scaleMoney(wholesaleSnapshot.getAvgPrice()));
-        data.put("wholesaleComparablePrice", wholesaleComparablePrice);
-        data.put("retailAvgPrice", retailSnapshot == null ? null : scaleMoney(retailSnapshot.getAvgPrice()));
+        data.put("priceBasisUnit", "1kg");
+        data.put("wholesalePriceBasisUnit", "1kg");
+        data.put("retailPriceBasisUnit", "1kg");
+        data.put("recommendedPriceBasisUnit", "1kg");
+        data.put("wholesaleSourcePrice", wholesaleSourcePrice);
+        data.put("retailSourcePrice", retailSourcePrice);
+        data.put("wholesaleAvgPrice", wholesalePerKgPrice);
+        data.put("wholesaleComparablePrice", wholesalePerKgPrice);
+        data.put("retailAvgPrice", retailPerKgPrice);
         data.put("retailSnapshotUnit", retailSnapshot == null ? null : retailSnapshot.getUnit());
-        data.put("retailComparablePrice", retailComparablePrice);
+        data.put("retailComparablePrice", retailPerKgPrice);
         data.put(
             "recommendedSalePrice",
-            retailComparablePrice == null
+            wholesalePerKgPrice == null || retailPerKgPrice == null
                 ? null
-                : calculateRecommendedSalePrice(wholesaleComparablePrice, retailComparablePrice)
+                : calculateRecommendedSalePrice(wholesalePerKgPrice, retailPerKgPrice)
+        );
+        data.put(
+            "pricingNote",
+            buildPricingNote(wholesaleSnapshot, retailSnapshot, wholesalePerKgPrice, retailPerKgPrice)
         );
         data.put("wholesaleItemCode", trimToNull(wholesaleSnapshot.getItemCode()));
         data.put("retailItemCode", retailSnapshot == null ? null : trimToNull(retailSnapshot.getItemCode()));
@@ -294,11 +313,17 @@ public class AdminController {
             int score = calculateSnapshotMatchScore(query, candidate);
 
             if (wholesaleItemCode != null && wholesaleItemCode.equals(trimToNull(candidate.getItemCode()))) {
-                score += 200;
+                score += 2000;
             }
 
             if (wholesaleItemName.equals(normalizeSearchKey(candidate.getItemName()))) {
-                score += 120;
+                score += 1800;
+            }
+
+            if (isDailySnapshot(candidate)) {
+                score += 400;
+            } else if (isPeriodSnapshot(candidate)) {
+                score -= 100;
             }
 
             if (bestCandidate == null || score > bestScore) {
@@ -380,6 +405,28 @@ public class AdminController {
             .divide(sourceUnit.getQuantity(), 2, RoundingMode.HALF_UP);
     }
 
+    private BigDecimal calculatePricePerKg(PriceSnapshotDTO snapshot) {
+        if (snapshot == null || snapshot.getAvgPrice() == null) {
+            return null;
+        }
+
+        ParsedUnit parsedUnit = parseSnapshotUnit(snapshot.getUnit());
+        if (parsedUnit == null || parsedUnit.getUnitType() != UnitType.WEIGHT) {
+            return null;
+        }
+
+        BigDecimal quantityInGram = "kg".equals(parsedUnit.getDisplayUnit())
+            ? parsedUnit.getQuantity().multiply(BigDecimal.valueOf(1000L))
+            : parsedUnit.getQuantity();
+        if (quantityInGram.compareTo(BigDecimal.ZERO) <= 0) {
+            return null;
+        }
+
+        return scaleMoney(snapshot.getAvgPrice())
+            .multiply(BigDecimal.valueOf(1000L))
+            .divide(quantityInGram, 2, RoundingMode.HALF_UP);
+    }
+
     private ParsedUnit parseSnapshotUnit(String snapshotUnit) {
         String normalizedValue = trimToNull(snapshotUnit);
         if (normalizedValue == null) {
@@ -441,11 +488,43 @@ public class AdminController {
             .divide(BigDecimal.valueOf(2L), 0, RoundingMode.HALF_UP);
     }
 
+    private String buildPricingNote(
+        PriceSnapshotDTO wholesaleSnapshot,
+        PriceSnapshotDTO retailSnapshot,
+        BigDecimal wholesalePerKgPrice,
+        BigDecimal retailPerKgPrice
+    ) {
+        if (wholesalePerKgPrice == null) {
+            return "도매 시세 단위를 1kg 기준으로 환산할 수 없어 권장 판매가를 계산하지 않았습니다.";
+        }
+        if (retailSnapshot == null) {
+            return "연결할 소매 시세가 없어 권장 판매가를 계산하지 않았습니다.";
+        }
+        if (retailPerKgPrice == null) {
+            return String.format(
+                Locale.KOREAN,
+                "소매 시세 단위(%s)가 무게 기준이 아니어서 1kg 환산값과 권장 판매가를 계산하지 않았습니다.",
+                retailSnapshot.getUnit()
+            );
+        }
+        return null;
+    }
+
     private BigDecimal scaleMoney(BigDecimal value) {
         if (value == null) {
             return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         }
         return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private boolean isDailySnapshot(PriceSnapshotDTO snapshot) {
+        String sourceName = trimToNull(snapshot == null ? null : snapshot.getSourceName());
+        return sourceName != null && sourceName.startsWith("KAMIS_DAILY");
+    }
+
+    private boolean isPeriodSnapshot(PriceSnapshotDTO snapshot) {
+        String sourceName = trimToNull(snapshot == null ? null : snapshot.getSourceName());
+        return sourceName != null && sourceName.startsWith("KAMIS_PERIOD");
     }
 
     private String normalizeSearchKey(String value) {

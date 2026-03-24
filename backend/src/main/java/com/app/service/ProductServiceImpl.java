@@ -75,47 +75,74 @@ public class ProductServiceImpl implements ProductService {
             return;
         }
 
+        PriceSnapshotDTO retailSnapshot = findBestRetailSnapshot(product.getProductName());
+        BigDecimal comparablePrice = retailSnapshot == null ? null : calculateComparablePrice(product, retailSnapshot);
+        if (retailSnapshot != null && comparablePrice != null) {
+            applyResolvedPriceInsight(product, retailSnapshot, comparablePrice);
+            return;
+        }
+
+        BigDecimal currentComparedPrice = product.getComparedPrice();
+        if (currentComparedPrice != null && currentComparedPrice.compareTo(BigDecimal.ZERO) > 0) {
+            applyResolvedPriceInsight(product, null, currentComparedPrice);
+            return;
+        }
+
         BigDecimal currentAvgPrice = product.getAvgPrice();
         if (product.getSnapshotNo() != null || (currentAvgPrice != null && currentAvgPrice.compareTo(BigDecimal.ZERO) > 0)) {
             return;
         }
 
-        PriceSnapshotDTO retailSnapshot = findBestRetailSnapshot(product.getProductName());
         if (retailSnapshot == null) {
             return;
         }
 
-        BigDecimal comparablePrice = calculateComparablePrice(product, retailSnapshot);
-        BigDecimal displayAvgPrice = comparablePrice != null ? comparablePrice : retailSnapshot.getAvgPrice();
+        BigDecimal displayAvgPrice = retailSnapshot.getAvgPrice();
         if (displayAvgPrice == null) {
             return;
         }
 
+        applyResolvedPriceInsight(product, retailSnapshot, displayAvgPrice);
+    }
+
+    private void applyResolvedPriceInsight(
+        ProductDto product,
+        PriceSnapshotDTO retailSnapshot,
+        BigDecimal displayAvgPrice
+    ) {
+        if (product == null || displayAvgPrice == null) {
+            return;
+        }
+
+        BigDecimal normalizedDisplayAvgPrice = scaleMoney(displayAvgPrice);
         BigDecimal salePrice = scaleMoney(product.getSalePrice());
-        BigDecimal priceGap = displayAvgPrice.subtract(salePrice).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal priceGap = normalizedDisplayAvgPrice.subtract(salePrice).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
         BigDecimal savingRate = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         String badgeType = null;
 
-        if (displayAvgPrice.compareTo(BigDecimal.ZERO) > 0 && priceGap.compareTo(BADGE_THRESHOLD) >= 0) {
+        if (normalizedDisplayAvgPrice.compareTo(BigDecimal.ZERO) > 0 && priceGap.compareTo(BADGE_THRESHOLD) >= 0) {
             savingRate = priceGap
-                .divide(displayAvgPrice, 6, RoundingMode.HALF_UP)
+                .divide(normalizedDisplayAvgPrice, 6, RoundingMode.HALF_UP)
                 .multiply(BigDecimal.valueOf(100L))
                 .setScale(2, RoundingMode.HALF_UP);
             badgeType = "UNDER_AVG";
         }
 
-        product.setSnapshotNo(retailSnapshot.getSnapshotNo());
-        product.setItemCode(retailSnapshot.getItemCode());
-        product.setItemName(retailSnapshot.getItemName());
-        product.setMarketType(retailSnapshot.getMarketType());
-        product.setSnapshotUnit(retailSnapshot.getUnit());
-        product.setAvgPrice(displayAvgPrice);
-        product.setMinPrice(displayAvgPrice);
-        product.setMaxPrice(displayAvgPrice);
-        product.setChangeRate(retailSnapshot.getChangeRate());
-        product.setSnapshotDate(parseSnapshotDate(retailSnapshot.getSnapshotDate()));
-        product.setSourceName(retailSnapshot.getSourceName());
-        product.setComparedPrice(displayAvgPrice);
+        if (retailSnapshot != null) {
+            product.setSnapshotNo(retailSnapshot.getSnapshotNo());
+            product.setItemCode(retailSnapshot.getItemCode());
+            product.setItemName(retailSnapshot.getItemName());
+            product.setMarketType(retailSnapshot.getMarketType());
+            product.setSnapshotUnit(retailSnapshot.getUnit());
+            product.setChangeRate(retailSnapshot.getChangeRate());
+            product.setSnapshotDate(parseSnapshotDate(retailSnapshot.getSnapshotDate()));
+            product.setSourceName(retailSnapshot.getSourceName());
+        }
+
+        product.setAvgPrice(normalizedDisplayAvgPrice);
+        product.setMinPrice(normalizedDisplayAvgPrice);
+        product.setMaxPrice(normalizedDisplayAvgPrice);
+        product.setComparedPrice(normalizedDisplayAvgPrice);
         product.setPriceGap(priceGap);
         product.setSavingRate(savingRate);
         product.setBadgeType(badgeType);
@@ -167,6 +194,12 @@ public class ProductServiceImpl implements ProductService {
         String rawItemName = trimToNull(candidate.getItemName());
         if (rawItemName != null && rawItemName.equalsIgnoreCase(query.trim())) {
             score += 150;
+        }
+
+        if (isDailySnapshot(candidate)) {
+            score += 400;
+        } else if (isPeriodSnapshot(candidate)) {
+            score -= 100;
         }
 
         score -= Math.max(normalizedItemName.length() - normalizedQuery.length(), 0);
@@ -267,6 +300,16 @@ public class ProductServiceImpl implements ProductService {
             return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         }
         return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private boolean isDailySnapshot(PriceSnapshotDTO snapshot) {
+        String sourceName = trimToNull(snapshot == null ? null : snapshot.getSourceName());
+        return sourceName != null && sourceName.startsWith("KAMIS_DAILY");
+    }
+
+    private boolean isPeriodSnapshot(PriceSnapshotDTO snapshot) {
+        String sourceName = trimToNull(snapshot == null ? null : snapshot.getSourceName());
+        return sourceName != null && sourceName.startsWith("KAMIS_PERIOD");
     }
 
     private String normalizeSearchKey(String value) {
