@@ -2,6 +2,7 @@ const API_BASE_PREFIXES = buildApiBasePrefixes(
   process.env.REACT_APP_API_BASE_URL || ''
 );
 const TOSS_PAYMENT_API_BASE = '/api/payments/toss';
+const PORTONE_PAYMENT_API_BASE = '/api/payments/portone';
 
 async function parseResponse(response, fallbackMessage) {
   const payload = await response.json().catch(() => null);
@@ -55,6 +56,21 @@ export const DEFAULT_TOSS_CONFIG = {
   mode: 'UNCONFIGURED',
 };
 
+export const DEFAULT_PORTONE_CONFIG = {
+  provider: 'PORTONE',
+  storeId: '',
+  channelKey: '',
+  channelKeys: {
+    card: '',
+    virtualAccount: '',
+    kakaoPay: '',
+    tossPay: '',
+  },
+  apiSecretConfigured: false,
+  ready: false,
+  mode: 'TEST',
+};
+
 export async function fetchTossPaymentConfigFromApi() {
   const data = await requestApi(
     `${TOSS_PAYMENT_API_BASE}/config`,
@@ -79,5 +95,32 @@ export async function confirmTossPaymentOnApi(confirmRequest) {
       body: JSON.stringify(confirmRequest),
     },
     'Failed to confirm Toss payment.'
+  );
+}
+
+export async function fetchPortOnePaymentConfigFromApi() {
+  const data = await requestApi(
+    `${PORTONE_PAYMENT_API_BASE}/config`,
+    undefined,
+    'Failed to load PortOne config.'
+  );
+
+  return {
+    ...DEFAULT_PORTONE_CONFIG,
+    ...(data || {}),
+  };
+}
+
+export async function completePortOnePaymentOnApi(completeRequest) {
+  return requestApi(
+    `${PORTONE_PAYMENT_API_BASE}/complete`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(completeRequest),
+    },
+    'Failed to verify PortOne payment.'
   );
 }

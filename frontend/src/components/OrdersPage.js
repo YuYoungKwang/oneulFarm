@@ -145,7 +145,12 @@ export default function OrdersPage({
               </div>
               <div className="insight-item">
                 <strong>결제 수단</strong>
-                <span>{getPaymentMethodLabel(selectedOrder.payment.paymentMethod)}</span>
+                <span>
+                  {getPaymentMethodLabel(
+                    selectedOrder.payment.paymentMethod,
+                    selectedOrder.payment.paymentProvider
+                  )}
+                </span>
               </div>
               <div className="insight-item">
                 <strong>결제 금액</strong>

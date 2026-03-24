@@ -1,9 +1,9 @@
 import { startTransition, useEffect, useRef, useState } from 'react';
 import '../styles/product.css';
 import {
-  DEFAULT_TOSS_CONFIG,
-  confirmTossPaymentOnApi,
-  fetchTossPaymentConfigFromApi,
+  DEFAULT_PORTONE_CONFIG,
+  completePortOnePaymentOnApi,
+  fetchPortOnePaymentConfigFromApi,
 } from '../api/paymentApi';
 import {
   addCartItemToApi,
@@ -17,10 +17,13 @@ import {
   updateCartItemOnApi,
 } from '../api/productApi';
 import {
-  clearPendingTossPayment,
-  readPendingTossPayment,
-  readTossCallbackParams,
-} from '../payment/tossPayments';
+  clearPendingPortOnePayment,
+  createPortOnePaymentDraft,
+  readPendingPortOnePayment,
+  readPortOneCallbackParams,
+  requestPortOnePayment,
+  storePendingPortOnePayment,
+} from '../payment/portonePayments';
 import CartPage from './CartPage';
 import CheckoutPage from './CheckoutPage';
 import OrderCompletePage from './OrderCompletePage';
@@ -62,7 +65,7 @@ export default function ProductApp({ authUser }) {
   const [productDetailReloadTokens, setProductDetailReloadTokens] = useState({});
   const productDetailsRef = useRef(productDetails);
   const productDetailStatesRef = useRef(productDetailStates);
-  const [tossConfig, setTossConfig] = useState(DEFAULT_TOSS_CONFIG);
+  const [paymentConfig, setPaymentConfig] = useState(DEFAULT_PORTONE_CONFIG);
   const [paymentFlowState, setPaymentFlowState] = useState({
     status: 'idle',
     title: '',
@@ -177,12 +180,12 @@ export default function ProductApp({ authUser }) {
       }
 
       try {
-        const nextTossConfig = await fetchTossPaymentConfigFromApi();
+        const nextPaymentConfig = await fetchPortOnePaymentConfigFromApi();
         if (!cancelled) {
-          setTossConfig(nextTossConfig);
+          setPaymentConfig(nextPaymentConfig);
         }
       } catch (error) {
-        // Keep Toss Payments disabled when config is unavailable.
+        // Keep PortOne disabled when config is unavailable.
       }
     }
 
@@ -288,13 +291,14 @@ export default function ProductApp({ authUser }) {
     }
 
     if (route.page === 'payment-fail') {
-      const callbackParams = readTossCallbackParams();
-      clearPendingTossPayment();
+      const callbackParams = readPortOneCallbackParams();
+      clearPendingPortOnePayment();
       setPaymentFlowState({
         status: 'error',
         title: '\uACB0\uC81C\uAC00 \uCDE8\uC18C\uB418\uC5C8\uAC70\uB098 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.',
         description:
           callbackParams.message ||
+          callbackParams.pgMessage ||
           '\uB2E4\uC2DC \uC8FC\uBB38\uC11C\uB85C \uB3CC\uC544\uAC00 \uACB0\uC81C\uB97C \uC2DC\uB3C4\uD574 \uC8FC\uC138\uC694.',
       });
       return;
@@ -302,15 +306,15 @@ export default function ProductApp({ authUser }) {
 
     let cancelled = false;
 
-    async function completeTossPayment() {
-      const callbackParams = readTossCallbackParams();
-      const pendingPayment = readPendingTossPayment();
+    async function completePortOnePayment() {
+      const callbackParams = readPortOneCallbackParams();
+      const pendingPayment = readPendingPortOnePayment();
 
       setPaymentFlowState({
         status: 'pending',
         title: '\uACB0\uC81C \uC2B9\uC778\uC744 \uD655\uC778\uD558\uB294 \uC911\uC785\uB2C8\uB2E4.',
         description:
-          'Toss Payments \uC2B9\uC778 \uACB0\uACFC\uB97C \uD655\uC778\uD55C \uB4A4 \uC8FC\uBB38\uC744 \uC800\uC7A5\uD569\uB2C8\uB2E4.',
+          'PortOne \uACB0\uC81C \uC751\uB2F5\uC744 \uD655\uC778\uD55C \uB4A4 \uC8FC\uBB38\uC744 \uC800\uC7A5\uD569\uB2C8\uB2E4.',
       });
 
       try {
@@ -320,46 +324,34 @@ export default function ProductApp({ authUser }) {
           );
         }
 
-        if (
-          !callbackParams.paymentKey ||
-          !callbackParams.orderId ||
-          !callbackParams.amount
-        ) {
+        const resolvedPaymentId = callbackParams.paymentId || pendingPayment.paymentId;
+        if (!resolvedPaymentId) {
           throw new Error(
             '\uACB0\uC81C \uC644\uB8CC \uD30C\uB77C\uBBF8\uD130\uAC00 \uB204\uB77D\uB418\uC5C8\uC2B5\uB2C8\uB2E4.'
           );
         }
 
-        if (pendingPayment.orderId !== callbackParams.orderId) {
-          throw new Error(
-            '\uACB0\uC81C \uC8FC\uBB38\uBC88\uD638\uAC00 \uC77C\uCE58\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.'
-          );
-        }
-
-        if (Number(pendingPayment.amount) !== Number(callbackParams.amount)) {
-          throw new Error(
-            '\uACB0\uC81C \uAE08\uC561\uC774 \uC8FC\uBB38 \uAE08\uC561\uACFC \uC77C\uCE58\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.'
-          );
-        }
-
-        await confirmTossPaymentOnApi({
-          paymentKey: callbackParams.paymentKey,
-          orderId: callbackParams.orderId,
-          amount: callbackParams.amount,
+        const paymentResult = await completePortOnePaymentOnApi({
+          paymentId: resolvedPaymentId,
+          amount: pendingPayment.amount,
         });
+
+        if (paymentResult?.status !== 'PAID') {
+          throw new Error('\uACB0\uC81C \uC0C1\uD0DC\uAC00 \uC644\uB8CC(PAID)\uAC00 \uC544\uB2D9\uB2C8\uB2E4.');
+        }
 
         const newOrder = await createOrderOnApi({
           ...pendingPayment.checkoutForm,
-          orderId: callbackParams.orderId,
-          paymentKey: callbackParams.paymentKey,
-          paymentProvider: 'TOSS',
+          orderId: resolvedPaymentId,
+          paymentKey: resolvedPaymentId,
+          paymentProvider: pendingPayment.paymentProvider || 'PORTONE',
         });
 
         if (cancelled) {
           return;
         }
 
-        clearPendingTossPayment();
+        clearPendingPortOnePayment();
         applySuccessfulOrder(newOrder);
       } catch (error) {
         if (cancelled) {
@@ -376,7 +368,7 @@ export default function ProductApp({ authUser }) {
       }
     }
 
-    completeTossPayment();
+    completePortOnePayment();
     return () => {
       cancelled = true;
     };
@@ -660,6 +652,34 @@ export default function ProductApp({ authUser }) {
       return;
     }
 
+    if (process.env.NODE_ENV !== 'test' && paymentConfig?.ready) {
+      const paymentDraft = createPortOnePaymentDraft(
+        paymentConfig,
+        checkoutForm,
+        cartItems
+      );
+
+      try {
+        storePendingPortOnePayment(paymentDraft);
+        const paymentResponse = await requestPortOnePayment(paymentConfig, paymentDraft);
+
+        if (paymentResponse?.code !== undefined) {
+          clearPendingPortOnePayment();
+          throw new Error(paymentResponse?.message || '결제를 진행하지 못했습니다.');
+        }
+
+        if (paymentResponse?.paymentId) {
+          navigateToHash(
+            `#/payment-success?paymentId=${encodeURIComponent(paymentResponse.paymentId)}`
+          );
+        }
+        return;
+      } catch (error) {
+        clearPendingPortOnePayment();
+        throw error;
+      }
+    }
+
     if (process.env.NODE_ENV !== 'test') {
       try {
         const newOrder = await createOrderOnApi(checkoutForm);
@@ -744,7 +764,7 @@ export default function ProductApp({ authUser }) {
               onBackToCart={openCart}
               onOpenAddressSetup={openAddressSetup}
               onSubmitOrder={submitOrder}
-              tossConfig={tossConfig}
+              paymentConfig={paymentConfig}
             />
           ) : (
             <LoginRequiredCartNotice
@@ -756,7 +776,7 @@ export default function ProductApp({ authUser }) {
           <PaymentFlowPage
             description={
               paymentFlowState.description ||
-              'Toss Payments \uACB0\uC81C \uC751\uB2F5\uC744 \uD655\uC778\uD558\uACE0 \uC788\uC2B5\uB2C8\uB2E4.'
+              'PortOne 결제 응답을 확인하고 있습니다.'
             }
             isPending={paymentFlowState.status !== 'error'}
             onPrimaryAction={
