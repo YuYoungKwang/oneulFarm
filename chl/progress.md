@@ -465,3 +465,9 @@
 - 2026-03-25: 주문/배송 분리 구현을 위한 [order_fulfillment_api_spec_draft.md](/d:/study/oneulFarm/docs/order_fulfillment_api_spec_draft.md) 문서를 추가했다. 고객용 내 주문, 운영자용 주문 관리, 배송사용 배송 관리, 더미 배송사 API 명세 초안을 정리했다.
 
 - 2026-03-25: 주문/배송 분리 문서 세트를 확장해 [order_fulfillment_ui_wireframe_draft.md](/d:/study/oneulFarm/docs/order_fulfillment_ui_wireframe_draft.md), [order_fulfillment_implementation_roadmap.md](/d:/study/oneulFarm/docs/order_fulfillment_implementation_roadmap.md), [order_fulfillment_test_checklist.md](/d:/study/oneulFarm/docs/order_fulfillment_test_checklist.md)을 추가했다.
+
+- 2026-03-25: 주문/배송 분리 구현을 바로 시작할 수 있도록 [order_fulfillment_code_change_map.md](/d:/study/oneulFarm/docs/order_fulfillment_code_change_map.md)을 추가했다. SQL, DTO, DAO, Service, Controller, Mapper, 프론트 화면/API 모듈별 수정 후보를 정리했다.
+
+- 2026-03-25: 주문/배송 분리 프론트 구현 전략을 기존 페이지 수정이 아닌 역할별 신규 화면 생성으로 정리했다. 로드맵과 코드 변경 맵에 신규 컴포넌트/전용 CSS 우선 기준을 반영했다.
+
+- 2026-03-25: 주문/배송 분리 백엔드 1차 구현용 [order_fulfillment_backend_phase1_tasklist.md](/d:/study/oneulFarm/docs/order_fulfillment_backend_phase1_tasklist.md)을 추가했다. 상태 구조 확장과 운영자/배송사 API 기반 작업을 체크리스트로 정리했다.

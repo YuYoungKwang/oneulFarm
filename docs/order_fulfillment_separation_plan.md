@@ -426,3 +426,11 @@
 ## 19. 관련 테스트 체크리스트
 - 기능/권한/상태 전이 검증 항목:
   - [order_fulfillment_test_checklist.md](/d:/study/oneulFarm/docs/order_fulfillment_test_checklist.md)
+
+## 20. 관련 코드 변경 맵
+- 실제 코드 수정 대상과 신규 파일 후보:
+  - [order_fulfillment_code_change_map.md](/d:/study/oneulFarm/docs/order_fulfillment_code_change_map.md)
+
+## 21. 백엔드 1차 작업표
+- 구현 착수용 체크리스트:
+  - [order_fulfillment_backend_phase1_tasklist.md](/d:/study/oneulFarm/docs/order_fulfillment_backend_phase1_tasklist.md)

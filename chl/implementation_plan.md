@@ -332,3 +332,9 @@
 - 고객/운영자/배송사 역할 분리 구현을 위한 [order_fulfillment_api_spec_draft.md](/d:/study/oneulFarm/docs/order_fulfillment_api_spec_draft.md) 문서를 추가했다. 요청/응답 구조, 권한, 상태 검증 규칙을 정리했다.
 
 - 화면 구조용 [order_fulfillment_ui_wireframe_draft.md](/d:/study/oneulFarm/docs/order_fulfillment_ui_wireframe_draft.md), 실행 순서용 [order_fulfillment_implementation_roadmap.md](/d:/study/oneulFarm/docs/order_fulfillment_implementation_roadmap.md), 검증용 [order_fulfillment_test_checklist.md](/d:/study/oneulFarm/docs/order_fulfillment_test_checklist.md) 문서를 추가했다.
+
+- 구현 착수용 파일 영향 분석 문서 [order_fulfillment_code_change_map.md](/d:/study/oneulFarm/docs/order_fulfillment_code_change_map.md)을 추가했다. 백엔드/프론트 수정 대상, 신규 파일 후보, 단계별 영향 범위를 정리했다.
+
+- 주문 관련 프론트 구현 기준을 기존 화면 수정이 아니라 역할별 신규 화면 생성으로 고정했다. 고객용/운영자용/배송사용 화면은 새 컴포넌트와 전용 CSS를 우선으로 설계한다.
+
+- 백엔드 1차 구현 착수용 체크리스트 [order_fulfillment_backend_phase1_tasklist.md](/d:/study/oneulFarm/docs/order_fulfillment_backend_phase1_tasklist.md)을 추가했다. DTO, Mapper, DAO, Service, Controller, 상태 검증, 이력 적재 작업을 파일 단위로 정리했다.
