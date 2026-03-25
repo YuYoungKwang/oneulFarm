@@ -823,6 +823,23 @@
   color: var(--green-dark);
 }
 
+.product-app .payment-chip--test-submit{
+  border-color: rgba(245, 158, 11, 0.26);
+  background: linear-gradient(180deg, #fff7e8, #fffdf8);
+  color: #9a6700;
+}
+
+.product-app .payment-chip--test-submit:hover{
+  border-color: rgba(245, 158, 11, 0.36);
+  background: linear-gradient(180deg, #fff1d3, #fff9ef);
+}
+
+.product-app .payment-chip--test-submit:disabled{
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .product-app .form-error{
   padding: 14px 16px;
   border-radius: 18px;

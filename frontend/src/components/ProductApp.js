@@ -659,7 +659,7 @@ export default function ProductApp({ authUser }) {
     setCart({});
   }
 
-  async function submitOrder(checkoutForm) {
+  async function submitOrder(checkoutForm, options = {}) {
     if (!isLoggedIn) {
       navigateToHash('#/login');
       return;
@@ -670,7 +670,7 @@ export default function ProductApp({ authUser }) {
       return;
     }
 
-    if (process.env.NODE_ENV !== 'test' && paymentConfig?.ready) {
+    if (process.env.NODE_ENV !== 'test' && paymentConfig?.ready && !options.forceDirectOrder) {
       const paymentDraft = createPortOnePaymentDraft(
         paymentConfig,
         checkoutForm,
@@ -698,9 +698,16 @@ export default function ProductApp({ authUser }) {
       }
     }
 
+    const directCheckoutForm = options.forceDirectOrder
+      ? {
+          ...checkoutForm,
+          paymentKey: checkoutForm.paymentKey || `TEST-${Date.now()}`,
+        }
+      : checkoutForm;
+
     if (process.env.NODE_ENV !== 'test') {
       try {
-        const newOrder = await createOrderOnApi(checkoutForm);
+        const newOrder = await createOrderOnApi(directCheckoutForm);
         applySuccessfulOrder(newOrder);
         return;
       } catch (error) {
@@ -708,7 +715,7 @@ export default function ProductApp({ authUser }) {
       }
     }
 
-    const newOrder = createOrderFromCart(cartItems, checkoutForm, orders);
+    const newOrder = createOrderFromCart(cartItems, directCheckoutForm, orders);
     setOrders((previousOrders) => [newOrder, ...previousOrders]);
     setCart({});
     navigateToHash(`#/order-complete/${encodeURIComponent(newOrder.orderId)}`);
@@ -781,6 +788,9 @@ export default function ProductApp({ authUser }) {
               cartItems={cartItems}
               onBackToCart={openCart}
               onOpenAddressSetup={openAddressSetup}
+              onSubmitInstantPayment={(checkoutForm) =>
+                submitOrder(checkoutForm, { forceDirectOrder: true })
+              }
               onSubmitOrder={submitOrder}
               paymentConfig={paymentConfig}
             />
