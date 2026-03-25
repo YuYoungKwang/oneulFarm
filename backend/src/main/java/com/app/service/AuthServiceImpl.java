@@ -2,7 +2,9 @@ package com.app.service;
 
 import java.security.SecureRandom;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -10,26 +12,41 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.app.dao.SocialAccountDao;
 import com.app.dao.UserDao;
+import com.app.dto.SocialAccountDto;
+import com.app.dto.SocialLoginProfileDto;
+import com.app.dto.SocialLoginRequestDto;
 import com.app.dto.UserDto;
 
 @Service
 public class AuthServiceImpl implements AuthService {
 
+    private static final Set<String> SUPPORTED_SOCIAL_PROVIDERS = Set.of("KAKAO", "NAVER", "GOOGLE");
     private static final String TEMP_PASSWORD_SOURCE =
-        "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+        "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
     private static final int TEMP_PASSWORD_LENGTH = 10;
 
     private final UserDao userDao;
+    private final SocialAccountDao socialAccountDao;
     private final MailService mailService;
     private final JwtTokenService jwtTokenService;
+    private final SocialLoginProviderService socialLoginProviderService;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
     private final SecureRandom secureRandom = new SecureRandom();
 
-    public AuthServiceImpl(UserDao userDao, MailService mailService, JwtTokenService jwtTokenService) {
+    public AuthServiceImpl(
+        UserDao userDao,
+        SocialAccountDao socialAccountDao,
+        MailService mailService,
+        JwtTokenService jwtTokenService,
+        SocialLoginProviderService socialLoginProviderService
+    ) {
         this.userDao = userDao;
+        this.socialAccountDao = socialAccountDao;
         this.mailService = mailService;
         this.jwtTokenService = jwtTokenService;
+        this.socialLoginProviderService = socialLoginProviderService;
     }
 
     @Override
@@ -79,6 +96,52 @@ public class AuthServiceImpl implements AuthService {
         }
 
         return buildAuthPayload(user);
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> socialLogin(String provider, SocialLoginRequestDto request) {
+        String normalizedProvider = normalizeSocialProvider(provider);
+        SocialLoginRequestDto normalizedRequest = validateSocialLoginRequest(request);
+        SocialLoginProfileDto profile = socialLoginProviderService.fetchUserProfile(
+            normalizedProvider,
+            normalizedRequest
+        );
+
+        UserDto linkedUser = socialAccountDao.findLinkedUser(normalizedProvider, profile.getProviderUserId());
+        if (linkedUser != null) {
+            validateActiveUser(linkedUser, "Only active users can sign in.");
+            return buildAuthPayload(linkedUser);
+        }
+
+        String email = normalize(profile.getEmail());
+        if (isBlank(email)) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "The social account did not provide an email address."
+            );
+        }
+
+        UserDto existingUser = userDao.findByEmail(email);
+        if (existingUser != null) {
+            validateActiveUser(existingUser, "Only active users can connect a social account.");
+            socialAccountDao.insertSocialAccount(buildSocialAccount(existingUser.getUserNo(), normalizedProvider, profile));
+            return buildAuthPayload(existingUser);
+        }
+
+        UserDto newUser = buildSocialSignupUser(normalizedProvider, profile);
+        userDao.insertUser(newUser);
+
+        UserDto createdUser = userDao.findByUserIdOrEmail(newUser.getUserId());
+        if (createdUser == null) {
+            throw new ResponseStatusException(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Failed to complete social signup."
+            );
+        }
+
+        socialAccountDao.insertSocialAccount(buildSocialAccount(createdUser.getUserNo(), normalizedProvider, profile));
+        return buildAuthPayload(createdUser);
     }
 
     @Override
@@ -234,10 +297,6 @@ public class AuthServiceImpl implements AuthService {
         if (isBlank(request.getEmail())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is required.");
         }
-
-        if (!request.getEmail().toLowerCase().endsWith("@naver.com")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only @naver.com is allowed.");
-        }
     }
 
     private Map<String, String> validateChangePasswordRequest(Map<String, String> request) {
@@ -265,6 +324,141 @@ public class AuthServiceImpl implements AuthService {
         normalizedRequest.put("newPassword", newPassword);
         normalizedRequest.put("newPasswordConfirm", newPasswordConfirm);
         return normalizedRequest;
+    }
+
+    private SocialLoginRequestDto validateSocialLoginRequest(SocialLoginRequestDto request) {
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Social login request is empty.");
+        }
+
+        request.setCode(normalize(request.getCode()));
+        request.setState(normalize(request.getState()));
+        request.setRedirectUri(normalize(request.getRedirectUri()));
+
+        if (isBlank(request.getCode())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Authorization code is required.");
+        }
+
+        return request;
+    }
+
+    private String normalizeSocialProvider(String provider) {
+        String normalizedProvider = normalize(provider);
+        if (isBlank(normalizedProvider)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Social provider is required.");
+        }
+
+        normalizedProvider = normalizedProvider.toUpperCase(Locale.ROOT);
+        if (!SUPPORTED_SOCIAL_PROVIDERS.contains(normalizedProvider)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported social provider.");
+        }
+
+        return normalizedProvider;
+    }
+
+    private SocialAccountDto buildSocialAccount(
+        Long userNo,
+        String provider,
+        SocialLoginProfileDto profile
+    ) {
+        SocialAccountDto account = new SocialAccountDto();
+        account.setUserNo(userNo);
+        account.setProvider(provider);
+        account.setProviderUserId(profile.getProviderUserId());
+        account.setProviderEmail(normalize(profile.getEmail()));
+        return account;
+    }
+
+    private UserDto buildSocialSignupUser(String provider, SocialLoginProfileDto profile) {
+        UserDto user = new UserDto();
+        user.setUserId(generateUniqueUserId(provider, profile));
+        user.setEmail(normalize(profile.getEmail()));
+        user.setPassword(passwordEncoder.encode(generateTemporaryPassword()));
+        user.setNickname(generateUniqueNickname(provider, profile));
+        user.setPhone(generatePlaceholderPhone(profile.getProviderUserId()));
+        return user;
+    }
+
+    private String generateUniqueUserId(String provider, SocialLoginProfileDto profile) {
+        String providerPrefix = provider.toLowerCase(Locale.ROOT);
+        String email = normalize(profile.getEmail());
+        String emailLocalPart = isBlank(email) ? "" : email.split("@")[0];
+        String base = sanitizeIdentifier(emailLocalPart);
+        if (isBlank(base)) {
+            base = sanitizeIdentifier(profile.getProviderUserId());
+        }
+        if (isBlank(base)) {
+            base = "user";
+        }
+
+        String candidateBase = trimToLength(providerPrefix + "_" + base, 50);
+        String candidate = candidateBase;
+        int suffix = 1;
+        while (userDao.countByUserId(candidate) > 0) {
+            String numericSuffix = String.valueOf(suffix++);
+            candidate = trimToLength(candidateBase, 50 - numericSuffix.length()) + numericSuffix;
+        }
+        return candidate;
+    }
+
+    private String generateUniqueNickname(String provider, SocialLoginProfileDto profile) {
+        String base = sanitizeNickname(profile.getNickname());
+        if (isBlank(base)) {
+            String email = normalize(profile.getEmail());
+            if (!isBlank(email)) {
+                base = sanitizeNickname(email.split("@")[0]);
+            }
+        }
+        if (isBlank(base)) {
+            base = provider.substring(0, 1) + provider.substring(1).toLowerCase(Locale.ROOT) + "User";
+        }
+
+        String candidateBase = trimToLength(base, 50);
+        String candidate = candidateBase;
+        int suffix = 1;
+        while (userDao.countByNickname(candidate, -1L) > 0) {
+            String numericSuffix = String.valueOf(suffix++);
+            candidate = trimToLength(candidateBase, 50 - numericSuffix.length()) + numericSuffix;
+        }
+        return candidate;
+    }
+
+    private String generatePlaceholderPhone(String providerUserId) {
+        String digits = providerUserId == null ? "" : providerUserId.replaceAll("\\D", "");
+        if (digits.length() < 8) {
+            digits = String.format("%08d", Math.abs((providerUserId == null ? 0 : providerUserId.hashCode()) % 100000000));
+        } else {
+            digits = digits.substring(digits.length() - 8);
+        }
+
+        return "000-" + digits.substring(0, 4) + "-" + digits.substring(4);
+    }
+
+    private String sanitizeIdentifier(String value) {
+        return trimToLength(
+            normalize(value == null ? "" : value.replaceAll("[^A-Za-z0-9._-]", "").toLowerCase(Locale.ROOT)),
+            50
+        );
+    }
+
+    private String sanitizeNickname(String value) {
+        return trimToLength(
+            normalize(value == null ? "" : value.replaceAll("[\\p{Cntrl}]", "").trim()),
+            50
+        );
+    }
+
+    private String trimToLength(String value, int maxLength) {
+        if (value == null) {
+            return null;
+        }
+        return value.length() <= maxLength ? value : value.substring(0, maxLength);
+    }
+
+    private void validateActiveUser(UserDto user, String message) {
+        if (!"ACTIVE".equalsIgnoreCase(user.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, message);
+        }
     }
 
     private String generateTemporaryPassword() {

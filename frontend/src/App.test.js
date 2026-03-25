@@ -71,6 +71,7 @@ jest.mock('./admin/adminApi', () => ({
   triggerAdminRecipeSync: jest.fn(),
   uploadAdminProductImages: jest.fn(),
   updateAdminOrder: jest.fn(),
+  updateAdminUserRole: jest.fn(),
   updateAdminUserStatus: jest.fn(),
 }));
 
@@ -281,7 +282,7 @@ function buildStoredOrder() {
   );
 }
 
-function signInTestUser() {
+function signInTestUser(overrides = {}) {
   window.localStorage.setItem(
     'oneulFarmAuthUser',
     JSON.stringify({
@@ -289,6 +290,8 @@ function signInTestUser() {
       userId: 'heoryun',
       nickname: '허륜',
       accessToken: 'test-access-token',
+      role: 'USER',
+      ...overrides,
     })
   );
 }
@@ -297,6 +300,20 @@ describe('App', () => {
   beforeEach(() => {
     global.fetch = jest.fn((input) => {
       const requestUrl = String(input);
+
+      if (requestUrl.includes('/api/auth/social/kakao')) {
+        return buildJsonResponse({
+          success: true,
+          data: {
+            userNo: 21,
+            userId: 'kakao_test_user',
+            nickname: '\uCE74\uCE74\uC624\uD14C\uC2A4\uD130',
+            email: 'kakao@example.com',
+            accessToken: 'social-access-token',
+            passwordChangeRequired: false,
+          },
+        });
+      }
 
       if (requestUrl.includes('/api/users/me/addresses')) {
         return buildJsonResponse({
@@ -376,7 +393,9 @@ describe('App', () => {
 
   afterEach(() => {
     window.location.hash = '';
+    window.history.replaceState({}, '', '/');
     window.localStorage.clear();
+    window.sessionStorage.clear();
     jest.clearAllMocks();
   });
 
@@ -393,6 +412,32 @@ describe('App', () => {
 
     await waitFor(() => {
       expect(navigation.querySelectorAll('.main-nav__link.is-active')).toHaveLength(0);
+    });
+  });
+
+  test('\uC18C\uC15C \uB85C\uADF8\uC778 \uCF5C\uBC31 \uACBD\uB85C\uC5D0\uC11C \uC778\uC99D\uC744 \uC644\uB8CC\uD558\uACE0 \uBA54\uC778\uC73C\uB85C \uC774\uB3D9\uD55C\uB2E4', async () => {
+    const state = 'kakao-state-token';
+    window.sessionStorage.setItem('oneulFarmSocialLoginState:kakao', state);
+    window.history.replaceState({}, '', `/oauth/kakao/callback?code=test-code&state=${state}`);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/backend/api/auth/social/kakao',
+        expect.objectContaining({
+          method: 'POST',
+        })
+      );
+    });
+
+    await waitFor(() => {
+      expect(window.location.hash).toBe('#/');
+    });
+
+    expect(JSON.parse(window.localStorage.getItem('oneulFarmAuthUser'))).toMatchObject({
+      userNo: 21,
+      accessToken: 'social-access-token',
     });
   });
 
@@ -567,6 +612,8 @@ describe('App', () => {
   });
 
   test('\uC0AC\uC6A9\uC790 \uB124\uBE44\uC5D0\uC11C \uAD00\uB9AC\uC790\uACC4\uC815 \uC804\uD658 \uBC84\uD2BC\uC73C\uB85C \uAD00\uB9AC\uC790 \uD398\uC774\uC9C0\uC5D0 \uC9C4\uC785\uD55C\uB2E4', async () => {
+    signInTestUser({ role: 'ADMIN' });
+
     render(<App />);
 
     fireEvent.click(screen.getByRole('button', { name: '\uAD00\uB9AC\uC790\uACC4\uC815 \uC804\uD658' }));
@@ -582,11 +629,11 @@ describe('App', () => {
   });
 
   test('관리자 상품 목록에서 영구삭제 버튼으로 상품을 실제 삭제 요청할 수 있다', async () => {
+    signInTestUser({ role: 'ADMIN' });
     window.location.hash = '#/admin/products';
 
     render(<App />);
 
-    fireEvent.click(screen.getByRole('button', { name: '관리자 화면 열기' }));
     fireEvent.click(await screen.findByRole('button', { name: '상품 관리' }));
 
     const retireButtons = await screen.findAllByRole('button', { name: '영구삭제' });
@@ -595,6 +642,68 @@ describe('App', () => {
     await waitFor(() => {
       expect(deleteAdminProduct).toHaveBeenCalledWith(1001);
     });
+  });
+
+  test('\uC77C\uBC18 \uC0AC\uC6A9\uC790\uB294 \uAD00\uB9AC\uC790 \uC804\uD658 \uBC84\uD2BC\uC744 \uBCFC \uC218 \uC5C6\uB2E4', async () => {
+    signInTestUser({ role: 'USER' });
+    window.location.hash = '#/products';
+
+    render(<App />);
+
+    await screen.findByText('\uC591\uD30C 1kg');
+    expect(
+      screen.queryByRole('button', { name: '\uAD00\uB9AC\uC790\uACC4\uC815 \uC804\uD658' })
+    ).not.toBeInTheDocument();
+  });
+
+  test('\uAD00\uB9AC\uC790\uB294 admin \uACBD\uB85C \uC9C1\uC811 \uC811\uADFC\uC774 \uAC00\uB2A5\uD558\uB2E4', async () => {
+    signInTestUser({ role: 'ADMIN' });
+    window.location.hash = '#/admin';
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole('navigation', { name: '\uAD00\uB9AC\uC790 \uBA54\uB274' })
+    ).toBeInTheDocument();
+  });
+
+  test('\uC77C\uBC18 \uC0AC\uC6A9\uC790\uC758 admin \uC9C1\uC811 \uC811\uADFC\uC740 \uBA54\uC778\uC73C\uB85C \uB3CC\uC544\uAC04\uB2E4', async () => {
+    signInTestUser({ role: 'USER' });
+    window.location.hash = '#/admin';
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(window.location.hash).toBe('#/');
+    });
+  });
+
+  test('\uAD00\uB9AC\uC790 \uD398\uC774\uC9C0\uC758 \uC0AC\uC6A9\uC790 \uC11C\uBE44\uC2A4 \uBC84\uD2BC\uC740 \uBA54\uC778\uC73C\uB85C \uC774\uB3D9\uD55C\uB2E4', async () => {
+    signInTestUser({ role: 'ADMIN' });
+    window.location.hash = '#/admin';
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: '\uC0AC\uC6A9\uC790 \uC11C\uBE44\uC2A4' }));
+
+    await waitFor(() => {
+      expect(window.location.hash).toBe('#/');
+    });
+  });
+
+  test('\uAD00\uB9AC\uC790 \uD398\uC774\uC9C0 \uB85C\uADF8\uC544\uC6C3\uC740 \uC778\uC99D \uC815\uBCF4\uB97C \uC9C0\uC6B0\uACE0 \uB85C\uADF8\uC778 \uD654\uBA74\uC73C\uB85C \uC774\uB3D9\uD55C\uB2E4', async () => {
+    signInTestUser({ role: 'ADMIN' });
+    window.location.hash = '#/admin';
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: '\uB85C\uADF8\uC544\uC6C3' }));
+
+    await waitFor(() => {
+      expect(window.location.hash).toBe('#/login');
+    });
+
+    expect(window.localStorage.getItem('oneulFarmAuthUser')).toBeNull();
   });
 
   test('\uC7A5\uBC14\uAD6C\uB2C8 \uD398\uC774\uC9C0\uC5D0\uC11C \uC218\uB7C9 \uBCC0\uACBD\uACFC \uC0AD\uC81C\uAC00 \uAC00\uB2A5\uD558\uB2E4', async () => {

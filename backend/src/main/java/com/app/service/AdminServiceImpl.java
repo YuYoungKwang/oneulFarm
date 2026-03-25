@@ -29,6 +29,7 @@ import com.app.dto.PurchaseBatchDto;
 import com.app.dto.PriceSnapshotDTO;
 import com.app.dto.UserDto;
 import com.app.dto.UserProfileDto;
+import com.app.dto.UserDto;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -312,6 +313,53 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
+    public UserProfileDto updateUserRole(Long actorUserNo, Long userNo, UserProfileDto request) {
+        if (actorUserNo == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Actor user number is required.");
+        }
+
+        UserDto actor = userDao.findByUserNo(actorUserNo);
+        if (actor == null || !"ADMIN".equalsIgnoreCase(actor.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Administrator access is required.");
+        }
+
+        if (!"admin123".equalsIgnoreCase(trimToNull(actor.getUserId()))) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the super administrator can change admin roles.");
+        }
+
+        String role = trimToNull(request == null ? null : request.getRole());
+        if (!"USER".equals(role) && !"ADMIN".equals(role)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported user role.");
+        }
+
+        UserProfileDto targetUser = adminDao.findAdminUser(userNo);
+        if (targetUser == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found.");
+        }
+
+        if ("admin123".equalsIgnoreCase(trimToNull(targetUser.getUserId())) && !"ADMIN".equals(role)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The super administrator role cannot be changed.");
+        }
+
+        if (actorUserNo.equals(userNo) && !"ADMIN".equals(role)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You cannot remove your own administrator role.");
+        }
+
+        int updatedCount = adminDao.updateAdminUserRole(userNo, role);
+        if (updatedCount == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found.");
+        }
+
+        UserProfileDto updatedUser = adminDao.findAdminUser(userNo);
+        if (updatedUser == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found.");
+        }
+        hydrateUserDefaults(updatedUser);
+        return updatedUser;
+    }
+
+    @Override
+    @Transactional
     public void deleteUser(Long userNo) {
         UserProfileDto user = adminDao.findAdminUser(userNo);
         if (user == null) {
@@ -563,7 +611,7 @@ public class AdminServiceImpl implements AdminService {
             return false;
         }
 
-        if (!"USER".equals(user.getRole())) {
+        if (!"USER".equals(user.getRole()) && !"ADMIN".equals(user.getRole())) {
             return false;
         }
 

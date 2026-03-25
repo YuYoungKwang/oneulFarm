@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="socialAccountMapper">
+
+    <select id="selectLinkedUser" parameterType="map" resultType="com.app.dto.UserDto"><![CDATA[
+        SELECT
+            u.USER_NO AS userNo,
+            u.USER_ID AS userId,
+            u.EMAIL AS email,
+            u.PASSWORD AS password,
+            u.NICKNAME AS nickname,
+            u.PHONE AS phone,
+            u.ROLE AS role,
+            u.STATUS AS status,
+            u.TEMP_PASSWORD_YN AS tempPasswordYn,
+            u.CREATED_AT AS createdAt,
+            u.UPDATED_AT AS updatedAt,
+            u.DELETED_AT AS deletedAt,
+            u.PROFILE_IMAGE_URL AS profileImageUrl,
+            u.PROFILE_IMAGE_NAME AS profileImageName,
+            u.PROFILE_IMAGE_EXT AS profileImageExt,
+            u.PROFILE_IMAGE_MIME_TYPE AS profileImageMimeType,
+            u.PROFILE_IMAGE_SIZE AS profileImageSize,
+            u.PROFILE_IMAGE_DATA AS profileImageData
+        FROM OFT_USER_SOCIAL_ACCOUNT sa
+        JOIN OFT_USERS u
+          ON u.USER_NO = sa.USER_NO
+        WHERE sa.PROVIDER = #{provider}
+          AND sa.PROVIDER_USER_ID = #{providerUserId}
+    ]]></select>
+
+    <insert id="insertSocialAccount" parameterType="com.app.dto.SocialAccountDto"><![CDATA[
+        INSERT INTO OFT_USER_SOCIAL_ACCOUNT (
+            USER_NO,
+            PROVIDER,
+            PROVIDER_USER_ID,
+            PROVIDER_EMAIL
+        ) VALUES (
+            #{userNo},
+            #{provider},
+            #{providerUserId},
+            #{providerEmail}
+        )
+    ]]></insert>
+
+</mapper>

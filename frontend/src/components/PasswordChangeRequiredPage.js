@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { buildAuthHeaders, clearAuthUser, requestAuthApi, setAuthUser } from '../auth';
+import {
+  buildAuthHeaders,
+  clearAuthUser,
+  getPostLoginHash,
+  requestAuthApi,
+  setAuthUser,
+} from '../auth';
 import '../styles/user.css';
 
 export default function PasswordChangeRequiredPage({ authUser }) {
@@ -36,7 +42,7 @@ export default function PasswordChangeRequiredPage({ authUser }) {
       }, '비밀번호를 변경하지 못했습니다.');
       if (payload.data) {
         setAuthUser(payload.data);
-        window.location.hash = '#/mypage';
+        window.location.hash = getPostLoginHash(payload.data);
       }
     } catch (requestError) {
       setError(requestError.message || '비밀번호를 변경하지 못했습니다.');
