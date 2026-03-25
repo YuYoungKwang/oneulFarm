@@ -1,30 +1,43 @@
 import { useEffect, useState } from "react";
+import { isAdminUser } from "../auth";
 import "../styles/mainNav.css";
 import { openAdminPage } from "../admin/adminSession";
 import { CartIcon, SearchIcon } from "./ProductIcons";
 import logo from "../assets/logo.png";
 
 const NAV_ITEMS = [
-  { id: "market", label: "시세분석", hash: "#/price-analysis", section: "market" },
-  { id: "products", label: "상품", hash: "#/products", section: "products" },
-  { id: "recipes", label: "레시피", hash: "#/recipes", section: "recipes" },
+  { id: "market", label: "\uac00\uaca9\ubd84\uc11d", hash: "#/price-analysis", section: "market" },
+  { id: "products", label: "\uc0c1\ud488", hash: "#/products", section: "products" },
+  { id: "recipes", label: "\ub808\uc2dc\ud53c", hash: "#/recipes", section: "recipes" },
   {
     id: "meal-plan",
-    label: "맞춤 식단",
+    label: "\ub9de\ucda4 \uc2dd\ub2e8",
     hash: "#/meal-plan",
     section: "meal-plan",
     supLabel: "ai",
   },
-  { id: "mypage", label: "마이페이지", hash: "#/mypage", section: "mypage" },
+  { id: "mypage", label: "\ub9c8\uc774\ud398\uc774\uc9c0", hash: "#/mypage", section: "mypage" },
 ];
 
 const SEARCH_TABS = [
-  { key: "products", label: "상품" },
-  { key: "recipes", label: "레시피" },
+  { key: "products", label: "\uc0c1\ud488" },
+  { key: "recipes", label: "\ub808\uc2dc\ud53c" },
 ];
 
-const PRODUCT_KEYWORDS = ["사과", "양파", "감자", "버섯", "딸기"];
-const RECIPE_KEYWORDS = ["버섯전골", "감자조림", "양파볶음", "딸기디저트", "사과샐러드"];
+const PRODUCT_KEYWORDS = [
+  "\uc0ac\uacfc",
+  "\uc591\ud30c",
+  "\uac10\uc790",
+  "\ubc84\uc12f",
+  "\uace0\uae30",
+];
+const RECIPE_KEYWORDS = [
+  "\ubc84\uc12f\uc804\uace8",
+  "\uac10\uc790\uc870\ub9bc",
+  "\uc591\ud30c\ubcf6\uc74c",
+  "\uace0\uae30\uc694\ub9ac",
+  "\uc0ac\uacfc\uc0d0\ub7ec\ub4dc",
+];
 
 function navigateTo(hash) {
   window.location.hash = hash;
@@ -94,7 +107,7 @@ export default function MainNav({
           <span className="main-nav__logo-text">oneulFarm</span>
         </button>
 
-        <nav className="main-nav__links" aria-label="주요 메뉴">
+        <nav className="main-nav__links" aria-label="\uc8fc\uc694 \uba54\ub274">
           {NAV_ITEMS.map((item) => (
             <button
               key={item.id}
@@ -113,20 +126,22 @@ export default function MainNav({
               </span>
             </button>
           ))}
-          <button
-            type="button"
-            className="main-nav__link main-nav__link--admin"
-            onClick={() => openAdminPage("#/admin")}
-          >
-            관리자계정 전환
-          </button>
+          {isAdminUser(authUser) ? (
+            <button
+              type="button"
+              className="main-nav__link main-nav__link--admin"
+              onClick={() => openAdminPage("#/admin")}
+            >
+              {"\uad00\ub9ac\uc790\uacc4\uc815 \uc804\ud658"}
+            </button>
+          ) : null}
         </nav>
 
         <div className="main-nav__actions">
           <button
             className={`main-nav__icon ${isSearchOpen ? "is-active" : ""}`}
             type="button"
-            aria-label="검색 열기"
+            aria-label="\uac80\uc0c9 \uc5f4\uae30"
             aria-expanded={isSearchOpen}
             onClick={() => setIsSearchOpen((previousState) => !previousState)}
           >
@@ -135,7 +150,7 @@ export default function MainNav({
           <button
             className="main-nav__icon main-nav__icon--cart"
             type="button"
-            aria-label="장바구니"
+            aria-label="\uc7a5\ubc14\uad6c\ub2c8"
             onClick={onOpenCart || (() => navigateTo("#/cart"))}
           >
             <CartIcon />
@@ -153,16 +168,16 @@ export default function MainNav({
                 {authUser.nickname || authUser.userId}
               </button>
               <button className="main-nav__btn" type="button" onClick={onLogout}>
-                로그아웃
+                {"\ub85c\uadf8\uc544\uc6c3"}
               </button>
             </>
           ) : (
             <>
               <button className="main-nav__btn-outline" type="button" onClick={onOpenLogin}>
-                로그인
+                {"\ub85c\uadf8\uc778"}
               </button>
               <button className="main-nav__btn" type="button" onClick={onOpenSignup}>
-                가입하기
+                {"\uac00\uc785\ud558\uae30"}
               </button>
             </>
           )}
@@ -171,7 +186,11 @@ export default function MainNav({
 
       {isSearchOpen ? (
         <div className="main-nav-search" role="search">
-          <div className="main-nav-search__tabs" role="tablist" aria-label="검색 구분">
+          <div
+            className="main-nav-search__tabs"
+            role="tablist"
+            aria-label="\uac80\uc0c9 \uad6c\ubd84"
+          >
             {SEARCH_TABS.map((tab) => (
               <button
                 key={tab.key}
@@ -191,7 +210,9 @@ export default function MainNav({
           <form className="main-nav-search__form" onSubmit={handleSubmit}>
             <label className="main-nav-search__field">
               <span className="main-nav-search__field-label">
-                {searchTab === "recipes" ? "레시피 검색" : "상품 검색"}
+                {searchTab === "recipes"
+                  ? "\ub808\uc2dc\ud53c \uac80\uc0c9"
+                  : "\uc0c1\ud488 \uac80\uc0c9"}
               </span>
               <input
                 type="text"
@@ -199,18 +220,18 @@ export default function MainNav({
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder={
                   searchTab === "recipes"
-                    ? "레시피 이름이나 재료를 입력하세요"
-                    : "상품명, 산지, 설명으로 검색하세요"
+                    ? "\ub808\uc2dc\ud53c \uc774\ub984\uc774\ub098 \uc7ac\ub8cc\ub97c \uc785\ub825\ud558\uc138\uc694"
+                    : "\uc0c1\ud488\uba85, \uc6d0\uc0b0\uc9c0, \uc124\uba85\uc73c\ub85c \uac80\uc0c9\ud574\ubcf4\uc138\uc694"
                 }
               />
             </label>
             <button className="main-nav-search__submit" type="submit">
-              검색
+              {"\uac80\uc0c9"}
             </button>
           </form>
 
           <div className="main-nav-search__keywords">
-            <strong>추천 검색어</strong>
+            <strong>{"\ucd94\ucc9c \uac80\uc0c9\uc5b4"}</strong>
             <div className="main-nav-search__keyword-row">
               {keywordList.map((keyword) => (
                 <button

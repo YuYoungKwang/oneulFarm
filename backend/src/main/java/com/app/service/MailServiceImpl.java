@@ -20,7 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class MailServiceImpl implements MailService {
 
-    @Value("${mail.host:smtp.naver.com}")
+    @Value("${mail.host:smtp.gmail.com}")
     private String mailHost;
 
     @Value("${mail.port:587}")
@@ -41,6 +41,21 @@ public class MailServiceImpl implements MailService {
     @Value("${mail.starttls.enable:true}")
     private String startTlsEnabled;
 
+    @Value("${mail.starttls.required:true}")
+    private String startTlsRequired;
+
+    @Value("${mail.smtp.ssl.trust:smtp.gmail.com}")
+    private String sslTrustHost;
+
+    @Value("${mail.smtp.connectiontimeout:10000}")
+    private String connectionTimeout;
+
+    @Value("${mail.smtp.timeout:10000}")
+    private String timeout;
+
+    @Value("${mail.smtp.writetimeout:10000}")
+    private String writeTimeout;
+
     @Override
     public void sendTemporaryPasswordEmail(String toEmail, String temporaryPassword) {
         validateMailConfig();
@@ -50,6 +65,11 @@ public class MailServiceImpl implements MailService {
         props.put("mail.smtp.port", mailPort);
         props.put("mail.smtp.auth", mailAuth);
         props.put("mail.smtp.starttls.enable", startTlsEnabled);
+        props.put("mail.smtp.starttls.required", startTlsRequired);
+        props.put("mail.smtp.ssl.trust", sslTrustHost);
+        props.put("mail.smtp.connectiontimeout", connectionTimeout);
+        props.put("mail.smtp.timeout", timeout);
+        props.put("mail.smtp.writetimeout", writeTimeout);
 
         Session session = Session.getInstance(props, new Authenticator() {
             @Override

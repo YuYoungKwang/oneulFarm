@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { clearAuthUser, getAuthUser } from './auth';
 import './styles/admin.css';
 import AdminLayout from './admin/AdminLayout';
 import {
@@ -36,6 +37,7 @@ import {
   triggerAdminRecipeSync,
   uploadAdminProductImages,
   updateAdminOrder,
+  updateAdminUserRole,
   updateAdminUserStatus,
 } from './admin/adminApi';
 import { isAdminMode, leaveAdminPage, openAdminPage } from './admin/adminSession';
@@ -1121,6 +1123,7 @@ function LegacyProductsPage({
   onSaveProduct,
   submitting,
 }) {
+  const canManageAdminRole = false;
   const filteredProducts = products.filter((product) => {
     if (productFilter === 'ALL') {
       return true;
@@ -1504,7 +1507,9 @@ function UsersPage({
   onUserFilterChange,
   onSelectUser,
   onUpdateUserStatus,
+  onUpdateUserRole,
   onDeleteUser,
+  canManageAdminRole,
   updating,
 }) {
   const rankedUsers = [...users].sort((left, right) => (
@@ -1515,36 +1520,42 @@ function UsersPage({
   const filteredUsers = userFilter === 'TOP'
     ? rankedUsers.slice(0, 5)
     : users.filter((user) => {
+      if (userFilter === 'ROLE') {
+        return true;
+      }
       if (userFilter === 'ALL') {
         return true;
       }
       return user.status === userFilter;
     });
   const selectedUser = users.find((user) => user.userNo === selectedUserNo) || null;
+  const isRoleGrantTab = canManageAdminRole && userFilter === 'ROLE';
 
   return (
     <>
       <AdminPageHeader
-        title="회원 관리"
-        actions={
+        title={'\uD68C\uC6D0 \uAD00\uB9AC'}
+        actions={(
           <button type="button" className="admin-action admin-action--line" disabled>
-            엑셀 다운로드
+            {'\uC5D1\uC140 \uB2E4\uC6B4\uB85C\uB4DC'}
           </button>
-        }
+        )}
       />
 
       <div className="admin-filter-row">
         {[
-          ['ALL', '전체 회원'],
-          ['ACTIVE', '활성'],
-          ['BLOCKED', '차단'],
-          ['WITHDRAWN', '탈퇴'],
-          ['TOP', '구매 상위'],
-        ].map(([value, label]) => (
+          ['ALL', '\uC804\uCCB4\uD68C\uC6D0'],
+          ['ACTIVE', '\uD65C\uC131'],
+          ['BLOCKED', '\uCC28\uB2E8'],
+          ['WITHDRAWN', '\uD0C8\uD1F4'],
+          ['TOP', '\uAD6C\uB9E4\uC0C1\uC704'],
+        ].concat(canManageAdminRole ? [['ROLE', '\uAD8C\uD55C \uBD80\uC5EC']] : []).map(([value, label]) => (
           <button
             key={value}
             type="button"
-            className={`admin-filter-chip ${userFilter === value ? 'is-active' : ''}`}
+            className={
+              'admin-filter-chip ' + (userFilter === value ? 'is-active' : '')
+            }
             onClick={() => onUserFilterChange(value)}
           >
             {label}
@@ -1552,99 +1563,191 @@ function UsersPage({
         ))}
       </div>
 
-      <section className="admin-grid admin-grid--users">
-        <article className="admin-card admin-card--panel">
-          <h2>회원 목록</h2>
-          <div className="admin-table-wrap">
-            <table className="admin-table admin-table--clickable admin-table--users">
-              <thead>
-                <tr>
-                  <th>회원</th>
-                  <th>가입일</th>
-                  <th>주문 수</th>
-                  <th>누적 구매</th>
-                  <th>상태</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map((user) => (
-                  <tr
-                    key={user.userNo}
-                    className={user.userNo === selectedUserNo ? 'is-selected' : ''}
-                    onClick={() => onSelectUser(user.userNo)}
-                  >
-                    <td>
-                      <div className="admin-user-cell">
-                        <strong className="admin-user-primary">{user.nickname}</strong>
-                        <span className="admin-user-sub">{user.email}</span>
-                      </div>
-                    </td>
-                    <td className="admin-date-cell">{renderAdminDateCell(user.createdAt)}</td>
-                    <td className="admin-count-cell">{formatAdminCount(user.totalOrderCount)}</td>
-                    <td>{formatAdminCurrency(user.totalPurchaseAmount)}</td>
-                    <td className="admin-table__actions">
-                      <div className="admin-user-actions">
-                        <AdminStatusBadge status={user.status} />
-                        <button
-                          type="button"
-                          className="admin-action admin-action--danger admin-action--tiny"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onDeleteUser(user);
-                          }}
-                          disabled={updating}
-                        >
-                          삭제
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </article>
-
-        <article className="admin-card admin-card--panel">
-          <h2>회원 상세 / 상태 관리</h2>
-          {!selectedUser ? (
-            <AdminEmptyState title="회원을 선택해주세요." description="좌측 목록에서 확인할 회원을 고를 수 있습니다." />
-          ) : (
-            <div className="admin-stack">
-              <div className="admin-summary-box">
-                <strong>기본 정보</strong>
-                <div className="admin-muted">
-                  {selectedUser.nickname} / {selectedUser.email} / {selectedUser.phone}
-                </div>
-              </div>
-              <div className="admin-summary-box">
-                <strong>구매 통계</strong>
-                <div className="admin-muted">
-                  주문 {formatAdminCount(selectedUser.totalOrderCount, '회')} / 누적 구매 {formatAdminCurrency(selectedUser.totalPurchaseAmount)} / 누적 절약 {formatAdminCurrency(selectedUser.totalSavedAmount)}
-                </div>
-              </div>
-              <div className="admin-summary-box">
-                <strong>상태 변경</strong>
-                <div className="admin-page-actions">
-                  <button type="button" className="admin-action admin-action--soft" onClick={() => onUpdateUserStatus(selectedUser.userNo, 'ACTIVE')} disabled={updating}>
-                    활성
-                  </button>
-                  <button type="button" className="admin-action admin-action--line" onClick={() => onUpdateUserStatus(selectedUser.userNo, 'WITHDRAWN')} disabled={updating}>
-                    탈퇴
-                  </button>
-                  <button type="button" className="admin-action admin-action--danger" onClick={() => onUpdateUserStatus(selectedUser.userNo, 'BLOCKED')} disabled={updating}>
-                    차단
-                  </button>
-                </div>
-              </div>
-              <div className="admin-summary-box">
-                <strong>기본 배송지</strong>
-                <div className="admin-muted">{selectedUser.defaultAddress || '기본 배송지 없음'}</div>
+      {isRoleGrantTab ? (
+        <section className="admin-grid">
+          <article className="admin-card admin-card--panel">
+            <div className="admin-section-line">
+              <div>
+                <h2>{'\uAD8C\uD55C \uBAA9\uB85D'}</h2>
+                <p className="admin-card__sub">
+                  {'admin123 \uACC4\uC815\uB9CC \uAD00\uB9AC\uC790 \uAD8C\uD55C\uC744 \uBD80\uC5EC\uD558\uAC70\uB098 \uD574\uC81C\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.'}
+                </p>
               </div>
             </div>
-          )}
-        </article>
-      </section>
+            <div className="admin-table-wrap">
+              <table className="admin-table admin-table--clickable admin-table--users admin-table--roles">
+                <thead>
+                  <tr>
+                    <th>{'\uD68C\uC6D0'}</th>
+                    <th>{'\uAC00\uC785\uC77C'}</th>
+                    <th>{'\uC8FC\uBB38 \uC218'}</th>
+                    <th>{'\uB204\uC801 \uAD6C\uB9E4'}</th>
+                    <th>{'\uAD8C\uD55C \uBD80\uC5EC'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredUsers.map((user) => (
+                    <tr
+                      key={user.userNo}
+                      className={user.userNo === selectedUserNo ? 'is-selected' : ''}
+                      onClick={() => onSelectUser(user.userNo)}
+                    >
+                      <td>
+                        <div className="admin-user-cell">
+                          <strong className="admin-user-primary">{user.nickname}</strong>
+                          <span className="admin-user-sub">{user.email}</span>
+                        </div>
+                      </td>
+                      <td className="admin-date-cell">{renderAdminDateCell(user.createdAt)}</td>
+                      <td className="admin-count-cell">{formatAdminCount(user.totalOrderCount)}</td>
+                      <td>{formatAdminCurrency(user.totalPurchaseAmount)}</td>
+                      <td className="admin-table__actions">
+                        <div className="admin-role-cell">
+                          <button
+                            type="button"
+                            className={
+                              'admin-toggle admin-toggle--compact ' + (user.role === 'ADMIN' ? 'is-on' : '')
+                            }
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onUpdateUserRole(
+                                user.userNo,
+                                user.role === 'ADMIN' ? 'USER' : 'ADMIN'
+                              );
+                            }}
+                            disabled={updating || user.userId === 'admin123'}
+                          >
+                            <span className="admin-toggle__track">
+                              <span className="admin-toggle__thumb" />
+                            </span>
+                            <span className="admin-toggle__label">{user.role === 'ADMIN' ? 'ON' : 'OFF'}</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+      ) : (
+        <section className="admin-grid admin-grid--users">
+          <article className="admin-card admin-card--panel">
+            <h2>{'\uD68C\uC6D0 \uBAA9\uB85D'}</h2>
+            <div className="admin-table-wrap">
+              <table className="admin-table admin-table--clickable admin-table--users">
+                <thead>
+                  <tr>
+                    <th>{'\uD68C\uC6D0'}</th>
+                    <th>{'\uAC00\uC785\uC77C'}</th>
+                    <th>{'\uC8FC\uBB38 \uC218'}</th>
+                    <th>{'\uB204\uC801 \uAD6C\uB9E4'}</th>
+                    <th>{'\uC0C1\uD0DC'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredUsers.map((user) => (
+                    <tr
+                      key={user.userNo}
+                      className={user.userNo === selectedUserNo ? 'is-selected' : ''}
+                      onClick={() => onSelectUser(user.userNo)}
+                    >
+                      <td>
+                        <div className="admin-user-cell">
+                          <strong className="admin-user-primary">{user.nickname}</strong>
+                          <span className="admin-user-sub">{user.email}</span>
+                        </div>
+                      </td>
+                      <td className="admin-date-cell">{renderAdminDateCell(user.createdAt)}</td>
+                      <td className="admin-count-cell">{formatAdminCount(user.totalOrderCount)}</td>
+                      <td>{formatAdminCurrency(user.totalPurchaseAmount)}</td>
+                      <td className="admin-table__actions">
+                        <div className="admin-user-actions">
+                          <AdminStatusBadge status={user.status} />
+                          <button
+                            type="button"
+                            className="admin-action admin-action--danger admin-action--tiny"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onDeleteUser(user);
+                            }}
+                            disabled={updating}
+                          >
+                            {'\uC0AD\uC81C'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <article className="admin-card admin-card--panel">
+            <h2>{'\uD68C\uC6D0 \uC0C1\uC138 / \uC0C1\uD0DC \uAD00\uB9AC'}</h2>
+            {!selectedUser ? (
+              <AdminEmptyState
+                title={'\uD68C\uC6D0\uC744 \uC120\uD0DD\uD574 \uC8FC\uC138\uC694.'}
+                description={'\uC67C\uCABD \uBAA9\uB85D\uC5D0\uC11C \uD655\uC778\uD560 \uD68C\uC6D0\uC744 \uACE0\uB974\uBA74 \uC0C1\uC138 \uC815\uBCF4\uAC00 \uC5F4\uB9BD\uB2C8\uB2E4.'}
+              />
+            ) : (
+              <div className="admin-stack">
+                <div className="admin-summary-box">
+                  <strong>{'\uAE30\uBCF8 \uC815\uBCF4'}</strong>
+                  <div className="admin-muted">
+                    {selectedUser.nickname} / {selectedUser.email} / {selectedUser.phone}
+                  </div>
+                </div>
+                <div className="admin-summary-box">
+                  <strong>{'\uAD6C\uB9E4 \uD1B5\uACC4'}</strong>
+                  <div className="admin-muted">
+                    {'\uC8FC\uBB38 '}{formatAdminCount(selectedUser.totalOrderCount, '\uAC74')}
+                    {' / \uB204\uC801 \uAD6C\uB9E4 '}{formatAdminCurrency(selectedUser.totalPurchaseAmount)}
+                    {' / \uB204\uC801 \uC808\uC57D '}{formatAdminCurrency(selectedUser.totalSavedAmount)}
+                  </div>
+                </div>
+                <div className="admin-summary-box">
+                  <strong>{'\uC0C1\uD0DC \uBCC0\uACBD'}</strong>
+                  <div className="admin-page-actions">
+                    <button
+                      type="button"
+                      className="admin-action admin-action--soft"
+                      onClick={() => onUpdateUserStatus(selectedUser.userNo, 'ACTIVE')}
+                      disabled={updating}
+                    >
+                      {'\uD65C\uC131'}
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-action admin-action--line"
+                      onClick={() => onUpdateUserStatus(selectedUser.userNo, 'WITHDRAWN')}
+                      disabled={updating}
+                    >
+                      {'\uD0C8\uD1F4'}
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-action admin-action--danger"
+                      onClick={() => onUpdateUserStatus(selectedUser.userNo, 'BLOCKED')}
+                      disabled={updating}
+                    >
+                      {'\uCC28\uB2E8'}
+                    </button>
+                  </div>
+                </div>
+                <div className="admin-summary-box">
+                  <strong>{'\uAE30\uBCF8 \uBC30\uC1A1\uC9C0'}</strong>
+                  <div className="admin-muted">
+                    {selectedUser.defaultAddress || '\uAE30\uBCF8 \uBC30\uC1A1\uC9C0 \uC5C6\uC74C'}
+                  </div>
+                </div>
+              </div>
+            )}
+          </article>
+        </section>
+      )}
     </>
   );
 }
@@ -2394,6 +2497,8 @@ function PurchasePage({
 }
 
 function AdminApp() {
+  const authUser = getAuthUser();
+  const canManageAdminRole = authUser?.role === 'ADMIN' && authUser?.userId === 'admin123';
   const [currentPage, setCurrentPage] = useState(() => parseAdminPage(window.location.hash));
   const [adminMode, setAdminMode] = useState(() => isAdminMode());
   const [categories, setCategories] = useState([]);
@@ -3025,6 +3130,25 @@ function AdminApp() {
     }
   }
 
+  async function handleUpdateUserRole(userNo, role) {
+    setUpdatingUser(true);
+    setActionError('');
+    setActionSuccess('');
+
+    try {
+      await updateAdminUserRole(userNo, role);
+      const nextUsers = await fetchAdminUsers();
+      setUsers(nextUsers);
+      setActionSuccess(
+        role === 'ADMIN' ? '관리자 권한을 부여했습니다.' : '관리자 권한을 해제했습니다.'
+      );
+    } catch (error) {
+      setActionError(error.message || '관리자 권한 변경에 실패했습니다.');
+    } finally {
+      setUpdatingUser(false);
+    }
+  }
+
   async function handleDeleteUser(user) {
     if (!user?.userNo) {
       return;
@@ -3216,7 +3340,7 @@ function AdminApp() {
           <h1>관리자 미리보기</h1>
           <p>로그인 기능 전에는 임시 전환 버튼으로 관리자 화면에 진입합니다.</p>
           <div className="admin-page-actions">
-            <button type="button" className="admin-action admin-action--line" onClick={() => leaveAdminPage('#/mypage')}>
+            <button type="button" className="admin-action admin-action--line" onClick={() => leaveAdminPage('#/')}>
               사용자 화면으로
             </button>
             <button type="button" className="admin-action admin-action--primary" onClick={() => openAdminPage('#/admin')}>
@@ -3229,7 +3353,14 @@ function AdminApp() {
   }
 
   return (
-    <AdminLayout activePage={currentPage === 'dashboard' ? 'dashboard' : currentPage}>
+    <AdminLayout
+      activePage={currentPage === 'dashboard' ? 'dashboard' : currentPage}
+      onLeaveUserService={() => leaveAdminPage('#/')}
+      onLogout={() => {
+        clearAuthUser();
+        leaveAdminPage('#/login');
+      }}
+    >
       {loading ? <div className="admin-loading">관리자 데이터를 불러오는 중입니다.</div> : null}
       {!loading && loadError ? <div className="admin-error">{loadError}</div> : null}
       {!loading && !loadError && actionError ? <div className="admin-inline-error">{actionError}</div> : null}
@@ -3317,7 +3448,9 @@ function AdminApp() {
               onUserFilterChange={setUserFilter}
               onSelectUser={setSelectedUserNo}
               onUpdateUserStatus={handleUpdateUserStatus}
+              onUpdateUserRole={handleUpdateUserRole}
               onDeleteUser={handleDeleteUser}
+              canManageAdminRole={canManageAdminRole}
               updating={updatingUser}
             />
           ) : null}

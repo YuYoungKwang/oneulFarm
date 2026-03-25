@@ -4,15 +4,20 @@ import AdminApp from './AdminApp';
 import {
   clearAuthUser,
   getAuthUser,
+  isAdminUser,
   isAuthenticated,
   requiresPasswordChange,
 } from './auth';
+import { enterAdminMode, exitAdminMode, isAdminMode } from './admin/adminSession';
 import MainNav from './components/MainNav';
 import MealPlanPlaceholderPage from './components/MealPlanPlaceholderPage';
 import PasswordChangeRequiredPage from './components/PasswordChangeRequiredPage';
 import ProductApp from './components/ProductApp';
 import MainPage from './components/Mainpage';
+import RecommendPage from './components/RecommendPage';
+import SocialLoginCallbackPage from './components/SocialLoginCallbackPage';
 import SiteFooter from './components/SiteFooter';
+import { resolveSocialCallbackContext } from './socialAuth';
 
 const MAIN_ROUTE_SEGMENTS = new Set(['', 'main', 'mainpage', 'home']);
 const PRODUCT_ROUTE_SEGMENTS = new Set([
@@ -142,6 +147,7 @@ function readCartCount(authUser) {
 }
 
 function App() {
+  const socialCallbackContext = resolveSocialCallbackContext(window.location.pathname);
   const [currentApp, setCurrentApp] = useState(() =>
     resolveAppFromHash(window.location.hash)
   );
@@ -178,12 +184,34 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (currentApp !== 'admin') {
+      if (isAdminMode()) {
+        exitAdminMode();
+      }
+      return;
+    }
+
+    if (isAdminUser(authUser)) {
+      if (!isAdminMode()) {
+        enterAdminMode();
+      }
+      return;
+    }
+
+    window.location.hash = isAuthenticated(authUser) ? '#/' : '#/login';
+  }, [authUser, currentApp]);
+
   const isPasswordChangeRequired = requiresPasswordChange(authUser);
+
+  if (socialCallbackContext) {
+    return <SocialLoginCallbackPage callbackContext={socialCallbackContext} />;
+  }
 
   return (
     <>
       {currentApp === 'admin' ? (
-        <AdminApp />
+        isAdminUser(authUser) ? <AdminApp /> : null
       ) : isPasswordChangeRequired ? (
         <PasswordChangeRequiredPage authUser={authUser} />
       ) : (

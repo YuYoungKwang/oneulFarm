@@ -650,6 +650,7 @@ main{padding-bottom:56px}
 }
 
 .auth-wrap{
+  padding-top: 33px;
   display:grid;
   grid-template-columns:1fr 520px;
   gap:20px;
