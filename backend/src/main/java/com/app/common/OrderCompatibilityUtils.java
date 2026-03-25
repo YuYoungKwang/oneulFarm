@@ -35,17 +35,21 @@ public final class OrderCompatibilityUtils {
             order.setCancelStatus("NONE");
         }
 
-        if (order.getPurchaseConfirmStatus() == null && "DELIVERED".equals(normalizedDeliveryStatus)) {
+        if (order.getPurchaseConfirmStatus() == null
+            && "DELIVERED".equals(normalizedDeliveryStatus)
+            && !"CANCEL_ACCEPTED".equals(order.getCancelStatus())) {
             order.setPurchaseConfirmStatus("PURCHASE_PENDING");
         }
 
         order.setCancelRequestAvailable(isCancelRequestAvailable(order.getNormalizedOrderStatus(), normalizedDeliveryStatus, order.getCancelStatus()));
-        order.setPurchaseConfirmAvailable(isPurchaseConfirmAvailable(normalizedDeliveryStatus, order.getPurchaseConfirmStatus()));
-        order.setRejectAvailable(isRejectAvailable(legacyOrderStatus, normalizedDeliveryStatus, order.getTrackingNo()));
-        order.setShipAvailable(isShipAvailable(legacyOrderStatus, normalizedDeliveryStatus));
-        order.setDeliverAvailable(isDeliverAvailable(legacyOrderStatus, normalizedDeliveryStatus));
-        order.setWaybillAssignable(isWaybillAssignable(normalizedDeliveryStatus, order.getTrackingNo()));
-        order.setPickupAvailable(isPickupAvailable(normalizedDeliveryStatus, order.getTrackingNo()));
+        order.setPurchaseConfirmAvailable(isPurchaseConfirmAvailable(normalizedDeliveryStatus, order.getPurchaseConfirmStatus(), order.getCancelStatus()));
+        order.setRejectAvailable(isRejectAvailable(legacyOrderStatus, normalizedDeliveryStatus, order.getTrackingNo(), order.getCancelStatus()));
+        order.setCancelAcceptAvailable(isCancelAcceptAvailable(order.getCancelStatus(), normalizedDeliveryStatus));
+        order.setCancelRejectAvailable(isCancelRejectAvailable(order.getCancelStatus(), normalizedDeliveryStatus));
+        order.setShipAvailable(isShipAvailable(legacyOrderStatus, normalizedDeliveryStatus, order.getCancelStatus()));
+        order.setDeliverAvailable(isDeliverAvailable(legacyOrderStatus, normalizedDeliveryStatus, order.getCancelStatus()));
+        order.setWaybillAssignable(isWaybillAssignable(normalizedDeliveryStatus, order.getTrackingNo(), order.getCancelStatus()));
+        order.setPickupAvailable(isPickupAvailable(normalizedDeliveryStatus, order.getTrackingNo(), order.getCancelStatus()));
     }
 
     public static String resolveNormalizedOrderStatus(String legacyOrderStatus) {
@@ -135,7 +139,7 @@ public final class OrderCompatibilityUtils {
     }
 
     public static boolean isCancelRequestAvailable(String normalizedOrderStatus, String normalizedDeliveryStatus, String cancelStatus) {
-        if ("CANCEL_REQUESTED".equals(cancelStatus) || "CANCEL_ACCEPTED".equals(cancelStatus)) {
+        if (!"NONE".equals(cancelStatus)) {
             return false;
         }
         if (!"PAYMENT_COMPLETED".equals(normalizedOrderStatus) && !"ORDER_ACCEPTED".equals(normalizedOrderStatus)) {
@@ -145,12 +149,18 @@ public final class OrderCompatibilityUtils {
             || "NOT_STARTED".equals(normalizedDeliveryStatus);
     }
 
-    public static boolean isPurchaseConfirmAvailable(String normalizedDeliveryStatus, String purchaseConfirmStatus) {
+    public static boolean isPurchaseConfirmAvailable(String normalizedDeliveryStatus, String purchaseConfirmStatus, String cancelStatus) {
+        if ("CANCEL_REQUESTED".equals(cancelStatus) || "CANCEL_ACCEPTED".equals(cancelStatus)) {
+            return false;
+        }
         return "DELIVERED".equals(normalizedDeliveryStatus)
             && !"PURCHASE_CONFIRMED".equals(purchaseConfirmStatus);
     }
 
-    public static boolean isRejectAvailable(String legacyOrderStatus, String normalizedDeliveryStatus, String trackingNo) {
+    public static boolean isRejectAvailable(String legacyOrderStatus, String normalizedDeliveryStatus, String trackingNo, String cancelStatus) {
+        if (!"NONE".equals(cancelStatus) && !"CANCEL_REJECTED".equals(cancelStatus)) {
+            return false;
+        }
         if (!"CREATED".equals(legacyOrderStatus) && !"PAID".equals(legacyOrderStatus)) {
             return false;
         }
@@ -160,23 +170,53 @@ public final class OrderCompatibilityUtils {
         return normalizedDeliveryStatus == null || "NOT_STARTED".equals(normalizedDeliveryStatus);
     }
 
-    public static boolean isShipAvailable(String legacyOrderStatus, String normalizedDeliveryStatus) {
+    public static boolean isCancelAcceptAvailable(String cancelStatus, String normalizedDeliveryStatus) {
+        if (!"CANCEL_REQUESTED".equals(cancelStatus)) {
+            return false;
+        }
+        return normalizedDeliveryStatus == null
+            || "NOT_STARTED".equals(normalizedDeliveryStatus)
+            || "WAYBILL_ASSIGNED".equals(normalizedDeliveryStatus);
+    }
+
+    public static boolean isCancelRejectAvailable(String cancelStatus, String normalizedDeliveryStatus) {
+        if (!"CANCEL_REQUESTED".equals(cancelStatus)) {
+            return false;
+        }
+        return normalizedDeliveryStatus == null
+            || "NOT_STARTED".equals(normalizedDeliveryStatus)
+            || "WAYBILL_ASSIGNED".equals(normalizedDeliveryStatus);
+    }
+
+    public static boolean isShipAvailable(String legacyOrderStatus, String normalizedDeliveryStatus, String cancelStatus) {
+        if ("CANCEL_REQUESTED".equals(cancelStatus) || "CANCEL_ACCEPTED".equals(cancelStatus)) {
+            return false;
+        }
         if (!"CREATED".equals(legacyOrderStatus) && !"PAID".equals(legacyOrderStatus)) {
             return false;
         }
         return normalizedDeliveryStatus == null || "NOT_STARTED".equals(normalizedDeliveryStatus);
     }
 
-    public static boolean isDeliverAvailable(String legacyOrderStatus, String normalizedDeliveryStatus) {
+    public static boolean isDeliverAvailable(String legacyOrderStatus, String normalizedDeliveryStatus, String cancelStatus) {
+        if ("CANCEL_REQUESTED".equals(cancelStatus) || "CANCEL_ACCEPTED".equals(cancelStatus)) {
+            return false;
+        }
         return "SHIPPING".equals(legacyOrderStatus) || "IN_TRANSIT".equals(normalizedDeliveryStatus);
     }
 
-    public static boolean isWaybillAssignable(String normalizedDeliveryStatus, String trackingNo) {
+    public static boolean isWaybillAssignable(String normalizedDeliveryStatus, String trackingNo, String cancelStatus) {
+        if ("CANCEL_REQUESTED".equals(cancelStatus) || "CANCEL_ACCEPTED".equals(cancelStatus)) {
+            return false;
+        }
         return trackingNo == null
             && (normalizedDeliveryStatus == null || "NOT_STARTED".equals(normalizedDeliveryStatus));
     }
 
-    public static boolean isPickupAvailable(String normalizedDeliveryStatus, String trackingNo) {
+    public static boolean isPickupAvailable(String normalizedDeliveryStatus, String trackingNo, String cancelStatus) {
+        if ("CANCEL_REQUESTED".equals(cancelStatus) || "CANCEL_ACCEPTED".equals(cancelStatus)) {
+            return false;
+        }
         return trackingNo != null && "WAYBILL_ASSIGNED".equals(normalizedDeliveryStatus);
     }
 

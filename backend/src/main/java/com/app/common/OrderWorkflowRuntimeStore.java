@@ -46,6 +46,32 @@ public class OrderWorkflowRuntimeStore {
         });
     }
 
+    public void markCancelAccepted(Long orderNo) {
+        if (orderNo == null) {
+            return;
+        }
+
+        stateMap.compute(orderNo, (key, current) -> {
+            RuntimeState next = current == null ? new RuntimeState() : current;
+            next.cancelStatus = "CANCEL_ACCEPTED";
+            next.purchaseConfirmStatus = null;
+            next.purchaseConfirmedAt = null;
+            return next;
+        });
+    }
+
+    public void markCancelRejected(Long orderNo) {
+        if (orderNo == null) {
+            return;
+        }
+
+        stateMap.compute(orderNo, (key, current) -> {
+            RuntimeState next = current == null ? new RuntimeState() : current;
+            next.cancelStatus = "CANCEL_REJECTED";
+            return next;
+        });
+    }
+
     public void markPurchaseConfirmed(Long orderNo) {
         if (orderNo == null) {
             return;

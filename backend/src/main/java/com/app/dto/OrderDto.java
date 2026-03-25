@@ -61,6 +61,8 @@ public class OrderDto {
     private Boolean purchaseConfirmAvailable;
     private Boolean trackingAvailable;
     private Boolean rejectAvailable;
+    private Boolean cancelAcceptAvailable;
+    private Boolean cancelRejectAvailable;
     private Boolean shipAvailable;
     private Boolean deliverAvailable;
     private Boolean waybillAssignable;
