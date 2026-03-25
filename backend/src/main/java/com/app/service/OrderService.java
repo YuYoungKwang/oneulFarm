@@ -12,6 +12,8 @@ public interface OrderService {
 
     OrderDto getMyOrderDetail(Long userNo, Long orderNo);
 
+    OrderDto getMyOrderTracking(Long userNo, Long orderNo);
+
     OrderDto createOrder(Long userNo, OrderDto request);
 
     OrderDto advanceOrderStatus(Long userNo, Long orderNo);

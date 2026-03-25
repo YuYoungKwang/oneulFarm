@@ -4,7 +4,7 @@ import './styles/account.css';
 import DashboardView from './DashboardView';
 import MyPageView from './MyPageView';
 import ActivityView from './ActivityView';
-import OrdersView from './OrdersView';
+import CustomerOrdersPage from './CustomerOrdersPage';
 import AddressModal from './AddressModal';
 import { addCartItemToApi, fetchProductsFromApi } from './api/productApi';
 import { persistValue, readStoredValue } from './components/productUiUtils';
@@ -1573,7 +1573,7 @@ function AccountApp({ authUser: initialAuthUser }) {
             onDeleteReview={handleDeleteReview}
           />
         ) : currentPage === 'orders' ? (
-          <OrdersView
+          <CustomerOrdersPage
             orders={orders}
             ordersLoading={ordersLoading}
             ordersError={ordersError}

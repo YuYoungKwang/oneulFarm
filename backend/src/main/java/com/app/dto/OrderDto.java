@@ -57,6 +57,14 @@ public class OrderDto {
     private LocalDateTime shippedAt;
     private LocalDateTime deliveredAt;
     private Boolean legacyStatusNeedsReview;
+    private Boolean cancelRequestAvailable;
+    private Boolean purchaseConfirmAvailable;
+    private Boolean trackingAvailable;
+    private Boolean rejectAvailable;
+    private Boolean shipAvailable;
+    private Boolean deliverAvailable;
+    private Boolean waybillAssignable;
+    private Boolean pickupAvailable;
 
     private List<OrderItemDto> items;
 }

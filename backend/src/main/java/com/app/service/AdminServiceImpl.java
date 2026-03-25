@@ -228,14 +228,11 @@ public class AdminServiceImpl implements AdminService {
         String nextStatus = trimToNull(request == null ? null : request.getOrderStatus());
         if (nextStatus != null && !nextStatus.equals(currentOrder.getOrderStatus())) {
             if ("SHIPPING".equals(nextStatus)) {
-                String resolvedTrackingNo = trackingNo == null
-                    ? "TRK-" + currentOrder.getOrderId()
-                    : trackingNo;
-                adminDao.updateAdminOrderStatus(orderNo, "SHIPPING");
-                adminDao.updateAdminDeliveryForShipping(orderNo, resolvedTrackingNo, courierName);
+                return shipOrder(orderNo, request);
             } else if ("COMPLETED".equals(nextStatus)) {
-                adminDao.updateAdminOrderStatus(orderNo, "COMPLETED");
-                adminDao.updateAdminDeliveryForDelivered(orderNo);
+                return deliverOrder(orderNo);
+            } else if ("CANCELED".equals(nextStatus)) {
+                return rejectOrder(orderNo);
             } else if ("PAID".equals(nextStatus) || "CREATED".equals(nextStatus)) {
                 adminDao.updateAdminOrderStatus(orderNo, nextStatus);
             } else {
@@ -243,6 +240,53 @@ public class AdminServiceImpl implements AdminService {
             }
         }
 
+        return getOrderDetail(orderNo);
+    }
+
+    @Override
+    @Transactional
+    public OrderDto rejectOrder(Long orderNo) {
+        OrderDto currentOrder = getOrderDetail(orderNo);
+        if (!Boolean.TRUE.equals(currentOrder.getRejectAvailable())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order cannot be rejected in the current state.");
+        }
+
+        adminDao.updateAdminOrderStatus(orderNo, "CANCELED");
+        return getOrderDetail(orderNo);
+    }
+
+    @Override
+    @Transactional
+    public OrderDto shipOrder(Long orderNo, OrderDto request) {
+        OrderDto currentOrder = getOrderDetail(orderNo);
+        if (!Boolean.TRUE.equals(currentOrder.getShipAvailable())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order cannot be moved to shipping in the current state.");
+        }
+
+        String trackingNo = trimToNull(request == null ? null : request.getTrackingNo());
+        String courierName = trimToNull(request == null ? null : request.getCourierName());
+        if (courierName == null) {
+            courierName = "oneulFarm";
+        }
+
+        String resolvedTrackingNo = trackingNo == null
+            ? "TRK-" + currentOrder.getOrderId()
+            : trackingNo;
+        adminDao.updateAdminOrderStatus(orderNo, "SHIPPING");
+        adminDao.updateAdminDeliveryForShipping(orderNo, resolvedTrackingNo, courierName);
+        return getOrderDetail(orderNo);
+    }
+
+    @Override
+    @Transactional
+    public OrderDto deliverOrder(Long orderNo) {
+        OrderDto currentOrder = getOrderDetail(orderNo);
+        if (!Boolean.TRUE.equals(currentOrder.getDeliverAvailable())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order cannot be marked delivered in the current state.");
+        }
+
+        adminDao.updateAdminOrderStatus(orderNo, "COMPLETED");
+        adminDao.updateAdminDeliveryForDelivered(orderNo);
         return getOrderDetail(orderNo);
     }
 

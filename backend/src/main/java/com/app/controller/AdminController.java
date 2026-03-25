@@ -143,6 +143,28 @@ public class AdminController {
         return ApiResponse.success(adminService.updateOrder(orderNo, request), "Admin order updated.");
     }
 
+    @PatchMapping("/orders/{orderNo}/reject")
+    public ApiResponse<OrderDto> rejectOrder(
+        @PathVariable Long orderNo
+    ) {
+        return ApiResponse.success(adminService.rejectOrder(orderNo), "Admin order rejected.");
+    }
+
+    @PatchMapping("/orders/{orderNo}/ship")
+    public ApiResponse<OrderDto> shipOrder(
+        @PathVariable Long orderNo,
+        @RequestBody(required = false) OrderDto request
+    ) {
+        return ApiResponse.success(adminService.shipOrder(orderNo, request), "Admin order moved to shipping.");
+    }
+
+    @PatchMapping("/orders/{orderNo}/deliver")
+    public ApiResponse<OrderDto> deliverOrder(
+        @PathVariable Long orderNo
+    ) {
+        return ApiResponse.success(adminService.deliverOrder(orderNo), "Admin order delivered.");
+    }
+
     @DeleteMapping("/orders/{orderNo}")
     public ApiResponse<Void> deleteOrder(
         @PathVariable Long orderNo

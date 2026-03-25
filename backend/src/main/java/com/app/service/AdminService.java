@@ -29,6 +29,12 @@ public interface AdminService {
 
     OrderDto getOrderDetail(Long orderNo);
 
+    OrderDto rejectOrder(Long orderNo);
+
+    OrderDto shipOrder(Long orderNo, OrderDto request);
+
+    OrderDto deliverOrder(Long orderNo);
+
     OrderDto updateOrder(Long orderNo, OrderDto request);
 
     void deleteOrder(Long orderNo);

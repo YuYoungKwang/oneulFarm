@@ -54,6 +54,17 @@ public class OrderController {
         return ResponseEntity.ok(OBJECT_MAPPER.writeValueAsString(response));
     }
 
+    @GetMapping("/me/{orderNo}/tracking")
+    public ApiResponse<OrderDto> getMyOrderTracking(
+        @RequestHeader("X-USER-NO") Long userNo,
+        @PathVariable("orderNo") Long orderNo
+    ) {
+        return ApiResponse.success(
+            orderService.getMyOrderTracking(userNo, orderNo),
+            "Order tracking loaded."
+        );
+    }
+
     @PostMapping(value = "/me", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ApiResponse<OrderDto> createMyOrder(
         @RequestHeader("X-USER-NO") Long userNo,

@@ -83,6 +83,13 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    public OrderDto getMyOrderTracking(Long userNo, Long orderNo) {
+        OrderDto response = getMyOrderDetail(userNo, orderNo);
+        response.setItems(null);
+        return response;
+    }
+
+    @Override
     @Transactional
     public OrderDto createOrder(Long userNo, OrderDto request) {
         validateCreateOrderRequest(request);
