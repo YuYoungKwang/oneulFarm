@@ -39,11 +39,24 @@ public class OrderDto {
     private BigDecimal paidAmount;
     private LocalDateTime paidAt;
 
+    private String normalizedOrderStatus;
+    private String cancelStatus;
+    private String purchaseConfirmStatus;
+    private LocalDateTime purchaseConfirmedAt;
+
     private String deliveryStatus;
+    private String normalizedDeliveryStatus;
     private String courierName;
+    private String carrierCode;
+    private String carrierName;
     private String trackingNo;
+    private String waybillStatus;
+    private LocalDateTime waybillAssignedAt;
+    private LocalDateTime pickedUpAt;
+    private LocalDateTime inTransitAt;
     private LocalDateTime shippedAt;
     private LocalDateTime deliveredAt;
+    private Boolean legacyStatusNeedsReview;
 
     private List<OrderItemDto> items;
 }
