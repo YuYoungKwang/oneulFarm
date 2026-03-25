@@ -1,6 +1,7 @@
 package com.app.service;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -16,8 +17,8 @@ import com.app.dto.RecipeDTO;
 @Service
 public class MainServiceImpl implements MainService {
 
-    private static final int MAIN_PRODUCT_LIMIT = 4;
-    private static final int MAIN_INSIGHT_LIMIT = 2;
+    private static final int MAIN_PRODUCT_LIMIT = 12;
+    private static final int MAIN_INSIGHT_LIMIT = 10;
     private static final int MAIN_RECIPE_LIMIT = 2;
     private static final int MAIN_CHART_DAYS = 7;
     private static final String DEFAULT_MARKET_TYPE = "RETAIL";
@@ -34,8 +35,11 @@ public class MainServiceImpl implements MainService {
     @Override
     public Map<String, Object> getMainPage() {
         List<ProductDto> products = defaultList(productService.getProducts());
+        List<ProductDto> pricedProducts = filterPricedProducts(products);
         List<ProductDto> mainProducts = enrichProducts(limit(products, MAIN_PRODUCT_LIMIT));
-        List<ProductDto> insights = enrichProducts(limit(filterPricedProducts(products), MAIN_INSIGHT_LIMIT));
+        List<ProductDto> insights = enrichProducts(
+            limit(sortByInsightPriority(pricedProducts), MAIN_INSIGHT_LIMIT)
+        );
         List<PriceSnapshotDTO> chart = getChartData(mainProducts, insights);
         List<RecipeDTO> recipes = getRecipes();
 
@@ -56,6 +60,34 @@ public class MainServiceImpl implements MainService {
             filtered.add(product);
         }
         return filtered;
+    }
+
+    private List<ProductDto> sortByInsightPriority(List<ProductDto> products) {
+        List<ProductDto> sorted = new ArrayList<ProductDto>(defaultList(products));
+        sorted.sort(
+            Comparator
+                .comparingDouble(this::calculateInsightPriorityScore)
+                .reversed()
+                .thenComparing(ProductDto::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+        );
+        return sorted;
+    }
+
+    private double calculateInsightPriorityScore(ProductDto product) {
+        if (product == null) {
+            return 0D;
+        }
+
+        double reviewScore = toDouble(product.getReviewCount()) * 3D;
+        double ratingScore = toDouble(product.getAverageRating()) * 10D;
+        double savingScore = toDouble(product.getSavingRate()) * 2D;
+        double seasonalBonus = "Y".equalsIgnoreCase(product.getIsSeasonal()) ? 10D : 0D;
+
+        return reviewScore + ratingScore + savingScore + seasonalBonus;
+    }
+
+    private double toDouble(Number value) {
+        return value == null ? 0D : value.doubleValue();
     }
 
     private List<PriceSnapshotDTO> getChartData(List<ProductDto> mainProducts, List<ProductDto> insights) {

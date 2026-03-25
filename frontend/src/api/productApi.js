@@ -211,11 +211,17 @@ function buildProductModel(rawProduct) {
   const images = enrichProductImages(buildGalleryItems(rawProduct, display));
   const avgPrice = toNumber(rawProduct.avgPrice, toNumber(rawProduct.salePrice, 0));
   const salePrice = toNumber(rawProduct.salePrice, 0);
+  const comparedPrice = toNumber(rawProduct.comparedPrice, 0);
+  const displayPriceRatio = avgPrice > 0 && comparedPrice > 0 ? comparedPrice / avgPrice : 1;
+  const displayAvgPrice = comparedPrice > 0 ? comparedPrice : avgPrice;
+  const displayMinPrice = toNumber(rawProduct.minPrice, avgPrice) * displayPriceRatio;
+  const displayMaxPrice =
+    toNumber(rawProduct.maxPrice, Math.max(avgPrice, salePrice)) * displayPriceRatio;
   const savingRate = toNumber(
     rawProduct.savingRate,
-    avgPrice > 0 ? ((avgPrice - salePrice) / avgPrice) * 100 : 0
+    displayAvgPrice > 0 ? ((displayAvgPrice - salePrice) / displayAvgPrice) * 100 : 0
   );
-  const priceGap = toNumber(rawProduct.priceGap, Math.max(avgPrice - salePrice, 0));
+  const priceGap = toNumber(rawProduct.priceGap, Math.max(displayAvgPrice - salePrice, 0));
   const recommendedFor = buildRecommendedTags(rawProduct);
 
   return {
@@ -253,15 +259,18 @@ function buildProductModel(rawProduct) {
       marketType: rawProduct.marketType || 'RETAIL',
       unit: rawProduct.snapshotUnit || rawProduct.unit || '',
       avgPrice,
+      displayAvgPrice,
       minPrice: toNumber(rawProduct.minPrice, avgPrice),
+      displayMinPrice,
       maxPrice: toNumber(rawProduct.maxPrice, Math.max(avgPrice, salePrice)),
+      displayMaxPrice,
       changeRate: toNumber(rawProduct.changeRate, 0),
       snapshotDate: rawProduct.snapshotDate || rawProduct.createdAt,
       sourceName: rawProduct.sourceName || 'KAMIS',
     },
     priceMatch: {
       matchNo: rawProduct.matchNo,
-      comparedPrice: toNumber(rawProduct.comparedPrice, salePrice),
+      comparedPrice: comparedPrice > 0 ? comparedPrice : salePrice,
       priceGap,
       savingRate,
       badgeType: rawProduct.badgeType || (salePrice < avgPrice ? 'UNDER_AVG' : 'HOT_DEAL'),
@@ -312,6 +321,7 @@ function adaptOrderDetail(rawDetail, options = {}) {
     orderedAt: orderInfo.orderedAt,
     payment: {
       paymentMethod: paymentInfo.paymentMethod || 'CARD',
+      paymentProvider: paymentInfo.paymentProvider || '',
       paymentStatus: paymentInfo.paymentStatus || 'READY',
       paidAmount: toNumber(paymentInfo.paidAmount, 0),
       paidAt: paymentInfo.paidAt || null,

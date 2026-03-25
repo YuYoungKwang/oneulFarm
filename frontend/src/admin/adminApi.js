@@ -256,6 +256,57 @@ export async function fetchAdminPackageHistories() {
   );
 }
 
+export async function fetchAdminPurchaseReferenceItems() {
+  return (
+    (await requestApi(
+      `${ADMIN_API_BASE}/purchases/reference-items`,
+      {
+        headers: apiHeaders(),
+      },
+      'Failed to load purchase reference items.'
+    )) || []
+  );
+}
+
+export async function fetchAdminPurchaseQuote(productName, itemCode) {
+  const searchParams = new URLSearchParams();
+  if (productName) {
+    searchParams.set('productName', productName);
+  }
+  if (itemCode) {
+    searchParams.set('itemCode', itemCode);
+  }
+
+  return requestApi(
+    `${ADMIN_API_BASE}/purchases/quote?${searchParams.toString()}`,
+    {
+      headers: apiHeaders(),
+    },
+    '시세 기반 매입 정보를 불러오지 못했습니다.'
+  );
+}
+
+export async function fetchAdminRetailPriceList(itemName, limit = 200) {
+  const searchParams = new URLSearchParams();
+  searchParams.set('marketType', 'RETAIL');
+  if (itemName) {
+    searchParams.set('itemName', itemName);
+  }
+  if (limit) {
+    searchParams.set('limit', String(limit));
+  }
+
+  const payload = await requestApi(
+    `/api/prices?${searchParams.toString()}`,
+    {
+      headers: apiHeaders(),
+    },
+    '소매 시세를 불러오지 못했습니다.'
+  );
+
+  return payload?.prices || [];
+}
+
 export async function createAdminPurchaseBatch(payload) {
   return requestApi(
     `${ADMIN_API_BASE}/purchases`,
@@ -265,6 +316,17 @@ export async function createAdminPurchaseBatch(payload) {
       body: JSON.stringify(payload),
     },
     '매입 등록에 실패했습니다.'
+  );
+}
+
+export async function deleteAdminPurchaseBatch(batchNo) {
+  return requestApi(
+    `${ADMIN_API_BASE}/purchases/${batchNo}`,
+    {
+      method: 'DELETE',
+      headers: apiHeaders(),
+    },
+    '매입/소분 이력 삭제에 실패했습니다.'
   );
 }
 

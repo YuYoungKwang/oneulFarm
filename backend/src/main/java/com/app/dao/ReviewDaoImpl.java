@@ -88,6 +88,7 @@ public class ReviewDaoImpl implements ReviewDao {
         String imageExt,
         String mimeType,
         Long imageSize,
+        Integer sortOrder,
         byte[] imageData
     ) {
         Map<String, Object> params = new HashMap<>();
@@ -96,8 +97,14 @@ public class ReviewDaoImpl implements ReviewDao {
         params.put("imageExt", imageExt);
         params.put("mimeType", mimeType);
         params.put("imageSize", imageSize);
+        params.put("sortOrder", sortOrder);
         params.put("imageData", imageData);
         return sqlSessionTemplate.insert(NAMESPACE + "insertActivityReviewImage", params);
+    }
+
+    @Override
+    public int deleteReviewImage(Long reviewImageNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deleteReviewImage", reviewImageNo);
     }
 
     @Override

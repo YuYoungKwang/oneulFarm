@@ -271,9 +271,14 @@
             #{mimeType},
             #{imageSize},
             #{imageData},
-            1
+            #{sortOrder}
         )
     </insert>
+
+    <delete id="deleteReviewImage" parameterType="long">
+        DELETE FROM OFT_REVIEW_IMAGE
+        WHERE REVIEW_IMAGE_NO = #{_parameter}
+    </delete>
 
     <update id="deleteReview" parameterType="map">
         UPDATE OFT_REVIEW

@@ -11,6 +11,7 @@ import {
   fetchAdminOrders,
   fetchAdminPackageHistories,
   fetchAdminProductCategories,
+  fetchAdminPurchaseQuote,
   fetchAdminProducts,
   fetchAdminPurchases,
   fetchAdminRecipeMappings,
@@ -59,6 +60,7 @@ jest.mock('./admin/adminApi', () => ({
   fetchAdminOrders: jest.fn(),
   fetchAdminPackageHistories: jest.fn(),
   fetchAdminProductCategories: jest.fn(),
+  fetchAdminPurchaseQuote: jest.fn(),
   fetchAdminProducts: jest.fn(),
   fetchAdminPurchases: jest.fn(),
   fetchAdminRecipeMappings: jest.fn(),
@@ -368,6 +370,20 @@ describe('App', () => {
     fetchAdminUsers.mockResolvedValue([]);
     fetchAdminPurchases.mockResolvedValue([]);
     fetchAdminPackageHistories.mockResolvedValue([]);
+    fetchAdminPurchaseQuote.mockResolvedValue({
+      matchedItemName: '\uC591\uD30C',
+      snapshotDate: '2026-03-24',
+      snapshotUnit: '20kg',
+      purchaseUnit: 'kg',
+      purchaseQty: 20,
+      purchasePrice: 31000,
+      pricingBaseUnit: 'kg',
+      pricingBaseQty: 20,
+      pricingBasePrice: 31000,
+      wholesaleAvgPrice: 31000,
+      retailAvgPrice: 42000,
+      recommendedSalePrice: 36500,
+    });
     fetchAdminBanners.mockResolvedValue([]);
     fetchAdminRecipeMappings.mockResolvedValue([]);
     deleteAdminProduct.mockResolvedValue(null);
@@ -548,7 +564,7 @@ describe('App', () => {
     expect(window.location.hash).toBe('#/mypage');
   });
 
-  test('\uB300\uC2DC\uBCF4\uB4DC\uC5D0\uC11C \uC0C1\uD488\uC73C\uB85C \uC774\uB3D9\uD574\uB3C4 \uAC19\uC740 \uB124\uBE44 \uAD6C\uC131\uC744 \uC720\uC9C0\uD55C\uB2E4', async () => {
+  test('\uB9C8\uC774\uD398\uC774\uC9C0 \uAD6C\uC131\uC5D0 \uB9DE\uCDB0 \uC0C1\uB2E8 \uB124\uBE44\uC5D0\uC11C \uB300\uC2DC\uBCF4\uB4DC \uBC14\uB85C\uAC00\uAE30\uB97C \uC81C\uAC70\uD55C\uB2E4', async () => {
     window.location.hash = '#/dashboard';
 
     render(<App />);
@@ -573,8 +589,26 @@ describe('App', () => {
 
     expect(window.location.hash).toBe('#/products');
     expect(afterLabels).toEqual(beforeLabels);
-    expect(afterLabels).toContain('\uB300\uC2DC\uBCF4\uB4DC');
     expect(afterLabels).toContain('\uB9C8\uC774\uD398\uC774\uC9C0');
+    expect(afterLabels).toContain('\uB9DE\uCDA4 \uC2DD\uB2E8ai');
+    expect(afterLabels).not.toContain('\uB300\uC2DC\uBCF4\uB4DC');
+  });
+
+  test('\uB9DE\uCDA4 \uC2DD\uB2E8 ai \uB124\uBE44\uB97C \uB204\uB974\uBA74 \uBE48 \uD398\uC774\uC9C0\uB85C \uC774\uB3D9\uD55C\uB2E4', async () => {
+    window.location.hash = '#/products';
+
+    render(<App />);
+
+    await screen.findByText('\uC591\uD30C 1kg');
+    fireEvent.click(screen.getByRole('button', { name: '\uB9DE\uCDA4 \uC2DD\uB2E8 ai' }));
+
+    await waitFor(() => {
+      expect(window.location.hash).toBe('#/meal-plan');
+    });
+
+    expect(
+      await screen.findByRole('heading', { name: '\uB9DE\uCDA4 \uC2DD\uB2E8 ai' })
+    ).toBeInTheDocument();
   });
 
   test('\uC0AC\uC6A9\uC790 \uB124\uBE44\uC5D0\uC11C \uAD00\uB9AC\uC790\uACC4\uC815 \uC804\uD658 \uBC84\uD2BC\uC73C\uB85C \uAD00\uB9AC\uC790 \uD398\uC774\uC9C0\uC5D0 \uC9C4\uC785\uD55C\uB2E4', async () => {
@@ -753,5 +787,27 @@ describe('App', () => {
     expect(screen.queryByText('\uBC30\uC1A1 \uC2DC\uC791')).not.toBeInTheDocument();
     expect(screen.queryByText('\uBC30\uC1A1 \uC644\uB8CC')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '\uC0C1\uC138 \uBCF4\uAE30' })).not.toBeInTheDocument();
+  });
+
+  test('관리자 매입 등록에서 시세 자동 채움으로 단위와 수량, 총 매입가를 채운다', async () => {
+    window.localStorage.setItem('oneulFarmAdminMode', 'true');
+    window.location.hash = '#/admin/purchase';
+
+    render(<App />);
+
+    const productNameInput = await screen.findByRole('textbox', { name: '품목명' });
+    fireEvent.change(productNameInput, { target: { value: '양파' } });
+    fireEvent.blur(productNameInput);
+
+    await waitFor(() => {
+      expect(fetchAdminPurchaseQuote).toHaveBeenCalledWith('양파');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('kg')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('20')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('31000')).toBeInTheDocument();
+      expect(screen.getByText('시세 자동 채움 기준')).toBeInTheDocument();
+    });
   });
 });

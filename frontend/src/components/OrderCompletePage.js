@@ -64,7 +64,10 @@ export default function OrderCompletePage({
           <article className="quick-card">
             <div className="quick-label">결제 수단</div>
             <div className="quick-value">
-              {getPaymentMethodLabel(order.payment.paymentMethod)}
+              {getPaymentMethodLabel(
+                order.payment.paymentMethod,
+                order.payment.paymentProvider
+              )}
             </div>
             <div className="section-sub">선택한 결제 방식</div>
           </article>

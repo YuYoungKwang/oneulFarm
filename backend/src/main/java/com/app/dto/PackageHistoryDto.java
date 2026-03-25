@@ -15,6 +15,8 @@ public class PackageHistoryDto {
     private Long productNo;
     private Integer packagedQty;
     private BigDecimal packagedWeight;
+    private BigDecimal salePrice;
+    private String saleStatus;
     private LocalDateTime packagedAt;
     private String note;
     private Long userNo;

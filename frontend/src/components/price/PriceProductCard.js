@@ -6,123 +6,112 @@ function formatCurrency(value) {
 
 function formatPercent(value) {
   const numericValue = Number(value || 0);
-  return `${Math.max(Math.round(numericValue), 0)}%`;
+  const prefix = numericValue > 0 ? '+' : '';
+  return `${prefix}${numericValue.toFixed(1)}%`;
+}
+
+function buildComparisonCopy(salePrice, averagePrice) {
+  if (!averagePrice) {
+    return '평균가 정보가 아직 부족합니다.';
+  }
+
+  const gapRate = ((salePrice - averagePrice) / averagePrice) * 100;
+  if (gapRate <= 0) {
+    return `평균가보다 ${Math.abs(gapRate).toFixed(1)}% 낮아요.`;
+  }
+
+  return `평균가보다 ${gapRate.toFixed(1)}% 높아요.`;
 }
 
 export default function PriceProductCard({
   badgeLabel,
-  badgeTone = 'default',
-  ctaLabel = '상품 보기',
-  onOpen,
+  badgeTone = 'green',
+  onAction,
   product,
   reasonDetail,
   reasonLabel,
-  variant = 'value',
+  variant = 'best-buy',
 }) {
-  const image = product?.mainImage?.imageUrl;
-  const displaySymbol = product?.display?.symbol || 'F';
+  if (!product) {
+    return null;
+  }
+
+  const imageUrl = product?.mainImage?.imageUrl || '';
   const salePrice = Number(product?.salePrice || 0);
-  const averagePrice = Number(product?.priceSnapshot?.avgPrice || salePrice);
-  const savingRate = Number(product?.priceMatch?.savingRate || 0);
-  const priceGap = Number(product?.priceMatch?.priceGap || 0);
-  const originLabel = product?.origin || product?.categoryName || '산지 정보 없음';
+  const averagePrice = Number(
+    product?.priceMatch?.comparedPrice ||
+      product?.priceSnapshot?.displayAvgPrice ||
+      product?.priceSnapshot?.avgPrice ||
+      0
+  );
+  const originLabel = product?.origin || '원산지 정보 없음';
   const unitLabel =
     product?.packageWeight && product?.unit
       ? `${product.packageWeight}${product.unit}`
       : product?.unit || '-';
-  const insightLabel =
-    variant === 'timing'
-      ? '타이밍 포인트'
-      : variant === 'value'
-        ? '가격 메리트'
-        : '추천 포인트';
-  const secondaryMetricLabel =
-    variant === 'timing' ? '최근 변동률' : '평균가 차이';
-  const secondaryMetricValue =
-    variant === 'timing'
-      ? formatPercent(product?.priceSnapshot?.changeRate || 0)
-      : formatCurrency(priceGap);
+  const changeRate = Number(product?.priceSnapshot?.changeRate || 0);
+  const savingRate = Number(product?.priceMatch?.savingRate || 0);
+  const fallbackText = product?.productName?.slice(0, 2) || '상품';
+  const RootTag = onAction ? 'button' : 'article';
 
   return (
-    <article className={`price-product-card price-product-card--${variant}`}>
-      <div className="price-product-card__media">
+    <RootTag
+      {...(onAction ? { type: 'button', onClick: onAction } : {})}
+      className={`market-product-card market-product-card--${variant} ${
+        onAction ? 'market-product-card--interactive' : ''
+      }`.trim()}
+    >
+      <div className="market-product-card__media">
         <SafeImage
-          alt={product?.productName || '농산물'}
-          className="price-product-card__image"
+          alt={product?.productName || '추천 상품'}
+          className="market-product-card__image"
           fallback={
-            <div className="price-product-card__fallback" aria-hidden="true">
-              {displaySymbol}
+            <div className="market-product-card__fallback" aria-hidden="true">
+              {fallbackText}
             </div>
           }
-          src={image}
+          src={imageUrl}
         />
+
         {badgeLabel ? (
-          <span className={`price-product-card__badge tone-${badgeTone}`}>
-            {badgeLabel}
-          </span>
+          <span className={`market-product-card__badge tone-${badgeTone}`}>{badgeLabel}</span>
         ) : null}
       </div>
 
-      <div className="price-product-card__body">
-        <div className="price-product-card__header">
+      <div className="market-product-card__body">
+        <div className="market-product-card__head">
           <div>
             <h3>{product?.productName || '추천 상품'}</h3>
-            <p>{originLabel}</p>
+            <p>
+              {originLabel} · {unitLabel}
+            </p>
           </div>
-          <span className="price-product-card__unit">{unitLabel}</span>
+          <span className="market-product-card__mini-chip">{reasonLabel}</span>
         </div>
 
-        <div className="price-product-card__price">
-          <strong>{formatCurrency(salePrice)}</strong>
-          <span>시장 평균 {formatCurrency(averagePrice)}</span>
+        <div className="market-product-card__price-row">
+          <div>
+            <span>현재가</span>
+            <strong>{formatCurrency(salePrice)}</strong>
+          </div>
+          <div>
+            <span>평균가</span>
+            <strong>{formatCurrency(averagePrice)}</strong>
+          </div>
         </div>
 
-        {reasonLabel || reasonDetail ? (
-          <div className="price-product-card__reason">
-            <div className="price-product-card__reason-head">
-              <span className="price-product-card__reason-label">
-                {reasonLabel || insightLabel}
-              </span>
-              <strong className="price-product-card__reason-value">
-                {variant === 'timing'
-                  ? formatPercent(product?.priceSnapshot?.changeRate || 0)
-                  : formatPercent(savingRate)}
-              </strong>
-            </div>
-            {reasonDetail ? <p>{reasonDetail}</p> : null}
-          </div>
-        ) : null}
+        <p className="market-product-card__comparison">
+          {buildComparisonCopy(salePrice, averagePrice)}
+        </p>
+        <p className="market-product-card__reason">{reasonDetail}</p>
 
-        <dl className="price-product-card__meta">
-          <div>
-            <dt>절약률</dt>
-            <dd>{formatPercent(savingRate)}</dd>
+        <div className="market-product-card__footer">
+          <div className="market-product-card__footer-meta">
+            <span>변동 {formatPercent(changeRate)}</span>
+            <span>절약 {formatPercent(savingRate)}</span>
           </div>
-          <div>
-            <dt>{secondaryMetricLabel}</dt>
-            <dd>{secondaryMetricValue}</dd>
-          </div>
-          <div>
-            <dt>판매 단위</dt>
-            <dd>{unitLabel}</dd>
-          </div>
-        </dl>
-
-        <div className="price-product-card__footer">
-          <span className="price-product-card__status">
-            {product?.saleStatus === 'SELLING' ? '지금 바로 구매 가능' : '판매 준비 중'}
-          </span>
-          <button
-            className={`price-btn ${
-              variant === 'timing' ? 'price-btn--ghost' : 'price-btn--primary'
-            } price-product-card__action`}
-            type="button"
-            onClick={onOpen}
-          >
-            {ctaLabel}
-          </button>
         </div>
       </div>
-    </article>
+    </RootTag>
   );
 }

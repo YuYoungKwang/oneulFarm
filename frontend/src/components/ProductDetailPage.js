@@ -42,10 +42,16 @@ export default function ProductDetailPage({
   const averageRating = reviews.length
     ? (reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / reviews.length).toFixed(1)
     : '0.0';
+  const displayAvgPrice =
+    Number(product.priceSnapshot?.displayAvgPrice || 0) || Number(product.priceSnapshot?.avgPrice || 0);
+  const displayMinPrice =
+    Number(product.priceSnapshot?.displayMinPrice || 0) || Number(product.priceSnapshot?.minPrice || 0);
+  const displayMaxPrice =
+    Number(product.priceSnapshot?.displayMaxPrice || 0) || Number(product.priceSnapshot?.maxPrice || 0);
   const comparisonMax = Math.max(
-    Number(product.priceSnapshot?.avgPrice || 0),
-    Number(product.priceSnapshot?.minPrice || 0),
-    Number(product.priceSnapshot?.maxPrice || 0),
+    displayAvgPrice,
+    displayMinPrice,
+    displayMaxPrice,
     Number(product.salePrice || 0),
     1
   );
@@ -196,7 +202,7 @@ export default function ProductDetailPage({
 
           <div className="price-large">{formatCurrency(product.salePrice)}</div>
           <div className="avg">
-            평균가 {formatCurrency(product.priceSnapshot?.avgPrice)} ·{' '}
+            평균가 {formatCurrency(displayAvgPrice)} ·{' '}
             {formatPercent(product.priceMatch?.savingRate)} 절약
           </div>
 
@@ -285,7 +291,7 @@ export default function ProductDetailPage({
         </article>
         <article className="quick-card">
           <div className="quick-label">평균 시세</div>
-          <div className="quick-value">{formatCurrency(product.priceSnapshot?.avgPrice)}</div>
+          <div className="quick-value">{formatCurrency(displayAvgPrice)}</div>
           <div className="section-sub">최근 공개 시세 기준</div>
         </article>
         <article className="quick-card">
@@ -343,8 +349,8 @@ export default function ProductDetailPage({
             <CompareBar
               label="평균가"
               tone="neutral"
-              value={product.priceSnapshot?.avgPrice}
-              width={(Number(product.priceSnapshot?.avgPrice || 0) / comparisonMax) * 100}
+              value={displayAvgPrice}
+              width={(displayAvgPrice / comparisonMax) * 100}
             />
             <CompareBar
               label="판매가"
@@ -355,8 +361,8 @@ export default function ProductDetailPage({
             <CompareBar
               label="최저가"
               tone="accent"
-              value={product.priceSnapshot?.minPrice}
-              width={(Number(product.priceSnapshot?.minPrice || 0) / comparisonMax) * 100}
+              value={displayMinPrice}
+              width={(displayMinPrice / comparisonMax) * 100}
             />
           </div>
         </article>

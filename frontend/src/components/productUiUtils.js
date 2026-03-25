@@ -94,6 +94,16 @@ export function parseHash(hash) {
       : { page: 'product-detail', productNo };
   }
 
+  if (segments[0] === 'products') {
+    return {
+      page: 'products',
+      productCategory: searchParams.get('category') || '',
+      productTag: searchParams.get('tag') || '',
+      productSearch: searchParams.get('search') || '',
+      productSort: searchParams.get('sort') || '',
+    };
+  }
+
   if (segments[0] === 'login') {
     return { page: 'login' };
   }
@@ -110,7 +120,12 @@ export function navigateToHash(hash) {
 }
 
 export function getSavingAmount(product) {
-  const averagePrice = Number(product?.priceSnapshot?.avgPrice || 0);
+  const averagePrice = Number(
+    product?.priceSnapshot?.displayAvgPrice ||
+    product?.priceMatch?.comparedPrice ||
+    product?.priceSnapshot?.avgPrice ||
+    0
+  );
   const salePrice = Number(product?.salePrice || 0);
   return Math.max(averagePrice - salePrice, 0);
 }

@@ -1,0 +1,55 @@
+.meal-plan-page {
+  min-height: calc(100vh - 140px);
+}
+
+.meal-plan-page .container {
+  width: var(--container);
+  margin: 0 auto;
+}
+
+.meal-plan-placeholder {
+  padding: 88px 56px;
+  border-radius: 32px;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at top right, rgba(21, 154, 85, 0.14), transparent 22rem),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(244, 249, 245, 0.98));
+  box-shadow: var(--shadow);
+}
+
+.meal-plan-placeholder__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(21, 154, 85, 0.18);
+  background: rgba(231, 245, 235, 0.92);
+  color: var(--green-dark);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.meal-plan-placeholder h1 {
+  margin: 18px 0 12px;
+  font-size: 52px;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+
+.meal-plan-placeholder p {
+  max-width: 620px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+@media (max-width: 820px) {
+  .meal-plan-placeholder {
+    padding: 56px 28px;
+  }
+
+  .meal-plan-placeholder h1 {
+    font-size: 40px;
+  }
+}

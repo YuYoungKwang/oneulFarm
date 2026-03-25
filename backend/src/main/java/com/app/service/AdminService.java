@@ -49,6 +49,8 @@ public interface AdminService {
 
     PackageHistoryDto packageBatch(Long userNo, Long batchNo, PackageHistoryDto request);
 
+    void deletePurchaseBatch(Long batchNo);
+
     List<MainBannerDto> getMainBanners();
 
     List<ProductRecipeDto> getRecipeMappings();

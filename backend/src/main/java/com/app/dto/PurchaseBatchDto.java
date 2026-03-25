@@ -12,6 +12,9 @@ import lombok.Setter;
 public class PurchaseBatchDto {
 
     private Long batchNo;
+    private Long productNo;
+    private Long categoryNo;
+    private String categoryName;
     private String productName;
     private String origin;
     private String purchaseUnit;
