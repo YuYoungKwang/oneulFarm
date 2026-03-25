@@ -258,11 +258,14 @@ export async function fetchAdminPurchaseQuote(productName, itemCode) {
   );
 }
 
-export async function fetchAdminRetailPriceList(itemName, limit = 200) {
+export async function fetchAdminRetailPriceList(itemName, limit = 200, snapshotDate) {
   const searchParams = new URLSearchParams();
   searchParams.set('marketType', 'RETAIL');
   if (itemName) {
     searchParams.set('itemName', itemName);
+  }
+  if (snapshotDate) {
+    searchParams.set('snapshotDate', snapshotDate);
   }
   if (limit) {
     searchParams.set('limit', String(limit));

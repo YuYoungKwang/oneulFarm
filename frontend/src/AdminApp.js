@@ -111,6 +111,21 @@ const ADMIN_EGG_KEYWORDS = ['계란', '달걀', '특란', '왕란'];
 const ADMIN_MEAT_KEYWORDS = ['쇠고기', '소 ', '소/', '돼지', '삼겹', '목심', '갈비', '안심', '등심', '양지', '설도', '앞다리', '가슴살', '북채', '토종닭', '육계', '닭 '];
 const ADMIN_PROCESSED_KEYWORDS = ['김치', '고추장', '된장', '간장', '두부', '순두부', '연두부', '즉석밥', '맛김', '콩나물'];
 const ADMIN_UNSUPPORTED_REFERENCE_KEYWORDS = ['가리비', '갈치', '고등어', '굴/', '김/', '다시마', '멸치', '미역', '오징어', '새우', '전복', '북어', '삼치', '명태', '홍합', '쌀', '찹쌀', '콩/', '팥/', '녹두', '메밀', '들깨', '참깨'];
+const ADMIN_REFERENCE_ALIAS_MAP = {
+  'catalog:200:214:01|02': [
+    { key: 'red-lettuce', productName: '적상추', quoteName: '상추' },
+    { key: 'green-lettuce', productName: '청상추', quoteName: '상추' },
+  ],
+  'catalog:200:223:01|02|03': [
+    { key: 'spined-cucumber', productName: '가시오이', quoteName: '오이' },
+    { key: 'dadagi-cucumber', productName: '다다기오이', quoteName: '오이' },
+    { key: 'cheong-cucumber', productName: '취청오이', quoteName: '오이' },
+  ],
+  'catalog:200:224:01|02': [
+    { key: 'green-zucchini', productName: '애호박', quoteName: '호박' },
+    { key: 'zucchini', productName: '쥬키니', quoteName: '호박' },
+  ],
+};
 
 function splitAdminReferenceNameSegments(value) {
   return String(value || '')
@@ -146,6 +161,25 @@ function formatDecimalInput(value, fractionDigits = 2) {
   }
 
   return nextValue.toFixed(fractionDigits).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+}
+
+function formatAdminIsoDate(date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
+}
+
+function buildAdminRecentSnapshotDateList(daysBack = 7) {
+  const dateList = [];
+  const today = new Date();
+  for (let offset = 0; offset <= daysBack; offset += 1) {
+    const nextDate = new Date(today);
+    nextDate.setDate(today.getDate() - offset);
+    dateList.push(formatAdminIsoDate(nextDate));
+  }
+  return dateList;
 }
 
 function resolveUnitAmount(value, unit) {
@@ -251,6 +285,7 @@ function containsAnyTextKeyword(value, keywordArray) {
   return keywordArray.some((keyword) => normalizedValue.includes(keyword));
 }
 
+// eslint-disable-next-line no-unused-vars
 function resolveAdminReferenceCategoryName(item) {
   const currentCategoryName = String(item?.categoryName || '').trim();
   const rawProductName = String(item?.productName || '').trim();
@@ -295,8 +330,128 @@ function resolveAdminReferenceCategoryName(item) {
   return '채소';
 }
 
+function resolveStableAdminReferenceCategoryName(item) {
+  const supportedCategoryNames = [
+    '\uCC44\uC18C',
+    '\uACFC\uC77C',
+    '\uBC84\uC12F',
+    '\uC721\uB958',
+    '\uC720\uC81C\uD488',
+    '\uB2EC\uAC40',
+    '\uAC00\uACF5\uC2DD\uD488',
+  ];
+  const fruitExactNames = new Set([
+    '\uC0AC\uACFC',
+    '\uBC30',
+    '\uBCF5\uC22D\uC544',
+    '\uD3EC\uB3C4',
+    '\uAC10\uADE4',
+    '\uB2E8\uAC10',
+    '\uBC14\uB098\uB098',
+    '\uCC38\uB2E4\uB798',
+    '\uCC38\uC678',
+    '\uC624\uB80C\uC9C0',
+    '\uD30C\uC778\uC560\uD50C',
+    '\uBA5C\uB860',
+    '\uB538\uAE30',
+    '\uCCB4\uB9AC',
+    '\uB9DD\uACE0',
+    '\uD0A4\uC704',
+    '\uC790\uB450',
+    '\uC218\uBC15',
+  ]);
+  const fruitKeywords = Array.from(fruitExactNames);
+  const mushroomKeywords = ['\uBC84\uC12F', '\uC1A1\uC774'];
+  const dairyKeywords = ['\uC6B0\uC720', '\uCE58\uC988', '\uC694\uAC70\uD2B8', '\uC694\uAD6C\uB974\uD2B8', '\uBC84\uD130', '\uBD84\uC720', '\uC0DD\uD06C\uB9BC'];
+  const eggKeywords = ['\uACC4\uB780', '\uB2EC\uAC40', '\uD2B9\uB780', '\uC655\uB780'];
+  const meatKeywords = [
+    '\uC1E0\uACE0\uAE30',
+    '\uD55C\uC6B0',
+    '\uC18C\uACE0\uAE30',
+    '\uB3FC\uC9C0',
+    '\uB2ED',
+    '\uC624\uB9AC',
+    '\uB4F1\uC2EC',
+    '\uC548\uC2EC',
+    '\uC0BC\uACB9\uC0B4',
+    '\uAC08\uBE44',
+    '\uBAA9\uC2EC',
+    '\uC591\uC9C0',
+    '\uC124\uB3C4',
+    '\uC55E\uB2E4\uB9AC',
+    '\uAC00\uC2B4\uC0B4',
+    '\uBD81\uCC44',
+    '\uD1A0\uC885\uB2ED',
+    '\uC721\uACC4',
+  ];
+  const processedKeywords = ['\uAE40\uCE58', '\uACE0\uCD94\uC7A5', '\uB41C\uC7A5', '\uAC04\uC7A5', '\uB450\uBD80', '\uC21C\uB450\uBD80', '\uC5F0\uB450\uBD80', '\uC989\uC11D\uBC25', '\uB9DB\uAE40', '\uCF69\uB098\uBB3C'];
+  const unsupportedKeywords = [
+    '\uAC00\uB9AC\uBE44',
+    '\uAC08\uCE58',
+    '\uACE0\uB4F1\uC5B4',
+    '\uAD74',
+    '\uAE40/',
+    '\uB2E4\uC2DC\uB9C8',
+    '\uBA78\uCE58',
+    '\uBBF8\uC5ED',
+    '\uC624\uC9D5\uC5B4',
+    '\uC0C8\uC6B0',
+    '\uBCD1\uC5B4',
+    '\uBD81\uC5B4',
+    '\uAF41\uCE58',
+    '\uBA85\uD0DC',
+    '\uCC38\uAE68',
+    '\uCF69',
+    '\uC300',
+    '\uCC39\uC300',
+    '\uB179\uB450',
+    '\uBA54\uBC00',
+    '\uB4E4\uAE68',
+  ];
+  const currentCategoryName = String(item?.categoryName || '').trim();
+  const rawProductName = String(item?.productName || '').trim();
+  const normalizedProductName = normalizeAdminReferenceProductName(rawProductName) || rawProductName;
+  const itemCategoryCode = extractAdminReferenceCategoryCode(item?.itemCode);
+
+  if (!normalizedProductName) {
+    return '';
+  }
+  if (containsAnyTextKeyword(rawProductName || normalizedProductName, unsupportedKeywords)) {
+    return '';
+  }
+  if (itemCategoryCode === '800' || containsAnyTextKeyword(normalizedProductName, processedKeywords)) {
+    return '\uAC00\uACF5\uC2DD\uD488';
+  }
+  if (containsAnyTextKeyword(normalizedProductName, dairyKeywords)) {
+    return '\uC720\uC81C\uD488';
+  }
+  if (containsAnyTextKeyword(normalizedProductName, eggKeywords)) {
+    return '\uB2EC\uAC40';
+  }
+  if (itemCategoryCode === '500' || containsAnyTextKeyword(normalizedProductName, meatKeywords)) {
+    return '\uC721\uB958';
+  }
+  if (itemCategoryCode === '300' || containsAnyTextKeyword(normalizedProductName, mushroomKeywords)) {
+    return '\uBC84\uC12F';
+  }
+  if (
+    fruitExactNames.has(normalizedProductName)
+    || itemCategoryCode === '400'
+    || containsAnyTextKeyword(rawProductName || normalizedProductName, fruitKeywords)
+  ) {
+    return '\uACFC\uC77C';
+  }
+  if (itemCategoryCode === '100' || itemCategoryCode === '200') {
+    return '\uCC44\uC18C';
+  }
+  if (supportedCategoryNames.includes(currentCategoryName)) {
+    return currentCategoryName;
+  }
+  return '\uCC44\uC18C';
+}
+
 function extractAdminReferenceCategoryCode(itemCode) {
-  const normalizedItemCode = String(itemCode || '').trim();
+  const normalizedItemCode = String(itemCode || '').trim().split('::')[0];
   if (!normalizedItemCode) {
     return '';
   }
@@ -314,11 +469,11 @@ function extractAdminReferenceCategoryCode(itemCode) {
 }
 
 function isAdminCatalogReferenceItem(itemCode) {
-  return String(itemCode || '').trim().startsWith('catalog:');
+  return String(itemCode || '').trim().split('::')[0].startsWith('catalog:');
 }
 
 function parseAdminCatalogReferenceCode(itemCode) {
-  const normalizedItemCode = String(itemCode || '').trim();
+  const normalizedItemCode = String(itemCode || '').trim().split('::')[0];
   if (!normalizedItemCode.startsWith('catalog:')) {
     return null;
   }
@@ -333,6 +488,12 @@ function parseAdminCatalogReferenceCode(itemCode) {
     itemCode: tokenArray[2] || '',
     kindCode: tokenArray.slice(3).join(':') || '',
   };
+}
+
+function buildAdminReferenceOptionCode(itemCode, aliasKey) {
+  const normalizedItemCode = String(itemCode || '').trim();
+  const normalizedAliasKey = String(aliasKey || '').trim();
+  return normalizedAliasKey ? `${normalizedItemCode}::${normalizedAliasKey}` : normalizedItemCode;
 }
 
 function normalizeAdminCatalogKindCode(kindCode) {
@@ -417,10 +578,12 @@ function calculateAdminComparablePrice(avgPrice, snapshotUnit, pricingBasis) {
 
 function findAdminRetailFallbackSnapshot(referenceItem, retailPriceList) {
   const parsedReferenceCode = parseAdminCatalogReferenceCode(referenceItem?.itemCode);
-  const normalizedProductName = normalizeAdminReferenceProductName(
-    referenceItem?.rawProductName || referenceItem?.productName
+  const normalizedProductName = normalizeAdminReferenceProductName(referenceItem?.productName);
+  const normalizedQuoteName = normalizeAdminReferenceProductName(
+    referenceItem?.quoteName || referenceItem?.rawProductName || referenceItem?.productName
   );
   const normalizedProductSearchKey = normalizeAdminSearchKey(normalizedProductName);
+  const normalizedQuoteSearchKey = normalizeAdminSearchKey(normalizedQuoteName);
   const storedItemCodePrefix = parsedReferenceCode
     ? `RETAIL_${parsedReferenceCode.itemCategoryCode}_${parsedReferenceCode.itemCode}_${normalizeAdminCatalogKindCode(parsedReferenceCode.kindCode)}_`
     : '';
@@ -434,6 +597,7 @@ function findAdminRetailFallbackSnapshot(referenceItem, retailPriceList) {
     const snapshotItemName = String(snapshot?.itemName || '').trim();
     const normalizedSnapshotName = normalizeAdminReferenceProductName(snapshotItemName);
     const normalizedSnapshotSearchKey = normalizeAdminSearchKey(normalizedSnapshotName);
+    const snapshotSegmentArray = dedupeAdminReferenceNameSegments(splitAdminReferenceNameSegments(snapshotItemName));
     if (!snapshotItemCode || !snapshotItemName) {
       return;
     }
@@ -442,11 +606,24 @@ function findAdminRetailFallbackSnapshot(referenceItem, retailPriceList) {
     if (storedItemCodePrefix && snapshotItemCode.startsWith(storedItemCodePrefix)) {
       score += 5000;
     }
+    if (
+      normalizedProductSearchKey
+      && snapshotSegmentArray.some(
+        (segment) => normalizeAdminSearchKey(segment) === normalizedProductSearchKey
+      )
+    ) {
+      score += 2600;
+    }
     if (normalizedSnapshotSearchKey === normalizedProductSearchKey) {
       score += 1600;
+    }
+    if (normalizedSnapshotSearchKey === normalizedQuoteSearchKey) {
+      score += 1200;
     } else if (
       normalizedSnapshotSearchKey.includes(normalizedProductSearchKey)
       || normalizedProductSearchKey.includes(normalizedSnapshotSearchKey)
+      || normalizedSnapshotSearchKey.includes(normalizedQuoteSearchKey)
+      || normalizedQuoteSearchKey.includes(normalizedSnapshotSearchKey)
     ) {
       score += 800;
     }
@@ -523,28 +700,198 @@ function buildAdminRetailFallbackQuote(referenceItem, retailSnapshot) {
   };
 }
 
+function mergeAdminRetailFallbackIntoQuote(baseQuote, retailSnapshot) {
+  const snapshotUnit = String(retailSnapshot?.unit || '').trim();
+  const pricingBasisUnit =
+    String(
+      baseQuote?.recommendedPriceBasisUnit
+      || baseQuote?.retailPriceBasisUnit
+      || baseQuote?.priceBasisUnit
+      || ''
+    ).trim();
+  const pricingBasisQuantity = parsePricingBasisQuantity(pricingBasisUnit);
+  const parsedSnapshotUnit = parseAdminSnapshotUnit(snapshotUnit);
+  const numericRetailSourcePrice = Number(retailSnapshot?.avgPrice);
+
+  let retailComparablePrice = null;
+  if (
+    pricingBasisQuantity
+    && parsedSnapshotUnit
+    && pricingBasisQuantity.type === parsedSnapshotUnit.resolvedQuantity.type
+    && parsedSnapshotUnit.resolvedQuantity.amount > 0
+    && Number.isFinite(numericRetailSourcePrice)
+    && numericRetailSourcePrice > 0
+  ) {
+    retailComparablePrice =
+      (numericRetailSourcePrice * pricingBasisQuantity.amount) / parsedSnapshotUnit.resolvedQuantity.amount;
+  }
+
+  const wholesaleComparablePrice = Number(baseQuote?.wholesaleComparablePrice);
+  let recommendedSalePrice = baseQuote?.recommendedSalePrice ?? null;
+  if (
+    recommendedSalePrice == null
+    && Number.isFinite(wholesaleComparablePrice)
+    && wholesaleComparablePrice > 0
+    && Number.isFinite(retailComparablePrice)
+    && retailComparablePrice > 0
+  ) {
+    recommendedSalePrice = Math.round((wholesaleComparablePrice + retailComparablePrice) / 2);
+  }
+
+  return {
+    ...baseQuote,
+    retailSnapshotDate: retailSnapshot?.snapshotDate || baseQuote?.retailSnapshotDate || null,
+    retailSourcePrice: Number.isFinite(numericRetailSourcePrice) ? numericRetailSourcePrice : baseQuote?.retailSourcePrice ?? null,
+    retailAvgPrice: Number.isFinite(retailComparablePrice) ? retailComparablePrice : baseQuote?.retailAvgPrice ?? null,
+    retailSnapshotUnit: snapshotUnit || baseQuote?.retailSnapshotUnit || null,
+    retailComparablePrice: Number.isFinite(retailComparablePrice) ? retailComparablePrice : baseQuote?.retailComparablePrice ?? null,
+    retailItemCode: retailSnapshot?.itemCode || baseQuote?.retailItemCode || null,
+    recommendedSalePrice,
+    pricingNote:
+      Number.isFinite(retailComparablePrice)
+      ? null
+      : baseQuote?.pricingNote || '\uC5F0\uACB0\uB41C \uC18C\uB9E4 \uC2DC\uC138\uAC00 \uC5C6\uC5B4 \uAD8C\uC7A5 \uD310\uB9E4\uAC00\uB97C \uACC4\uC0B0\uD558\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4.',
+  };
+}
+
+async function fetchAdminRecentRetailPriceList(itemName, limit = 200, daysBack = 7) {
+  const snapshotDateList = buildAdminRecentSnapshotDateList(daysBack);
+
+  for (const snapshotDate of snapshotDateList) {
+    const retailPriceList = await fetchAdminRetailPriceList(itemName, limit, snapshotDate);
+    if (Array.isArray(retailPriceList) && retailPriceList.length) {
+      return retailPriceList;
+    }
+  }
+
+  return [];
+}
+
+function getAdminReferenceCategoryPriority(categoryName) {
+  switch (String(categoryName || '').trim()) {
+    case '\uAC00\uACF5\uC2DD\uD488':
+      return 7;
+    case '\uC720\uC81C\uD488':
+      return 6;
+    case '\uB2EC\uAC40':
+      return 5;
+    case '\uC721\uB958':
+      return 4;
+    case '\uACFC\uC77C':
+      return 3;
+    case '\uBC84\uC12F':
+      return 2;
+    case '\uCC44\uC18C':
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+function getAdminReferenceMergePriority(item) {
+  let score = 0;
+  if (item?.supportsAutoQuote) {
+    score += 100;
+  }
+  if (String(item?.referenceSource || '').trim() === 'WHOLESALE') {
+    score += 20;
+  }
+  if (item?.snapshotDate) {
+    score += 5;
+  }
+  return score;
+}
+
+function mergeAdminPurchaseReferenceOptions(referenceItemList) {
+  const mergedItemMap = new Map();
+
+  (referenceItemList || []).forEach((item) => {
+    const mergeKey = normalizeAdminSearchKey(
+      item?.productName || item?.quoteName || item?.rawProductName || item?.displayLabel
+    );
+    if (!mergeKey) {
+      return;
+    }
+
+    const existingItem = mergedItemMap.get(mergeKey);
+    if (!existingItem) {
+      mergedItemMap.set(mergeKey, item);
+      return;
+    }
+
+    const nextPrimaryItem =
+      getAdminReferenceMergePriority(item) > getAdminReferenceMergePriority(existingItem)
+        ? item
+        : existingItem;
+    const nextSecondaryItem = nextPrimaryItem === item ? existingItem : item;
+    const mergedCategoryName =
+      getAdminReferenceCategoryPriority(item?.categoryName) >= getAdminReferenceCategoryPriority(existingItem?.categoryName)
+        ? item?.categoryName
+        : existingItem?.categoryName;
+    const mergedDisplayName = buildAdminReferenceDisplayName(
+      nextPrimaryItem?.productName || nextPrimaryItem?.rawProductName || nextPrimaryItem?.quoteName
+    );
+    const mergedSnapshotUnit = nextPrimaryItem?.snapshotUnit || nextSecondaryItem?.snapshotUnit || '';
+
+    mergedItemMap.set(mergeKey, {
+      ...nextSecondaryItem,
+      ...nextPrimaryItem,
+      categoryName: mergedCategoryName || nextPrimaryItem?.categoryName || nextSecondaryItem?.categoryName || '',
+      supportsAutoQuote: Boolean(existingItem?.supportsAutoQuote || item?.supportsAutoQuote),
+      productName: nextPrimaryItem?.productName || nextSecondaryItem?.productName || '',
+      quoteName: nextPrimaryItem?.quoteName || nextSecondaryItem?.quoteName || '',
+      rawProductName: nextPrimaryItem?.rawProductName || nextSecondaryItem?.rawProductName || '',
+      quoteItemCode:
+        nextPrimaryItem?.quoteItemCode
+        || nextPrimaryItem?.itemCode
+        || nextSecondaryItem?.quoteItemCode
+        || nextSecondaryItem?.itemCode
+        || '',
+      itemCode: nextPrimaryItem?.itemCode || nextSecondaryItem?.itemCode || '',
+      snapshotUnit: mergedSnapshotUnit,
+      displayLabel: mergedCategoryName
+        ? `${mergedCategoryName} / ${mergedDisplayName}${mergedSnapshotUnit ? ` / ${mergedSnapshotUnit}` : ''}`
+        : nextPrimaryItem?.displayLabel || nextSecondaryItem?.displayLabel || mergedDisplayName,
+    });
+  });
+
+  return Array.from(mergedItemMap.values());
+}
+
 function normalizeAdminPurchaseReferenceItems(referenceItems, categories) {
   const availableCategoryNameSet = new Set(
     (categories || []).map((category) => String(category?.categoryName || '').trim()).filter(Boolean)
   );
 
   const normalizedReferenceItemList = (referenceItems || [])
-    .map((item) => {
-      const resolvedCategoryName = resolveAdminReferenceCategoryName(item);
+    .flatMap((item) => {
+      const resolvedCategoryName = resolveStableAdminReferenceCategoryName(item);
       const normalizedProductName = normalizeAdminReferenceProductName(item.productName);
       const normalizedDisplayName = buildAdminReferenceDisplayName(item.productName);
-      return {
-        ...item,
-        rawProductName: item.productName,
-        productName: normalizedProductName || item.productName,
-        categoryName: resolvedCategoryName,
-        displayLabel: resolvedCategoryName
-          ? `${resolvedCategoryName} / ${normalizedDisplayName || item.productName}${item.snapshotUnit ? ` / ${item.snapshotUnit}` : ''}`
-          : item.displayLabel || normalizedDisplayName || item.productName,
-        supportsAutoQuote: item.supportsAutoQuote !== false,
-      };
+      const aliasDefinitionList = ADMIN_REFERENCE_ALIAS_MAP[String(item.itemCode || '').trim()] || [null];
+
+      return aliasDefinitionList.map((aliasDefinition) => {
+        const aliasedProductName = aliasDefinition?.productName || normalizedProductName || item.productName;
+        const aliasedDisplayName = aliasDefinition?.productName || normalizedDisplayName || item.productName;
+
+        return {
+          ...item,
+          itemCode: buildAdminReferenceOptionCode(item.itemCode, aliasDefinition?.key),
+          quoteItemCode: item.itemCode,
+          quoteName: aliasDefinition?.quoteName || normalizedProductName || item.productName,
+          rawProductName: item.productName,
+          productName: aliasedProductName,
+          categoryName: resolvedCategoryName,
+          displayLabel: resolvedCategoryName
+            ? `${resolvedCategoryName} / ${aliasedDisplayName}${item.snapshotUnit ? ` / ${item.snapshotUnit}` : ''}`
+            : item.displayLabel || aliasedDisplayName || item.productName,
+          supportsAutoQuote: item.supportsAutoQuote !== false,
+        };
+      });
     })
-    .filter((item) => item.categoryName && availableCategoryNameSet.has(item.categoryName))
+    .filter((item) => item.categoryName && availableCategoryNameSet.has(item.categoryName));
+
+  return mergeAdminPurchaseReferenceOptions(normalizedReferenceItemList)
     .sort((leftItem, rightItem) => {
       const leftAutoQuoteRank = leftItem.supportsAutoQuote ? 0 : 1;
       const rightAutoQuoteRank = rightItem.supportsAutoQuote ? 0 : 1;
@@ -563,8 +910,6 @@ function normalizeAdminPurchaseReferenceItems(referenceItems, categories) {
         'ko'
       );
     });
-
-  return normalizedReferenceItemList;
 }
 
 function parsePricingBasisQuantity(basisUnit) {
@@ -2784,11 +3129,26 @@ function AdminApp() {
   }
 
   async function handleAutofillPurchaseQuote(productNameOverride, itemCodeOverride, referenceItemOverride) {
-    const productName = String(productNameOverride ?? purchaseForm.productName ?? '').trim();
-    const itemCode = String(itemCodeOverride ?? purchaseForm.referenceItemCode ?? '').trim();
     const selectedReferenceItem = referenceItemOverride
-      || normalizedPurchaseReferenceItems.find((item) => String(item.itemCode) === itemCode)
+      || normalizedPurchaseReferenceItems.find((item) => String(item.itemCode) === String(itemCodeOverride ?? purchaseForm.referenceItemCode ?? ''))
       || null;
+    const productName = String(
+      productNameOverride
+      ?? selectedReferenceItem?.quoteName
+      ?? purchaseForm.productName
+      ?? ''
+    ).trim();
+    const shouldUseDirectQuoteItemCode = Boolean(
+      selectedReferenceItem
+      && selectedReferenceItem.referenceSource === 'WHOLESALE'
+      && !isAdminCatalogReferenceItem(selectedReferenceItem.itemCode)
+    );
+    const itemCode = String(
+      itemCodeOverride
+      ?? (shouldUseDirectQuoteItemCode ? selectedReferenceItem?.quoteItemCode : '')
+      ?? purchaseForm.referenceItemCode
+      ?? ''
+    ).trim();
     if (!productName && !itemCode) {
       setActionError('시세 품목을 선택한 뒤 시세 자동 채움을 눌러주세요.');
       setActionSuccess('');
@@ -2801,6 +3161,11 @@ function AdminApp() {
 
     try {
       let quote = null;
+      const retailLookupName =
+        selectedReferenceItem?.quoteName
+        || selectedReferenceItem?.rawProductName
+        || selectedReferenceItem?.productName
+        || productName;
 
       try {
         quote = await fetchAdminPurchaseQuote(productName, itemCode);
@@ -2809,13 +3174,25 @@ function AdminApp() {
           throw quoteError;
         }
 
-        const retailPriceList = await fetchAdminRetailPriceList(selectedReferenceItem.productName, 200);
+        const retailPriceList = await fetchAdminRecentRetailPriceList(
+          retailLookupName,
+          200,
+          7
+        );
         const retailSnapshot = findAdminRetailFallbackSnapshot(selectedReferenceItem, retailPriceList);
         if (!retailSnapshot) {
           throw quoteError;
         }
 
         quote = buildAdminRetailFallbackQuote(selectedReferenceItem, retailSnapshot);
+      }
+
+      if (quote && !hasAdminValue(quote.retailComparablePrice) && selectedReferenceItem) {
+        const retailPriceList = await fetchAdminRecentRetailPriceList(retailLookupName, 200, 7);
+        const retailSnapshot = findAdminRetailFallbackSnapshot(selectedReferenceItem, retailPriceList);
+        if (retailSnapshot) {
+          quote = mergeAdminRetailFallbackIntoQuote(quote, retailSnapshot);
+        }
       }
 
       setPurchaseQuote(quote);

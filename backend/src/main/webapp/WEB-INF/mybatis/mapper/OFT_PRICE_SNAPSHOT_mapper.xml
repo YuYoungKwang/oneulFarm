@@ -80,6 +80,12 @@
         FROM OFT_PRICE_SNAPSHOT
     </select>
 
+    <select id="selectLatestSnapshotDateByMarketType" parameterType="string" resultType="string">
+        SELECT TO_CHAR(MAX(SNAPSHOT_DATE), 'YYYY-MM-DD')
+        FROM OFT_PRICE_SNAPSHOT
+        WHERE MARKET_TYPE = #{marketType}
+    </select>
+
     <select id="selectPriceSnapshotList" parameterType="map" resultMap="priceSnapshotResultMap">
         SELECT *
         FROM (

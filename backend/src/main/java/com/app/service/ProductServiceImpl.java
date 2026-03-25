@@ -2,6 +2,7 @@ package com.app.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -44,6 +45,7 @@ public class ProductServiceImpl implements ProductService {
         "pack",
         "pk"
     );
+    private static final int RECENT_RETAIL_LOOKBACK_DAYS = 7;
     private static final BigDecimal BADGE_THRESHOLD = BigDecimal.valueOf(100L);
     private static final Set<String> VOLUME_UNIT_SET = Set.of(
         "ml",
@@ -265,6 +267,9 @@ public class ProductServiceImpl implements ProductService {
         List<PriceSnapshotDTO> retailSnapshots =
             priceSnapshotService.getPriceSnapshotList(productName, "RETAIL", null, 40);
         if (retailSnapshots == null || retailSnapshots.isEmpty()) {
+            retailSnapshots = findRecentRetailSnapshots(productName, RECENT_RETAIL_LOOKBACK_DAYS);
+        }
+        if (retailSnapshots == null || retailSnapshots.isEmpty()) {
             return null;
         }
 
@@ -278,6 +283,19 @@ public class ProductServiceImpl implements ProductService {
             }
         }
         return bestSnapshot;
+    }
+
+    private List<PriceSnapshotDTO> findRecentRetailSnapshots(String productName, int daysBack) {
+        LocalDate today = LocalDate.now();
+        for (int offset = 0; offset <= daysBack; offset++) {
+            String snapshotDate = today.minusDays(offset).toString();
+            List<PriceSnapshotDTO> retailSnapshots =
+                priceSnapshotService.getPriceSnapshotList(productName, "RETAIL", snapshotDate, 40);
+            if (retailSnapshots != null && !retailSnapshots.isEmpty()) {
+                return retailSnapshots;
+            }
+        }
+        return Collections.emptyList();
     }
 
     private int calculateSnapshotMatchScore(String query, PriceSnapshotDTO candidate) {
