@@ -473,3 +473,5 @@
 - 2026-03-25: 주문/배송 분리 백엔드 1차 구현용 [order_fulfillment_backend_phase1_tasklist.md](/d:/study/oneulFarm/docs/order_fulfillment_backend_phase1_tasklist.md)을 추가했다. 상태 구조 확장과 운영자/배송사 API 기반 작업을 체크리스트로 정리했다.
 
 - 2026-03-25: 백엔드 1차 구현을 시작해 [OrderDto.java](/d:/study/oneulFarm/backend/src/main/java/com/app/dto/OrderDto.java), [DeliveryDto.java](/d:/study/oneulFarm/backend/src/main/java/com/app/dto/DeliveryDto.java)에 신규 상태/배송사/송장 관련 필드를 추가했다. [OrderServiceImpl.java](/d:/study/oneulFarm/backend/src/main/java/com/app/service/OrderServiceImpl.java), [AdminServiceImpl.java](/d:/study/oneulFarm/backend/src/main/java/com/app/service/AdminServiceImpl.java)에서는 기존 상태를 새 구조로 파생해 응답에 채워주는 호환 계층을 추가했다.
+
+- 2026-03-25: 주문/배송 상태 파생 로직을 [OrderCompatibilityUtils.java](/d:/study/oneulFarm/backend/src/main/java/com/app/common/OrderCompatibilityUtils.java)로 공통화했다. 고객용 [OrderServiceImpl.java](/d:/study/oneulFarm/backend/src/main/java/com/app/service/OrderServiceImpl.java)와 운영자용 [AdminServiceImpl.java](/d:/study/oneulFarm/backend/src/main/java/com/app/service/AdminServiceImpl.java)가 동일한 호환 규칙을 재사용하도록 정리했다.

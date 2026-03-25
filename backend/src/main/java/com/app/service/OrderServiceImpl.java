@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.app.common.OrderCompatibilityUtils;
 import com.app.dao.CartDao;
 import com.app.dao.OrderDao;
 import com.app.dto.CartItemDto;
@@ -45,7 +46,7 @@ public class OrderServiceImpl implements OrderService {
             response.setFinalAmount(defaultAmount(response.getFinalAmount()));
             response.setTotalSavedAmount(defaultAmount(response.getTotalSavedAmount()));
             response.setPreviewImageNos(orderDao.findOrderPreviewImageNos(response.getOrderNo()));
-            hydrateOrderCompatibility(response);
+            OrderCompatibilityUtils.hydrateOrderCompatibility(response);
         }
 
         return responses;
@@ -77,7 +78,7 @@ public class OrderServiceImpl implements OrderService {
         response.setFinalAmount(defaultAmount(response.getFinalAmount()));
         response.setTotalSavedAmount(sumTotalSavedAmount(itemResponses));
         response.setItems(itemResponses);
-        hydrateOrderCompatibility(response);
+        OrderCompatibilityUtils.hydrateOrderCompatibility(response);
         return response;
     }
 
@@ -188,122 +189,6 @@ public class OrderServiceImpl implements OrderService {
 
     private boolean isReviewWritable(String deliveryStatus, Long reviewNo) {
         return "DELIVERED".equals(deliveryStatus) && reviewNo == null;
-    }
-
-    private void hydrateOrderCompatibility(OrderDto order) {
-        if (order == null) {
-            return;
-        }
-
-        String legacyOrderStatus = trimToNull(order.getOrderStatus());
-        String normalizedDeliveryStatus = resolveNormalizedDeliveryStatus(order.getDeliveryStatus(), order.getTrackingNo());
-
-        order.setNormalizedOrderStatus(resolveNormalizedOrderStatus(legacyOrderStatus));
-        order.setNormalizedDeliveryStatus(normalizedDeliveryStatus);
-        order.setCarrierName(trimToNull(order.getCourierName()));
-        order.setCarrierCode(resolveCarrierCode(order.getCarrierName()));
-        order.setWaybillStatus(order.getTrackingNo() == null ? "NOT_ASSIGNED" : "ASSIGNED");
-        order.setWaybillAssignedAt(resolveWaybillAssignedAt(order));
-        order.setPickedUpAt(null);
-        order.setInTransitAt(resolveInTransitAt(order));
-
-        if ("CANCELED".equals(legacyOrderStatus)) {
-            order.setLegacyStatusNeedsReview(Boolean.TRUE);
-            order.setCancelStatus(null);
-        } else if (order.getCancelStatus() == null) {
-            order.setLegacyStatusNeedsReview(Boolean.FALSE);
-            order.setCancelStatus("NONE");
-        }
-
-        if (order.getPurchaseConfirmStatus() == null && "DELIVERED".equals(normalizedDeliveryStatus)) {
-            order.setPurchaseConfirmStatus("PURCHASE_PENDING");
-        }
-    }
-
-    private String resolveNormalizedOrderStatus(String legacyOrderStatus) {
-        if (legacyOrderStatus == null) {
-            return null;
-        }
-
-        switch (legacyOrderStatus) {
-            case "CREATED":
-            case "PAID":
-                return "PAYMENT_COMPLETED";
-            case "SHIPPING":
-            case "COMPLETED":
-                return "ORDER_ACCEPTED";
-            case "PAYMENT_COMPLETED":
-            case "ORDER_ACCEPTED":
-            case "ORDER_REJECTED":
-                return legacyOrderStatus;
-            case "CANCELED":
-            default:
-                return null;
-        }
-    }
-
-    private String resolveNormalizedDeliveryStatus(String legacyDeliveryStatus, String trackingNo) {
-        if (legacyDeliveryStatus == null) {
-            return trackingNo == null ? null : "WAYBILL_ASSIGNED";
-        }
-
-        switch (legacyDeliveryStatus) {
-            case "READY":
-                return trackingNo == null ? "NOT_STARTED" : "WAYBILL_ASSIGNED";
-            case "SHIPPING":
-                return "IN_TRANSIT";
-            case "DELIVERED":
-                return "DELIVERED";
-            case "NOT_STARTED":
-            case "WAYBILL_ASSIGNED":
-            case "PICKED_UP":
-            case "IN_TRANSIT":
-                return legacyDeliveryStatus;
-            default:
-                return legacyDeliveryStatus;
-        }
-    }
-
-    private String resolveCarrierCode(String carrierName) {
-        String normalizedCarrierName = trimToNull(carrierName);
-        if (normalizedCarrierName == null) {
-            return null;
-        }
-
-        String upperCarrierName = normalizedCarrierName.toUpperCase();
-        if (upperCarrierName.contains("CJ")) {
-            return "CJ";
-        }
-        if (upperCarrierName.contains("LOGEN")) {
-            return "LOGEN";
-        }
-        if (upperCarrierName.contains("HANJIN") || normalizedCarrierName.contains("한진")) {
-            return "HANJIN";
-        }
-        return null;
-    }
-
-    private LocalDateTime resolveWaybillAssignedAt(OrderDto order) {
-        if (order.getWaybillAssignedAt() != null) {
-            return order.getWaybillAssignedAt();
-        }
-        if (order.getTrackingNo() == null) {
-            return null;
-        }
-        if (order.getShippedAt() != null) {
-            return order.getShippedAt();
-        }
-        return order.getOrderedAt();
-    }
-
-    private LocalDateTime resolveInTransitAt(OrderDto order) {
-        if (order.getInTransitAt() != null) {
-            return order.getInTransitAt();
-        }
-        if ("SHIPPING".equals(order.getDeliveryStatus()) || "DELIVERED".equals(order.getDeliveryStatus())) {
-            return order.getShippedAt();
-        }
-        return null;
     }
 
     private BigDecimal defaultAmount(BigDecimal amount) {
