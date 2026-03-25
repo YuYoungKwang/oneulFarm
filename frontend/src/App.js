@@ -14,7 +14,6 @@ import MealPlanPlaceholderPage from './components/MealPlanPlaceholderPage';
 import PasswordChangeRequiredPage from './components/PasswordChangeRequiredPage';
 import ProductApp from './components/ProductApp';
 import MainPage from './components/Mainpage';
-import RecommendPage from './components/RecommendPage';
 import SocialLoginCallbackPage from './components/SocialLoginCallbackPage';
 import SiteFooter from './components/SiteFooter';
 import { resolveSocialCallbackContext } from './socialAuth';
