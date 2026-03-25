@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { clearAuthUser, getAuthUser } from './auth';
 import './styles/admin.css';
 import AdminLayout from './admin/AdminLayout';
+import AdminOrdersPage from './admin/AdminOrdersPage';
 import {
   AdminEmptyState,
   AdminMetricCard,
@@ -1681,6 +1682,7 @@ function LegacyProductsPage({
   );
 }
 
+// eslint-disable-next-line no-unused-vars
 function OrdersPage({
   orders,
   selectedOrderNo,
@@ -3450,6 +3452,21 @@ function AdminApp() {
     }
   }
 
+  async function handleRejectOrder() {
+    await handleUpdateOrder({ orderStatus: 'CANCELED' });
+  }
+
+  async function handleShipOrder() {
+    await handleUpdateOrder({
+      orderStatus: 'SHIPPING',
+      trackingNo: String(trackingNo || '').trim(),
+    });
+  }
+
+  async function handleDeliverOrder() {
+    await handleUpdateOrder({ orderStatus: 'COMPLETED' });
+  }
+
   async function handleDeleteOrder(order) {
     if (!order?.orderNo) {
       return;
@@ -3803,7 +3820,7 @@ function AdminApp() {
             />
           ) : null}
           {currentPage === 'orders' ? (
-            <OrdersPage
+            <AdminOrdersPage
               orders={orders}
               selectedOrderNo={selectedOrderNo}
               selectedOrderDetail={selectedOrderDetail}
@@ -3813,7 +3830,9 @@ function AdminApp() {
               onSelectOrder={setSelectedOrderNo}
               onTrackingChange={(event) => setTrackingNo(event.target.value)}
               onDeleteOrder={handleDeleteOrder}
-              onUpdateOrder={handleUpdateOrder}
+              onRejectOrder={handleRejectOrder}
+              onShipOrder={handleShipOrder}
+              onDeliverOrder={handleDeliverOrder}
               updating={updatingOrder}
             />
           ) : null}
