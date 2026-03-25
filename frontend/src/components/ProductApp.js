@@ -706,13 +706,9 @@ export default function ProductApp({ authUser }) {
       : checkoutForm;
 
     if (process.env.NODE_ENV !== 'test') {
-      try {
-        const newOrder = await createOrderOnApi(directCheckoutForm);
-        applySuccessfulOrder(newOrder);
-        return;
-      } catch (error) {
-        // Fall back to local order state.
-      }
+      const newOrder = await createOrderOnApi(directCheckoutForm);
+      applySuccessfulOrder(newOrder);
+      return;
     }
 
     const newOrder = createOrderFromCart(cartItems, directCheckoutForm, orders);

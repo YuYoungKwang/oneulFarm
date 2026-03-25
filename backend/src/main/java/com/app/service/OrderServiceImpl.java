@@ -7,6 +7,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -98,6 +99,14 @@ public class OrderServiceImpl implements OrderService {
     public OrderDto createOrder(Long userNo, OrderDto request) {
         validateCreateOrderRequest(request);
 
+        String requestedOrderId = trimToNull(request.getOrderId());
+        if (requestedOrderId != null) {
+            Long existingOrderNo = orderDao.findOrderNoByOrderId(requestedOrderId);
+            if (existingOrderNo != null) {
+                return getMyOrderDetail(userNo, existingOrderNo);
+            }
+        }
+
         List<CartItemDto> cartItems = cartDao.findCartItems(userNo);
         if (cartItems.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cart is empty.");
@@ -111,10 +120,7 @@ public class OrderServiceImpl implements OrderService {
             totalAmount = totalAmount.add(lineAmount);
         }
 
-        String orderId = trimToNull(request.getOrderId());
-        if (orderId == null) {
-            orderId = buildOrderId();
-        }
+        String orderId = requestedOrderId != null ? requestedOrderId : generateUniqueOrderId();
 
         OrderDto order = new OrderDto();
         order.setUserNo(userNo);
@@ -272,10 +278,24 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
-    private String buildOrderId() {
-        String dateKey = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
-        int nextSequence = orderDao.countOrdersByOrderIdPrefix("OFT-" + dateKey + "-") + 1;
-        return "OFT-" + dateKey + "-" + String.format("%03d", nextSequence);
+    private String generateUniqueOrderId() {
+        for (int attempt = 0; attempt < 10; attempt++) {
+            String candidate = buildOrderIdCandidate();
+            if (orderDao.findOrderNoByOrderId(candidate) == null) {
+                return candidate;
+            }
+        }
+
+        throw new ResponseStatusException(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "Failed to generate unique order id."
+        );
+    }
+
+    private String buildOrderIdCandidate() {
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS"));
+        int randomSuffix = ThreadLocalRandom.current().nextInt(1000, 10000);
+        return "OFT-" + timestamp + "-" + randomSuffix;
     }
 
     private boolean isBlank(String value) {

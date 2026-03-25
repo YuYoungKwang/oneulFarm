@@ -7,6 +7,7 @@
         WITH latest_match AS (
             SELECT
                 ppm.PRODUCT_NO,
+                ppm.COMPARED_PRICE,
                 ps.AVG_PRICE,
                 ppm.SAVING_RATE,
                 ROW_NUMBER() OVER (
@@ -41,9 +42,9 @@
             p.SALE_PRICE AS salePrice,
             p.STOCK_QTY AS stockQty,
             p.SALE_STATUS AS saleStatus,
-            lm.AVG_PRICE AS avgPrice,
+            NVL(lm.COMPARED_PRICE, lm.AVG_PRICE) AS avgPrice,
             lm.SAVING_RATE AS savingRate,
-            GREATEST(NVL(lm.AVG_PRICE, 0) - p.SALE_PRICE, 0) * ci.QUANTITY AS savedAmount,
+            GREATEST(NVL(lm.COMPARED_PRICE, NVL(lm.AVG_PRICE, 0)) - p.SALE_PRICE, 0) * ci.QUANTITY AS savedAmount,
             ci.QUANTITY AS quantity
         FROM OFT_CART c
         JOIN OFT_CART_ITEM ci
