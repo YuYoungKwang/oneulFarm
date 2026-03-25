@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useRef, useState } from 'react';
+import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import '../styles/product.css';
 import {
   DEFAULT_PORTONE_CONFIG,
@@ -503,14 +503,14 @@ export default function ProductApp({ authUser }) {
     navigateToHash('#/mypage/orders');
   }
 
-  function openAddressSetup() {
+  const openAddressSetup = useCallback(() => {
     if (!isLoggedIn) {
       navigateToHash('#/login');
       return;
     }
 
     navigateToHash('#/mypage?address=manage');
-  }
+  }, [isLoggedIn]);
 
   function openOrderPreview(orderId) {
     if (!isLoggedIn) {
