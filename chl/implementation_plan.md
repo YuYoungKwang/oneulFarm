@@ -311,3 +311,24 @@
 2. 이미 완성된 주문/대시보드/마이페이지 흐름을 깨지 않는지 확인
 3. 다른 사람 작업과 충돌 가능성 확인
 4. 화면 작업이면 account 전용 스타일로 해결 가능한지 확인
+
+## Related Design Doc
+- 주문/배송 역할 분리와 운영 흐름 재설계 초안:
+  - [order_fulfillment_separation_plan.md](/d:/study/oneulFarm/docs/order_fulfillment_separation_plan.md)
+
+## 2026-03-25 Order/Delivery Design Doc
+- 주문/배송 분리 설계 문서: [order_fulfillment_separation_plan.md](/d:/study/oneulFarm/docs/order_fulfillment_separation_plan.md)
+
+- 배송 추적과 배송사 전용 페이지 분리를 위해 문서에 배송사 마스터(OFT_CARRIER), 배송 추적 이력(OFT_DELIVERY_TRACKING_HISTORY), 배송사 계정 구조(ROLE 확장 + OFT_CARRIER_USER)를 반영했다.
+
+- 주문/배송 분리 설계의 DB 적용 검토를 위해 [order_fulfillment_separation_ddl_draft.sql](/d:/study/oneulFarm/backend/src/main/webapp/WEB-INF/sql/order_fulfillment_separation_ddl_draft.sql) 초안을 추가했다.
+
+- 상태값 이관을 위해 [order_fulfillment_state_migration_plan.md](/d:/study/oneulFarm/docs/order_fulfillment_state_migration_plan.md) 문서를 추가했다. 현재 ORDER_STATUS / DELIVERY_STATUS 사용처와 목표 상태 체계 매핑, 단계별 전환 순서를 정리했다.
+
+- 실데이터 점검용 Oracle 쿼리 파일 [order_fulfillment_state_audit_queries.sql](/d:/study/oneulFarm/backend/src/main/webapp/WEB-INF/sql/order_fulfillment_state_audit_queries.sql)을 추가했다. 상태 분포, 취소 주문, 송장/배송상태 불일치, 배송사명 정규화 후보를 점검할 수 있다.
+
+- 백필 검토용 SQL [order_fulfillment_backfill_draft.sql](/d:/study/oneulFarm/backend/src/main/webapp/WEB-INF/sql/order_fulfillment_backfill_draft.sql)을 추가했다. 안전한 기본값 채우기, 주문/배송 상태 변환, 배송사 코드 보정, 이력 테이블 초기 적재 초안을 포함한다.
+
+- 고객/운영자/배송사 역할 분리 구현을 위한 [order_fulfillment_api_spec_draft.md](/d:/study/oneulFarm/docs/order_fulfillment_api_spec_draft.md) 문서를 추가했다. 요청/응답 구조, 권한, 상태 검증 규칙을 정리했다.
+
+- 화면 구조용 [order_fulfillment_ui_wireframe_draft.md](/d:/study/oneulFarm/docs/order_fulfillment_ui_wireframe_draft.md), 실행 순서용 [order_fulfillment_implementation_roadmap.md](/d:/study/oneulFarm/docs/order_fulfillment_implementation_roadmap.md), 검증용 [order_fulfillment_test_checklist.md](/d:/study/oneulFarm/docs/order_fulfillment_test_checklist.md) 문서를 추가했다.

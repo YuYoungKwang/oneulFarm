@@ -444,3 +444,24 @@
 - 레시피 매퍼 초기화 실패 원인으로 `RecipeDTO.recommendedProductList` 제네릭 타입을 명시적으로 `com.app.dto.ProductDto`로 고정.
 - 머지 후 남은 스테일 클래스와 제네릭 타입 해석 충돌 가능성을 줄이기 위해 DTO 타입 선언을 명확화.
 - 리뷰 별점 버튼의 활성/비활성 색 대비와 테두리, 그림자를 강화해 선택 상태가 더 분명하게 보이도록 조정.
+
+## 2026-03-25
+- 고객용 `내 주문`, 운영자용 `주문 관리`, 배송사용 `배송 관리`를 분리하는 방향으로 주문/배송 운영 구조 재설계 문서를 작성.
+- 상태 모델, 상태 전이, 권한별 기능표, 더미 배송사 API, DB 초안, 구현 우선순위를 [order_fulfillment_separation_plan.md](/d:/study/oneulFarm/docs/order_fulfillment_separation_plan.md) 에 정리.
+- 현재 구현 기준 사용자 흐름 문서는 유지하고, 계획성 문서는 별도 설계 문서로 분리.
+
+- 2026-03-25: 주문/배송 구조 재설계 문서를 UTF-8로 다시 정리하고, 고객용 내 주문 / 운영자용 주문 관리 / 배송사용 배송 관리 분리 방향, 상태 체계, API 초안, DB 초안을 [order_fulfillment_separation_plan.md](/d:/study/oneulFarm/docs/order_fulfillment_separation_plan.md)에 문서화했다.
+
+- 2026-03-25: 주문/배송 분리 설계 문서에 배송사 엔티티 필요성을 추가하고, OFT_CARRIER, OFT_DELIVERY 확장, OFT_DELIVERY_TRACKING_HISTORY, 배송사 계정 구조(ROLE 확장 + OFT_CARRIER_USER) 방향을 반영했다.
+
+- 2026-03-25: 주문/배송 분리 설계를 실제 DB 구조로 검토할 수 있도록 [order_fulfillment_separation_ddl_draft.sql](/d:/study/oneulFarm/backend/src/main/webapp/WEB-INF/sql/order_fulfillment_separation_ddl_draft.sql)을 추가했다. OFT_CARRIER, OFT_CARRIER_USER, OFT_ORDER_CANCEL_REQUEST, OFT_ORDER_STATUS_HISTORY, OFT_DELIVERY_TRACKING_HISTORY와 주문/배송 테이블 확장 초안을 포함한다.
+
+- 2026-03-25: 주문/배송 상태 개편을 위한 [order_fulfillment_state_migration_plan.md](/d:/study/oneulFarm/docs/order_fulfillment_state_migration_plan.md) 문서를 추가했다. 현재 ORDER_STATUS / DELIVERY_STATUS 현황, 목표 상태 체계, 매핑 규칙, 영향 코드, 단계별 마이그레이션 순서를 정리했다.
+
+- 2026-03-25: 주문/배송 상태 마이그레이션 전 점검용 [order_fulfillment_state_audit_queries.sql](/d:/study/oneulFarm/backend/src/main/webapp/WEB-INF/sql/order_fulfillment_state_audit_queries.sql)을 추가했다. ORDER_STATUS / DELIVERY_STATUS 분포, CANCELED 주문, 송장/배송상태 불일치, 매핑 미리보기 쿼리를 포함한다.
+
+- 2026-03-25: 주문/배송 상태 개편용 [order_fulfillment_backfill_draft.sql](/d:/study/oneulFarm/backend/src/main/webapp/WEB-INF/sql/order_fulfillment_backfill_draft.sql)을 추가했다. 기본값 백필, 상태값 변환, 배송사 코드 매핑, CANCELED 검토 후보 조회, 이력 테이블 초기 적재 초안을 정리했다.
+
+- 2026-03-25: 주문/배송 분리 구현을 위한 [order_fulfillment_api_spec_draft.md](/d:/study/oneulFarm/docs/order_fulfillment_api_spec_draft.md) 문서를 추가했다. 고객용 내 주문, 운영자용 주문 관리, 배송사용 배송 관리, 더미 배송사 API 명세 초안을 정리했다.
+
+- 2026-03-25: 주문/배송 분리 문서 세트를 확장해 [order_fulfillment_ui_wireframe_draft.md](/d:/study/oneulFarm/docs/order_fulfillment_ui_wireframe_draft.md), [order_fulfillment_implementation_roadmap.md](/d:/study/oneulFarm/docs/order_fulfillment_implementation_roadmap.md), [order_fulfillment_test_checklist.md](/d:/study/oneulFarm/docs/order_fulfillment_test_checklist.md)을 추가했다.
