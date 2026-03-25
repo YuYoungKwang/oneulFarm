@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
+import { buildProductModel } from "../api/productApi";
 import { fetchMainPage } from "../api/mainApi";
 import HeroSlider from "./HeroSlider";
 import RecommendInsightCard from "./recommend/RecommendInsightCard";
@@ -6,6 +7,12 @@ import RecommendProductCard from "./recommend/RecommendProductCard";
 import RecommendSearchSignalCard from "./recommend/RecommendSearchSignalCard";
 import RecommendSection from "./recommend/RecommendSection";
 import { buildEmptyRecommendData, loadRecommendData } from "./recommend/recommendData";
+import {
+  formatCurrency,
+  formatPercent,
+  getDiscountRate as getProductDiscountRate,
+  getSavingAmount,
+} from "./productUiUtils";
 import "../styles/mainPage.css";
 import "../styles/recommend.css";
 
@@ -171,29 +178,13 @@ function containsKeyword(value, keyword) {
 
 function sortProductsByPriority(products) {
   return [...products].sort((left, right) => {
-    const seasonalGap = Number(right?.isSeasonal === "Y") - Number(left?.isSeasonal === "Y");
-    if (seasonalGap !== 0) {
-      return seasonalGap;
+    const discountGap = getProductDiscountRate(right) - getProductDiscountRate(left);
+    if (discountGap !== 0) {
+      return discountGap;
     }
 
-    const featuredGap = toNumber(right?.featuredScore) - toNumber(left?.featuredScore);
-    if (featuredGap !== 0) {
-      return featuredGap;
-    }
-
-    return toNumber(right?.reviewCount) - toNumber(left?.reviewCount);
+    return toNumber(left?.salePrice) - toNumber(right?.salePrice);
   });
-}
-
-function getDiscountRate(product) {
-  const salePrice = toNumber(product?.salePrice);
-  const avgPrice = toNumber(product?.avgPrice, salePrice);
-
-  if (avgPrice <= 0 || salePrice <= 0 || salePrice >= avgPrice) {
-    return 0;
-  }
-
-  return ((avgPrice - salePrice) / avgPrice) * 100;
 }
 
 function getProductImageSources(product) {
@@ -271,12 +262,9 @@ function pickDistinctCategoryProducts(products) {
       ...matchedProducts.filter((product) => !hasDisplayImage(product)),
     ];
 
-    const distinctProduct =
-      matchedProducts.find(
-        (product) => product?.productNo && !usedProductNos.has(String(product.productNo))
-      ) ||
-      matchedProducts[0] ||
-      null;
+    const distinctProduct = matchedProducts.find(
+      (product) => product?.productNo && !usedProductNos.has(String(product.productNo))
+    );
 
     if (distinctProduct?.productNo) {
       usedProductNos.add(String(distinctProduct.productNo));
@@ -294,7 +282,7 @@ function buildCategoryBadge(product) {
     return "제철";
   }
 
-  if (getDiscountRate(product) > 0) {
+  if (getProductDiscountRate(product) > 0) {
     return "특가";
   }
 
@@ -305,22 +293,38 @@ function buildCategoryBadge(product) {
   return "추천";
 }
 
+function buildSavingCopy(product) {
+  return `평균가 대비 ${formatCurrency(getSavingAmount(product))} · ${formatPercent(
+    product?.priceMatch?.savingRate || 0
+  )} 절약`;
+}
+
 function buildCategoryLead(product) {
-  const discountRate = getDiscountRate(product);
+  return buildSavingCopy(product);
+}
 
-  if (discountRate > 0) {
-    return `평균가 대비 ${discountRate.toFixed(1)}% 절약`;
+function normalizeMainProducts(rawProducts) {
+  if (!Array.isArray(rawProducts)) {
+    return [];
   }
 
-  if (product?.isSeasonal === "Y") {
-    return "지금 보기 좋은 제철 상품";
-  }
+  return rawProducts.map((product) => {
+    if (product?.priceSnapshot && product?.priceMatch) {
+      return product;
+    }
 
-  if (toNumber(product?.reviewCount) > 0) {
-    return "최근 관심이 높은 대표 상품";
-  }
+    return buildProductModel(product || {});
+  });
+}
 
-  return "오늘 먼저 볼 대표 상품";
+function getUniqueProducts(products) {
+  return Array.from(
+    new Map(
+      (Array.isArray(products) ? products : [])
+        .filter((product) => product?.productNo)
+        .map((product) => [product.productNo, product])
+    ).values()
+  );
 }
 
 function openProduct(productNo) {
@@ -418,7 +422,7 @@ export default function MainPage({ authUser }) {
         }
 
         setMainData({
-          products: Array.isArray(data?.products) ? data.products : [],
+          products: normalizeMainProducts(data?.products),
           insights: Array.isArray(data?.insights) ? data.insights : [],
           chart: Array.isArray(data?.chart) ? data.chart : [],
           recipes: Array.isArray(data?.recipes) ? data.recipes : [],
@@ -472,35 +476,35 @@ export default function MainPage({ authUser }) {
     [mainData.products]
   );
 
-  const recommendedProducts = useMemo(() => {
+  const baseProducts = useMemo(() => {
     const sourceProducts = recommendSummary.popularProductList.length
       ? recommendSummary.popularProductList.map((item) => item.product)
       : products;
 
-    const uniqueProducts = sourceProducts.filter((product, index, list) => {
-      return (
-        product?.productNo &&
-        list.findIndex((item) => item?.productNo === product.productNo) === index
-      );
-    });
-
-    return sortProductsByPriority(uniqueProducts).slice(0, 8);
+    return getUniqueProducts(sourceProducts);
   }, [products, recommendSummary.popularProductList]);
 
+  const recommendedProducts = useMemo(
+    () => sortProductsByPriority(baseProducts).slice(0, 8),
+    [baseProducts]
+  );
+
   const categoryCards = useMemo(
-    () => pickDistinctCategoryProducts(products).filter((section) => section.product),
-    [products]
+    () => pickDistinctCategoryProducts(baseProducts).filter((section) => section.product),
+    [baseProducts]
   );
 
   const heroSlides = useMemo(() => {
     const seasonalProduct =
-      sortProductsByPriority(products.filter((product) => product?.isSeasonal === "Y"))[0] ||
+      sortProductsByPriority(baseProducts.filter((product) => product?.isSeasonal === "Y"))[0] ||
       recommendedProducts[0] ||
       null;
     const discountProduct =
       [...recommendedProducts]
-        .sort((left, right) => getDiscountRate(right) - getDiscountRate(left))
-        .find((product) => getDiscountRate(product) > 0) ||
+        .sort(
+          (left, right) => getProductDiscountRate(right) - getProductDiscountRate(left)
+        )
+        .find((product) => getProductDiscountRate(product) > 0) ||
       recommendedProducts[1] ||
       null;
     const recipeHero = recommendSummary.recipeRecommendationList[0] || null;
@@ -540,7 +544,7 @@ export default function MainPage({ authUser }) {
         imageUrl: recipeHero?.imageUrl || "",
       },
     ];
-  }, [products, recommendedProducts, recommendSummary.recipeRecommendationList]);
+  }, [baseProducts, recommendedProducts, recommendSummary.recipeRecommendationList]);
 
   const quickEntryCards = useMemo(() => {
     const underAverageLead = recommendSummary.underAverageProductList[0] || null;
@@ -598,13 +602,10 @@ export default function MainPage({ authUser }) {
         subtitle: "추천 흐름을 반영해 오늘 장보기에서 먼저 보면 좋은 상품을 골랐습니다.",
         items: recommendedProducts.map((product) => ({
           product,
-          badges: [buildCategoryBadge(product)],
-          detail: buildCategoryLead(product),
-          metricLabel: "평균가 비교",
-          metricValue:
-            getDiscountRate(product) > 0
-              ? `${getDiscountRate(product).toFixed(1)}% 절약`
-              : "대표 추천",
+          badges: [],
+          detail: "",
+          metricLabel: "",
+          metricValue: "",
           summary: `${product?.categoryName || "품목"} 대표 상품으로 먼저 보기 좋습니다.`,
           typeLabel: "추천",
         })),

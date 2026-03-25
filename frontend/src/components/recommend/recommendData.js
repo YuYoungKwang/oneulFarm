@@ -1,4 +1,4 @@
-import { isAuthenticated } from "../../auth";
+﻿import { isAuthenticated } from "../../auth";
 import { fetchProductsFromApi } from "../../api/productApi";
 import {
   fetchDashboardPatternsFromApi,
@@ -23,7 +23,7 @@ export function buildEmptyRecommendData() {
     insightCardList: [],
     patterns: EMPTY_PATTERNS,
     personalizedMessage:
-      "로그인하면 최근 구매 이력과 절약 효과가 큰 품목까지 반영한 개인화 추천을 볼 수 있습니다.",
+      "로그인하면 최근 구매 이력과 절약 효과를 반영한 개인화 추천을 볼 수 있습니다.",
     popularProductList: [],
     popularSearchError: "",
     popularSearchList: [],
@@ -72,7 +72,7 @@ export async function loadRecommendData(authUser) {
       });
     } catch (error) {
       popularSearchError =
-        error.message || "네이버 데이터랩 인기 검색어 정보를 가져오지 못했습니다.";
+        error.message || "네이버 데이터랩 인기 검색어 정보를 불러오지 못했습니다.";
     }
   }
 
@@ -229,7 +229,6 @@ function buildInterestProductList(products, patterns, productSavings) {
 
       if (product?.priceMatch?.badgeType === "UNDER_AVG") {
         score += 10;
-        reasons.push("평균가보다 저렴함");
       }
 
       if (!reasons.length) {
@@ -305,10 +304,7 @@ function buildUnderAverageProductList(products, patterns, trendInsightMap) {
             : null,
           product?.isSeasonal === "Y" ? "제철" : null,
         ].filter(Boolean),
-        detail:
-          trendInsight?.recentDifferenceRate > 0
-            ? `최근 7일 평균 시세보다 ${formatPercent(trendInsight.recentDifferenceRate)} 낮은 구간입니다.`
-            : "현재 판매가 기준으로 시장 평균보다 저렴합니다.",
+        detail: "",
         metricLabel: "예상 절약 금액",
         metricValue: formatCurrency(savingAmount),
         product,
@@ -348,18 +344,13 @@ function buildBuyNowProductList(products, interestProductList, trendInsightMap) 
           ? `${formatPercent(product?.priceMatch?.savingRate || 0)} 절약`
           : null,
       ].filter(Boolean),
-      detail:
-        trendInsight.recentDifferenceRate > 0
-          ? `최근 7일 평균 시세보다 ${formatPercent(trendInsight.recentDifferenceRate)} 낮습니다.`
-          : `최근 30일 변동률 ${formatPercent(Math.abs(trendInsight.changeRate || 0))} 수준입니다.`,
+      detail: "",
       metricLabel: "30일 추세",
       metricValue: `${trendInsight.changeRate > 0 ? "+" : ""}${Math.round(
         trendInsight.changeRate
       )}%`,
       product,
-      summary: trendInsight.isNearLowBand
-        ? "최근 시장 가격 하단 구간에 가까워 지금 보기 좋은 편입니다."
-        : "현재 판매가와 최근 시세 흐름을 같이 보면 구매 메리트가 있습니다.",
+      summary: "",
       typeLabel: "BUY NOW",
     }));
 }
@@ -378,14 +369,11 @@ function buildPopularProductList(products, popularSearchList, interestProductLis
             resolveTrendDirectionLabel(item.trendDirection),
             `최신 관심도 ${Math.round(Number(item.latestRatio || 0))}`,
           ],
-          detail:
-            Number(item.changeRatio || 0) > 0
-              ? `검색 관심도가 전 기간 대비 ${Math.round(Number(item.changeRatio || 0))}p 올랐습니다.`
-              : "현재 관심도 흐름을 기준으로 다시 주목받는 상품입니다.",
+          detail: "",
           metricLabel: "검색 관심도",
           metricValue: String(Math.round(Number(item.latestRatio || 0))),
           product,
-          summary: "네이버 데이터랩 기준 인기 검색어를 반영한 추천입니다.",
+          summary: "네이버 데이터랩 인기 검색어를 반영한 추천입니다.",
           typeLabel: "NAVER",
         };
       })
@@ -395,11 +383,11 @@ function buildPopularProductList(products, popularSearchList, interestProductLis
 
   return interestProductList.slice(0, 4).map((item) => ({
     badges: [...item.reasons.slice(0, 2)],
-    detail: "데이터랩 응답이 없을 때는 내부 관심도 기준으로 먼저 보여줍니다.",
+    detail: "",
     metricLabel: "관심도 점수",
     metricValue: String(Math.round(item.score)),
     product: item.product,
-    summary: "구매 이력, 리뷰, 절약 효과를 함께 반영해 관심도가 높은 상품으로 계산했습니다.",
+    summary: "구매 이력, 리뷰, 절약 효과를 종합 반영한 관심도 높은 상품입니다.",
     typeLabel: "INTEREST",
   }));
 }
@@ -442,10 +430,7 @@ function buildSeasonalProductList(products, popularSearchList) {
           ? `${formatPercent(product?.priceMatch?.savingRate || 0)} 절약`
           : "지금 보기 좋음",
       ],
-      detail:
-        product?.priceMatch?.badgeType === "UNDER_AVG"
-          ? "제철이면서도 평균가보다 저렴한 구간입니다."
-          : "제철 공급 구간이라 지금 보기 좋은 상품입니다.",
+      detail: "",
       metricLabel: "현재 판매가",
       metricValue: formatCurrency(product?.salePrice || 0),
       product,
@@ -649,7 +634,7 @@ function buildInsightCardList({
 
 function buildPersonalizedMessage(patterns, productSavings, isLoggedIn) {
   if (!isLoggedIn) {
-    return "로그인하면 최근 구매 이력과 절약 효과가 큰 품목까지 반영한 개인화 추천을 받을 수 있습니다.";
+    return "로그인하면 최근 구매 이력과 절약 효과를 반영한 개인화 추천을 받을 수 있습니다.";
   }
 
   const topPurchasedProduct = patterns?.topPurchasedProducts?.[0]?.productName;
@@ -692,7 +677,7 @@ function extractCoreKeyword(value) {
   return String(value || "")
     .replace(/\([^)]*\)/g, " ")
     .replace(/\[[^\]]*\]/g, " ")
-    .replace(/\d+(?:\.\d+)?\s*(kg|g|ml|l|개|봉지|묶기|근|상자|박스|인분|EA|ea)/gi, " ")
+    .replace(/\d+(?:\.\d+)?\s*(kg|g|ml|l|개|묶음|박스|봉|ea)/gi, " ")
     .replace(/[\\/,+]/g, " ")
     .replace(/\s+/g, " ")
     .trim();

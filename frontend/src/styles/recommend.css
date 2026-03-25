@@ -311,10 +311,8 @@
 }
 
 .recommend-page .recommend-product-card__price {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
+  display: grid;
+  gap: 4px;
 }
 
 .recommend-page .recommend-product-card__price strong {
@@ -325,8 +323,10 @@
 }
 
 .recommend-page .recommend-product-card__price span {
+  display: block;
   color: var(--muted);
   font-size: 13px;
+  line-height: 1.5;
 }
 
 .recommend-page .recommend-product-card__metric {
