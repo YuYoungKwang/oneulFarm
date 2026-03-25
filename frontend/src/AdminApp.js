@@ -16,8 +16,10 @@ import {
 } from './admin/AdminUi';
 import {
   createAdminPackageHistory,
+  assignCarrierWaybill,
   createAdminPurchaseBatch,
   deleteAdminPurchaseBatch,
+  deliverCarrierOrder,
   deleteAdminOrder,
   deleteAdminProduct,
   deleteAdminUser,
@@ -33,8 +35,10 @@ import {
   fetchAdminPurchaseReferenceItems,
   fetchAdminRecipeMappings,
   fetchAdminUsers,
+  fetchCarrierOrderDetail,
   getAdminBannerImageUrl,
   getAdminProductImageUrl,
+  pickupCarrierOrder,
   saveAdminProduct,
   triggerAdminRecipeSync,
   uploadAdminProductImages,
@@ -2973,7 +2977,11 @@ function AdminApp() {
   }, [adminMode]);
 
   useEffect(() => {
-    if (!adminMode || !selectedOrderNo) {
+    if (
+      !adminMode ||
+      !selectedOrderNo ||
+      (currentPage !== 'orders' && currentPage !== 'carrier')
+    ) {
       setSelectedOrderDetail(null);
       setTrackingNo('');
       return;
@@ -2983,7 +2991,9 @@ function AdminApp() {
 
     async function loadOrderDetail() {
       try {
-        const detail = await fetchAdminOrderDetail(selectedOrderNo);
+        const detail = currentPage === 'carrier'
+          ? await fetchCarrierOrderDetail(selectedOrderNo)
+          : await fetchAdminOrderDetail(selectedOrderNo);
         if (ignore) {
           return;
         }
@@ -3000,7 +3010,7 @@ function AdminApp() {
     return () => {
       ignore = true;
     };
-  }, [adminMode, selectedOrderNo]);
+  }, [adminMode, currentPage, selectedOrderNo]);
 
   const currentProduct = useMemo(
     () => products.find((product) => product.productNo === selectedProductNo) || null,
@@ -3464,10 +3474,6 @@ function AdminApp() {
     });
   }
 
-  async function handleDeliverOrder() {
-    await handleUpdateOrder({ orderStatus: 'COMPLETED' });
-  }
-
   function buildGeneratedTrackingNo(order) {
     const safeOrderId = String(order?.orderId || order?.orderNo || 'ORDER')
       .replace(/[^A-Z0-9]/gi, '')
@@ -3484,16 +3490,84 @@ function AdminApp() {
 
     const nextTrackingNo = String(trackingNo || '').trim() || buildGeneratedTrackingNo(selectedOrderDetail);
     setTrackingNo(nextTrackingNo);
+
+    if (currentPage === 'carrier') {
+      setUpdatingOrder(true);
+      setActionError('');
+
+      try {
+        const detail = await assignCarrierWaybill(selectedOrderNo, {
+          trackingNo: nextTrackingNo,
+          courierName: 'oneulFarm',
+        });
+        const nextOrders = await fetchAdminOrders();
+        setOrders(nextOrders);
+        setSelectedOrderDetail(detail);
+        setTrackingNo(detail?.trackingNo || nextTrackingNo);
+      } catch (error) {
+        setActionError(error.message || '송장 등록에 실패했습니다.');
+      } finally {
+        setUpdatingOrder(false);
+      }
+      return;
+    }
+
     await handleUpdateOrder({ trackingNo: nextTrackingNo });
   }
 
   async function handlePickupOrder() {
+    if (!selectedOrderNo) {
+      return;
+    }
+
     const nextTrackingNo = String(trackingNo || '').trim();
+
+    if (currentPage === 'carrier') {
+      setUpdatingOrder(true);
+      setActionError('');
+
+      try {
+        const detail = await pickupCarrierOrder(selectedOrderNo, {
+          trackingNo: nextTrackingNo || undefined,
+          courierName: 'oneulFarm',
+        });
+        const nextOrders = await fetchAdminOrders();
+        setOrders(nextOrders);
+        setSelectedOrderDetail(detail);
+        setTrackingNo(detail?.trackingNo || nextTrackingNo);
+      } catch (error) {
+        setActionError(error.message || '집하 처리에 실패했습니다.');
+      } finally {
+        setUpdatingOrder(false);
+      }
+      return;
+    }
 
     await handleUpdateOrder({
       orderStatus: 'SHIPPING',
       trackingNo: nextTrackingNo || undefined,
     });
+  }
+
+  async function handleCarrierDeliverOrder() {
+    if (!selectedOrderNo) {
+      return;
+    }
+
+    setUpdatingOrder(true);
+    setActionError('');
+
+    try {
+      const detail = await deliverCarrierOrder(selectedOrderNo);
+      const nextOrders = await fetchAdminOrders();
+      setOrders(nextOrders);
+      setSelectedOrderDetail(detail);
+      setTrackingNo(detail?.trackingNo || trackingNo);
+    } catch (error) {
+      setActionError(error.message || '배송 완료 처리에 실패했습니다.');
+    } finally {
+      setUpdatingOrder(false);
+    }
   }
 
   async function handleDeleteOrder(order) {
@@ -3861,7 +3935,6 @@ function AdminApp() {
               onDeleteOrder={handleDeleteOrder}
               onRejectOrder={handleRejectOrder}
               onShipOrder={handleShipOrder}
-              onDeliverOrder={handleDeliverOrder}
               updating={updatingOrder}
             />
           ) : null}
@@ -3877,7 +3950,7 @@ function AdminApp() {
               onTrackingChange={(event) => setTrackingNo(event.target.value)}
               onAssignWaybill={handleAssignWaybill}
               onPickupOrder={handlePickupOrder}
-              onDeliverOrder={handleDeliverOrder}
+              onDeliverOrder={handleCarrierDeliverOrder}
               updating={updatingOrder}
             />
           ) : null}

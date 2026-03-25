@@ -178,6 +178,16 @@
   gap: 8px;
 }
 
+.admin-orders-v2__toolbar-button,
+.admin-orders-v2__tracking-button,
+.admin-orders-v2__action-button{
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .admin-orders-v2__status-chip{
   display: inline-flex;
   align-items: center;
@@ -262,6 +272,10 @@
   border: 1px solid var(--line);
   border-radius: 14px;
   background: #fff;
+}
+
+.admin-orders-v2__tracking-button{
+  white-space: nowrap;
 }
 
 .admin-orders-v2__timeline{

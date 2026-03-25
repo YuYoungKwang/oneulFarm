@@ -151,7 +151,6 @@ function AdminOrdersPage({
   onDeleteOrder,
   onRejectOrder,
   onShipOrder,
-  onDeliverOrder,
   updating,
 }) {
   const filteredOrders = orders.filter((order) => {
@@ -173,12 +172,12 @@ function AdminOrdersPage({
     <div className="admin-orders-v2">
       <AdminPageHeader
         title="주문 관리"
-        description="결제 이후 주문 확정, 거절, 송장 등록, 배송 완료까지 운영 기준 흐름으로 재구성한 주문 화면"
+        description="결제 이후 주문 확정, 거절, 배송 인계까지 관리하는 주문 운영 화면"
         actions={(
           <>
             <button
               type="button"
-              className="admin-action admin-action--line"
+              className="admin-action admin-action--line admin-orders-v2__toolbar-button"
               onClick={onRejectOrder}
               disabled={!selectedOrderDetail?.rejectAvailable || updating}
             >
@@ -186,19 +185,11 @@ function AdminOrdersPage({
             </button>
             <button
               type="button"
-              className="admin-action admin-action--soft"
+              className="admin-action admin-action--soft admin-orders-v2__toolbar-button"
               onClick={onShipOrder}
               disabled={!selectedOrderDetail?.shipAvailable || updating}
             >
-              배송 시작
-            </button>
-            <button
-              type="button"
-              className="admin-action admin-action--primary"
-              onClick={onDeliverOrder}
-              disabled={!selectedOrderDetail?.deliverAvailable || updating}
-            >
-              배송 완료
+              배송 인계
             </button>
           </>
         )}
@@ -362,11 +353,11 @@ function AdminOrdersPage({
                   />
                   <button
                     type="button"
-                    className="admin-action admin-action--line"
+                    className="admin-action admin-action--line admin-orders-v2__tracking-button"
                     onClick={onShipOrder}
                     disabled={!selectedOrderDetail.shipAvailable || updating}
                   >
-                    송장 등록 후 배송 시작
+                    송장 등록 후 배송 인계
                   </button>
                 </div>
                 <div className="admin-orders-v2__timeline">
@@ -393,7 +384,7 @@ function AdminOrdersPage({
                 <div className="admin-orders-v2__action-row">
                   <button
                     type="button"
-                    className="admin-action admin-action--line"
+                    className="admin-action admin-action--line admin-orders-v2__action-button"
                     onClick={onRejectOrder}
                     disabled={!selectedOrderDetail.rejectAvailable || updating}
                   >
@@ -401,24 +392,16 @@ function AdminOrdersPage({
                   </button>
                   <button
                     type="button"
-                    className="admin-action admin-action--soft"
+                    className="admin-action admin-action--soft admin-orders-v2__action-button"
                     onClick={onShipOrder}
                     disabled={!selectedOrderDetail.shipAvailable || updating}
                   >
-                    배송 시작
-                  </button>
-                  <button
-                    type="button"
-                    className="admin-action admin-action--primary"
-                    onClick={onDeliverOrder}
-                    disabled={!selectedOrderDetail.deliverAvailable || updating}
-                  >
-                    배송 완료
+                    배송 인계
                   </button>
                   {canDeleteOrder ? (
                     <button
                       type="button"
-                      className="admin-action admin-action--danger"
+                      className="admin-action admin-action--danger admin-orders-v2__action-button"
                       onClick={() => onDeleteOrder(selectedOrderDetail)}
                       disabled={updating}
                     >

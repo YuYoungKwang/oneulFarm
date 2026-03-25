@@ -216,23 +216,6 @@ function CustomerOrderDetailPanel({ detail, loading, error, onStartCreateReview 
           </div>
         </section>
 
-        <section className="customer-order-detail__panel">
-          <h3>상태 메모</h3>
-          <div className="customer-order-detail__tag-list">
-            {detail.trackingAvailable && <span className="customer-order-detail__tag">배송 조회 가능</span>}
-            {detail.cancelRequestAvailable && <span className="customer-order-detail__tag">취소 요청 가능</span>}
-            {detail.purchaseConfirmAvailable && <span className="customer-order-detail__tag">구매 확정 대기</span>}
-            {detail.legacyStatusNeedsReview && (
-              <span className="customer-order-detail__tag customer-order-detail__tag--warn">상태 검토 필요</span>
-            )}
-            {!detail.trackingAvailable &&
-              !detail.cancelRequestAvailable &&
-              !detail.purchaseConfirmAvailable &&
-              !detail.legacyStatusNeedsReview && (
-                <span className="customer-order-detail__empty">현재 추가로 처리할 안내 사항이 없습니다.</span>
-              )}
-          </div>
-        </section>
       </div>
 
       <section className="customer-order-detail__items">

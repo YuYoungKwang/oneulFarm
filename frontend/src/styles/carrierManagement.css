@@ -90,6 +90,16 @@
   gap: 12px;
 }
 
+.carrier-management__toolbar-button,
+.carrier-management__tracking-button,
+.carrier-management__action-button{
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .carrier-management__panel-head h2,
 .carrier-management__detail-head h2{
   margin: 0;
@@ -230,6 +240,10 @@
   border: 1px solid var(--line);
   border-radius: 14px;
   background: #fff;
+}
+
+.carrier-management__tracking-button{
+  white-space: nowrap;
 }
 
 .carrier-management__timeline{

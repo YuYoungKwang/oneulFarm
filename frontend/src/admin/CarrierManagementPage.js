@@ -119,7 +119,7 @@ function CarrierManagementPage({
           <>
             <button
               type="button"
-              className="admin-action admin-action--line"
+              className="admin-action admin-action--line carrier-management__toolbar-button"
               onClick={onAssignWaybill}
               disabled={!selectedOrderDetail?.waybillAssignable || updating}
             >
@@ -127,7 +127,7 @@ function CarrierManagementPage({
             </button>
             <button
               type="button"
-              className="admin-action admin-action--soft"
+              className="admin-action admin-action--soft carrier-management__toolbar-button"
               onClick={onPickupOrder}
               disabled={((!selectedOrderDetail?.pickupAvailable && !selectedOrderDetail?.shipAvailable) || updating)}
             >
@@ -135,7 +135,7 @@ function CarrierManagementPage({
             </button>
             <button
               type="button"
-              className="admin-action admin-action--primary"
+              className="admin-action admin-action--primary carrier-management__toolbar-button"
               onClick={onDeliverOrder}
               disabled={!selectedOrderDetail?.deliverAvailable || updating}
             >
@@ -277,7 +277,7 @@ function CarrierManagementPage({
                   />
                   <button
                     type="button"
-                    className="admin-action admin-action--line"
+                    className="admin-action admin-action--line carrier-management__tracking-button"
                     onClick={onAssignWaybill}
                     disabled={!selectedOrderDetail.waybillAssignable || updating}
                   >
@@ -315,7 +315,7 @@ function CarrierManagementPage({
                 <div className="carrier-management__action-row">
                   <button
                     type="button"
-                    className="admin-action admin-action--line"
+                    className="admin-action admin-action--line carrier-management__action-button"
                     onClick={onAssignWaybill}
                     disabled={!selectedOrderDetail.waybillAssignable || updating}
                   >
@@ -323,7 +323,7 @@ function CarrierManagementPage({
                   </button>
                   <button
                     type="button"
-                    className="admin-action admin-action--soft"
+                    className="admin-action admin-action--soft carrier-management__action-button"
                     onClick={onPickupOrder}
                     disabled={((!selectedOrderDetail.pickupAvailable && !selectedOrderDetail.shipAvailable) || updating)}
                   >
@@ -331,7 +331,7 @@ function CarrierManagementPage({
                   </button>
                   <button
                     type="button"
-                    className="admin-action admin-action--primary"
+                    className="admin-action admin-action--primary carrier-management__action-button"
                     onClick={onDeliverOrder}
                     disabled={!selectedOrderDetail.deliverAvailable || updating}
                   >

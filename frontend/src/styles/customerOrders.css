@@ -596,34 +596,6 @@
   font-weight: 900;
 }
 
-.customer-order-detail__tag-list{
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.customer-order-detail__tag{
-  display: inline-flex;
-  align-items: center;
-  min-height: 34px;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: #eef5ef;
-  color: #2f6a45;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.customer-order-detail__tag--warn{
-  background: #fff5e5;
-  color: #b45309;
-}
-
-.customer-order-detail__empty{
-  color: #64748b;
-  font-size: 14px;
-}
-
 .customer-order-detail__item-list{
   display: grid;
   gap: 12px;
