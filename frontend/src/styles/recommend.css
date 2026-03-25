@@ -250,7 +250,7 @@
 }
 
 .recommend-page .recommend-product-card__media {
-  min-height: 180px;
+  height: 220px;
   padding: 16px;
   border-radius: 22px;
   background:
@@ -275,7 +275,7 @@
 .recommend-page .recommend-product-card__image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 18px;
 }
 
@@ -300,11 +300,17 @@
   font-weight: 900;
   letter-spacing: -0.02em;
   color: #152330;
+  line-height: 1.35;
+  min-height: calc(22px * 1.35 * 2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .recommend-page .recommend-product-card__heading p,
 .recommend-page .recommend-recipe-card__heading p {
-  margin: 6px 0 0;
+  margin: 2px 0 0;
   color: var(--muted);
   font-size: 14px;
   line-height: 1.6;

@@ -113,7 +113,7 @@ const HeroSlider = ({ slides }) => {
         <h1 className="hero-banner__title">
           오늘팜에서
           <br />
-          <span>{currentSlide.title}</span>입니다
+          <span>{currentSlide.title}</span>
         </h1>
 
         <p className="hero-banner__desc">{currentSlide.desc}</p>

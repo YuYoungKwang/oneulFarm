@@ -8,6 +8,9 @@ import {
 } from "../../api/recommendApi";
 import { formatCurrency, formatPercent, getSavingAmount } from "../productUiUtils";
 import { fetchRecipeDetail, fetchRecipeList } from "../recipeApi";
+import {
+  prioritizeMealRecipes,
+} from "../recipeCategoryUtils";
 
 export const EMPTY_PATTERNS = {
   averagePurchaseUnitPrice: 0,
@@ -448,9 +451,12 @@ async function loadRecipeRecommendationList(
   const effectiveKeywordList = popularSearchList.length
     ? popularSearchList.map((item) => item.keyword)
     : popularKeywordCandidates;
-  const selectedRecipeList = selectRecipeCandidates(recipeList, effectiveKeywordList);
+  const selectedRecipeList = prioritizeMealRecipes(
+    selectRecipeCandidates(recipeList, effectiveKeywordList),
+    2
+  );
   const recipeDetailList = await Promise.all(
-    selectedRecipeList.slice(0, 3).map(async (recipe) => {
+    selectedRecipeList.slice(0, 6).map(async (recipe) => {
       try {
         return await fetchRecipeDetail(recipe.recipeNo);
       } catch (error) {
@@ -459,20 +465,23 @@ async function loadRecipeRecommendationList(
     })
   );
 
-  return recipeDetailList.map((recipe) => {
-    const keyword = findRecipeKeyword(recipe, effectiveKeywordList);
-    const matchedIngredients = buildMatchedIngredientList(
-      recipe?.ingredientList || [],
-      keyword,
-      popularProductList
-    );
+  return prioritizeMealRecipes(
+    recipeDetailList.map((recipe) => {
+      const keyword = findRecipeKeyword(recipe, effectiveKeywordList);
+      const matchedIngredients = buildMatchedIngredientList(
+        recipe?.ingredientList || [],
+        keyword,
+        popularProductList
+      );
 
-    return {
-      ...recipe,
-      keyword,
-      matchedIngredients,
-    };
-  });
+      return {
+        ...recipe,
+        keyword,
+        matchedIngredients,
+      };
+    }),
+    2
+  ).slice(0, 4);
 }
 
 function selectRecipeCandidates(recipeList, keywordList) {

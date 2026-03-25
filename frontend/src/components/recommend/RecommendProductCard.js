@@ -1,9 +1,5 @@
 import { buildProductImageSources } from "../../api/productApi";
-import {
-  formatCurrency,
-  formatPercent,
-  getSavingAmount,
-} from "../productUiUtils";
+import { formatCurrency, formatPercent, getSavingAmount } from "../productUiUtils";
 
 function handleImageError(event) {
   const nextSource = event.currentTarget.dataset.fallbackSrc;
@@ -18,6 +14,7 @@ function handleImageError(event) {
 export default function RecommendProductCard({
   badges = [],
   detail,
+  hideSavingRate = false,
   metricLabel,
   metricValue,
   onOpen,
@@ -75,7 +72,7 @@ export default function RecommendProductCard({
         <div className="recommend-product-card__price">
           <strong>{formatCurrency(salePrice)}</strong>
           <span>평균가 대비 {formatCurrency(savingAmount)} 절약</span>
-          <span>{formatPercent(savingRate)}</span>
+          {!hideSavingRate ? <span>{formatPercent(savingRate)}</span> : null}
         </div>
 
         <div className="recommend-product-card__copy">
