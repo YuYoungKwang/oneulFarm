@@ -120,7 +120,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String requestPath = getRequestPath(request);
-        if (requestPath.startsWith("/api/admin") && !"ADMIN".equalsIgnoreCase(authenticatedUser.getRole())) {
+        if (
+            requestPath.startsWith("/api/admin")
+                && !"ADMIN".equalsIgnoreCase(authenticatedUser.getRole())
+                && !"SUPER_ADMIN".equalsIgnoreCase(authenticatedUser.getRole())
+        ) {
             writeErrorResponse(response, HttpStatus.FORBIDDEN, "Administrator access is required.");
             return;
         }

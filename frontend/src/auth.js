@@ -84,7 +84,12 @@ export function isAuthenticated(user = getAuthUser()) {
 }
 
 export function isAdminUser(user = getAuthUser()) {
-  return String(user?.role || '').toUpperCase() === 'ADMIN';
+  const normalizedRole = String(user?.role || '').toUpperCase();
+  return normalizedRole === 'ADMIN' || normalizedRole === 'SUPER_ADMIN';
+}
+
+export function isSuperAdminUser(user = getAuthUser()) {
+  return String(user?.role || '').toUpperCase() === 'SUPER_ADMIN';
 }
 
 export function requiresPasswordChange(user = getAuthUser()) {

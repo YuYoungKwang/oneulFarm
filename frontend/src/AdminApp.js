@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
-import { clearAuthUser, getAuthUser } from './auth';
+import { clearAuthUser, getAuthUser, isSuperAdminUser } from './auth';
 import './styles/admin.css';
 import AdminLayout from './admin/AdminLayout';
 import {
@@ -1690,7 +1690,7 @@ function UsersPage({
               <div>
                 <h2>{'\uAD8C\uD55C \uBAA9\uB85D'}</h2>
                 <p className="admin-card__sub">
-                  {'admin123 \uACC4\uC815\uB9CC \uAD00\uB9AC\uC790 \uAD8C\uD55C\uC744 \uBD80\uC5EC\uD558\uAC70\uB098 \uD574\uC81C\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.'}
+                  {'\uC288\uD37C\uC5B4\uB4DC\uBBFC \uACC4\uC815\uB9CC \uAD00\uB9AC\uC790 \uAD8C\uD55C\uC744 \uBD80\uC5EC\uD558\uAC70\uB098 \uD574\uC81C\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.'}
                 </p>
               </div>
             </div>
@@ -1726,21 +1726,24 @@ function UsersPage({
                           <button
                             type="button"
                             className={
-                              'admin-toggle admin-toggle--compact ' + (user.role === 'ADMIN' ? 'is-on' : '')
+                              'admin-toggle admin-toggle--compact '
+                              + (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' ? 'is-on' : '')
                             }
                             onClick={(event) => {
                               event.stopPropagation();
                               onUpdateUserRole(
                                 user.userNo,
-                                user.role === 'ADMIN' ? 'USER' : 'ADMIN'
+                                user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' ? 'USER' : 'ADMIN'
                               );
                             }}
-                            disabled={updating || user.userId === 'admin123'}
+                            disabled={updating || user.role === 'SUPER_ADMIN'}
                           >
                             <span className="admin-toggle__track">
                               <span className="admin-toggle__thumb" />
                             </span>
-                            <span className="admin-toggle__label">{user.role === 'ADMIN' ? 'ON' : 'OFF'}</span>
+                            <span className="admin-toggle__label">
+                              {user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' ? 'ON' : 'OFF'}
+                            </span>
                           </button>
                         </div>
                       </td>
@@ -2490,7 +2493,7 @@ function PurchasePage({
 
 function AdminApp() {
   const authUser = getAuthUser();
-  const canManageAdminRole = authUser?.role === 'ADMIN' && authUser?.userId === 'admin123';
+  const canManageAdminRole = isSuperAdminUser(authUser);
   const [currentPage, setCurrentPage] = useState(() => parseAdminPage(window.location.hash));
   const [adminMode, setAdminMode] = useState(() => isAdminMode());
   const [categories, setCategories] = useState([]);

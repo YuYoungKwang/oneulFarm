@@ -319,11 +319,11 @@ public class AdminServiceImpl implements AdminService {
         }
 
         UserDto actor = userDao.findByUserNo(actorUserNo);
-        if (actor == null || !"ADMIN".equalsIgnoreCase(actor.getRole())) {
+        if (actor == null || !isAdminRole(actor.getRole())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Administrator access is required.");
         }
 
-        if (!"admin123".equalsIgnoreCase(trimToNull(actor.getUserId()))) {
+        if (!isSuperAdminRole(actor.getRole())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the super administrator can change admin roles.");
         }
 
@@ -337,11 +337,11 @@ public class AdminServiceImpl implements AdminService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found.");
         }
 
-        if ("admin123".equalsIgnoreCase(trimToNull(targetUser.getUserId())) && !"ADMIN".equals(role)) {
+        if (isSuperAdminRole(targetUser.getRole())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The super administrator role cannot be changed.");
         }
 
-        if (actorUserNo.equals(userNo) && !"ADMIN".equals(role)) {
+        if (actorUserNo.equals(userNo) && !"ADMIN".equals(role) && !"SUPER_ADMIN".equals(role)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You cannot remove your own administrator role.");
         }
 
@@ -611,7 +611,7 @@ public class AdminServiceImpl implements AdminService {
             return false;
         }
 
-        if (!"USER".equals(user.getRole()) && !"ADMIN".equals(user.getRole())) {
+        if (!"USER".equals(user.getRole()) && !"ADMIN".equals(user.getRole()) && !"SUPER_ADMIN".equals(user.getRole())) {
             return false;
         }
 
@@ -638,6 +638,14 @@ public class AdminServiceImpl implements AdminService {
         request.setOrigin(trimToNull(request.getOrigin()));
         request.setUnit(request.getUnit().trim());
         request.setDescription(trimToNull(request.getDescription()));
+    }
+
+    private boolean isAdminRole(String role) {
+        return "ADMIN".equalsIgnoreCase(role) || "SUPER_ADMIN".equalsIgnoreCase(role);
+    }
+
+    private boolean isSuperAdminRole(String role) {
+        return "SUPER_ADMIN".equalsIgnoreCase(role);
     }
 
     private void normalizePurchaseBatchRequest(PurchaseBatchDto request) {
