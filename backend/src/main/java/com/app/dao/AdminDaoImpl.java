@@ -211,6 +211,14 @@ public class AdminDaoImpl implements AdminDao {
     }
 
     @Override
+    public int updateAdminUserRole(Long userNo, String role) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("userNo", userNo);
+        params.put("role", role);
+        return sqlSessionTemplate.update(NAMESPACE + "updateAdminUserRole", params);
+    }
+
+    @Override
     public int countPackageHistoriesByUser(Long userNo) {
         return sqlSessionTemplate.selectOne(NAMESPACE + "countAdminPackageHistoriesByUser", userNo);
     }

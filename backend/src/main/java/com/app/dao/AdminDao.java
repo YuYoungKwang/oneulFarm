@@ -82,6 +82,8 @@ public interface AdminDao {
 
     int updateAdminUserStatus(Long userNo, String status);
 
+    int updateAdminUserRole(Long userNo, String role);
+
     int countPackageHistoriesByUser(Long userNo);
 
     int deleteReviewImagesByUser(Long userNo);

@@ -209,6 +209,7 @@
 
 .admin-grid--users {
   grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.8fr);
+  align-items: start;
 }
 
 .admin-card {
@@ -279,6 +280,12 @@
   gap: 14px;
 }
 
+.admin-stack--fill {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
 .admin-summary-box {
   padding: 16px;
   border: 1px solid var(--line);
@@ -286,8 +293,78 @@
   background: #f8fafb;
 }
 
+.admin-summary-box--fill {
+  flex: 1 1 auto;
+}
+
 .admin-summary-box--note {
   margin-top: 16px;
+}
+
+.admin-role-toggle {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.admin-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  width: fit-content;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-toggle--compact {
+  min-width: 98px;
+  justify-content: center;
+  padding: 8px 12px;
+  background: #f8fafb;
+}
+
+.admin-toggle:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.admin-toggle__track {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: #d1d5db;
+  transition: background-color 0.2s ease;
+}
+
+.admin-toggle__thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.16);
+  transition: transform 0.2s ease;
+}
+
+.admin-toggle.is-on .admin-toggle__track {
+  background: var(--green);
+}
+
+.admin-toggle.is-on .admin-toggle__thumb {
+  transform: translateX(20px);
+}
+
+.admin-toggle__label {
+  white-space: nowrap;
 }
 
 .admin-table {
@@ -419,6 +496,11 @@
   justify-content: flex-start;
   gap: 8px;
   flex-wrap: nowrap;
+}
+
+.admin-role-cell {
+  display: flex;
+  justify-content: flex-start;
 }
 
 .admin-table__actions .admin-action {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { requestAuthApi, setAuthUser } from '../auth';
+import { getPostLoginHash, requestAuthApi, setAuthUser } from '../auth';
 import { buildSocialCallbackUri, createSocialLoginState } from '../socialAuth';
 import '../styles/user.css';
 
@@ -76,9 +76,7 @@ function LoginPage() {
 
       if (payload.data) {
         setAuthUser(payload.data);
-        window.location.hash = payload.data.passwordChangeRequired
-          ? '#/password-change'
-          : '#/';
+        window.location.hash = getPostLoginHash(payload.data);
       }
     } catch (requestError) {
       setError(requestError.message || '로그인에 실패했습니다.');

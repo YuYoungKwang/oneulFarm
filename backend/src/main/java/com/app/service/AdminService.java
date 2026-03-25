@@ -37,6 +37,8 @@ public interface AdminService {
 
     UserProfileDto updateUserStatus(Long userNo, UserProfileDto request);
 
+    UserProfileDto updateUserRole(Long actorUserNo, Long userNo, UserProfileDto request);
+
     void deleteUser(Long userNo);
 
     List<PurchaseBatchDto> getPurchaseBatches();

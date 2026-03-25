@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { requestAuthApi, setAuthUser } from '../auth';
+import { getPostLoginHash, requestAuthApi, setAuthUser } from '../auth';
 import {
   consumeSocialLoginState,
   replaceAppLocation,
@@ -77,10 +77,7 @@ export default function SocialLoginCallbackPage({ callbackContext }) {
         }
 
         setAuthUser(payload.data);
-        replaceAppLocation(
-          basePath,
-          payload.data.passwordChangeRequired ? '#/password-change' : '#/'
-        );
+        replaceAppLocation(basePath, getPostLoginHash(payload.data));
       } catch (requestError) {
         if (!cancelled) {
           setError(requestError.message || buildFallbackMessage(provider));

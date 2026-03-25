@@ -115,10 +115,23 @@ public class AdminController {
 
     @PatchMapping(value = "/users/{userNo}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ApiResponse<UserProfileDto> updateUserStatus(
+        @RequestHeader(value = "X-USER-NO", required = false) Long actorUserNo,
         @PathVariable Long userNo,
         @RequestBody UserProfileDto request
     ) {
+        if (request != null && request.getRole() != null && !request.getRole().trim().isEmpty()) {
+            return ApiResponse.success(adminService.updateUserRole(actorUserNo, userNo, request), "Admin user role updated.");
+        }
         return ApiResponse.success(adminService.updateUserStatus(userNo, request), "Admin user updated.");
+    }
+
+    @PatchMapping(value = "/users/{userNo}/role", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ApiResponse<UserProfileDto> updateUserRole(
+        @RequestHeader("X-USER-NO") Long actorUserNo,
+        @PathVariable Long userNo,
+        @RequestBody UserProfileDto request
+    ) {
+        return ApiResponse.success(adminService.updateUserRole(actorUserNo, userNo, request), "Admin user role updated.");
     }
 
     @DeleteMapping("/users/{userNo}")

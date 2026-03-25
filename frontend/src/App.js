@@ -4,9 +4,11 @@ import AdminApp from './AdminApp';
 import {
   clearAuthUser,
   getAuthUser,
+  isAdminUser,
   isAuthenticated,
   requiresPasswordChange,
 } from './auth';
+import { enterAdminMode, exitAdminMode, isAdminMode } from './admin/adminSession';
 import MainNav from './components/MainNav';
 import PasswordChangeRequiredPage from './components/PasswordChangeRequiredPage';
 import ProductApp from './components/ProductApp';
@@ -181,6 +183,24 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (currentApp !== 'admin') {
+      if (isAdminMode()) {
+        exitAdminMode();
+      }
+      return;
+    }
+
+    if (isAdminUser(authUser)) {
+      if (!isAdminMode()) {
+        enterAdminMode();
+      }
+      return;
+    }
+
+    window.location.hash = isAuthenticated(authUser) ? '#/' : '#/login';
+  }, [authUser, currentApp]);
+
   const isPasswordChangeRequired = requiresPasswordChange(authUser);
 
   if (socialCallbackContext) {
@@ -190,7 +210,7 @@ function App() {
   return (
     <>
       {currentApp === 'admin' ? (
-        <AdminApp />
+        isAdminUser(authUser) ? <AdminApp /> : null
       ) : isPasswordChangeRequired ? (
         <PasswordChangeRequiredPage authUser={authUser} />
       ) : (

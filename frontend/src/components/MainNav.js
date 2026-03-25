@@ -1,4 +1,5 @@
 import '../styles/mainNav.css';
+import { isAdminUser } from '../auth';
 import { openAdminPage } from '../admin/adminSession';
 import { CartIcon, SearchIcon } from './ProductIcons';
 
@@ -49,13 +50,15 @@ function MainNav({
               {item.label}
             </button>
           ))}
-          <button
-            type="button"
-            className="main-nav__link main-nav__link--admin"
-            onClick={() => openAdminPage('#/admin')}
-          >
-            관리자계정 전환
-          </button>
+          {isAdminUser(authUser) ? (
+            <button
+              type="button"
+              className="main-nav__link main-nav__link--admin"
+              onClick={() => openAdminPage('#/admin')}
+            >
+              관리자계정 전환
+            </button>
+          ) : null}
         </nav>
 
         <div className="main-nav__actions">
