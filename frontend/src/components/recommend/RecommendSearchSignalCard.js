@@ -12,7 +12,7 @@ export default function RecommendSearchSignalCard({ item }) {
         </span>
         <small>{item?.latestPeriod || "최근 집계"}</small>
       </div>
-      <strong>{item?.keyword || "인기 농산물"}</strong>
+      <strong>{item?.keyword || "인기 품목"}</strong>
       <div className="recommend-signal-card__value-row">
         <span className="recommend-signal-card__value">{latestRatio}</span>
         <span className="recommend-signal-card__change">{changeLabel}</span>

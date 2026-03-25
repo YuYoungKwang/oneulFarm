@@ -17,12 +17,7 @@ const RANGE_OPTIONS = [
   { key: '1Y', label: '1년', days: 365 },
 ];
 
-export default function PriceTrendChart({
-  points = [],
-  productLabel,
-  subtitle,
-  title,
-}) {
+export default function PriceTrendChart({ points = [], title }) {
   const [rangeKey, setRangeKey] = useState('1M');
 
   const chartModel = useMemo(() => {
@@ -32,29 +27,21 @@ export default function PriceTrendChart({
 
     const activeRange =
       RANGE_OPTIONS.find((option) => option.key === rangeKey) || RANGE_OPTIONS[1];
-    const rangePoints = filterPointsByRange(points, activeRange.days);
-    const safePoints = rangePoints.length ? rangePoints : points;
-    const currentPoint = safePoints[safePoints.length - 1];
-    const currentPrice = Number(currentPoint?.value || 0);
-    const previousWeekIndex = Math.max(safePoints.length - 8, 0);
-    const previousWeekPrice = Number(
-      safePoints[previousWeekIndex]?.value || safePoints[0]?.value || currentPrice
-    );
-    const weekChangeRate = calculateRate(currentPrice, previousWeekPrice);
+    const filteredPoints = filterPointsByRange(points, activeRange.days);
+    const safePoints = filteredPoints.length ? filteredPoints : points;
     const values = safePoints.map((point) => Number(point.value || 0));
-    const highestPrice = Math.max(...values);
-    const lowestPrice = Math.min(...values);
     const averagePrice =
-      values.reduce((accumulator, value) => accumulator + value, 0) /
-      Math.max(values.length, 1);
-    const currentVsAverage = calculateRate(currentPrice, averagePrice);
+      values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1);
+    const highestPrice = values.length ? Math.max(...values) : 0;
+    const lowestPrice = values.length ? Math.min(...values) : 0;
+    const latestPrice = values.length ? values[values.length - 1] : 0;
+    const minDomain = lowestPrice * 0.96;
+    const maxDomain = highestPrice * 1.04;
 
     return {
-      activeRange,
       averagePrice,
-      currentPrice,
-      currentVsAverage,
       highestPrice,
+      latestPrice,
       lowestPrice,
       points: safePoints.map((point) => ({
         date: point.date,
@@ -63,40 +50,23 @@ export default function PriceTrendChart({
         value: Number(point.value || 0),
       })),
       rangeLabel: getRangeLabel(activeRange.key),
-      weekChangeRate,
+      yAxisDomain: [Math.floor(minDomain), Math.ceil(maxDomain)],
     };
   }, [points, rangeKey]);
 
   if (!chartModel) {
-    return (
-      <div className="price-trend-chart price-trend-chart--empty">
-        <div className="price-trend-chart__header">
-          <div className="price-trend-chart__header-copy">
-            <span className="price-trend-chart__eyebrow">PRICE CHART</span>
-            <strong>{title || '가격 추이 차트'}</strong>
-            {subtitle ? <p>{subtitle}</p> : null}
-          </div>
-        </div>
-        <div className="price-empty-inline">차트로 표시할 가격 데이터가 없습니다.</div>
-      </div>
-    );
+    return <div className="price-empty-inline">차트로 보여줄 가격 데이터가 없습니다.</div>;
   }
 
-  const toneClass = getDeltaToneClass(chartModel.weekChangeRate);
-
   return (
-    <section className="price-trend-chart price-trend-chart--recharts">
-      <header className="price-trend-chart__header">
-        <div className="price-trend-chart__header-copy">
-          <span className="price-trend-chart__eyebrow">PRICE CHART</span>
-          <strong>{title || '가격 추이 차트'}</strong>
-          <p>
-            {productLabel ? `${productLabel} · ` : ''}
-            {subtitle || `${chartModel.rangeLabel} 동안 가격 흐름을 확인할 수 있습니다.`}
-          </p>
+    <section className="price-trend-chart">
+      <div className="price-trend-chart__header">
+        <div className="price-trend-chart__copy">
+          <strong>{title || '가격 추세 차트'}</strong>
+          <p>{chartModel.rangeLabel} 시세 흐름입니다.</p>
         </div>
 
-        <div className="price-trend-chart__range" role="tablist" aria-label="조회 기간">
+        <div className="price-trend-chart__range" role="tablist" aria-label="시세 조회 기간">
           {RANGE_OPTIONS.map((option) => (
             <button
               key={option.key}
@@ -111,71 +81,41 @@ export default function PriceTrendChart({
             </button>
           ))}
         </div>
-      </header>
-
-      <div className="price-trend-chart__hero">
-        <div className="price-trend-chart__hero-primary">
-          <span className="price-trend-chart__hero-label">현재 평균가</span>
-          <strong>{formatCurrency(chartModel.currentPrice)}</strong>
-          <div className={`price-trend-chart__delta ${toneClass}`}>
-            <span className="price-trend-chart__delta-badge">{chartModel.rangeLabel}</span>
-            <span>{formatPercent(chartModel.weekChangeRate)} 전주 대비</span>
-          </div>
-        </div>
-
-        <dl className="price-trend-chart__hero-stats">
-          <div>
-            <dt>기간 평균가</dt>
-            <dd>{formatCurrency(chartModel.averagePrice)}</dd>
-          </div>
-          <div>
-            <dt>최고가</dt>
-            <dd>{formatCurrency(chartModel.highestPrice)}</dd>
-          </div>
-          <div>
-            <dt>최저가</dt>
-            <dd>{formatCurrency(chartModel.lowestPrice)}</dd>
-          </div>
-          <div>
-            <dt>평균 대비</dt>
-            <dd>{formatPercent(chartModel.currentVsAverage)}</dd>
-          </div>
-        </dl>
       </div>
 
       <div className="price-trend-chart__canvas">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={chartModel.points}
-            margin={{ top: 18, right: 12, left: 0, bottom: 8 }}
+            margin={{ top: 14, right: 10, left: 0, bottom: 6 }}
           >
             <defs>
-              <linearGradient id="priceTrendAreaFill" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor="#12a150" stopOpacity="0.22" />
-                <stop offset="100%" stopColor="#12a150" stopOpacity="0.02" />
+              <linearGradient id="priceTrendFill" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor="#17924d" stopOpacity="0.2" />
+                <stop offset="100%" stopColor="#17924d" stopOpacity="0.02" />
               </linearGradient>
             </defs>
 
             <CartesianGrid
               horizontal
               vertical={false}
-              stroke="rgba(148, 163, 184, 0.12)"
-              strokeDasharray="3 8"
+              stroke="rgba(148, 163, 184, 0.14)"
+              strokeDasharray="3 7"
             />
             <XAxis
               axisLine={false}
               dataKey="shortDate"
               dy={10}
-              minTickGap={24}
-              tick={{ fill: '#64748b', fontSize: 12, fontWeight: 700 }}
+              minTickGap={18}
+              tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }}
               tickLine={false}
             />
             <YAxis
               axisLine={false}
-              domain={['dataMin - 150', 'dataMax + 150']}
-              tick={{ fill: '#334155', fontSize: 12, fontWeight: 800 }}
+              domain={chartModel.yAxisDomain}
+              tick={{ fill: '#1e293b', fontSize: 12, fontWeight: 700 }}
               tickCount={4}
-              tickFormatter={formatCompactCurrency}
+              tickFormatter={formatCompactAxisValue}
               tickLine={false}
               width={56}
             />
@@ -187,17 +127,16 @@ export default function PriceTrendChart({
               y={chartModel.averagePrice}
             />
             <Tooltip
-              content={<PriceChartTooltip />}
+              content={<PriceTrendTooltip />}
               cursor={{ stroke: 'rgba(15, 23, 42, 0.16)', strokeDasharray: '4 4' }}
             />
             <Area
-              activeDot={{ fill: '#12a150', r: 4, stroke: '#ffffff', strokeWidth: 3 }}
+              activeDot={{ fill: '#17924d', r: 4, stroke: '#ffffff', strokeWidth: 3 }}
               animationDuration={260}
               dataKey="value"
               dot={false}
-              fill="url(#priceTrendAreaFill)"
-              isAnimationActive
-              stroke="#0f9a54"
+              fill="url(#priceTrendFill)"
+              stroke="#17924d"
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth={3}
@@ -206,22 +145,39 @@ export default function PriceTrendChart({
           </AreaChart>
         </ResponsiveContainer>
       </div>
+
+      <div className="price-trend-chart__stats">
+        <div>
+          <span>기간 평균</span>
+          <strong>{formatCurrency(chartModel.averagePrice)}</strong>
+        </div>
+        <div>
+          <span>최고가</span>
+          <strong>{formatCurrency(chartModel.highestPrice)}</strong>
+        </div>
+        <div>
+          <span>최저가</span>
+          <strong>{formatCurrency(chartModel.lowestPrice)}</strong>
+        </div>
+        <div>
+          <span>최근 가격</span>
+          <strong>{formatCurrency(chartModel.latestPrice)}</strong>
+        </div>
+      </div>
     </section>
   );
 }
 
-function PriceChartTooltip({ active, label, payload }) {
+function PriceTrendTooltip({ active, label, payload }) {
   if (!active || !payload?.length) {
     return null;
   }
-
-  const currentValue = Number(payload[0]?.value || 0);
 
   return (
     <div className="price-trend-chart__tooltip">
       <span className="price-trend-chart__tooltip-date">{label}</span>
       <strong className="price-trend-chart__tooltip-value">
-        {formatCurrency(currentValue)}
+        {formatCurrency(payload[0]?.value)}
       </strong>
       <span className="price-trend-chart__tooltip-note">해당 시점 평균가</span>
     </div>
@@ -255,46 +211,12 @@ function getRangeLabel(rangeKey) {
   }
 }
 
-function getDeltaToneClass(value) {
-  if (value < 0) {
-    return 'is-positive';
-  }
-  if (value > 0) {
-    return 'is-negative';
-  }
-  return 'is-neutral';
-}
-
-function calculateRate(currentValue, previousValue) {
-  const currentNumber = Number(currentValue || 0);
-  const previousNumber = Number(previousValue || 0);
-  if (!previousNumber) {
-    return 0;
-  }
-
-  return ((currentNumber - previousNumber) / previousNumber) * 100;
-}
-
-function formatCompactCurrency(value) {
-  const numericValue = Number(value || 0);
-  if (Math.abs(numericValue) >= 1000) {
-    return `${(numericValue / 1000).toFixed(1)}k`;
-  }
-  return `${Math.round(numericValue)}`;
-}
-
-function formatCurrency(value) {
-  return `${Math.round(Number(value || 0)).toLocaleString('ko-KR')}원`;
-}
-
-function formatPercent(value) {
-  const numericValue = Number(value || 0);
-  const prefix = numericValue > 0 ? '+' : '';
-  return `${prefix}${numericValue.toFixed(1)}%`;
-}
-
 function formatXAxisLabel(value, rangeKey) {
   const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '-';
+  }
 
   if (rangeKey === '1Y') {
     return `${date.getMonth() + 1}월`;
@@ -305,4 +227,16 @@ function formatXAxisLabel(value, rangeKey) {
   }
 
   return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+function formatCompactAxisValue(value) {
+  const numericValue = Number(value || 0);
+  if (Math.abs(numericValue) >= 1000) {
+    return `${(numericValue / 1000).toFixed(1)}k`;
+  }
+  return `${Math.round(numericValue)}`;
+}
+
+function formatCurrency(value) {
+  return `${Math.round(Number(value || 0)).toLocaleString('ko-KR')}원`;
 }

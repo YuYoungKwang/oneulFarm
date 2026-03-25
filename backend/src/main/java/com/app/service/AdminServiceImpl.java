@@ -807,7 +807,14 @@ public class AdminServiceImpl implements AdminService {
         }
 
         String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        String lowercaseValue = trimmed.toLowerCase(Locale.ROOT);
+        if ("null".equals(lowercaseValue) || "undefined".equals(lowercaseValue) || "nan".equals(lowercaseValue)) {
+            return null;
+        }
+        return trimmed;
     }
 
     private String uppercase(String value) {

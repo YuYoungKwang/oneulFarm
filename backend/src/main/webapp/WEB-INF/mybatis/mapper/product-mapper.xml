@@ -4,7 +4,26 @@
 <mapper namespace="productMapper">
 
     <sql id="LatestMatchCte">
-        WITH latest_match AS (
+        WITH snapshot_history AS (
+            SELECT
+                ps.SNAPSHOT_NO,
+                ps.ITEM_CODE,
+                ps.ITEM_NAME,
+                ps.MARKET_TYPE,
+                ps.UNIT,
+                ps.AVG_PRICE,
+                ps.MIN_PRICE,
+                ps.MAX_PRICE,
+                ps.CHANGE_RATE,
+                ps.SNAPSHOT_DATE,
+                ps.SOURCE_NAME,
+                LAG(ps.AVG_PRICE) OVER (
+                    PARTITION BY ps.ITEM_CODE, ps.MARKET_TYPE
+                    ORDER BY ps.SNAPSHOT_DATE ASC, ps.SNAPSHOT_NO ASC
+                ) AS PREV_AVG_PRICE
+            FROM OFT_PRICE_SNAPSHOT ps
+        ),
+        latest_match AS (
             SELECT
                 ppm.PRODUCT_NO,
                 ppm.MATCH_NO,
@@ -20,7 +39,12 @@
                 ps.AVG_PRICE,
                 ps.MIN_PRICE,
                 ps.MAX_PRICE,
-                ps.CHANGE_RATE,
+                CASE
+                    WHEN ps.CHANGE_RATE IS NOT NULL THEN ps.CHANGE_RATE
+                    WHEN ps.PREV_AVG_PRICE IS NOT NULL AND ps.PREV_AVG_PRICE &gt; 0
+                        THEN ROUND(((ps.AVG_PRICE - ps.PREV_AVG_PRICE) / ps.PREV_AVG_PRICE) * 100, 2)
+                    ELSE 0
+                END AS CHANGE_RATE,
                 ps.SNAPSHOT_DATE,
                 ps.SOURCE_NAME,
                 ROW_NUMBER() OVER (
@@ -28,7 +52,7 @@
                     ORDER BY ps.SNAPSHOT_DATE DESC, ps.SNAPSHOT_NO DESC
                 ) AS rn
             FROM OFT_PRODUCT_PRICE_MATCH ppm
-            JOIN OFT_PRICE_SNAPSHOT ps
+            JOIN snapshot_history ps
                 ON ps.SNAPSHOT_NO = ppm.SNAPSHOT_NO
         ),
         review_stats AS (

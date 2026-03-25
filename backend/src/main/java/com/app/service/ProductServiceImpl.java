@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.app.common.PriceSnapshotUnitSupport;
 import com.app.common.ProduceStandardWeightSupport;
 import com.app.dao.ProductDao;
 import com.app.dto.PriceSnapshotDTO;
@@ -29,15 +30,35 @@ public class ProductServiceImpl implements ProductService {
         "ea",
         "each",
         "개",
+        "구",
+        "알",
+        "판",
         "포기",
         "단",
         "망",
         "봉",
         "봉지",
+        "팩",
+        "병",
+        "통",
         "pack",
         "pk"
     );
     private static final BigDecimal BADGE_THRESHOLD = BigDecimal.valueOf(100L);
+    private static final Set<String> VOLUME_UNIT_SET = Set.of(
+        "ml",
+        "milliliter",
+        "milliliters",
+        "millilitre",
+        "millilitres",
+        "l",
+        "liter",
+        "liters",
+        "litre",
+        "litres",
+        "ℓ",
+        "리터"
+    );
 
     @Autowired
     private ProductDao productDao;
@@ -50,6 +71,8 @@ public class ProductServiceImpl implements ProductService {
         List<ProductDto> products = productDao.findSellingProducts();
         for (ProductDto product : products) {
             applyFallbackPriceInsight(product);
+            sanitizeExistingPriceInsight(product);
+            repairExistingPriceInsight(product);
             product.setImages(resolveDisplayImages(product.getProductNo()));
             product.setRecipes(Collections.emptyList());
             product.setReviews(Collections.emptyList());
@@ -65,6 +88,8 @@ public class ProductServiceImpl implements ProductService {
         }
 
         applyFallbackPriceInsight(product);
+        sanitizeExistingPriceInsight(product);
+        repairExistingPriceInsight(product);
         product.setImages(resolveDisplayImages(productNo));
         product.setRecipes(productDao.findProductRecipes(productNo));
         product.setReviews(productDao.findProductReviews(productNo));
@@ -73,6 +98,13 @@ public class ProductServiceImpl implements ProductService {
 
     private void applyFallbackPriceInsight(ProductDto product) {
         if (product == null) {
+            return;
+        }
+
+        // Keep the matched snapshot from OFT_PRODUCT_PRICE_MATCH when it already exists.
+        // Otherwise price analysis can be overwritten by a fuzzy daily snapshot name
+        // such as "당근/무세척" instead of the intended mapped commodity code.
+        if (product.getSnapshotNo() != null && trimToNull(product.getItemCode()) != null) {
             return;
         }
 
@@ -144,6 +176,82 @@ public class ProductServiceImpl implements ProductService {
         product.setMinPrice(normalizedDisplayAvgPrice);
         product.setMaxPrice(normalizedDisplayAvgPrice);
         product.setComparedPrice(normalizedDisplayAvgPrice);
+        product.setPriceGap(priceGap);
+        product.setSavingRate(savingRate);
+        product.setBadgeType(badgeType);
+    }
+
+    private void sanitizeExistingPriceInsight(ProductDto product) {
+        if (product == null) {
+            return;
+        }
+        product.setItemCode(trimToNull(product.getItemCode()));
+        product.setItemName(trimToNull(product.getItemName()));
+        product.setMarketType(trimToNull(product.getMarketType()));
+        product.setSnapshotUnit(PriceSnapshotUnitSupport.normalizeConvertedRetailWeightUnit(
+            product.getItemCode(),
+            trimToNull(product.getSnapshotUnit())
+        ));
+        product.setSourceName(trimToNull(product.getSourceName()));
+    }
+
+    private void repairExistingPriceInsight(ProductDto product) {
+        if (product == null || product.getSnapshotNo() == null || trimToNull(product.getItemCode()) == null) {
+            return;
+        }
+
+        String effectiveSnapshotUnit = PriceSnapshotUnitSupport.normalizeConvertedRetailWeightUnit(
+            product.getItemCode(),
+            product.getSnapshotUnit()
+        );
+        if (effectiveSnapshotUnit == null) {
+            return;
+        }
+        product.setSnapshotUnit(effectiveSnapshotUnit);
+
+        if (!"1kg".equalsIgnoreCase(effectiveSnapshotUnit) || product.getAvgPrice() == null) {
+            return;
+        }
+
+        BigDecimal productAmountInGram = ProduceStandardWeightSupport.resolveProductAmountInGram(
+            product.getProductName(),
+            product.getUnit(),
+            product.getPackageWeight() == null || product.getPackageWeight().compareTo(BigDecimal.ZERO) <= 0
+                ? BigDecimal.ONE
+                : product.getPackageWeight()
+        );
+        if (productAmountInGram == null || productAmountInGram.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+
+        BigDecimal divisor = BigDecimal.valueOf(1000L);
+        BigDecimal displayAvgPrice = scaleMoney(
+            product.getAvgPrice().multiply(productAmountInGram).divide(divisor, 2, RoundingMode.HALF_UP)
+        );
+        BigDecimal displayMinPrice = product.getMinPrice() == null
+            ? displayAvgPrice
+            : scaleMoney(product.getMinPrice().multiply(productAmountInGram).divide(divisor, 2, RoundingMode.HALF_UP));
+        BigDecimal displayMaxPrice = product.getMaxPrice() == null
+            ? displayAvgPrice
+            : scaleMoney(product.getMaxPrice().multiply(productAmountInGram).divide(divisor, 2, RoundingMode.HALF_UP));
+
+        BigDecimal salePrice = scaleMoney(product.getSalePrice());
+        BigDecimal priceGap = displayAvgPrice.subtract(salePrice).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal savingRate = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        String badgeType = null;
+
+        if (displayAvgPrice.compareTo(BigDecimal.ZERO) > 0 && priceGap.compareTo(BADGE_THRESHOLD) >= 0) {
+            savingRate = priceGap
+                .divide(displayAvgPrice, 6, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100L))
+                .setScale(2, RoundingMode.HALF_UP);
+            badgeType = "UNDER_AVG";
+        }
+
+        product.setAvgPrice(displayAvgPrice);
+        product.setMinPrice(displayMinPrice);
+        product.setMaxPrice(displayMaxPrice);
+        product.setComparedPrice(displayAvgPrice);
         product.setPriceGap(priceGap);
         product.setSavingRate(savingRate);
         product.setBadgeType(badgeType);
@@ -261,12 +369,15 @@ public class ProductServiceImpl implements ProductService {
             packageWeight = BigDecimal.ONE;
         }
 
-        String normalizedUnit = productUnit.toLowerCase(Locale.ROOT);
+        String normalizedUnit = normalizeMeasurementUnit(productUnit);
         if ("kg".equals(normalizedUnit)) {
             return new Quantity(UnitType.WEIGHT, packageWeight.multiply(BigDecimal.valueOf(1000L)));
         }
         if ("g".equals(normalizedUnit)) {
             return new Quantity(UnitType.WEIGHT, packageWeight);
+        }
+        if (isVolumeUnit(normalizedUnit)) {
+            return new Quantity(UnitType.VOLUME, normalizeVolumeAmount(normalizedUnit, packageWeight));
         }
         if (COUNT_UNIT_SET.contains(normalizedUnit)) {
             return new Quantity(UnitType.COUNT, packageWeight);
@@ -293,12 +404,15 @@ public class ProductServiceImpl implements ProductService {
         }
 
         BigDecimal amount = amountToken == null ? BigDecimal.ONE : new BigDecimal(amountToken);
-        String normalizedUnit = unitToken.toLowerCase(Locale.ROOT);
+        String normalizedUnit = normalizeMeasurementUnit(unitToken);
         if ("kg".equals(normalizedUnit)) {
             return new Quantity(UnitType.WEIGHT, amount.multiply(BigDecimal.valueOf(1000L)));
         }
         if ("g".equals(normalizedUnit)) {
             return new Quantity(UnitType.WEIGHT, amount);
+        }
+        if (isVolumeUnit(normalizedUnit)) {
+            return new Quantity(UnitType.VOLUME, normalizeVolumeAmount(normalizedUnit, amount));
         }
         if (COUNT_UNIT_SET.contains(normalizedUnit)) {
             return new Quantity(UnitType.COUNT, amount);
@@ -344,6 +458,55 @@ public class ProductServiceImpl implements ProductService {
         return trimmedValue.replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
     }
 
+    private String normalizeMeasurementUnit(String unit) {
+        String normalizedUnit = normalizeUnit(unit);
+        if (normalizedUnit == null) {
+            return null;
+        }
+
+        if ("\uAD6C".equals(normalizedUnit)
+            || "\uC54C".equals(normalizedUnit)
+            || "\uD310".equals(normalizedUnit)
+            || "\uBCD1".equals(normalizedUnit)
+            || "\uD1B5".equals(normalizedUnit)
+            || "\uD329".equals(normalizedUnit)) {
+            return "ea";
+        }
+
+        return normalizedUnit;
+    }
+
+    private String normalizeUnit(String value) {
+        String trimmedValue = trimToNull(value);
+        if (trimmedValue == null) {
+            return null;
+        }
+
+        return trimmedValue.replace(" ", "").toLowerCase(Locale.ROOT);
+    }
+
+    private boolean isVolumeUnit(String unit) {
+        return unit != null && VOLUME_UNIT_SET.contains(unit);
+    }
+
+    private BigDecimal normalizeVolumeAmount(String unit, BigDecimal amount) {
+        if (amount == null) {
+            return BigDecimal.ONE;
+        }
+
+        if ("l".equals(unit)
+            || "liter".equals(unit)
+            || "liters".equals(unit)
+            || "litre".equals(unit)
+            || "litres".equals(unit)
+            || "\u2113".equals(unit)
+            || "\uB9AC\uD130".equals(unit)) {
+            return amount.multiply(BigDecimal.valueOf(1000L));
+        }
+
+        return amount;
+    }
+
     private String trimToNull(String value) {
         if (value == null) {
             return null;
@@ -353,12 +516,17 @@ public class ProductServiceImpl implements ProductService {
         if (trimmedValue.isEmpty()) {
             return null;
         }
+        String lowercaseValue = trimmedValue.toLowerCase(Locale.ROOT);
+        if ("null".equals(lowercaseValue) || "undefined".equals(lowercaseValue) || "nan".equals(lowercaseValue)) {
+            return null;
+        }
         return trimmedValue;
     }
 
     private enum UnitType {
         WEIGHT,
-        COUNT
+        COUNT,
+        VOLUME
     }
 
     private static final class Quantity {
@@ -390,3 +558,4 @@ public class ProductServiceImpl implements ProductService {
         return displayImages;
     }
 }
+

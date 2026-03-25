@@ -221,6 +221,68 @@ public class PriceSnapshotController {
         }
     }
 
+    @GetMapping("/admin/prices/full-refresh")
+    public ResponseEntity<Map<String, Object>> fullRefreshPriceSnapshotGet(
+        @RequestParam(value = "startDate", required = false) String startDate,
+        @RequestParam(value = "endDate", required = false) String endDate
+    ) {
+        return fullRefreshPriceSnapshot(startDate, endDate);
+    }
+
+    @PostMapping("/admin/prices/full-refresh")
+    public ResponseEntity<Map<String, Object>> fullRefreshPriceSnapshotPost(
+        @RequestParam(value = "startDate", required = false) String startDate,
+        @RequestParam(value = "endDate", required = false) String endDate
+    ) {
+        return fullRefreshPriceSnapshot(startDate, endDate);
+    }
+
+    private ResponseEntity<Map<String, Object>> fullRefreshPriceSnapshot(String startDate, String endDate) {
+        try {
+            String resolvedEndDate = resolveEndDate(endDate);
+            String resolvedStartDate = resolveStartDate(startDate, resolvedEndDate);
+
+            List<PriceSnapshotBackfillItemDTO> resultItemList =
+                priceSnapshotService.backfillDefaultPriceSnapshotSet(resolvedStartDate, resolvedEndDate);
+
+            int successCount = 0;
+            int failureCount = 0;
+            int backfillProcessedCount = 0;
+
+            for (PriceSnapshotBackfillItemDTO itemDTO : resultItemList) {
+                backfillProcessedCount += itemDTO.getProcessedCount();
+                if (itemDTO.isSuccess()) {
+                    successCount++;
+                } else {
+                    failureCount++;
+                }
+            }
+
+            int latestSyncProcessedCount = priceSnapshotService.syncPriceSnapshot();
+            ProductPriceMatchRefreshResult refreshResult = productPriceMatchService.refreshProductPriceMatch();
+
+            Map<String, Object> data = new LinkedHashMap<String, Object>();
+            data.put("startDate", resolvedStartDate);
+            data.put("endDate", resolvedEndDate);
+            data.put("itemCount", resultItemList.size());
+            data.put("successCount", successCount);
+            data.put("failureCount", failureCount);
+            data.put("backfillProcessedCount", backfillProcessedCount);
+            data.put("latestSyncProcessedCount", latestSyncProcessedCount);
+            data.put("latestSnapshotDate", priceSnapshotService.getLatestSnapshotDate());
+            data.put("matchProcessedCount", refreshResult.getProcessedCount());
+            data.put("badgeCount", refreshResult.getBadgeCount());
+            data.put("skippedProductCount", refreshResult.getSkippedCount());
+            data.put("items", resultItemList);
+
+            return success(data, "Price full refresh completed.");
+        } catch (IllegalArgumentException exception) {
+            return error(HttpStatus.BAD_REQUEST, "INVALID_PRICE_FULL_REFRESH_REQUEST", exception.getMessage());
+        } catch (Exception exception) {
+            return error(HttpStatus.INTERNAL_SERVER_ERROR, "PRICE_FULL_REFRESH_ERROR", "Price full refresh failed.");
+        }
+    }
+
     private ResponseEntity<Map<String, Object>> success(Map<String, Object> data, String message) {
         Map<String, Object> body = new LinkedHashMap<String, Object>();
         body.put("success", Boolean.TRUE);

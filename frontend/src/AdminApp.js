@@ -26,6 +26,8 @@ import {
   fetchAdminProducts,
   fetchAdminPurchases,
   fetchAdminPurchaseQuote,
+  fetchAdminRetailPriceList,
+  fetchAdminPurchaseReferenceItems,
   fetchAdminRecipeMappings,
   fetchAdminUsers,
   getAdminBannerImageUrl,
@@ -54,6 +56,7 @@ const EMPTY_PRODUCT_FORM = {
 
 const EMPTY_PURCHASE_FORM = {
   categoryNo: '',
+  referenceItemCode: '',
   productName: '',
   origin: '',
   purchaseUnit: 'kg',
@@ -97,6 +100,44 @@ function hasAdminValue(value) {
 }
 
 const COUNT_UNIT_SET = new Set(['ea', 'each', '개', '포기', '단', '망', '봉', '봉지', 'pack', 'pk']);
+const VOLUME_UNIT_SET = new Set(['ml', 'milliliter', 'milliliters', 'millilitre', 'millilitres', 'l', 'liter', 'liters', 'litre', 'litres', 'ℓ', '리터']);
+
+const ADMIN_SUPPORTED_CATEGORY_NAMES = ['채소', '과일', '버섯', '육류', '유제품', '달걀', '가공식품'];
+const ADMIN_FRUIT_KEYWORDS = ['사과', '배/', '복숭아', '포도', '감귤', '단감', '바나나', '참다래', '수박', '참외', '딸기', '멜론', '오렌지', '망고', '레몬', '파인애플', '체리', '키위'];
+const ADMIN_FRUIT_EXACT_NAMES = new Set(['사과', '배', '복숭아', '포도', '감귤', '단감', '바나나', '참다래', '수박', '참외', '딸기', '멜론', '오렌지', '망고', '레몬', '파인애플', '체리', '키위']);
+const ADMIN_MUSHROOM_KEYWORDS = ['버섯', '송이'];
+const ADMIN_DAIRY_KEYWORDS = ['우유', '치즈', '요거트', '요구르트', '버터', '분유', '생크림'];
+const ADMIN_EGG_KEYWORDS = ['계란', '달걀', '특란', '왕란'];
+const ADMIN_MEAT_KEYWORDS = ['쇠고기', '소 ', '소/', '돼지', '삼겹', '목심', '갈비', '안심', '등심', '양지', '설도', '앞다리', '가슴살', '북채', '토종닭', '육계', '닭 '];
+const ADMIN_PROCESSED_KEYWORDS = ['김치', '고추장', '된장', '간장', '두부', '순두부', '연두부', '즉석밥', '맛김', '콩나물'];
+const ADMIN_UNSUPPORTED_REFERENCE_KEYWORDS = ['가리비', '갈치', '고등어', '굴/', '김/', '다시마', '멸치', '미역', '오징어', '새우', '전복', '북어', '삼치', '명태', '홍합', '쌀', '찹쌀', '콩/', '팥/', '녹두', '메밀', '들깨', '참깨'];
+
+function splitAdminReferenceNameSegments(value) {
+  return String(value || '')
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+}
+
+function dedupeAdminReferenceNameSegments(segmentArray) {
+  return segmentArray.filter((segment, index) => segment && segmentArray.indexOf(segment) === index);
+}
+
+function normalizeAdminReferenceProductName(value) {
+  const segmentArray = dedupeAdminReferenceNameSegments(splitAdminReferenceNameSegments(value));
+  if (!segmentArray.length) {
+    return String(value || '').trim();
+  }
+  return segmentArray[0];
+}
+
+function buildAdminReferenceDisplayName(value) {
+  const segmentArray = dedupeAdminReferenceNameSegments(splitAdminReferenceNameSegments(value));
+  if (!segmentArray.length) {
+    return String(value || '').trim();
+  }
+  return segmentArray.join(' / ');
+}
 
 function formatDecimalInput(value, fractionDigits = 2) {
   const nextValue = Number(value);
@@ -113,7 +154,7 @@ function resolveUnitAmount(value, unit) {
     return null;
   }
 
-  const normalizedUnit = String(unit || '').trim().toLowerCase();
+  const normalizedUnit = normalizeMeasurementUnit(unit);
   if (!normalizedUnit) {
     return null;
   }
@@ -124,11 +165,58 @@ function resolveUnitAmount(value, unit) {
   if (normalizedUnit === 'g') {
     return { type: 'WEIGHT', amount };
   }
+  if (isVolumeUnit(normalizedUnit)) {
+    return { type: 'VOLUME', amount: normalizeVolumeAmount(normalizedUnit, amount) };
+  }
   if (COUNT_UNIT_SET.has(normalizedUnit)) {
     return { type: 'COUNT', amount };
   }
 
   return null;
+}
+
+function normalizeMeasurementUnit(unit) {
+  const normalizedUnit = normalizeUnitKey(unit);
+  if (!normalizedUnit) {
+    return null;
+  }
+
+  if (
+    normalizedUnit === '\uAD6C' ||
+    normalizedUnit === '\uC54C' ||
+    normalizedUnit === '\uD310' ||
+    normalizedUnit === '\uBCD1' ||
+    normalizedUnit === '\uD1B5' ||
+    normalizedUnit === '\uD329'
+  ) {
+    return 'ea';
+  }
+
+  return normalizedUnit;
+}
+
+function normalizeUnitKey(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized ? normalized.replace(/\s+/g, '') : '';
+}
+
+function isVolumeUnit(unit) {
+  return Boolean(unit && VOLUME_UNIT_SET.has(unit));
+}
+
+function normalizeVolumeAmount(unit, amount) {
+  if (
+    unit === 'l' ||
+    unit === 'liter' ||
+    unit === 'liters' ||
+    unit === 'litre' ||
+    unit === 'litres' ||
+    unit === '\u2113' ||
+    unit === '\uB9AC\uD130'
+  ) {
+    return amount * 1000;
+  }
+  return amount;
 }
 
 function calculatePurchasePriceFromQuote(purchaseQuote, purchaseQty, purchaseUnit) {
@@ -152,6 +240,454 @@ function calculatePurchasePriceFromQuote(purchaseQuote, purchaseQty, purchaseUni
   }
 
   return (basePrice * currentQuantity.amount) / baseQuantity.amount;
+}
+
+function containsAnyTextKeyword(value, keywordArray) {
+  const normalizedValue = String(value || '').trim();
+  if (!normalizedValue) {
+    return false;
+  }
+
+  return keywordArray.some((keyword) => normalizedValue.includes(keyword));
+}
+
+function resolveAdminReferenceCategoryName(item) {
+  const currentCategoryName = String(item?.categoryName || '').trim();
+  const rawProductName = String(item?.productName || '').trim();
+  const normalizedProductName = normalizeAdminReferenceProductName(rawProductName) || rawProductName;
+  const itemCategoryCode = extractAdminReferenceCategoryCode(item?.itemCode);
+  if (!normalizedProductName) {
+    return '';
+  }
+
+  if (containsAnyTextKeyword(rawProductName || normalizedProductName, ADMIN_UNSUPPORTED_REFERENCE_KEYWORDS)) {
+    return '';
+  }
+  if (itemCategoryCode === '800' || containsAnyTextKeyword(normalizedProductName, ADMIN_PROCESSED_KEYWORDS)) {
+    return '가공식품';
+  }
+  if (containsAnyTextKeyword(normalizedProductName, ADMIN_DAIRY_KEYWORDS)) {
+    return '유제품';
+  }
+  if (containsAnyTextKeyword(normalizedProductName, ADMIN_EGG_KEYWORDS)) {
+    return '달걀';
+  }
+  if (itemCategoryCode === '500' || containsAnyTextKeyword(normalizedProductName, ADMIN_MEAT_KEYWORDS)) {
+    return '육류';
+  }
+  if (itemCategoryCode === '300' || containsAnyTextKeyword(normalizedProductName, ADMIN_MUSHROOM_KEYWORDS)) {
+    return '버섯';
+  }
+  if (
+    ADMIN_FRUIT_EXACT_NAMES.has(normalizedProductName)
+    || itemCategoryCode === '400'
+    || containsAnyTextKeyword(rawProductName, ADMIN_FRUIT_KEYWORDS)
+  ) {
+    return '과일';
+  }
+  if (itemCategoryCode === '100' || itemCategoryCode === '200') {
+    return '채소';
+  }
+  if (ADMIN_SUPPORTED_CATEGORY_NAMES.includes(currentCategoryName) && currentCategoryName !== '과일') {
+    return currentCategoryName;
+  }
+
+  return '채소';
+}
+
+function extractAdminReferenceCategoryCode(itemCode) {
+  const normalizedItemCode = String(itemCode || '').trim();
+  if (!normalizedItemCode) {
+    return '';
+  }
+
+  if (normalizedItemCode.startsWith('catalog:')) {
+    return normalizedItemCode.split(':')[1] || '';
+  }
+
+  const matched = normalizedItemCode.match(/^[A-Z]+_(\d{3})_/);
+  if (matched) {
+    return matched[1];
+  }
+
+  return '';
+}
+
+function isAdminCatalogReferenceItem(itemCode) {
+  return String(itemCode || '').trim().startsWith('catalog:');
+}
+
+function parseAdminCatalogReferenceCode(itemCode) {
+  const normalizedItemCode = String(itemCode || '').trim();
+  if (!normalizedItemCode.startsWith('catalog:')) {
+    return null;
+  }
+
+  const tokenArray = normalizedItemCode.split(':');
+  if (tokenArray.length < 4) {
+    return null;
+  }
+
+  return {
+    itemCategoryCode: tokenArray[1] || '',
+    itemCode: tokenArray[2] || '',
+    kindCode: tokenArray.slice(3).join(':') || '',
+  };
+}
+
+function normalizeAdminCatalogKindCode(kindCode) {
+  return String(kindCode || '').trim().replace(/\|/g, '-');
+}
+
+function normalizeAdminSearchKey(value) {
+  return String(value || '').trim().replace(/\s+/g, '').toLowerCase();
+}
+
+function parseAdminSnapshotUnit(snapshotUnit) {
+  const normalizedSnapshotUnit = String(snapshotUnit || '').replace(/\s+/g, '').trim();
+  if (!normalizedSnapshotUnit) {
+    return null;
+  }
+
+  const matched = normalizedSnapshotUnit.match(/^([0-9]+(?:\.[0-9]+)?)?([A-Za-z\uAC00-\uD7A3\u2113]+)$/);
+  if (!matched) {
+    return null;
+  }
+
+  const quantity = Number(matched[1] || 1);
+  const displayUnit = matched[2] || '';
+  const resolvedQuantity = resolveUnitAmount(quantity, displayUnit);
+  if (!Number.isFinite(quantity) || quantity <= 0 || !displayUnit || !resolvedQuantity) {
+    return null;
+  }
+
+  return {
+    quantity,
+    displayUnit,
+    resolvedQuantity,
+  };
+}
+
+function buildAdminPricingBasisFromSnapshotUnit(snapshotUnit) {
+  const parsedUnit = parseAdminSnapshotUnit(snapshotUnit);
+  if (!parsedUnit) {
+    return null;
+  }
+
+  if (parsedUnit.resolvedQuantity.type === 'WEIGHT') {
+    return {
+      type: 'WEIGHT',
+      amount: 1000,
+      unit: 'kg',
+      label: '1kg',
+    };
+  }
+
+  if (parsedUnit.resolvedQuantity.type === 'VOLUME') {
+    return {
+      type: 'VOLUME',
+      amount: 1000,
+      unit: 'L',
+      label: '1L',
+    };
+  }
+
+  const displayUnit = parsedUnit.displayUnit === 'ea' ? '개' : parsedUnit.displayUnit;
+  return {
+    type: 'COUNT',
+    amount: 1,
+    unit: displayUnit,
+    label: `1${displayUnit}`,
+  };
+}
+
+function calculateAdminComparablePrice(avgPrice, snapshotUnit, pricingBasis) {
+  const parsedUnit = parseAdminSnapshotUnit(snapshotUnit);
+  const numericAvgPrice = Number(avgPrice);
+  if (!parsedUnit || !pricingBasis || !Number.isFinite(numericAvgPrice) || numericAvgPrice <= 0) {
+    return null;
+  }
+
+  if (parsedUnit.resolvedQuantity.type !== pricingBasis.type || parsedUnit.resolvedQuantity.amount <= 0) {
+    return null;
+  }
+
+  return (numericAvgPrice * pricingBasis.amount) / parsedUnit.resolvedQuantity.amount;
+}
+
+function findAdminRetailFallbackSnapshot(referenceItem, retailPriceList) {
+  const parsedReferenceCode = parseAdminCatalogReferenceCode(referenceItem?.itemCode);
+  const normalizedProductName = normalizeAdminReferenceProductName(
+    referenceItem?.rawProductName || referenceItem?.productName
+  );
+  const normalizedProductSearchKey = normalizeAdminSearchKey(normalizedProductName);
+  const storedItemCodePrefix = parsedReferenceCode
+    ? `RETAIL_${parsedReferenceCode.itemCategoryCode}_${parsedReferenceCode.itemCode}_${normalizeAdminCatalogKindCode(parsedReferenceCode.kindCode)}_`
+    : '';
+  const referenceUnit = String(referenceItem?.snapshotUnit || '').replace(/\s+/g, '').trim();
+
+  let bestSnapshot = null;
+  let bestScore = Number.NEGATIVE_INFINITY;
+
+  (retailPriceList || []).forEach((snapshot) => {
+    const snapshotItemCode = String(snapshot?.itemCode || '').trim();
+    const snapshotItemName = String(snapshot?.itemName || '').trim();
+    const normalizedSnapshotName = normalizeAdminReferenceProductName(snapshotItemName);
+    const normalizedSnapshotSearchKey = normalizeAdminSearchKey(normalizedSnapshotName);
+    if (!snapshotItemCode || !snapshotItemName) {
+      return;
+    }
+
+    let score = 0;
+    if (storedItemCodePrefix && snapshotItemCode.startsWith(storedItemCodePrefix)) {
+      score += 5000;
+    }
+    if (normalizedSnapshotSearchKey === normalizedProductSearchKey) {
+      score += 1600;
+    } else if (
+      normalizedSnapshotSearchKey.includes(normalizedProductSearchKey)
+      || normalizedProductSearchKey.includes(normalizedSnapshotSearchKey)
+    ) {
+      score += 800;
+    }
+    if (referenceUnit && String(snapshot.unit || '').replace(/\s+/g, '').trim() === referenceUnit) {
+      score += 400;
+    }
+    if (String(snapshot.sourceName || '').includes('KAMIS_PROCESS_RETAIL_ITEM_PAGE')) {
+      score += 300;
+    }
+    if (String(snapshot.sourceName || '').includes('KAMIS_PERIOD_RETAIL_PRODUCT_LIST')) {
+      score += 200;
+    }
+    if (String(snapshot.sourceName || '').includes('KAMIS_DAILY_SALES_LIST')) {
+      score += 100;
+    }
+
+    if (score > bestScore) {
+      bestSnapshot = snapshot;
+      bestScore = score;
+    }
+  });
+
+  return bestScore > 0 ? bestSnapshot : null;
+}
+
+function buildAdminRetailFallbackQuote(referenceItem, retailSnapshot) {
+  const snapshotUnit = String(retailSnapshot?.unit || referenceItem?.snapshotUnit || '').trim();
+  const parsedSnapshotUnit = parseAdminSnapshotUnit(snapshotUnit);
+  const pricingBasis = buildAdminPricingBasisFromSnapshotUnit(snapshotUnit);
+  const retailComparablePrice = calculateAdminComparablePrice(
+    retailSnapshot?.avgPrice,
+    snapshotUnit,
+    pricingBasis
+  );
+  const purchaseQty = parsedSnapshotUnit?.quantity ?? 1;
+  const purchaseUnit = parsedSnapshotUnit?.displayUnit || snapshotUnit || 'ea';
+  const purchasePrice = Number(retailSnapshot?.avgPrice || 0);
+  const comparableRounded = Number.isFinite(retailComparablePrice)
+    ? Math.round(retailComparablePrice)
+    : null;
+
+  return {
+    quoteSource: 'RETAIL_FALLBACK',
+    queryName: referenceItem?.productName || retailSnapshot?.itemName || '',
+    requestedItemCode: referenceItem?.itemCode || '',
+    matchedItemName: retailSnapshot?.itemName || referenceItem?.productName || '',
+    matchedItemCode: retailSnapshot?.itemCode || referenceItem?.itemCode || '',
+    snapshotDate: retailSnapshot?.snapshotDate || null,
+    wholesaleSnapshotDate: null,
+    retailSnapshotDate: retailSnapshot?.snapshotDate || null,
+    snapshotUnit,
+    wholesaleSourceUnit: null,
+    purchaseUnit,
+    purchaseQty,
+    purchasePrice,
+    pricingBaseUnit: purchaseUnit,
+    pricingBaseQty: purchaseQty,
+    pricingBasePrice: purchasePrice,
+    priceBasisUnit: pricingBasis?.label || snapshotUnit,
+    wholesalePriceBasisUnit: null,
+    retailPriceBasisUnit: pricingBasis?.label || snapshotUnit,
+    recommendedPriceBasisUnit: pricingBasis?.label || snapshotUnit,
+    wholesaleSourcePrice: null,
+    retailSourcePrice: purchasePrice,
+    wholesaleAvgPrice: null,
+    wholesaleComparablePrice: null,
+    retailAvgPrice: retailComparablePrice,
+    retailSnapshotUnit: snapshotUnit,
+    retailComparablePrice,
+    recommendedSalePrice: comparableRounded,
+    pricingNote: '도매 시세가 없어 소매 시세 기준으로 매입 단위, 수량, 가격을 자동 입력했습니다.',
+    wholesaleItemCode: null,
+    retailItemCode: retailSnapshot?.itemCode || null,
+  };
+}
+
+function normalizeAdminPurchaseReferenceItems(referenceItems, categories) {
+  const availableCategoryNameSet = new Set(
+    (categories || []).map((category) => String(category?.categoryName || '').trim()).filter(Boolean)
+  );
+
+  const normalizedReferenceItemList = (referenceItems || [])
+    .map((item) => {
+      const resolvedCategoryName = resolveAdminReferenceCategoryName(item);
+      const normalizedProductName = normalizeAdminReferenceProductName(item.productName);
+      const normalizedDisplayName = buildAdminReferenceDisplayName(item.productName);
+      return {
+        ...item,
+        rawProductName: item.productName,
+        productName: normalizedProductName || item.productName,
+        categoryName: resolvedCategoryName,
+        displayLabel: resolvedCategoryName
+          ? `${resolvedCategoryName} / ${normalizedDisplayName || item.productName}${item.snapshotUnit ? ` / ${item.snapshotUnit}` : ''}`
+          : item.displayLabel || normalizedDisplayName || item.productName,
+        supportsAutoQuote: item.supportsAutoQuote !== false,
+      };
+    })
+    .filter((item) => item.categoryName && availableCategoryNameSet.has(item.categoryName))
+    .sort((leftItem, rightItem) => {
+      const leftAutoQuoteRank = leftItem.supportsAutoQuote ? 0 : 1;
+      const rightAutoQuoteRank = rightItem.supportsAutoQuote ? 0 : 1;
+      if (leftAutoQuoteRank !== rightAutoQuoteRank) {
+        return leftAutoQuoteRank - rightAutoQuoteRank;
+      }
+
+      const leftSourceRank = leftItem.referenceSource === 'WHOLESALE' ? 0 : 1;
+      const rightSourceRank = rightItem.referenceSource === 'WHOLESALE' ? 0 : 1;
+      if (leftSourceRank !== rightSourceRank) {
+        return leftSourceRank - rightSourceRank;
+      }
+
+      return String(leftItem.displayLabel || leftItem.productName || '').localeCompare(
+        String(rightItem.displayLabel || rightItem.productName || ''),
+        'ko'
+      );
+    });
+
+  return normalizedReferenceItemList;
+}
+
+function parsePricingBasisQuantity(basisUnit) {
+  const normalizedBasisUnit = String(basisUnit || '').replace(/\s+/g, '').trim();
+  if (!normalizedBasisUnit) {
+    return null;
+  }
+
+  const matched = normalizedBasisUnit.match(/^([0-9]+(?:\.[0-9]+)?)?([A-Za-z\uAC00-\uD7A3]+)$/);
+  if (!matched) {
+    return null;
+  }
+
+  return resolveUnitAmount(matched[1] || 1, matched[2]);
+}
+
+function convertQuantityAmountToDisplayUnit(quantity, displayUnit) {
+  if (!quantity) {
+    return null;
+  }
+
+  const normalizedDisplayUnit = normalizeMeasurementUnit(displayUnit);
+  if (!normalizedDisplayUnit) {
+    return null;
+  }
+
+  if (quantity.type === 'WEIGHT') {
+    if (normalizedDisplayUnit === 'kg') {
+      return quantity.amount / 1000;
+    }
+    if (normalizedDisplayUnit === 'g') {
+      return quantity.amount;
+    }
+  }
+
+  if (quantity.type === 'VOLUME') {
+    if (normalizedDisplayUnit === 'l') {
+      return quantity.amount / 1000;
+    }
+    if (normalizedDisplayUnit === 'ml') {
+      return quantity.amount;
+    }
+  }
+
+  if (quantity.type === 'COUNT' && COUNT_UNIT_SET.has(normalizedDisplayUnit)) {
+    return quantity.amount;
+  }
+
+  return null;
+}
+
+function floorMoneyToHundred(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue) || numericValue <= 0) {
+    return 0;
+  }
+
+  return Math.floor(numericValue / 100) * 100;
+}
+
+function calculateAutoPackageDefaults(batch, packageQuote, packagedQty) {
+  const packagedQtyNumber = Number(packagedQty);
+  if (!batch || !Number.isFinite(packagedQtyNumber) || packagedQtyNumber <= 0) {
+    return null;
+  }
+
+  const totalBatchQuantity = resolveUnitAmount(batch.purchaseQty, batch.purchaseUnit);
+  if (!totalBatchQuantity || totalBatchQuantity.amount <= 0) {
+    return null;
+  }
+
+  const perPackageQuantity = {
+    ...totalBatchQuantity,
+    amount: totalBatchQuantity.amount / packagedQtyNumber,
+  };
+  const packagedWeightValue = convertQuantityAmountToDisplayUnit(
+    perPackageQuantity,
+    batch.purchaseUnit
+  );
+
+  let salePrice = null;
+  const pricingBasisQuantity = parsePricingBasisQuantity(
+    packageQuote?.recommendedPriceBasisUnit ||
+      packageQuote?.retailPriceBasisUnit ||
+      packageQuote?.priceBasisUnit
+  );
+
+  if (
+    pricingBasisQuantity &&
+    pricingBasisQuantity.type === perPackageQuantity.type &&
+    pricingBasisQuantity.amount > 0
+  ) {
+    const sameWeightRetailPrice =
+      Number(packageQuote?.retailComparablePrice || 0) *
+      (perPackageQuantity.amount / pricingBasisQuantity.amount);
+    const sameWeightRecommendedPrice =
+      Number(packageQuote?.recommendedSalePrice || 0) *
+      (perPackageQuantity.amount / pricingBasisQuantity.amount);
+
+    if (
+      Number.isFinite(sameWeightRetailPrice) &&
+      sameWeightRetailPrice > 0 &&
+      Number.isFinite(sameWeightRecommendedPrice) &&
+      sameWeightRecommendedPrice > 0
+    ) {
+      salePrice = floorMoneyToHundred(
+        (sameWeightRetailPrice + sameWeightRecommendedPrice) / 2
+      );
+    } else if (Number.isFinite(sameWeightRetailPrice) && sameWeightRetailPrice > 0) {
+      salePrice = floorMoneyToHundred(sameWeightRetailPrice);
+    } else if (
+      Number.isFinite(sameWeightRecommendedPrice) &&
+      sameWeightRecommendedPrice > 0
+    ) {
+      salePrice = floorMoneyToHundred(sameWeightRecommendedPrice);
+    }
+  }
+
+  return {
+    packagedWeight: packagedWeightValue,
+    salePrice,
+    saleStatus: 'SELLING',
+  };
 }
 
 function resolveAdminOrderDisplayStatus(order) {
@@ -262,8 +798,8 @@ function validatePurchaseBatchForm(purchaseForm, categories, imageCount) {
     return '유효한 카테고리를 선택해주세요.';
   }
 
-  if (!String(purchaseForm.productName || '').trim()) {
-    return '품목명을 입력해주세요.';
+  if (!String(purchaseForm.referenceItemCode || '').trim()) {
+    return '시세 품목을 선택해주세요.';
   }
 
   if (!String(purchaseForm.purchaseUnit || '').trim()) {
@@ -1147,7 +1683,7 @@ function LegacyPurchasePage({
     <>
       <AdminPageHeader
         title="매입 / 소분 관리"
-        description="농산물 원물 매입과 소분 작업, 재고 반영을 관리하는 화면"
+        description="원물 매입과 소분 작업, 재고 반영을 관리하는 화면"
       />
 
       <section className="admin-grid admin-grid--split">
@@ -1556,12 +2092,14 @@ function PurchasePage({
   products,
   purchases,
   packageHistories,
+  purchaseReferenceItems,
   selectedBatchNo,
   purchaseForm,
   packageForm,
   purchaseQuote,
   purchaseImagePreviews,
   onSelectBatch,
+  onPurchaseReferenceChange,
   onPurchaseFormChange,
   onPackageFormChange,
   onAutofillPurchaseQuote,
@@ -1578,6 +2116,12 @@ function PurchasePage({
   const selectedBatchProduct = products.find((product) => product.productNo === selectedBatch?.productNo) || null;
   const linkedProductPreviews = selectedBatchProduct ? buildProductImagePreviews(selectedBatchProduct) : [];
   const needsLegacyProductLink = Boolean(selectedBatch && !selectedBatch.productNo);
+  const selectedPurchaseCategoryName =
+    categories.find((category) => String(category.categoryNo) === String(purchaseForm.categoryNo))
+      ?.categoryName || '';
+  const filteredPurchaseReferenceItems = selectedPurchaseCategoryName
+    ? purchaseReferenceItems.filter((item) => item.categoryName === selectedPurchaseCategoryName)
+    : [];
 
   return (
     <>
@@ -1591,6 +2135,22 @@ function PurchasePage({
           <h2>매입 등록</h2>
           <div className="admin-form-grid">
             <label>
+              <span>시세 품목</span>
+              <select
+                name="referenceItemCode"
+                value={purchaseForm.referenceItemCode}
+                onChange={onPurchaseReferenceChange}
+                disabled={!selectedPurchaseCategoryName}
+              >
+                <option value="">선택</option>
+                {filteredPurchaseReferenceItems.map((item) => (
+                  <option key={item.itemCode} value={item.itemCode}>
+                    {item.displayLabel || item.productName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
               <span>카테고리</span>
               <select name="categoryNo" value={purchaseForm.categoryNo} onChange={onPurchaseFormChange}>
                 <option value="">선택</option>
@@ -1601,11 +2161,15 @@ function PurchasePage({
                 ))}
               </select>
             </label>
-            <label><span>품목명</span><input name="productName" value={purchaseForm.productName} onChange={onPurchaseFormChange} onBlur={() => {
-              if (String(purchaseForm.productName || '').trim()) {
-                onAutofillPurchaseQuote();
-              }
-            }} /></label>
+            <label>
+              <span>품목명</span>
+              <input
+                name="productName"
+                value={purchaseForm.productName}
+                readOnly
+                placeholder="시세 품목을 선택하면 자동 입력됩니다."
+              />
+            </label>
             <label><span>공급처</span><input name="supplierName" value={purchaseForm.supplierName} onChange={onPurchaseFormChange} /></label>
             <label><span>매입 수량</span><input name="purchaseQty" value={purchaseForm.purchaseQty} onChange={onPurchaseFormChange} /></label>
             <label><span>단위</span><input name="purchaseUnit" value={purchaseForm.purchaseUnit} onChange={onPurchaseFormChange} /></label>
@@ -1622,7 +2186,10 @@ function PurchasePage({
               className="admin-action admin-action--line"
               onMouseDown={(event) => event.preventDefault()}
               onClick={onAutofillPurchaseQuote}
-              disabled={quotingPurchase || !String(purchaseForm.productName || '').trim()}
+              disabled={
+                quotingPurchase
+                || !String(purchaseForm.referenceItemCode || '').trim()
+              }
             >
               {quotingPurchase ? '시세 조회 중...' : '시세로 자동 채움'}
             </button>
@@ -1634,19 +2201,21 @@ function PurchasePage({
                 {purchaseQuote.matchedItemName} · 기준일 {purchaseQuote.snapshotDate} · 계산 기준{' '}
                 {purchaseQuote.priceBasisUnit || '1kg'}
               </div>
-              <div className="admin-muted">
-                도매 원시세 {formatAdminCurrency(purchaseQuote.wholesaleSourcePrice)} ({purchaseQuote.wholesaleSourceUnit || purchaseQuote.snapshotUnit} 기준)
-                {hasAdminValue(purchaseQuote.wholesaleAvgPrice) ? (
-                  <> · {purchaseQuote.wholesalePriceBasisUnit || purchaseQuote.priceBasisUnit || '1kg'} 환산 {formatAdminCurrency(purchaseQuote.wholesaleAvgPrice)}</>
-                ) : null}
-              </div>
+              {hasAdminValue(purchaseQuote.wholesaleSourcePrice) ? (
+                <div className="admin-muted">
+                  도매 원시세 {formatAdminCurrency(purchaseQuote.wholesaleSourcePrice)} ({purchaseQuote.wholesaleSourceUnit || purchaseQuote.snapshotUnit} 기준)
+                  {hasAdminValue(purchaseQuote.wholesaleAvgPrice) ? (
+                    <> · {purchaseQuote.wholesalePriceBasisUnit || purchaseQuote.priceBasisUnit || '1kg'} 환산 {formatAdminCurrency(purchaseQuote.wholesaleAvgPrice)}</>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="admin-muted">
                 기준 단위 {purchaseQuote.snapshotUnit} · 자동 입력 {purchaseQuote.purchaseQty}
                 {purchaseQuote.purchaseUnit}
                 {hasAdminValue(purchaseQuote.retailSourcePrice) ? (
                   <>
                     {' '}
-                    · 소매 원시세 {formatAdminCurrency(purchaseQuote.retailSourcePrice)}
+                    · {purchaseQuote.quoteSource === 'RETAIL_FALLBACK' ? '기준 시세' : '소매 원시세'} {formatAdminCurrency(purchaseQuote.retailSourcePrice)}
                     {purchaseQuote.retailSnapshotUnit ? ` (${purchaseQuote.retailSnapshotUnit} 기준)` : ''}
                   </>
                 ) : null}
@@ -1833,6 +2402,7 @@ function AdminApp() {
   const [users, setUsers] = useState([]);
   const [purchases, setPurchases] = useState([]);
   const [packageHistories, setPackageHistories] = useState([]);
+  const [purchaseReferenceItems, setPurchaseReferenceItems] = useState([]);
   const [banners, setBanners] = useState([]);
   const [recipeMappings, setRecipeMappings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1852,6 +2422,7 @@ function AdminApp() {
   const [productImagePreviews, setProductImagePreviews] = useState([]);
   const [purchaseForm, setPurchaseForm] = useState(EMPTY_PURCHASE_FORM);
   const [purchaseQuote, setPurchaseQuote] = useState(null);
+  const [packageQuote, setPackageQuote] = useState(null);
   const [purchaseImageFiles, setPurchaseImageFiles] = useState([]);
   const [purchaseImagePreviews, setPurchaseImagePreviews] = useState([]);
   const [packageForm, setPackageForm] = useState(EMPTY_PACKAGE_FORM);
@@ -1862,6 +2433,7 @@ function AdminApp() {
   const [savingPurchase, setSavingPurchase] = useState(false);
   const [savingPackage, setSavingPackage] = useState(false);
   const [quotingPurchase, setQuotingPurchase] = useState(false);
+  const [, setLoadingPackageQuote] = useState(false);
   const [syncingRecipes, setSyncingRecipes] = useState(false);
 
   useEffect(() => {
@@ -1893,6 +2465,7 @@ function AdminApp() {
         nextUsers,
         nextPurchases,
         nextPackageHistories,
+        nextPurchaseReferenceItems,
         nextBanners,
         nextRecipeMappings,
       ] = await Promise.all([
@@ -1902,6 +2475,7 @@ function AdminApp() {
         fetchAdminUsers(),
         fetchAdminPurchases(),
         fetchAdminPackageHistories(),
+        fetchAdminPurchaseReferenceItems(),
         fetchAdminBanners(),
         fetchAdminRecipeMappings(),
       ]);
@@ -1912,6 +2486,7 @@ function AdminApp() {
       setUsers(nextUsers);
       setPurchases(nextPurchases);
       setPackageHistories(nextPackageHistories);
+      setPurchaseReferenceItems(nextPurchaseReferenceItems);
       setBanners(nextBanners);
       setRecipeMappings(nextRecipeMappings);
       if (!selectedProductNo && nextProducts.length) {
@@ -1983,6 +2558,82 @@ function AdminApp() {
     () => users.find((user) => user.userNo === selectedUserNo) || null,
     [users, selectedUserNo]
   );
+
+  const currentBatch = useMemo(
+    () => purchases.find((purchase) => purchase.batchNo === selectedBatchNo) || null,
+    [purchases, selectedBatchNo]
+  );
+
+  const normalizedPurchaseReferenceItems = useMemo(
+    () => normalizeAdminPurchaseReferenceItems(purchaseReferenceItems, categories),
+    [purchaseReferenceItems, categories]
+  );
+
+  useEffect(() => {
+    if (!adminMode || !currentBatch?.productName) {
+      setPackageQuote(null);
+      return;
+    }
+
+    let ignore = false;
+
+    async function loadPackageQuote() {
+      setLoadingPackageQuote(true);
+
+      try {
+        const nextPackageQuote = await fetchAdminPurchaseQuote(currentBatch.productName);
+        if (!ignore) {
+          setPackageQuote(nextPackageQuote);
+        }
+      } catch (error) {
+        if (!ignore) {
+          setPackageQuote(null);
+        }
+      } finally {
+        if (!ignore) {
+          setLoadingPackageQuote(false);
+        }
+      }
+    }
+
+    loadPackageQuote();
+    return () => {
+      ignore = true;
+    };
+  }, [adminMode, currentBatch]);
+
+  useEffect(() => {
+    if (!currentBatch) {
+      setPackageForm(EMPTY_PACKAGE_FORM);
+      return;
+    }
+
+    setPackageForm((current) => {
+      const nextForm = {
+        ...current,
+        productNo: currentBatch.productNo ? String(currentBatch.productNo) : current.productNo,
+      };
+
+      if (Number(current.packagedQty) > 0) {
+        const autoDefaults = calculateAutoPackageDefaults(
+          currentBatch,
+          packageQuote,
+          current.packagedQty
+        );
+        if (autoDefaults?.packagedWeight != null) {
+          nextForm.packagedWeight = formatDecimalInput(autoDefaults.packagedWeight, 2);
+        }
+        if (autoDefaults?.salePrice != null) {
+          nextForm.salePrice = formatDecimalInput(autoDefaults.salePrice, 0);
+        }
+        if (autoDefaults?.saleStatus) {
+          nextForm.saleStatus = autoDefaults.saleStatus;
+        }
+      }
+
+      return nextForm;
+    });
+  }, [currentBatch, packageQuote]);
 
   useEffect(() => {
     if (currentProduct) {
@@ -2080,6 +2731,11 @@ function AdminApp() {
         [name]: value,
       };
 
+      if (name === 'categoryNo') {
+        nextForm.referenceItemCode = '';
+        nextForm.productName = '';
+      }
+
       if (purchaseQuote && (name === 'purchaseQty' || name === 'purchaseUnit')) {
         const nextPurchasePrice = calculatePurchasePriceFromQuote(
           purchaseQuote,
@@ -2094,15 +2750,47 @@ function AdminApp() {
       return nextForm;
     });
 
-    if (name === 'productName') {
+    if (name === 'productName' || name === 'referenceItemCode' || name === 'categoryNo') {
       setPurchaseQuote(null);
     }
   }
 
-  async function handleAutofillPurchaseQuote() {
-    const productName = String(purchaseForm.productName || '').trim();
-    if (!productName) {
-      setActionError('품목명을 입력한 뒤 시세 자동 채움을 눌러주세요.');
+  function handlePurchaseReferenceChange(event) {
+    const referenceItemCode = String(event.target.value || '').trim();
+    const selectedReferenceItem = normalizedPurchaseReferenceItems.find(
+      (item) => String(item.itemCode) === referenceItemCode
+    ) || null;
+    const matchedCategory = selectedReferenceItem?.categoryName
+      ? categories.find((category) => category.categoryName === selectedReferenceItem.categoryName) || null
+      : null;
+
+    setActionError('');
+    setActionSuccess('');
+    setPurchaseQuote(null);
+    setPurchaseForm((current) => ({
+      ...current,
+      referenceItemCode,
+      productName: selectedReferenceItem?.productName || '',
+      categoryNo: matchedCategory ? String(matchedCategory.categoryNo) : current.categoryNo,
+    }));
+
+    if (selectedReferenceItem) {
+      handleAutofillPurchaseQuote(
+        selectedReferenceItem.productName,
+        selectedReferenceItem.itemCode,
+        selectedReferenceItem
+      );
+    }
+  }
+
+  async function handleAutofillPurchaseQuote(productNameOverride, itemCodeOverride, referenceItemOverride) {
+    const productName = String(productNameOverride ?? purchaseForm.productName ?? '').trim();
+    const itemCode = String(itemCodeOverride ?? purchaseForm.referenceItemCode ?? '').trim();
+    const selectedReferenceItem = referenceItemOverride
+      || normalizedPurchaseReferenceItems.find((item) => String(item.itemCode) === itemCode)
+      || null;
+    if (!productName && !itemCode) {
+      setActionError('시세 품목을 선택한 뒤 시세 자동 채움을 눌러주세요.');
       setActionSuccess('');
       return;
     }
@@ -2112,7 +2800,24 @@ function AdminApp() {
     setActionSuccess('');
 
     try {
-      const quote = await fetchAdminPurchaseQuote(productName);
+      let quote = null;
+
+      try {
+        quote = await fetchAdminPurchaseQuote(productName, itemCode);
+      } catch (quoteError) {
+        if (!selectedReferenceItem || !isAdminCatalogReferenceItem(selectedReferenceItem.itemCode)) {
+          throw quoteError;
+        }
+
+        const retailPriceList = await fetchAdminRetailPriceList(selectedReferenceItem.productName, 200);
+        const retailSnapshot = findAdminRetailFallbackSnapshot(selectedReferenceItem, retailPriceList);
+        if (!retailSnapshot) {
+          throw quoteError;
+        }
+
+        quote = buildAdminRetailFallbackQuote(selectedReferenceItem, retailSnapshot);
+      }
+
       setPurchaseQuote(quote);
       setPurchaseForm((current) => ({
         ...current,
@@ -2123,7 +2828,9 @@ function AdminApp() {
           quote.purchasePrice == null ? current.purchasePrice : formatDecimalInput(quote.purchasePrice, 2),
       }));
       setActionSuccess(
-        `${quote.matchedItemName || productName} 최신 도매 시세를 기준으로 매입 정보를 자동 입력했습니다.`
+        quote.quoteSource === 'RETAIL_FALLBACK'
+          ? `${quote.matchedItemName || productName} 소매 시세를 기준으로 매입 정보를 자동 입력했습니다.`
+          : `${quote.matchedItemName || productName} 최신 도매 시세를 기준으로 매입 정보를 자동 입력했습니다.`
       );
     } catch (error) {
       setPurchaseQuote(null);
@@ -2137,10 +2844,27 @@ function AdminApp() {
     const { name, value } = event.target;
     setActionError('');
     setActionSuccess('');
-    setPackageForm((current) => ({
-      ...current,
-      [name]: value,
-    }));
+    setPackageForm((current) => {
+      const nextForm = {
+        ...current,
+        [name]: value,
+      };
+
+      if (name === 'packagedQty') {
+        const autoDefaults = calculateAutoPackageDefaults(currentBatch, packageQuote, value);
+        if (autoDefaults?.packagedWeight != null) {
+          nextForm.packagedWeight = formatDecimalInput(autoDefaults.packagedWeight, 2);
+        }
+        if (autoDefaults?.salePrice != null) {
+          nextForm.salePrice = formatDecimalInput(autoDefaults.salePrice, 0);
+        }
+        if (autoDefaults?.saleStatus) {
+          nextForm.saleStatus = autoDefaults.saleStatus;
+        }
+      }
+
+      return nextForm;
+    });
   }
 
   async function handleSaveProduct() {
@@ -2357,8 +3081,9 @@ function AdminApp() {
     setActionSuccess('');
 
     try {
+      const { referenceItemCode, ...purchasePayload } = purchaseForm;
       const savedBatch = await createAdminPurchaseBatch({
-        ...purchaseForm,
+        ...purchasePayload,
         categoryNo: Number(purchaseForm.categoryNo),
         purchaseQty: Number(purchaseForm.purchaseQty),
         purchasePrice: Number(purchaseForm.purchasePrice),
@@ -2602,12 +3327,14 @@ function AdminApp() {
               products={products}
               purchases={purchases}
               packageHistories={packageHistories}
+              purchaseReferenceItems={normalizedPurchaseReferenceItems}
               selectedBatchNo={selectedBatchNo}
               purchaseForm={purchaseForm}
               packageForm={packageForm}
               purchaseQuote={purchaseQuote}
               purchaseImagePreviews={purchaseImagePreviews}
               onSelectBatch={setSelectedBatchNo}
+              onPurchaseReferenceChange={handlePurchaseReferenceChange}
               onPurchaseFormChange={handlePurchaseFormChange}
               onPackageFormChange={handlePackageFormChange}
               onAutofillPurchaseQuote={handleAutofillPurchaseQuote}
@@ -2636,3 +3363,4 @@ function AdminApp() {
 }
 
 export default AdminApp;
+

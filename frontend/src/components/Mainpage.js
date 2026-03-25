@@ -12,8 +12,8 @@ import "../styles/recommend.css";
 const CATEGORY_SECTIONS = [
   {
     key: "seasonal",
-    label: "제철 추천",
-    description: "지금 가장 맛있고 신선한 제철 농산물입니다.",
+    label: "제철",
+    description: "지금 가장 맛있고 신선한 제철 상품입니다.",
     href: "#/products?tag=SEASONAL",
     matches(product) {
       return product?.isSeasonal === "Y";
@@ -22,7 +22,7 @@ const CATEGORY_SECTIONS = [
   {
     key: "fruit",
     label: "과일",
-    description: "가볍게 고르기 좋은 달콤한 과일입니다.",
+    description: "간식이나 디저트로 고르기 좋은 과일입니다.",
     href: "#/products?category=과일",
     matches(product) {
       return matchesCategory(product, "과일");
@@ -38,9 +38,45 @@ const CATEGORY_SECTIONS = [
     },
   },
   {
+    key: "meat",
+    label: "육류",
+    description: "소고기, 돼지고기, 닭고기처럼 단백질이 필요한 식재료입니다.",
+    href: "#/products?category=육류",
+    matches(product) {
+      return matchesCategory(product, "육류");
+    },
+  },
+  {
+    key: "dairy",
+    label: "유제품",
+    description: "우유, 치즈처럼 바로 쓰기 좋은 유제품입니다.",
+    href: "#/products?category=유제품",
+    matches(product) {
+      return matchesCategory(product, "유제품");
+    },
+  },
+  {
+    key: "processed",
+    label: "가공식품",
+    description: "두부, 장류처럼 바로 쓰기 좋은 가공식품입니다.",
+    href: "#/products?category=가공식품",
+    matches(product) {
+      return matchesCategory(product, "가공식품");
+    },
+  },
+  {
+    key: "egg",
+    label: "달걀",
+    description: "반찬과 베이킹에 두루 쓰이는 달걀 상품입니다.",
+    href: "#/products?category=달걀",
+    matches(product) {
+      return matchesCategory(product, "달걀");
+    },
+  },
+  {
     key: "grain",
     label: "곡물",
-    description: "든든하게 채우기 좋은 곡물과 잡곡입니다.",
+    description: "한 끼를 든든하게 채워주는 곡물과 잡곡입니다.",
     href: "#/products?category=곡물",
     matches(product) {
       return matchesCategory(product, "곡물");
@@ -99,11 +135,27 @@ function matchesCategory(product, categoryLabel) {
   }
 
   if (categoryLabel === "채소") {
-    return /채소|양파|대파|오이|호박|감자|시금치|배추|무|상추|깻잎|열무/i.test(source);
+    return /채소|양파|대파|오이|호박|감자|시금치|배추|무|상추|깻잎|열무|브로콜리|새송이|표고|느타리|팽이/i.test(source);
+  }
+
+  if (categoryLabel === "육류") {
+    return /육류|소고기|쇠고기|한우|돼지|돼지고기|삼겹살|목심|갈비|안심|등심|설도|양지|닭|닭고기|육계|절단육/i.test(source);
+  }
+
+  if (categoryLabel === "유제품") {
+    return /유제품|우유|치즈|버터|요거트|생크림|두유/i.test(source);
+  }
+
+  if (categoryLabel === "가공식품") {
+    return /가공식품|두부|순두부|연두부|즉석밥|김치|고추장|된장|간장|콩나물|어묵|만두/i.test(source);
+  }
+
+  if (categoryLabel === "달걀") {
+    return /달걀|계란|알/i.test(source);
   }
 
   if (categoryLabel === "곡물") {
-    return /곡물|쌀|보리|콩|옥수수|잡곡/i.test(source);
+    return /곡물|쌀|보리|현미|잡곡|콩|밀|옥수수|귀리/i.test(source);
   }
 
   if (categoryLabel === "버섯") {
@@ -479,8 +531,8 @@ export default function MainPage({ authUser }) {
       {
         key: "recipe",
         eyebrow: "Recipe Match",
-        title: "인기 농산물 기반 추천 레시피",
-        desc: "오늘 많이 보는 농산물과 연결된 레시피를 바로 보고 식탁 아이디어까지 이어집니다.",
+        title: "인기 품목 기반 추천 레시피",
+        desc: "오늘 많이 보는 품목과 연결된 레시피를 바로 보고 식탁 아이디어까지 이어집니다.",
         primaryLabel: "레시피 보러가기",
         primaryHref: "#/recipes",
         secondaryLabel: "추천 레시피 보기",
@@ -524,8 +576,10 @@ export default function MainPage({ authUser }) {
             "",
           sort: "RECOMMENDED",
         }),
-        eyebrow: "인기 검색 농산물",
-        title: "요즘 많이 찾는 상품이에요",
+        eyebrow: "인기 검색 품목",
+        title: recommendSummary.popularSearchList.length
+          ? `${recommendSummary.popularSearchList[0].keyword} 관심도가 오르고 있어요`
+          : "지금 많이 찾는 품목을 먼저 확인하세요",
         meta: popularLead?.product?.productName || "검색 흐름과 연결된 대표 상품",
         badge: popularLead?.badges?.[0] || "인기",
       },
@@ -551,12 +605,12 @@ export default function MainPage({ authUser }) {
             getDiscountRate(product) > 0
               ? `${getDiscountRate(product).toFixed(1)}% 절약`
               : "대표 추천",
-          summary: `${product?.categoryName || "농산물"} 대표 상품으로 먼저 보기 좋습니다.`,
+          summary: `${product?.categoryName || "품목"} 대표 상품으로 먼저 보기 좋습니다.`,
           typeLabel: "추천",
         })),
       },
       popular: {
-        title: "지금 많이 찾는 농산물",
+        title: "지금 많이 찾는 품목",
         subtitle: "검색 흐름과 현재 판매 후보를 함께 반영해 관심이 높은 상품을 골랐습니다.",
         items: recommendSummary.popularProductList,
       },
@@ -750,8 +804,8 @@ export default function MainPage({ authUser }) {
           <RecommendSection
             id="main-recommended-recipes"
             eyebrow="RECIPE / MATCH"
-            title="이 농산물, 이렇게 먹어보세요"
-            subtitle="인기 농산물과 연결되는 레시피를 카드로 묶어 바로 볼 수 있게 구성했습니다."
+            title="이 품목, 이렇게 먹어보세요"
+            subtitle="인기 품목과 연결되는 레시피를 카드로 묶어 바로 볼 수 있게 구성했습니다."
             actionLabel="레시피 전체 보기"
             actionType="ghost"
             onAction={() => openHash("#/recipes")}
@@ -815,7 +869,7 @@ export default function MainPage({ authUser }) {
             ) : (
               <div className="recommend-section-empty">
                 <strong>추천할 레시피가 아직 없습니다.</strong>
-                <p>레시피 데이터가 더 모이면 인기 농산물과 연결된 추천을 보여드릴게요.</p>
+                <p>레시피 데이터가 더 모이면 인기 품목과 연결된 추천을 보여드릴게요.</p>
               </div>
             )}
           </RecommendSection>
@@ -855,3 +909,4 @@ export default function MainPage({ authUser }) {
     </div>
   );
 }
+

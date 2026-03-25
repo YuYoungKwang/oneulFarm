@@ -582,7 +582,7 @@ function buildHighlightList({
       description: topPopularProduct
         ? topPopularProduct.summary
         : "네이버 데이터랩 검색 흐름을 반영합니다.",
-      label: "인기 검색 농산물",
+      label: "인기 검색 품목",
       tone: "default",
       value: topPopularProduct ? topPopularProduct.product.productName : "인기 집계 중",
     },
