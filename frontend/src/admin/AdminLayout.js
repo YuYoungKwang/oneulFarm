@@ -1,3 +1,4 @@
+import logo from '../assets/logo.png';
 import { leaveAdminPage } from './adminSession';
 
 const MENU_ITEMS = [
@@ -26,7 +27,9 @@ function AdminLayout({
             className="admin-app__brand"
             onClick={() => navigateTo('#/admin')}
           >
-            <span className="admin-app__logo" />
+            <span className="admin-app__logo" aria-hidden="true">
+              <img src={logo} alt="" />
+            </span>
             <span>oneulFarm</span>
           </button>
 
