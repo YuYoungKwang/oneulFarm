@@ -101,31 +101,32 @@ function hasAdminValue(value) {
   return value !== null && value !== undefined && value !== '';
 }
 
-const COUNT_UNIT_SET = new Set(['ea', 'each', '개', '포기', '단', '망', '봉', '봉지', 'pack', 'pk']);
-const VOLUME_UNIT_SET = new Set(['ml', 'milliliter', 'milliliters', 'millilitre', 'millilitres', 'l', 'liter', 'liters', 'litre', 'litres', 'ℓ', '리터']);
+const COUNT_UNIT_SET = new Set(['ea', 'each', '\uAC1C', '\uAC1C\uC785', '\uAD6C', '\uB9DD', '\uBCF4', '\uBCF4\uB530\uB9AC', 'pack', 'pk']);
+const VOLUME_UNIT_SET = new Set(['ml', 'milliliter', 'milliliters', 'millilitre', 'millilitres', 'l', 'liter', 'liters', 'litre', 'litres', '\u2113', '\uB9AC\uD130']);
 
-const ADMIN_SUPPORTED_CATEGORY_NAMES = ['채소', '과일', '버섯', '육류', '유제품', '달걀', '가공식품'];
-const ADMIN_FRUIT_KEYWORDS = ['사과', '배/', '복숭아', '포도', '감귤', '단감', '바나나', '참다래', '수박', '참외', '딸기', '멜론', '오렌지', '망고', '레몬', '파인애플', '체리', '키위'];
-const ADMIN_FRUIT_EXACT_NAMES = new Set(['사과', '배', '복숭아', '포도', '감귤', '단감', '바나나', '참다래', '수박', '참외', '딸기', '멜론', '오렌지', '망고', '레몬', '파인애플', '체리', '키위']);
-const ADMIN_MUSHROOM_KEYWORDS = ['버섯', '송이'];
-const ADMIN_DAIRY_KEYWORDS = ['우유', '치즈', '요거트', '요구르트', '버터', '분유', '생크림'];
-const ADMIN_EGG_KEYWORDS = ['계란', '달걀', '특란', '왕란'];
-const ADMIN_MEAT_KEYWORDS = ['쇠고기', '소 ', '소/', '돼지', '삼겹', '목심', '갈비', '안심', '등심', '양지', '설도', '앞다리', '가슴살', '북채', '토종닭', '육계', '닭 '];
-const ADMIN_PROCESSED_KEYWORDS = ['김치', '고추장', '된장', '간장', '두부', '순두부', '연두부', '즉석밥', '맛김', '콩나물'];
-const ADMIN_UNSUPPORTED_REFERENCE_KEYWORDS = ['가리비', '갈치', '고등어', '굴/', '김/', '다시마', '멸치', '미역', '오징어', '새우', '전복', '북어', '삼치', '명태', '홍합', '쌀', '찹쌀', '콩/', '팥/', '녹두', '메밀', '들깨', '참깨'];
+const ADMIN_SUPPORTED_CATEGORY_NAMES = ['\uCC44\uC18C', '\uACFC\uC77C', '\uBC84\uC12F', '\uC721\uB958', '\uC720\uC81C\uD488', '\uB2EC\uAC40', '\uAC00\uACF5\uC2DD\uD488'];
+const ADMIN_DISABLED_PURCHASE_CATEGORY_NAMES = new Set(['\uAC00\uACF5\uC2DD\uD488', '\uC720\uC81C\uD488']);
+const ADMIN_FRUIT_KEYWORDS = ['\uC0AC\uACFC', '\uBC30', '\uBCF5\uC22D\uC544', '\uD3EC\uB3C4', '\uAC10\uADE4', '\uB2E8\uAC10', '\uBC14\uB098\uB098', '\uCC38\uB2E4\uB798', '\uCC38\uC678', '\uB538\uAE30', '\uBA5C\uB860', '\uC624\uB80C\uC9C0', '\uB9DD\uACE0', '\uC790\uB450', '\uD30C\uC778\uC560\uD50C', '\uCCB4\uB9AC', '\uD0A4\uC704', '\uC218\uBC15'];
+const ADMIN_FRUIT_EXACT_NAMES = new Set(ADMIN_FRUIT_KEYWORDS);
+const ADMIN_MUSHROOM_KEYWORDS = ['\uBC84\uC12F', '\uC1A1\uC774'];
+const ADMIN_DAIRY_KEYWORDS = ['\uC6B0\uC720', '\uCE58\uC988', '\uC694\uAC70\uD2B8', '\uC694\uAD6C\uB974\uD2B8', '\uBC84\uD130', '\uBD84\uC720', '\uC0DD\uD06C\uB9BC'];
+const ADMIN_EGG_KEYWORDS = ['\uACC4\uB780', '\uB2EC\uAC40', '\uD2B9\uB780', '\uC655\uB780'];
+const ADMIN_MEAT_KEYWORDS = ['\uC1E0\uACE0\uAE30', '\uD55C\uC6B0', '\uC18C\uACE0\uAE30', '\uB3FC\uC9C0', '\uB2ED', '\uC624\uB9AC', '\uB4F1\uC2EC', '\uC548\uC2EC', '\uC0BC\uACB9\uC0B4', '\uAC08\uBE44', '\uBAA9\uC2EC', '\uC591\uC9C0', '\uC124\uB3C4', '\uC55E\uB2E4\uB9AC', '\uAC00\uC2B4\uC0B4', '\uBD81\uCC44', '\uD1A0\uC885\uB2ED', '\uC721\uACC4'];
+const ADMIN_PROCESSED_KEYWORDS = ['\uAE40\uCE58', '\uACE0\uCD94\uC7A5', '\uB41C\uC7A5', '\uAC04\uC7A5', '\uB450\uBD80', '\uC21C\uB450\uBD80', '\uC5F0\uB450\uBD80', '\uC989\uC11D\uBC25', '\uB9DB\uAE40', '\uCF69\uB098\uBB3C'];
+const ADMIN_UNSUPPORTED_REFERENCE_KEYWORDS = ['\uAC00\uB9AC\uBE44', '\uAC08\uCE58', '\uACE0\uB4F1\uC5B4', '\uAD74', '\uAE40/', '\uB2E4\uC2DC\uB9C8', '\uBA78\uCE58', '\uBBF8\uC5ED', '\uC624\uC9D5\uC5B4', '\uC0C8\uC6B0', '\uBCD1\uC5B4', '\uBD81\uC5B4', '\uAF41\uCE58', '\uBA85\uD0DC', '\uCC38\uAE68', '\uCF69', '\uC300', '\uCC39\uC300', '\uB179\uB450', '\uBA54\uBC00', '\uB4E4\uAE68'];
 const ADMIN_REFERENCE_ALIAS_MAP = {
   'catalog:200:214:01|02': [
-    { key: 'red-lettuce', productName: '적상추', quoteName: '상추' },
-    { key: 'green-lettuce', productName: '청상추', quoteName: '상추' },
+    { key: 'red-lettuce', productName: '\uC801\uC0C1\uCD94', quoteName: '\uC0C1\uCD94' },
+    { key: 'green-lettuce', productName: '\uCCAD\uC0C1\uCD94', quoteName: '\uC0C1\uCD94' },
   ],
   'catalog:200:223:01|02|03': [
-    { key: 'spined-cucumber', productName: '가시오이', quoteName: '오이' },
-    { key: 'dadagi-cucumber', productName: '다다기오이', quoteName: '오이' },
-    { key: 'cheong-cucumber', productName: '취청오이', quoteName: '오이' },
+    { key: 'spined-cucumber', productName: '\uAC00\uC2DC\uC624\uC774', quoteName: '\uC624\uC774' },
+    { key: 'dadagi-cucumber', productName: '\uB2E4\uB2E4\uAE30\uC624\uC774', quoteName: '\uC624\uC774' },
+    { key: 'cheong-cucumber', productName: '\uCDE8\uCCAD\uC624\uC774', quoteName: '\uC624\uC774' },
   ],
   'catalog:200:224:01|02': [
-    { key: 'green-zucchini', productName: '애호박', quoteName: '호박' },
-    { key: 'zucchini', productName: '쥬키니', quoteName: '호박' },
+    { key: 'green-zucchini', productName: '\uC560\uD638\uBC15', quoteName: '\uD638\uBC15' },
+    { key: 'zucchini', productName: '\uC96C\uD0A4\uB2C8', quoteName: '\uD638\uBC15' },
   ],
 };
 
@@ -301,35 +302,35 @@ function resolveAdminReferenceCategoryName(item) {
     return '';
   }
   if (itemCategoryCode === '800' || containsAnyTextKeyword(normalizedProductName, ADMIN_PROCESSED_KEYWORDS)) {
-    return '가공식품';
+    return '\uAC00\uACF5\uC2DD\uD488';
   }
   if (containsAnyTextKeyword(normalizedProductName, ADMIN_DAIRY_KEYWORDS)) {
-    return '유제품';
+    return '\uC720\uC81C\uD488';
   }
   if (containsAnyTextKeyword(normalizedProductName, ADMIN_EGG_KEYWORDS)) {
-    return '달걀';
+    return '\uB2EC\uAC40';
   }
   if (itemCategoryCode === '500' || containsAnyTextKeyword(normalizedProductName, ADMIN_MEAT_KEYWORDS)) {
-    return '육류';
+    return '\uC721\uB958';
   }
   if (itemCategoryCode === '300' || containsAnyTextKeyword(normalizedProductName, ADMIN_MUSHROOM_KEYWORDS)) {
-    return '버섯';
+    return '\uBC84\uC12F';
   }
   if (
     ADMIN_FRUIT_EXACT_NAMES.has(normalizedProductName)
     || itemCategoryCode === '400'
     || containsAnyTextKeyword(rawProductName, ADMIN_FRUIT_KEYWORDS)
   ) {
-    return '과일';
+    return '\uACFC\uC77C';
   }
   if (itemCategoryCode === '100' || itemCategoryCode === '200') {
-    return '채소';
+    return '\uCC44\uC18C';
   }
-  if (ADMIN_SUPPORTED_CATEGORY_NAMES.includes(currentCategoryName) && currentCategoryName !== '과일') {
+  if (ADMIN_SUPPORTED_CATEGORY_NAMES.includes(currentCategoryName) && currentCategoryName !== '\uACFC\uC77C') {
     return currentCategoryName;
   }
 
-  return '채소';
+  return '\uCC44\uC18C';
 }
 
 function resolveStableAdminReferenceCategoryName(item) {
@@ -555,7 +556,7 @@ function buildAdminPricingBasisFromSnapshotUnit(snapshotUnit) {
     };
   }
 
-  const displayUnit = parsedUnit.displayUnit === 'ea' ? '개' : parsedUnit.displayUnit;
+  const displayUnit = parsedUnit.displayUnit === 'ea' ? '\uAC1C' : parsedUnit.displayUnit;
   return {
     type: 'COUNT',
     amount: 1,
@@ -696,7 +697,7 @@ function buildAdminRetailFallbackQuote(referenceItem, retailSnapshot) {
     retailSnapshotUnit: snapshotUnit,
     retailComparablePrice,
     recommendedSalePrice: comparableRounded,
-    pricingNote: '도매 시세가 없어 소매 시세 기준으로 매입 단위, 수량, 가격을 자동 입력했습니다.',
+    pricingNote: '\uB3C4\uB9E4 \uC2DC\uC138\uAC00 \uC5C6\uC5B4 \uC18C\uB9E4 \uC2DC\uC138 \uAE30\uC900\uC73C\uB85C \uB9E4\uC785 \uB2E8\uC704, \uC218\uB7C9, \uAC00\uACA9\uC744 \uC790\uB3D9 \uC785\uB825\uD588\uC2B5\uB2C8\uB2E4.',
     wholesaleItemCode: null,
     retailItemCode: retailSnapshot?.itemCode || null,
   };
@@ -1079,7 +1080,7 @@ function buildProductImagePreviews(product) {
   )).map((image, index) => ({
     key: image.imageNo || `${product.productNo}-${index}`,
     imageNo: image.imageNo,
-    name: image.imageName || `상품 이미지 ${index + 1}`,
+    name: image.imageName || ('\uAE30\uC874 \uC774\uBBF8\uC9C0 ' + (index + 1)),
     previewUrl: image.imageNo ? getAdminProductImageUrl(image.imageNo) : '',
     isMain: image.isMain === 'Y',
   }));
@@ -1095,7 +1096,7 @@ function revokeProductImagePreviews(previews) {
 
 function validateAdminProductForm(productForm, categories) {
   if (!productForm.productNo) {
-    return '상품관리는 기존 상품만 수정할 수 있습니다. 매입/소분에서 먼저 상품을 생성해주세요.';
+    return '\uC0C1\uD488\uAD00\uB9AC\uC5D0\uC11C\uB294 \uAE30\uC874 \uC0C1\uD488\uB9CC \uC218\uC815\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4. \uB9E4\uC785/\uC18C\uBD84\uC5D0\uC11C \uBA3C\uC800 \uC0C1\uD488\uC744 \uC0DD\uC131\uD574\uC8FC\uC138\uC694.';
   }
 
   if (!productForm.categoryNo) {
@@ -1138,37 +1139,37 @@ function validateAdminProductForm(productForm, categories) {
 
 function validatePurchaseBatchForm(purchaseForm, categories, imageCount) {
   if (!purchaseForm.categoryNo) {
-    return '카테고리를 선택해주세요.';
+    return '\uCE74\uD14C\uACE0\uB9AC\uB97C \uC120\uD0DD\uD574\uC8FC\uC138\uC694.';
   }
 
   if (!categories.some((category) => String(category.categoryNo) === String(purchaseForm.categoryNo))) {
-    return '유효한 카테고리를 선택해주세요.';
+    return '\uC720\uD6A8\uD55C \uCE74\uD14C\uACE0\uB9AC\uB97C \uC120\uD0DD\uD574\uC8FC\uC138\uC694.';
   }
 
   if (!String(purchaseForm.referenceItemCode || '').trim()) {
-    return '시세 품목을 선택해주세요.';
+    return '\uC2DC\uC138 \uD488\uBAA9\uC744 \uC120\uD0DD\uD574\uC8FC\uC138\uC694.';
   }
 
   if (!String(purchaseForm.purchaseUnit || '').trim()) {
-    return '매입 단위를 입력해주세요.';
+    return '\uB9E4\uC785 \uB2E8\uC704\uB97C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
   }
 
   const purchaseQty = Number(purchaseForm.purchaseQty);
   if (!Number.isFinite(purchaseQty) || purchaseQty <= 0) {
-    return '매입 수량은 0보다 큰 숫자로 입력해주세요.';
+    return '\uB9E4\uC785 \uC218\uB7C9\uC740 0\uBCF4\uB2E4 \uD070 \uC22B\uC790\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
   }
 
   const purchasePrice = Number(purchaseForm.purchasePrice);
   if (!Number.isFinite(purchasePrice) || purchasePrice < 0) {
-    return '총 매입가는 0 이상 숫자로 입력해주세요.';
+    return '\uCD1D \uB9E4\uC785\uAC00\uB294 0 \uC774\uC0C1 \uC22B\uC790\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
   }
 
   if (!String(purchaseForm.purchaseDate || '').trim()) {
-    return '매입일을 입력해주세요.';
+    return '\uB9E4\uC785\uC77C\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694.';
   }
 
   if (!imageCount) {
-    return '매입 이미지는 최소 1장 이상 등록해주세요.';
+    return '\uB9E4\uC785 \uC774\uBBF8\uC9C0\uB97C \uCD5C\uC18C 1\uC7A5 \uC774\uC0C1 \uB4F1\uB85D\uD574\uC8FC\uC138\uC694.';
   }
 
   return '';
@@ -1176,30 +1177,30 @@ function validatePurchaseBatchForm(purchaseForm, categories, imageCount) {
 
 function validatePackageForm(selectedBatch, packageForm) {
   if (!selectedBatch) {
-    return '소분할 매입 배치를 먼저 선택해주세요.';
+    return '\uC18C\uBD84\uD560 \uB9E4\uC785 \uBC30\uCE58\uB97C \uBA3C\uC800 \uC120\uD0DD\uD574\uC8FC\uC138\uC694.';
   }
 
   if (!selectedBatch.productNo && !String(packageForm.productNo || '').trim()) {
-    return '연결할 상품이 없습니다. 기존 배치는 상품을 한 번 연결해주세요.';
+    return '\uC5F0\uACB0\uB41C \uC0C1\uD488\uC774 \uC5C6\uC2B5\uB2C8\uB2E4. \uAE30\uC874 \uBC30\uCE58\uC5D0 \uC0C1\uD488\uC744 \uD55C \uBC88 \uC5F0\uACB0\uD574\uC8FC\uC138\uC694.';
   }
 
   const packagedQty = Number(packageForm.packagedQty);
   if (!Number.isFinite(packagedQty) || packagedQty <= 0) {
-    return '생성 수량은 0보다 큰 숫자로 입력해주세요.';
+    return '\uC0DD\uC131 \uC218\uB7C9\uC740 0\uBCF4\uB2E4 \uD070 \uC22B\uC790\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
   }
 
   const packagedWeight = Number(packageForm.packagedWeight);
   if (!Number.isFinite(packagedWeight) || packagedWeight <= 0) {
-    return '포장 중량은 0보다 큰 숫자로 입력해주세요.';
+    return '\uD3EC\uC7A5 \uC911\uB7C9\uC740 0\uBCF4\uB2E4 \uD070 \uC22B\uC790\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
   }
 
   const salePrice = Number(packageForm.salePrice);
   if (!Number.isFinite(salePrice) || salePrice < 0) {
-    return '판매가는 0 이상 숫자로 입력해주세요.';
+    return '\uD310\uB9E4\uAC00\uB294 0 \uC774\uC0C1 \uC22B\uC790\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
   }
 
   if (!String(packageForm.saleStatus || '').trim()) {
-    return '판매 상태를 선택해주세요.';
+    return '\uD310\uB9E4 \uC0C1\uD0DC\uB97C \uC120\uD0DD\uD574\uC8FC\uC138\uC694.';
   }
 
   return '';
@@ -1279,15 +1280,15 @@ function DashboardPage({
   return (
     <>
       <AdminPageHeader
-        title="관리자 대시보드"
-        description="주문, 매출, 재고, 매입 현황을 한 번에 확인하는 운영 메인 화면"
+        title={'\uAD00\uB9AC\uC790 \uB300\uC2DC\uBCF4\uB4DC'}
+        description={'\uC8FC\uBB38, \uB9E4\uCD9C, \uC7AC\uACE0, \uB9E4\uC785 \uD604\uD669\uC744 \uD55C \uBC88\uC5D0 \uD655\uC778\uD558\uB294 \uC6B4\uC601 \uBA54\uC778 \uD654\uBA74'}
         actions={
           <>
             <button type="button" className="admin-action admin-action--line" onClick={() => (window.location.hash = '#/admin/orders')}>
-              주문 보기
+              {'\uC8FC\uBB38 \uBCF4\uAE30'}
             </button>
             <button type="button" className="admin-action admin-action--primary" onClick={() => (window.location.hash = '#/admin/products')}>
-              상품 관리
+              {'\uC0C1\uD488 \uAD00\uB9AC'}
             </button>
           </>
         }
@@ -1295,31 +1296,31 @@ function DashboardPage({
 
       <section className="admin-metrics-grid">
         <AdminMetricCard
-          label="오늘 주문 수"
+          label={'\uC624\uB298 \uC8FC\uBB38 \uC218'}
           value={formatAdminCount(todayOrders.length)}
-          helper="오늘 생성된 전체 주문"
+          helper={'\uC624\uB298 \uC0DD\uC131\uB41C \uC804\uCCB4 \uC8FC\uBB38'}
         />
         <AdminMetricCard
-          label="오늘 매출"
+          label={'\uC624\uB298 \uB9E4\uCD9C'}
           value={formatAdminCurrency(todaySales)}
-          helper="주문 기준 합계"
+          helper={'\uC8FC\uBB38 \uAE30\uC900 \uD569\uACC4'}
         />
         <AdminMetricCard
-          label="재고 부족 상품"
-          value={formatAdminCount(lowStockProducts.length, '개')}
-          helper="재고 10개 이하 상품"
+          label={'\uC7AC\uACE0 \uBD80\uC871 \uC0C1\uD488'}
+          value={formatAdminCount(lowStockProducts.length, '\uAC1C')}
+          helper={'\uC7AC\uACE0 10\uAC1C \uC774\uD558 \uC0C1\uD488'}
         />
         <AdminMetricCard
-          label="활성 회원"
+          label={'\uD65C\uC131 \uD68C\uC6D0'}
           value={formatAdminCount(activeUsers.length, '\uBA85')}
-          helper="회원 관리 테이블 기준 활성 계정"
+          helper={'\uD68C\uC6D0 \uAD00\uB9AC \uD14C\uC774\uBE14 \uAE30\uC900 \uD65C\uC131 \uACC4\uC815'}
         />
       </section>
 
       <section className="admin-grid admin-grid--3">
         <article className="admin-card admin-card--panel">
-          <h2>주간 주문 추이</h2>
-          <p className="admin-card__sub">일자별 주문 수와 매출 흐름</p>
+          <h2>{'\uC8FC\uAC04 \uC8FC\uBB38 \uCD94\uC774'}</h2>
+          <p className="admin-card__sub">{'\uC77C\uC790\uBCC4 \uC8FC\uBB38 \uC218\uC640 \uB9E4\uCD9C \uD750\uB984'}</p>
           <div className="admin-chart">
             <svg viewBox="0 0 640 260" preserveAspectRatio="none" aria-hidden="true">
               <polyline points={chartPoints} className="admin-chart__line" />
@@ -1340,45 +1341,45 @@ function DashboardPage({
         </article>
 
         <article className="admin-card admin-card--panel">
-          <h2>재고 경고</h2>
+          <h2>{'\uC7AC\uACE0 \uACBD\uACE0'}</h2>
           <div className="admin-stack">
             {lowStockProducts.slice(0, 4).map((product) => (
               <div key={product.productNo} className="admin-summary-box">
                 <strong>{product.productName}</strong>
-                <div className="admin-muted">남은 재고 {toNumber(product.stockQty, 0)}개</div>
+                <div className="admin-muted">{'\uC7AC\uACE0 '}{toNumber(product.stockQty, 0)}{'\uAC1C'}</div>
               </div>
             ))}
             {!lowStockProducts.length ? (
-              <AdminEmptyState title="재고 경고 없음" description="현재 기준 임계 재고 상품이 없습니다." />
+              <AdminEmptyState title={'\uC7AC\uACE0 \uACBD\uACE0 \uC5C6\uC74C'} description={'\uD604\uC7AC \uAE30\uC900 \uC784\uACC4 \uC7AC\uACE0 \uC0C1\uD488\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.'} />
             ) : null}
           </div>
         </article>
 
         <article className="admin-card admin-card--panel">
-          <h2>오늘 해야 할 일</h2>
+          <h2>{'\uC624\uB298 \uD574\uC57C \uD560 \uC77C'}</h2>
           <div className="admin-stack">
             <div className="admin-summary-box">
-              <strong>출고 대기</strong>
+              <strong>{'\uCD9C\uACE0 \uC608\uC815'}</strong>
               <div className="admin-muted">
                 {formatAdminCount(
                   shippingReadyCount
-                )} 출고 예정
+                )} {'\uAC74 \uCD9C\uACE0 \uB300\uAE30\uC911'}
               </div>
             </div>
             <div className="admin-summary-box">
-              <strong>매입 검수</strong>
+              <strong>{'\uD655\uC778 \uD544\uC694'}</strong>
               <div className="admin-muted">
                 {formatAdminCount(
                   pendingPurchaseCount
-                )} 확인 필요
+                )} {'\uAC74 \uB9E4\uC785 \uB300\uAE30\uC911'}
               </div>
             </div>
             <div className="admin-summary-box">
-              <strong>배너 운영</strong>
+              <strong>{'\uBC30\uB108 \uC6B4\uC601'}</strong>
               <div className="admin-muted">
-                현재 노출 배너 {formatAdminCount(
+                {'\uD604\uC7AC \uB178\uCD9C \uBC30\uB108 '}{formatAdminCount(
                   activeBannerCount,
-                  '개'
+                  '\uAC1C'
                 )}
               </div>
             </div>
@@ -1388,19 +1389,19 @@ function DashboardPage({
       <section className="admin-grid admin-grid--2">
         <article className="admin-card admin-card--panel">
           <div className="admin-section-line">
-            <h2>최근 주문</h2>
+            <h2>{'\uCD5C\uADFC \uC8FC\uBB38'}</h2>
             <button type="button" className="admin-action admin-action--soft" onClick={() => (window.location.hash = '#/admin/orders')}>
-              전체 보기
+              {'\uC804\uCCB4 \uBCF4\uAE30'}
             </button>
           </div>
           <table className="admin-table">
             <thead>
               <tr>
-                <th>주문번호</th>
-                <th>고객</th>
-                <th>상품</th>
-                <th>금액</th>
-                <th>상태</th>
+                <th>{'\uC8FC\uBB38\uBC88\uD638'}</th>
+                <th>{'\uACE0\uAC1D'}</th>
+                <th>{'\uC0C1\uD488'}</th>
+                <th>{'\uAE08\uC561'}</th>
+                <th>{'\uC0C1\uD0DC'}</th>
               </tr>
             </thead>
             <tbody>
@@ -1419,18 +1420,18 @@ function DashboardPage({
 
         <article className="admin-card admin-card--panel">
           <div className="admin-section-line">
-            <h2>매입 / 소분 현황</h2>
+            <h2>{'\uB9E4\uC785 / \uC18C\uBD84 \uD604\uD669'}</h2>
             <button type="button" className="admin-action admin-action--soft" onClick={() => (window.location.hash = '#/admin/purchase')}>
-              작업 보기
+              {'\uC791\uC5C5 \uBCF4\uAE30'}
             </button>
           </div>
           <table className="admin-table">
             <thead>
               <tr>
-                <th>배치</th>
-                <th>품목</th>
-                <th>수량</th>
-                <th>상태</th>
+                <th>{'\uBC30\uCE58'}</th>
+                <th>{'\uD488\uBAA9'}</th>
+                <th>{'\uC218\uB7C9'}</th>
+                <th>{'\uC0C1\uD0DC'}</th>
               </tr>
             </thead>
             <tbody>
@@ -1451,234 +1452,8 @@ function DashboardPage({
 }
 
 // eslint-disable-next-line no-unused-vars
-function LegacyProductsPage({
-  categories,
-  products,
-  selectedProductNo,
-  productFilter,
-  productForm,
-  productImagePreviews,
-  onSelectProduct,
-  onProductFilterChange,
-  onProductFormChange,
-  onProductImagesChange,
-  onClearProductImages,
-  onResetProductForm,
-  onRetireProduct,
-  onSaveProduct,
-  submitting,
-}) {
-  const canManageAdminRole = false;
-  const filteredProducts = products.filter((product) => {
-    if (productFilter === 'ALL') {
-      return true;
-    }
-    if (productFilter === 'LOW_STOCK') {
-      return toNumber(product.stockQty, 0) <= 10;
-    }
-    if (productFilter === 'SEASONAL') {
-      return product.isSeasonal === 'Y';
-    }
-    return product.saleStatus === productFilter;
-  });
-
-  return (
-    <>
-      <AdminPageHeader
-        title="상품 관리"
-        description="상품 등록, 수정, 재고 현황을 관리하는 화면"
-        actions={
-          <>
-            <button type="button" className="admin-action admin-action--line" onClick={onClearProductImages}>
-              엑셀 업로드
-            </button>
-            <button type="button" className="admin-action admin-action--primary" onClick={onResetProductForm}>
-              상품 등록
-            </button>
-          </>
-        }
-      />
-
-      <div className="admin-filter-row">
-        {[
-          ['ALL', '전체'],
-          ['SELLING', '판매중'],
-          ['STOP', '판매중지'],
-          ['LOW_STOCK', '재고부족'],
-          ['SEASONAL', '제철상품'],
-        ].map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            className={`admin-filter-chip ${productFilter === value ? 'is-active' : ''}`}
-            onClick={() => onProductFilterChange(value)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <section className="admin-grid admin-grid--2">
-        <article className="admin-card admin-card--panel">
-          <h2>상품 목록</h2>
-          <table className="admin-table admin-table--clickable">
-            <thead>
-              <tr>
-                <th>상품</th>
-                <th>카테고리</th>
-                <th>판매가</th>
-                <th>재고</th>
-                <th>상태</th>
-                <th>관리</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredProducts.map((product) => (
-                <tr
-                  key={product.productNo}
-                  className={product.productNo === selectedProductNo ? 'is-selected' : ''}
-                  onClick={() => onSelectProduct(product)}
-                >
-                  <td>{product.productName}</td>
-                  <td>{product.categoryName}</td>
-                  <td>{formatAdminCurrency(product.salePrice)}</td>
-                  <td>{formatAdminCount(product.stockQty, '개')}</td>
-                  <td><AdminStatusBadge status={product.saleStatus} /></td>
-                  <td className="admin-table__actions">
-                    <button
-                      type="button"
-                      className="admin-action admin-action--danger"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onRetireProduct(product);
-                      }}
-                      disabled={submitting}
-                    >
-                      영구삭제
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </article>
-
-        <article className="admin-card admin-card--panel">
-          <h2>상품 등록 / 수정</h2>
-          <div className="admin-form-grid">
-            <label>
-              <span>상품명</span>
-              <input name="productName" value={productForm.productName} onChange={onProductFormChange} />
-            </label>
-            <label>
-              <span>카테고리</span>
-              <select name="categoryNo" value={productForm.categoryNo} onChange={onProductFormChange}>
-                <option value="">선택</option>
-                {categories.map((category) => (
-                  <option key={category.categoryNo} value={category.categoryNo}>
-                    {category.categoryName}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>판매가</span>
-              <input name="salePrice" value={productForm.salePrice} onChange={onProductFormChange} />
-            </label>
-            <label>
-              <span>재고 수량</span>
-              <input name="stockQty" value={productForm.stockQty} onChange={onProductFormChange} />
-            </label>
-            <label>
-              <span>원산지</span>
-              <input name="origin" value={productForm.origin} onChange={onProductFormChange} />
-            </label>
-            <label>
-              <span>단위</span>
-              <input name="unit" value={productForm.unit} onChange={onProductFormChange} />
-            </label>
-            <label>
-              <span>포장 중량</span>
-              <input name="packageWeight" value={productForm.packageWeight} onChange={onProductFormChange} />
-            </label>
-            <label>
-              <span>판매 상태</span>
-              <select name="saleStatus" value={productForm.saleStatus} onChange={onProductFormChange}>
-                <option value="READY">준비</option>
-                <option value="SELLING">판매중</option>
-                <option value="SOLD_OUT">품절</option>
-                <option value="STOP">판매중지</option>
-              </select>
-            </label>
-            <label>
-              <span>제철 상품</span>
-              <select name="isSeasonal" value={productForm.isSeasonal} onChange={onProductFormChange}>
-                <option value="N">일반</option>
-                <option value="Y">제철</option>
-              </select>
-            </label>
-          </div>
-          <label className="admin-form-field admin-form-field--full">
-            <span>상품 설명</span>
-            <textarea name="description" value={productForm.description} onChange={onProductFormChange} />
-          </label>
-          <div className="admin-form-field admin-form-field--full">
-            <span>상품 이미지</span>
-            <label className="admin-file-upload">
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={onProductImagesChange}
-              />
-              <strong>이미지 선택</strong>
-              <small>최소 1장 필수 · 여러 장 업로드 가능</small>
-            </label>
-            <div className="admin-file-upload__hint">
-              권장 사이즈: 1200 x 1200px 이상 / 정사각형 비율 / JPG, PNG, WEBP
-            </div>
-            <div className="admin-page-actions">
-              <button type="button" className="admin-action admin-action--line" onClick={onClearProductImages}>
-                선택 이미지 초기화
-              </button>
-            </div>
-            {productImagePreviews.length ? (
-              <div className="admin-image-preview-grid">
-                {productImagePreviews.map((image, index) => (
-                  <article className="admin-image-preview" key={image.key || image.imageNo || index}>
-                    <div className="admin-image-preview__thumb">
-                      <img
-                        src={image.previewUrl}
-                        alt={image.name || `상품 이미지 ${index + 1}`}
-                      />
-                    </div>
-                    <div className="admin-image-preview__meta">
-                      <strong>{image.name || `상품 이미지 ${index + 1}`}</strong>
-                      <span>{image.isMain ? '대표 이미지' : `추가 이미지 ${index + 1}`}</span>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="admin-image-empty">
-                등록된 이미지가 없습니다. 상품 이미지는 최소 1장 이상 필요합니다.
-              </div>
-            )}
-          </div>
-          <div className="admin-page-actions admin-page-actions--end">
-            <button type="button" className="admin-action admin-action--line" disabled>
-              이미지 업로드
-            </button>
-            <button type="button" className="admin-action admin-action--soft" onClick={onResetProductForm}>
-              초기화
-            </button>
-            <button type="button" className="admin-action admin-action--primary" onClick={onSaveProduct} disabled={submitting}>
-              {submitting ? '저장 중...' : '저장'}
-            </button>
-          </div>
-        </article>
-      </section>
-    </>
-  );
+function LegacyProductsPage() {
+  return null;
 }
 
 function OrdersPage({
@@ -1709,12 +1484,12 @@ function OrdersPage({
   return (
     <>
       <AdminPageHeader
-        title="주문 관리"
-        description="주문 목록, 상세 정보, 배송 상태를 관리하는 화면"
+        title={'\uC8FC\uBB38 \uAD00\uB9AC'}
+        description={'\uC8FC\uBB38 \uBAA9\uB85D, \uC0C1\uC138 \uC815\uBCF4, \uBC30\uC1A1 \uC0C1\uD0DC\uB97C \uAD00\uB9AC\uD558\uB294 \uD654\uBA74'}
         actions={
           <>
             <button type="button" className="admin-action admin-action--line" disabled>
-              송장 업로드
+              ??????????????
             </button>
             <button
               type="button"
@@ -1722,7 +1497,7 @@ function OrdersPage({
               onClick={() => onUpdateOrder({ orderStatus: 'SHIPPING' })}
               disabled={!selectedOrderDetail || updating}
             >
-              출고 처리
+              {'\uCD9C\uACE0 \uCC98\uB9AC'}
             </button>
           </>
         }
@@ -1730,10 +1505,10 @@ function OrdersPage({
 
       <div className="admin-filter-row">
         {[
-          ['ALL', '전체'],
-          ['PAID', '결제완료'],
-          ['SHIPPING', '배송중'],
-          ['DELIVERED', '배송완료'],
+          ['ALL', '\uC804\uCCB4'],
+          ['PAID', '\uACB0\uC81C\uC644\uB8CC'],
+          ['SHIPPING', '\uBC30\uC1A1\uC911'],
+          ['DELIVERED', '\uBC30\uC1A1\uC644\uB8CC'],
         ].map(([value, label]) => (
           <button
             key={value}
@@ -1748,15 +1523,15 @@ function OrdersPage({
 
       <section className="admin-grid admin-grid--2">
         <article className="admin-card admin-card--panel">
-          <h2>주문 목록</h2>
+          <h2>{'\uC8FC\uBB38 \uBAA9\uB85D'}</h2>
           <table className="admin-table admin-table--clickable admin-table--users">
             <thead>
               <tr>
-                <th>주문번호</th>
-                <th>고객</th>
-                <th>주문일</th>
-                <th>결제금액</th>
-                <th>상태</th>
+                <th>{'\uC8FC\uBB38\uBC88\uD638'}</th>
+                <th>{'\uACE0\uAC1D'}</th>
+                <th>{'\uC8FC\uBB38\uC77C'}</th>
+                <th>{'\uACB0\uC81C\uAE08\uC561'}</th>
+                <th>{'\uC0C1\uD0DC'}</th>
               </tr>
             </thead>
             <tbody>
@@ -1778,17 +1553,17 @@ function OrdersPage({
         </article>
 
         <article className="admin-card admin-card--panel">
-          <h2>주문 상세</h2>
+          <h2>{'\uC8FC\uBB38 \uC0C1\uC138'}</h2>
           {!selectedOrderDetail ? (
-            <AdminEmptyState title="주문을 선택해주세요." description="좌측 주문 목록에서 상세를 확인할 주문을 고를 수 있습니다." />
+            <AdminEmptyState title={'\uC8FC\uBB38\uC744 \uC120\uD0DD\uD574\uC8FC\uC138\uC694.'} description={'\uC67C\uCABD \uC8FC\uBB38 \uBAA9\uB85D\uC5D0\uC11C \uC0C1\uC138\uB97C \uD655\uC778\uD560 \uC8FC\uBB38\uC744 \uACE0\uB974\uBA74 \uC815\uBCF4\uAC00 \uC5F4\uB9BD\uB2C8\uB2E4.'} />
           ) : (
             <div className="admin-stack">
               <div className="admin-summary-box">
-                <strong>주문번호</strong>
+                <strong>{'\uC8FC\uBB38\uBC88\uD638'}</strong>
                 <div className="admin-muted">{selectedOrderDetail.orderId}</div>
               </div>
               <div className="admin-summary-box">
-                <strong>고객 정보</strong>
+                <strong>{'\uACE0\uAC1D \uC815\uBCF4'}</strong>
                 <div className="admin-muted">
                   {selectedOrderDetail.recipientName} / {selectedOrderDetail.recipientPhone}
                 </div>
@@ -1797,7 +1572,7 @@ function OrdersPage({
                 </div>
               </div>
               <div className="admin-summary-box">
-                <strong>주문 상품</strong>
+                <strong>{'\uC8FC\uBB38 \uC0C1\uD488'}</strong>
                 <div className="admin-detail-list">
                   {(selectedOrderDetail.items || []).map((item) => (
                     <div key={item.orderItemNo}>
@@ -1807,7 +1582,7 @@ function OrdersPage({
                 </div>
               </div>
               <div className="admin-summary-box">
-                <strong>배송 상태 변경</strong>
+                <strong>{'\uBC30\uC1A1 \uC0C1\uD0DC \uBCC0\uACBD'}</strong>
                 <div className="admin-page-actions">
                   <AdminStatusBadge status={resolveAdminOrderDisplayStatus(selectedOrderDetail)} />
                   {canDeleteOrder ? (
@@ -1817,23 +1592,23 @@ function OrdersPage({
                       onClick={() => onDeleteOrder(selectedOrderDetail)}
                       disabled={updating}
                     >
-                      정보 제거
+                      {'\uC815\uBCF4 \uC0AD\uC81C'}
                     </button>
                   ) : null}
                   <button type="button" className="admin-action admin-action--soft" onClick={() => onUpdateOrder({ orderStatus: 'SHIPPING' })} disabled={updating}>
-                    배송중
+                    {'\uBC30\uC1A1\uC911'}
                   </button>
                   <button type="button" className="admin-action admin-action--primary" onClick={() => onUpdateOrder({ orderStatus: 'COMPLETED' })} disabled={updating}>
-                    배송완료
+                    {'\uBC30\uC1A1\uC644\uB8CC'}
                   </button>
                 </div>
               </div>
               <div className="admin-summary-box">
-                <strong>송장 정보</strong>
+                <strong>{'\uC1A1\uC7A5 \uC815\uBCF4'}</strong>
                 <div className="admin-inline-form">
-                  <input value={trackingNo} onChange={onTrackingChange} placeholder="송장번호 입력" />
+                  <input value={trackingNo} onChange={onTrackingChange} placeholder={'\uC1A1\uC7A5\uBC88\uD638 \uC785\uB825'} />
                   <button type="button" className="admin-action admin-action--line" onClick={() => onUpdateOrder({ trackingNo })} disabled={updating}>
-                    저장
+                    {'\uC800\uC7A5'}
                   </button>
                 </div>
               </div>
@@ -2109,136 +1884,8 @@ function renderAdminDateCell(value) {
 }
 
 // eslint-disable-next-line no-unused-vars
-function LegacyPurchasePage({
-  products,
-  purchases,
-  packageHistories,
-  selectedBatchNo,
-  purchaseForm,
-  packageForm,
-  onSelectBatch,
-  onPurchaseFormChange,
-  onPackageFormChange,
-  onCreatePurchase,
-  onCreatePackageHistory,
-  onDeletePurchaseBatch,
-  submittingPurchase,
-  submittingPackage,
-}) {
-  const selectedBatch = purchases.find((purchase) => purchase.batchNo === selectedBatchNo) || null;
-
-  return (
-    <>
-      <AdminPageHeader
-        title="매입 / 소분 관리"
-        description="원물 매입과 소분 작업, 재고 반영을 관리하는 화면"
-      />
-
-      <section className="admin-grid admin-grid--split">
-        <article className="admin-card admin-card--panel">
-          <h2>매입 등록</h2>
-          <div className="admin-form-grid">
-            <label><span>품목명</span><input name="productName" value={purchaseForm.productName} onChange={onPurchaseFormChange} /></label>
-            <label><span>공급처</span><input name="supplierName" value={purchaseForm.supplierName} onChange={onPurchaseFormChange} /></label>
-            <label><span>매입 수량</span><input name="purchaseQty" value={purchaseForm.purchaseQty} onChange={onPurchaseFormChange} /></label>
-            <label><span>단위</span><input name="purchaseUnit" value={purchaseForm.purchaseUnit} onChange={onPurchaseFormChange} /></label>
-            <label><span>총 매입가</span><input name="purchasePrice" value={purchaseForm.purchasePrice} onChange={onPurchaseFormChange} /></label>
-            <label><span>매입일</span><input type="date" name="purchaseDate" value={purchaseForm.purchaseDate} onChange={onPurchaseFormChange} /></label>
-            <label><span>원산지</span><input name="origin" value={purchaseForm.origin} onChange={onPurchaseFormChange} /></label>
-          </div>
-          <div className="admin-page-actions admin-page-actions--end">
-            <button type="button" className="admin-action admin-action--primary" onClick={onCreatePurchase} disabled={submittingPurchase}>
-              {submittingPurchase ? '저장 중...' : '매입 등록'}
-            </button>
-          </div>
-        </article>
-
-        <article className="admin-card admin-card--panel">
-          <h2>소분 작업</h2>
-          <div className="admin-summary-box">
-            <strong>선택 배치</strong>
-            <div className="admin-muted">
-              {selectedBatch
-                ? `${selectedBatch.batchNo} / ${selectedBatch.productName} / ${selectedBatch.purchaseQty}${selectedBatch.purchaseUnit}`
-                : '좌측 이력 테이블에서 배치를 선택해주세요.'}
-            </div>
-          </div>
-          <div className="admin-form-grid admin-form-grid--spaced">
-            <label>
-              <span>소분 상품</span>
-              <select name="productNo" value={packageForm.productNo} onChange={onPackageFormChange}>
-                <option value="">선택</option>
-                {products.map((product) => (
-                  <option key={product.productNo} value={product.productNo}>
-                    {product.productName}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label><span>생성 수량</span><input name="packagedQty" value={packageForm.packagedQty} onChange={onPackageFormChange} /></label>
-            <label><span>1개당 중량</span><input name="packagedWeight" value={packageForm.packagedWeight} onChange={onPackageFormChange} /></label>
-            <label className="admin-form-field admin-form-field--full"><span>메모</span><textarea name="note" value={packageForm.note} onChange={onPackageFormChange} /></label>
-          </div>
-          <div className="admin-page-actions admin-page-actions--end">
-            <button type="button" className="admin-action admin-action--primary" onClick={onCreatePackageHistory} disabled={!selectedBatch || submittingPackage}>
-              {submittingPackage ? '처리 중...' : '소분 실행'}
-            </button>
-          </div>
-        </article>
-      </section>
-
-      <section className="admin-card admin-card--panel">
-        <h2>매입 / 소분 이력</h2>
-        <table className="admin-table admin-table--clickable">
-          <thead>
-            <tr>
-              <th>배치번호</th>
-              <th>품목</th>
-              <th>매입수량</th>
-              <th>매입가</th>
-              <th>상태</th>
-              <th>최근 소분</th>
-              <th>관리</th>
-              <th>관리</th>
-              <th>관리</th>
-            </tr>
-          </thead>
-          <tbody>
-            {purchases.map((purchase) => {
-              const latestPackage = packageHistories.find((history) => history.batchNo === purchase.batchNo);
-              return (
-                <tr
-                  key={purchase.batchNo}
-                  className={purchase.batchNo === selectedBatchNo ? 'is-selected' : ''}
-                  onClick={() => onSelectBatch(purchase.batchNo)}
-                >
-                  <td>{purchase.batchNo}</td>
-                  <td>{purchase.productName}</td>
-                  <td>{purchase.purchaseQty}{purchase.purchaseUnit}</td>
-                  <td>{formatAdminCurrency(purchase.purchasePrice)}</td>
-                  <td><AdminStatusBadge status={purchase.status} /></td>
-                  <td>{latestPackage ? formatAdminDate(latestPackage.packagedAt) : '-'}</td>
-                  <td className="admin-table__actions">
-                    <button
-                      type="button"
-                      className="admin-action admin-action--danger"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onDeletePurchaseBatch(purchase);
-                      }}
-                      disabled={submittingPurchase || submittingPackage}
-                    >
-                      삭제
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </section>
-    </>
-  );
+function LegacyPurchasePage() {
+  return null;
 }
 
 function ContentPage({
@@ -2250,15 +1897,15 @@ function ContentPage({
   return (
     <>
       <AdminPageHeader
-        title="배너 / 레시피 관리"
-        description="메인 배너 노출과 레시피 매핑, 콘텐츠 노출 순서를 관리하는 화면"
+        title={'\uBC30\uB108 / \uB808\uC2DC\uD53C \uAD00\uB9AC'}
+        description={'\uBA54\uC778 \uBC30\uB108 \uB178\uCD9C\uACFC \uB808\uC2DC\uD53C \uB9E4\uD551, \uCF58\uD150\uCE20 \uB178\uCD9C \uC21C\uC11C\uB97C \uAD00\uB9AC\uD558\uB294 \uD654\uBA74'}
         actions={
           <>
             <button type="button" className="admin-action admin-action--line" disabled>
-              배너 업로드 준비중
+              {'\uBC30\uB108 \uC5C5\uB85C\uB4DC \uC900\uBE44\uC911'}
             </button>
             <button type="button" className="admin-action admin-action--primary" onClick={onSyncRecipes} disabled={syncingRecipes}>
-              {syncingRecipes ? '동기화 중...' : '레시피 동기화'}
+              {syncingRecipes ? '\uB3D9\uAE30\uD654 \uC911...' : '\uB808\uC2DC\uD53C \uB3D9\uAE30\uD654'}
             </button>
           </>
         }
@@ -2266,15 +1913,15 @@ function ContentPage({
 
       <section className="admin-grid admin-grid--2">
         <article className="admin-card admin-card--panel">
-          <h2>메인 배너 관리</h2>
+          <h2>{'\uBA54\uC778 \uBC30\uB108 \uAD00\uB9AC'}</h2>
           <table className="admin-table">
             <thead>
               <tr>
-                <th>배너</th>
-                <th>제목</th>
-                <th>링크</th>
-                <th>상태</th>
-                <th>순서</th>
+                <th>{'\uBC30\uB108'}</th>
+                <th>{'\uC81C\uBAA9'}</th>
+                <th>{'\uB9C1\uD06C'}</th>
+                <th>{'\uC0C1\uD0DC'}</th>
+                <th>{'\uC21C\uC11C'}</th>
               </tr>
             </thead>
             <tbody>
@@ -2296,14 +1943,14 @@ function ContentPage({
         </article>
 
         <article className="admin-card admin-card--panel">
-          <h2>레시피 매핑 관리</h2>
+          <h2>{'\uB808\uC2DC\uD53C \uB9E4\uD551 \uAD00\uB9AC'}</h2>
           <table className="admin-table">
             <thead>
               <tr>
-                <th>레시피</th>
-                <th>연결 상품</th>
-                <th>연관도</th>
-                <th>상태</th>
+                <th>{'\uB808\uC2DC\uD53C'}</th>
+                <th>{'\uC5F0\uACB0 \uC0C1\uD488'}</th>
+                <th>{'\uB9E4\uCE6D \uC810\uC218'}</th>
+                <th>{'\uC0C1\uD0DC'}</th>
               </tr>
             </thead>
             <tbody>
@@ -2318,9 +1965,9 @@ function ContentPage({
             </tbody>
           </table>
           <div className="admin-summary-box admin-summary-box--note">
-            <strong>이미지 저장 기준</strong>
+            <strong>{'\uC774\uBBF8\uC9C0 \uC800\uC7A5 \uAE30\uC900'}</strong>
             <div className="admin-muted">
-              PRODUCT_IMAGE, REVIEW_IMAGE, MAIN_BANNER는 BLOB 저장이며 RECIPE와 RECIPE_STEP은 외부 URL을 사용합니다.
+              {'PRODUCT_IMAGE, REVIEW_IMAGE, MAIN_BANNER\uB294 BLOB \uB370\uC774\uD130\uC774\uBA70 RECIPE\uC640 RECIPE_STEP\uC740 \uC678\uBD80 URL\uC744 \uC0AC\uC6A9\uD569\uB2C8\uB2E4.'}
             </div>
           </div>
         </article>
@@ -2360,12 +2007,12 @@ function ProductsPage({
   return (
     <>
       <AdminPageHeader
-        title="상품 관리"
-        description="매입/소분에서 생성된 상품을 수정하거나 삭제하는 화면"
+        title={'\uC0C1\uD488 \uAD00\uB9AC'}
+        description={'\uB9E4\uC785\uACFC \uC18C\uBD84\uC5D0\uC11C \uC0DD\uC131\uB41C \uC0C1\uD488\uC744 \uC218\uC815\uD558\uACE0 \uAD00\uB9AC\uD558\uB294 \uD654\uBA74'}
         actions={
           <>
             <button type="button" className="admin-action admin-action--line" onClick={onResetProductForm}>
-              선택 상품 다시 불러오기
+              {'\uC120\uD0DD \uC0C1\uD488 \uB2E4\uC2DC \uBD88\uB7EC\uC624\uAE30'}
             </button>
           </>
         }
@@ -2373,11 +2020,11 @@ function ProductsPage({
 
       <div className="admin-filter-row">
         {[
-          ['ALL', '전체'],
-          ['SELLING', '판매중'],
-          ['STOP', '판매중지'],
-          ['LOW_STOCK', '재고부족'],
-          ['SEASONAL', '제철상품'],
+          ['ALL', '\uC804\uCCB4'],
+          ['SELLING', '\uD310\uB9E4\uC911'],
+          ['STOP', '\uD310\uB9E4\uC911\uC9C0'],
+          ['LOW_STOCK', '\uC7AC\uACE0\uBD80\uC871'],
+          ['SEASONAL', '\uC81C\uCCA0\uC0C1\uD488'],
         ].map(([value, label]) => (
           <button
             key={value}
@@ -2391,16 +2038,16 @@ function ProductsPage({
       </div>
       <section className="admin-grid admin-grid--2">
         <article className="admin-card admin-card--panel">
-          <h2>상품 목록</h2>
+          <h2>{'\uC0C1\uD488 \uBAA9\uB85D'}</h2>
           <table className="admin-table admin-table--clickable">
             <thead>
               <tr>
-                <th>상품</th>
-                <th>카테고리</th>
-                <th>판매가</th>
-                <th>재고</th>
-                <th>상태</th>
-                <th>관리</th>
+                <th>{'\uC0C1\uD488'}</th>
+                <th>{'\uCE74\uD14C\uACE0\uB9AC'}</th>
+                <th>{'\uD310\uB9E4\uAC00'}</th>
+                <th>{'\uC7AC\uACE0'}</th>
+                <th>{'\uC0C1\uD0DC'}</th>
+                <th>{'\uAD00\uB9AC'}</th>
               </tr>
             </thead>
             <tbody>
@@ -2413,7 +2060,7 @@ function ProductsPage({
                   <td>{product.productName}</td>
                   <td>{product.categoryName}</td>
                   <td>{formatAdminCurrency(product.salePrice)}</td>
-                  <td>{formatAdminCount(product.stockQty, '개')}</td>
+                  <td>{formatAdminCount(product.stockQty, '\uAC1C')}</td>
                   <td><AdminStatusBadge status={product.saleStatus} /></td>
                   <td className="admin-table__actions">
                     <button
@@ -2425,7 +2072,7 @@ function ProductsPage({
                       }}
                       disabled={submitting}
                     >
-                      영구삭제
+                      {'\uC601\uAD6C \uC0AD\uC81C'}
                     </button>
                   </td>
                 </tr>
@@ -2435,16 +2082,16 @@ function ProductsPage({
         </article>
 
         <article className="admin-card admin-card--panel">
-          <h2>상품 수정 / 삭제</h2>
+          <h2>{'\uC0C1\uD488 \uC218\uC815 / \uC0AD\uC81C'}</h2>
           <div className="admin-form-grid">
             <label>
-              <span>상품명</span>
+              <span>{'\uC0C1\uD488\uBA85'}</span>
               <input name="productName" value={productForm.productName} onChange={onProductFormChange} />
             </label>
             <label>
-              <span>카테고리</span>
+              <span>{'\uCE74\uD14C\uACE0\uB9AC'}</span>
               <select name="categoryNo" value={productForm.categoryNo} onChange={onProductFormChange}>
-                <option value="">선택</option>
+                <option value="">{'\uC120\uD0DD'}</option>
                 {categories.map((category) => (
                   <option key={category.categoryNo} value={category.categoryNo}>
                     {category.categoryName}
@@ -2453,50 +2100,50 @@ function ProductsPage({
               </select>
             </label>
             <label>
-              <span>판매가</span>
+              <span>{'\uD310\uB9E4\uAC00'}</span>
               <input name="salePrice" value={productForm.salePrice} onChange={onProductFormChange} />
             </label>
             <label>
-              <span>재고 수량</span>
+              <span>{'\uC7AC\uACE0 \uC218\uB7C9'}</span>
               <input name="stockQty" value={productForm.stockQty} onChange={onProductFormChange} />
             </label>
             <label>
-              <span>원산지</span>
+              <span>{'\uC6D0\uC0B0\uC9C0'}</span>
               <input name="origin" value={productForm.origin} onChange={onProductFormChange} />
             </label>
             <label>
-              <span>단위</span>
+              <span>{'\uB2E8\uC704'}</span>
               <input name="unit" value={productForm.unit} onChange={onProductFormChange} />
             </label>
             <label>
-              <span>포장 중량</span>
+              <span>{'\uD3EC\uC7A5 \uC911\uB7C9'}</span>
               <input name="packageWeight" value={productForm.packageWeight} onChange={onProductFormChange} />
             </label>
             <label>
-              <span>판매 상태</span>
+              <span>{'\uD310\uB9E4 \uC0C1\uD0DC'}</span>
               <select name="saleStatus" value={productForm.saleStatus} onChange={onProductFormChange}>
-                <option value="READY">준비중</option>
-                <option value="SELLING">판매중</option>
-                <option value="SOLD_OUT">품절</option>
-                <option value="STOP">판매중지</option>
+                <option value="READY">{'\uC900\uBE44\uC911'}</option>
+                <option value="SELLING">{'\uD310\uB9E4\uC911'}</option>
+                <option value="SOLD_OUT">{'\uD488\uC808'}</option>
+                <option value="STOP">{'\uD310\uB9E4\uC911\uC9C0'}</option>
               </select>
             </label>
             <label>
-              <span>제철 상품</span>
+              <span>{'\uC81C\uCCA0 \uC0C1\uD488'}</span>
               <select name="isSeasonal" value={productForm.isSeasonal} onChange={onProductFormChange}>
-                <option value="N">일반</option>
-                <option value="Y">제철</option>
+                <option value="N">{'\uC77C\uBC18'}</option>
+                <option value="Y">{'\uC81C\uCCA0'}</option>
               </select>
             </label>
           </div>
           <label className="admin-form-field admin-form-field--full">
-            <span>상품 설명</span>
+            <span>{'\uC0C1\uD488 \uC124\uBA85'}</span>
             <textarea name="description" value={productForm.description} onChange={onProductFormChange} />
           </label>
           <div className="admin-form-field admin-form-field--full">
-            <span>등록된 상품 이미지</span>
+            <span>{'\uB4F1\uB85D\uB41C \uC0C1\uD488 \uC774\uBBF8\uC9C0'}</span>
             <div className="admin-file-upload__hint">
-              이미지는 매입 단계에서 등록됩니다. 여기서는 연결된 이미지를 확인만 할 수 있습니다.
+              {'\uC774\uBBF8\uC9C0\uB294 \uB9E4\uC785 \uB2E8\uACC4\uC5D0\uC11C \uB4F1\uB85D\uD569\uB2C8\uB2E4. \uC5EC\uAE30\uC11C\uB294 \uC5F0\uACB0\uB41C \uC774\uBBF8\uC9C0\uB97C \uD655\uC778\uB9CC \uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.'}
             </div>
             {productImagePreviews.length ? (
               <div className="admin-image-preview-grid">
@@ -2505,28 +2152,28 @@ function ProductsPage({
                     <div className="admin-image-preview__thumb">
                       <img
                         src={image.previewUrl}
-                        alt={image.name || `상품 이미지 ${index + 1}`}
+                        alt={image.name || '\uC0C1\uD488 \uC774\uBBF8\uC9C0'}
                       />
                     </div>
                     <div className="admin-image-preview__meta">
-                      <strong>{image.name || `상품 이미지 ${index + 1}`}</strong>
-                      <span>{image.isMain ? '대표 이미지' : `추가 이미지 ${index + 1}`}</span>
+                      <strong>{image.name || '\uC0C1\uD488 \uC774\uBBF8\uC9C0'}</strong>
+                      <span>{image.isMain ? '\uB300\uD45C \uC774\uBBF8\uC9C0' : '\uCD94\uAC00 \uC774\uBBF8\uC9C0 ' + (index + 1)}</span>
                     </div>
                   </article>
                 ))}
               </div>
             ) : (
               <div className="admin-image-empty">
-                아직 연결된 이미지가 없습니다. 이미지는 매입 등록 단계에서 추가해주세요.
+                {'\uC5F0\uACB0\uB41C \uC774\uBBF8\uC9C0\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4. \uC774\uBBF8\uC9C0\uB294 \uB9E4\uC785 \uB4F1\uB85D \uB2E8\uACC4\uC5D0\uC11C \uCD94\uAC00\uD574\uC8FC\uC138\uC694.'}
               </div>
             )}
           </div>
           <div className="admin-page-actions">
             <button type="button" className="admin-action admin-action--soft" onClick={onResetProductForm}>
-              되돌리기
+              {'\uB418\uB3CC\uB9AC\uAE30'}
             </button>
             <button type="button" className="admin-action admin-action--primary" onClick={onSaveProduct} disabled={submitting}>
-              {submitting ? '저장 중...' : '수정 저장'}
+              {submitting ? '\uC800\uC7A5 \uC911...' : '\uC0C1\uD488 \uC800\uC7A5'}
             </button>
           </div>
         </article>
@@ -2574,23 +2221,23 @@ function PurchasePage({
   return (
     <>
       <AdminPageHeader
-        title="매입 / 소분 관리"
-        description="매입 단계에서 이미지까지 등록하고, 소분 단계에서 판매가를 확정해 판매 상품으로 넘깁니다."
+        title={'\uB9E4\uC785 / \uC18C\uBD84 \uAD00\uB9AC'}
+        description={'\uB9E4\uC785 \uB2E8\uACC4\uC5D0\uC11C \uBC30\uCE58\uAE4C\uC9C0 \uB4F1\uB85D\uD558\uACE0, \uC18C\uBD84 \uB2E8\uACC4\uC5D0\uC11C \uD310\uB9E4\uAC00\uB97C \uD655\uC815\uD574 \uD310\uB9E4 \uC0C1\uD488\uC73C\uB85C \uC804\uD658\uD569\uB2C8\uB2E4.'}
       />
 
       <section className="admin-grid admin-grid--split">
         <article className="admin-card admin-card--panel">
-          <h2>매입 등록</h2>
+          <h2>{'\uB9E4\uC785 \uB4F1\uB85D'}</h2>
           <div className="admin-form-grid">
             <label>
-              <span>시세 품목</span>
+              <span>{'\uC2DC\uC138 \uD488\uBAA9'}</span>
               <select
                 name="referenceItemCode"
                 value={purchaseForm.referenceItemCode}
                 onChange={onPurchaseReferenceChange}
                 disabled={!selectedPurchaseCategoryName}
               >
-                <option value="">선택</option>
+                <option value="">{'\uC120\uD0DD'}</option>
                 {filteredPurchaseReferenceItems.map((item) => (
                   <option key={item.itemCode} value={item.itemCode}>
                     {item.displayLabel || item.productName}
@@ -2599,9 +2246,9 @@ function PurchasePage({
               </select>
             </label>
             <label>
-              <span>카테고리</span>
+              <span>{'\uCE74\uD14C\uACE0\uB9AC'}</span>
               <select name="categoryNo" value={purchaseForm.categoryNo} onChange={onPurchaseFormChange}>
-                <option value="">선택</option>
+                <option value="">{'\uC120\uD0DD'}</option>
                 {categories.map((category) => (
                   <option key={category.categoryNo} value={category.categoryNo}>
                     {category.categoryName}
@@ -2610,24 +2257,24 @@ function PurchasePage({
               </select>
             </label>
             <label>
-              <span>품목명</span>
+              <span>{'\uD488\uBAA9\uBA85'}</span>
               <input
                 name="productName"
                 value={purchaseForm.productName}
                 readOnly
-                placeholder="시세 품목을 선택하면 자동 입력됩니다."
+                placeholder={'\uC2DC\uC138 \uD488\uBAA9\uC744 \uC120\uD0DD\uD558\uBA74 \uC790\uB3D9 \uC785\uB825\uB429\uB2C8\uB2E4.'}
               />
             </label>
-            <label><span>공급처</span><input name="supplierName" value={purchaseForm.supplierName} onChange={onPurchaseFormChange} /></label>
-            <label><span>매입 수량</span><input name="purchaseQty" value={purchaseForm.purchaseQty} onChange={onPurchaseFormChange} /></label>
-            <label><span>단위</span><input name="purchaseUnit" value={purchaseForm.purchaseUnit} onChange={onPurchaseFormChange} /></label>
-            <label><span>총 매입가</span><input name="purchasePrice" value={purchaseForm.purchasePrice} onChange={onPurchaseFormChange} /></label>
-            <label><span>매입일</span><input type="date" name="purchaseDate" value={purchaseForm.purchaseDate} onChange={onPurchaseFormChange} /></label>
-            <label><span>원산지</span><input name="origin" value={purchaseForm.origin} onChange={onPurchaseFormChange} /></label>
+            <label><span>{'\uACF5\uAE09\uCC98'}</span><input name="supplierName" value={purchaseForm.supplierName} onChange={onPurchaseFormChange} /></label>
+            <label><span>{'\uB9E4\uC785 \uC218\uB7C9'}</span><input name="purchaseQty" value={purchaseForm.purchaseQty} onChange={onPurchaseFormChange} /></label>
+            <label><span>{'\uB2E8\uC704'}</span><input name="purchaseUnit" value={purchaseForm.purchaseUnit} onChange={onPurchaseFormChange} /></label>
+            <label><span>{'\uCD1D \uB9E4\uC785\uAC00'}</span><input name="purchasePrice" value={purchaseForm.purchasePrice} onChange={onPurchaseFormChange} /></label>
+            <label><span>{'\uB9E4\uC785\uC77C'}</span><input type="date" name="purchaseDate" value={purchaseForm.purchaseDate} onChange={onPurchaseFormChange} /></label>
+            <label><span>{'\uC6D0\uC0B0\uC9C0'}</span><input name="origin" value={purchaseForm.origin} onChange={onPurchaseFormChange} /></label>
           </div>
           <div className="admin-page-actions admin-page-actions--spaced">
             <span className="admin-muted">
-              최신 도매 시세 기준으로 매입 단위, 매입 수량, 총 매입가를 자동 채웁니다.
+              {'\uCD5C\uC2E0 \uB3C4\uB9E4 \uC2DC\uC138 \uAE30\uC900\uC73C\uB85C \uB9E4\uC785 \uB2E8\uC704, \uB9E4\uC785 \uC218\uB7C9, \uCD1D \uB9E4\uC785\uAC00\uB97C \uC790\uB3D9 \uCC44\uC6C1\uB2C8\uB2E4.'}
             </span>
             <button
               type="button"
@@ -2639,39 +2286,39 @@ function PurchasePage({
                 || !String(purchaseForm.referenceItemCode || '').trim()
               }
             >
-              {quotingPurchase ? '시세 조회 중...' : '시세로 자동 채움'}
+              {quotingPurchase ? '\uC2DC\uC138 \uC870\uD68C \uC911...' : '\uC2DC\uC138\uB85C \uC790\uB3D9 \uCC44\uC6C0'}
             </button>
           </div>
           {purchaseQuote ? (
             <div className="admin-summary-box admin-summary-box--note">
-              <strong>시세 자동 채움 기준</strong>
+              <strong>{'\uC2DC\uC138 \uC790\uB3D9 \uCC44\uC6C0 \uAE30\uC900'}</strong>
               <div className="admin-muted">
-                {purchaseQuote.matchedItemName} · 기준일 {purchaseQuote.snapshotDate} · 계산 기준{' '}
-                {purchaseQuote.priceBasisUnit || '1kg'}
+                {purchaseQuote.matchedItemName} {'\u00B7 \uAE30\uC900\uC77C '} {purchaseQuote.snapshotDate} {'\u00B7 \uACC4\uC0B0 \uAE30\uC900 '} {purchaseQuote.priceBasisUnit || '1kg'}
+                
               </div>
               {hasAdminValue(purchaseQuote.wholesaleSourcePrice) ? (
                 <div className="admin-muted">
-                  도매 원시세 {formatAdminCurrency(purchaseQuote.wholesaleSourcePrice)} ({purchaseQuote.wholesaleSourceUnit || purchaseQuote.snapshotUnit} 기준)
+                  {'\uB3C4\uB9E4 \uC6D0\uC2DC\uC138 '}{formatAdminCurrency(purchaseQuote.wholesaleSourcePrice)}{' ('}{purchaseQuote.wholesaleSourceUnit || purchaseQuote.snapshotUnit}{' \uAE30\uC900)'}
                   {hasAdminValue(purchaseQuote.wholesaleAvgPrice) ? (
-                    <> · {purchaseQuote.wholesalePriceBasisUnit || purchaseQuote.priceBasisUnit || '1kg'} 환산 {formatAdminCurrency(purchaseQuote.wholesaleAvgPrice)}</>
+                    <> {'\u00B7 '}{purchaseQuote.wholesalePriceBasisUnit || purchaseQuote.priceBasisUnit || '1kg'}{' \uD658\uC0B0 '}{formatAdminCurrency(purchaseQuote.wholesaleAvgPrice)}</>
                   ) : null}
                 </div>
               ) : null}
               <div className="admin-muted">
-                기준 단위 {purchaseQuote.snapshotUnit} · 자동 입력 {purchaseQuote.purchaseQty}
+                {'\uAE30\uC900 \uB2E8\uC704 '}{purchaseQuote.snapshotUnit}{' \u00B7 \uC790\uB3D9 \uC785\uB825 '}{purchaseQuote.purchaseQty}
                 {purchaseQuote.purchaseUnit}
                 {hasAdminValue(purchaseQuote.retailSourcePrice) ? (
                   <>
                     {' '}
-                    · {purchaseQuote.quoteSource === 'RETAIL_FALLBACK' ? '기준 시세' : '소매 원시세'} {formatAdminCurrency(purchaseQuote.retailSourcePrice)}
-                    {purchaseQuote.retailSnapshotUnit ? ` (${purchaseQuote.retailSnapshotUnit} 기준)` : ''}
+                    {'\u00B7 '}{purchaseQuote.quoteSource === 'RETAIL_FALLBACK' ? '\uAE30\uC900 \uC18C\uB9E4 \uC2DC\uC138' : '\uC18C\uB9E4 \uC6D0\uC2DC\uC138'}{' '}{formatAdminCurrency(purchaseQuote.retailSourcePrice)}
+                    {purchaseQuote.retailSnapshotUnit ? ' (' + purchaseQuote.retailSnapshotUnit + ' \uAE30\uC900)' : ''}
                   </>
                 ) : null}
                 {hasAdminValue(purchaseQuote.retailComparablePrice) ? (
-                  <> · {purchaseQuote.retailPriceBasisUnit || purchaseQuote.priceBasisUnit || '1kg'} 환산 {formatAdminCurrency(purchaseQuote.retailComparablePrice)}</>
+                  <> {'\u00B7 '}{purchaseQuote.retailPriceBasisUnit || purchaseQuote.priceBasisUnit || '1kg'}{' \uD658\uC0B0 '}{formatAdminCurrency(purchaseQuote.retailComparablePrice)}</>
                 ) : null}
                 {hasAdminValue(purchaseQuote.recommendedSalePrice) ? (
-                  <> · 권장 판매가 {formatAdminCurrency(purchaseQuote.recommendedSalePrice)} ({purchaseQuote.recommendedPriceBasisUnit || purchaseQuote.priceBasisUnit || '1kg'} 기준)</>
+                  <> {'\u00B7 \uAD8C\uC7A5 \uD310\uB9E4\uAC00 '}{formatAdminCurrency(purchaseQuote.recommendedSalePrice)}{' ('}{purchaseQuote.recommendedPriceBasisUnit || purchaseQuote.priceBasisUnit || '1kg'}{' \uAE30\uC900)'}</>
                 ) : null}
               </div>
               {purchaseQuote.pricingNote ? (
@@ -2680,18 +2327,18 @@ function PurchasePage({
             </div>
           ) : null}
           <div className="admin-form-field admin-form-field--full">
-            <span>매입 이미지</span>
+            <span>{'\uB9E4\uC785 \uC774\uBBF8\uC9C0'}</span>
             <label className="admin-file-upload">
               <input type="file" accept="image/*" multiple onChange={onPurchaseImagesChange} />
-              <strong>이미지 선택</strong>
-              <small>매입 단계에서 등록한 이미지를 소분/상품관리에서도 그대로 사용합니다.</small>
+              <strong>{'\uC774\uBBF8\uC9C0 \uC120\uD0DD'}</strong>
+              <small>{'\uB9E4\uC785 \uB2E8\uACC4\uC5D0\uC11C \uB4F1\uB85D\uD55C \uC774\uBBF8\uC9C0\uB97C \uC18C\uBD84\uACFC \uC0C1\uD488\uAD00\uB9AC\uC5D0\uC11C\uB3C4 \uADF8\uB300\uB85C \uC0AC\uC6A9\uD569\uB2C8\uB2E4.'}</small>
             </label>
             <div className="admin-file-upload__hint">
-              권장 사이즈: 1200 x 1200px 이상 / 정사각형 비율 / JPG, PNG, WEBP
+              {'\uAD8C\uC7A5 \uC0AC\uC774\uC988 1200 x 1200px \uC774\uC0C1 / \uC815\uC0AC\uAC01\uD615 \uBE44\uC728 / JPG, PNG, WEBP'}
             </div>
             <div className="admin-page-actions">
               <button type="button" className="admin-action admin-action--line" onClick={onClearPurchaseImages}>
-                선택 이미지 초기화
+                {'\uC120\uD0DD \uC774\uBBF8\uC9C0 \uCD08\uAE30\uD654'}
               </button>
             </div>
             {purchaseImagePreviews.length ? (
@@ -2699,54 +2346,54 @@ function PurchasePage({
                 {purchaseImagePreviews.map((image, index) => (
                   <article className="admin-image-preview" key={image.key || image.imageNo || index}>
                     <div className="admin-image-preview__thumb">
-                      <img src={image.previewUrl} alt={image.name || `매입 이미지 ${index + 1}`} />
+                      <img src={image.previewUrl} alt={image.name || '\uB9E4\uC785 \uC774\uBBF8\uC9C0'} />
                     </div>
                     <div className="admin-image-preview__meta">
-                      <strong>{image.name || `매입 이미지 ${index + 1}`}</strong>
-                      <span>{image.isMain ? '대표 이미지' : `추가 이미지 ${index + 1}`}</span>
+                      <strong>{image.name || '\uB9E4\uC785 \uC774\uBBF8\uC9C0'}</strong>
+                      <span>{image.isMain ? '\uB300\uD45C \uC774\uBBF8\uC9C0' : '\uCD94\uAC00 \uC774\uBBF8\uC9C0 ' + (index + 1)}</span>
                     </div>
                   </article>
                 ))}
               </div>
             ) : (
               <div className="admin-image-empty">
-                매입 이미지는 최소 1장 이상 등록해주세요.
+                {'\uB9E4\uC785 \uC774\uBBF8\uC9C0\uB97C \uCD5C\uC18C 1\uC7A5 \uC774\uC0C1 \uB4F1\uB85D\uD574\uC8FC\uC138\uC694.'}
               </div>
             )}
           </div>
           <div className="admin-page-actions admin-page-actions--end">
             <button type="button" className="admin-action admin-action--primary" onClick={onCreatePurchase} disabled={submittingPurchase}>
-              {submittingPurchase ? '저장 중...' : '매입 등록'}
+              {submittingPurchase ? '\uC800\uC7A5 \uC911...' : '\uB9E4\uC785 \uB4F1\uB85D'}
             </button>
           </div>
         </article>
 
         <article className="admin-card admin-card--panel">
-          <h2>소분 / 판매 전환</h2>
+          <h2>{'\uC18C\uBD84 / \uD310\uB9E4 \uC804\uD658'}</h2>
           <div className="admin-summary-box">
-            <strong>선택 배치</strong>
+            <strong>{'\uC120\uD0DD \uBC30\uCE58'}</strong>
             <div className="admin-muted">
               {selectedBatch
                 ? `${selectedBatch.batchNo} / ${selectedBatch.productName} / ${selectedBatch.purchaseQty}${selectedBatch.purchaseUnit}`
-                : '아래 매입/소분 이력 테이블에서 배치를 선택해주세요.'}
+                : '\uC544\uB798 \uB9E4\uC785 / \uC18C\uBD84 \uC774\uB825 \uD14C\uC774\uBE14\uC5D0\uC11C \uBC30\uCE58\uB97C \uC120\uD0DD\uD574\uC8FC\uC138\uC694.'}
             </div>
           </div>
           {selectedBatchProduct ? (
             <div className="admin-summary-box admin-summary-box--note">
-              <strong>연결된 상품</strong>
+              <strong>{'\uC5F0\uACB0 \uC0C1\uD488'}</strong>
               <div className="admin-muted">
-                {selectedBatchProduct.productName} / {selectedBatchProduct.categoryName} / 상품번호 {selectedBatchProduct.productNo}
+                {selectedBatchProduct.productName} / {selectedBatchProduct.categoryName} / {'\uC0C1\uD488\uBC88\uD638 '}{selectedBatchProduct.productNo}
               </div>
               {linkedProductPreviews.length ? (
                 <div className="admin-image-preview-grid admin-image-preview-grid--compact">
                   {linkedProductPreviews.map((image, index) => (
                     <article className="admin-image-preview" key={image.key || image.imageNo || index}>
                       <div className="admin-image-preview__thumb">
-                        <img src={image.previewUrl} alt={image.name || `상품 이미지 ${index + 1}`} />
+                        <img src={image.previewUrl} alt={image.name || '\uC0C1\uD488 \uC774\uBBF8\uC9C0'} />
                       </div>
                       <div className="admin-image-preview__meta">
-                        <strong>{image.name || `상품 이미지 ${index + 1}`}</strong>
-                        <span>{image.isMain ? '대표 이미지' : `추가 이미지 ${index + 1}`}</span>
+                        <strong>{image.name || '\uC0C1\uD488 \uC774\uBBF8\uC9C0'}</strong>
+                        <span>{image.isMain ? '\uB300\uD45C \uC774\uBBF8\uC9C0' : '\uCD94\uAC00 \uC774\uBBF8\uC9C0 ' + (index + 1)}</span>
                       </div>
                     </article>
                   ))}
@@ -2757,9 +2404,9 @@ function PurchasePage({
           <div className="admin-form-grid admin-form-grid--spaced">
             {needsLegacyProductLink ? (
               <label>
-                <span>연결 상품</span>
+                <span>{'\uC5F0\uACB0 \uC0C1\uD488'}</span>
                 <select name="productNo" value={packageForm.productNo} onChange={onPackageFormChange}>
-                  <option value="">선택</option>
+                  <option value="">{'\uC120\uD0DD'}</option>
                   {products.map((product) => (
                     <option key={product.productNo} value={product.productNo}>
                       {product.productName}
@@ -2768,39 +2415,39 @@ function PurchasePage({
                 </select>
               </label>
             ) : null}
-            <label><span>생성 수량</span><input name="packagedQty" value={packageForm.packagedQty} onChange={onPackageFormChange} /></label>
-            <label><span>1개당 중량</span><input name="packagedWeight" value={packageForm.packagedWeight} onChange={onPackageFormChange} /></label>
-            <label><span>판매가</span><input name="salePrice" value={packageForm.salePrice} onChange={onPackageFormChange} /></label>
+            <label><span>{'\uC0DD\uC131 \uC218\uB7C9'}</span><input name="packagedQty" value={packageForm.packagedQty} onChange={onPackageFormChange} /></label>
+            <label><span>{'1\uAC1C\uB2F9 \uC911\uB7C9'}</span><input name="packagedWeight" value={packageForm.packagedWeight} onChange={onPackageFormChange} /></label>
+            <label><span>{'\uD310\uB9E4\uAC00'}</span><input name="salePrice" value={packageForm.salePrice} onChange={onPackageFormChange} /></label>
             <label>
-              <span>판매 상태</span>
+              <span>{'\uD310\uB9E4 \uC0C1\uD0DC'}</span>
               <select name="saleStatus" value={packageForm.saleStatus} onChange={onPackageFormChange}>
-                <option value="SELLING">판매중</option>
-                <option value="READY">준비중</option>
-                <option value="SOLD_OUT">품절</option>
-                <option value="STOP">판매중지</option>
+                <option value="SELLING">{'\uD310\uB9E4\uC911'}</option>
+                <option value="READY">{'\uC900\uBE44\uC911'}</option>
+                <option value="SOLD_OUT">{'\uD488\uC808'}</option>
+                <option value="STOP">{'\uD310\uB9E4\uC911\uC9C0'}</option>
               </select>
             </label>
-            <label className="admin-form-field admin-form-field--full"><span>메모</span><textarea name="note" value={packageForm.note} onChange={onPackageFormChange} /></label>
+            <label className="admin-form-field admin-form-field--full"><span>{'\uBA54\uBAA8'}</span><textarea name="note" value={packageForm.note} onChange={onPackageFormChange} /></label>
           </div>
           <div className="admin-page-actions admin-page-actions--end">
             <button type="button" className="admin-action admin-action--primary" onClick={onCreatePackageHistory} disabled={!selectedBatch || submittingPackage}>
-              {submittingPackage ? '처리 중...' : '소분 실행'}
+              {submittingPackage ? '\uCC98\uB9AC \uC911...' : '\uC18C\uBD84 \uC2E4\uD589'}
             </button>
           </div>
         </article>
       </section>
 
       <section className="admin-card admin-card--panel">
-        <h2>매입 / 소분 이력</h2>
+        <h2>{'\uB9E4\uC785 / \uC18C\uBD84 \uC774\uB825'}</h2>
         <table className="admin-table admin-table--clickable">
           <thead>
             <tr>
-              <th>배치번호</th>
-              <th>품목</th>
-              <th>매입수량</th>
-              <th>매입가</th>
-              <th>상태</th>
-              <th>최근 소분</th>
+              <th>{'\uBC30\uCE58\uBC88\uD638'}</th>
+              <th>{'\uD488\uBAA9'}</th>
+              <th>{'\uB9E4\uC785\uC218\uB7C9'}</th>
+              <th>{'\uB9E4\uC785\uAC00'}</th>
+              <th>{'\uC0C1\uD0DC'}</th>
+              <th>{'\uCD5C\uADFC \uC18C\uBD84'}</th>
             </tr>
           </thead>
           <tbody>
@@ -2828,7 +2475,7 @@ function PurchasePage({
                       }}
                       disabled={submittingPurchase || submittingPackage}
                     >
-                      삭제
+                      {'\uC0AD\uC81C'}
                     </button>
                   </td>
                 </tr>
@@ -2953,7 +2600,7 @@ function AdminApp() {
         setSelectedBatchNo(nextPurchases[0].batchNo);
       }
     } catch (error) {
-      setLoadError(error.message || '관리자 데이터를 불러오지 못했습니다.');
+      setLoadError(error.message || '\uAD00\uB9AC\uC790 \uB370\uC774\uD130\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setLoading(false);
     }
@@ -2988,7 +2635,7 @@ function AdminApp() {
         setTrackingNo(detail?.trackingNo || '');
       } catch (error) {
         if (!ignore) {
-          setActionError(error.message || '주문 상세를 불러오지 못했습니다.');
+          setActionError(error.message || '\uC8FC\uBB38 \uC0C1\uC138\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.');
         }
       }
     }
@@ -3017,6 +2664,20 @@ function AdminApp() {
   const normalizedPurchaseReferenceItems = useMemo(
     () => normalizeAdminPurchaseReferenceItems(purchaseReferenceItems, categories),
     [purchaseReferenceItems, categories]
+  );
+
+  const purchaseCategories = useMemo(
+    () => categories.filter(
+      (category) => !ADMIN_DISABLED_PURCHASE_CATEGORY_NAMES.has(String(category?.categoryName || '').trim())
+    ),
+    [categories]
+  );
+
+  const purchaseReferenceItemsForFlow = useMemo(
+    () => normalizedPurchaseReferenceItems.filter(
+      (item) => !ADMIN_DISABLED_PURCHASE_CATEGORY_NAMES.has(String(item?.categoryName || '').trim())
+    ),
+    [normalizedPurchaseReferenceItems]
   );
 
   useEffect(() => {
@@ -3255,7 +2916,7 @@ function AdminApp() {
       ?? ''
     ).trim();
     if (!productName && !itemCode) {
-      setActionError('시세 품목을 선택한 뒤 시세 자동 채움을 눌러주세요.');
+      setActionError('\uC2DC\uC138 \uD488\uBAA9\uC744 \uC120\uD0DD\uD55C \uB4A4 \uC2DC\uC138 \uC790\uB3D9 \uCC44\uC6C0\uC744 \uB20C\uB7EC\uC8FC\uC138\uC694.');
       setActionSuccess('');
       return;
     }
@@ -3311,12 +2972,12 @@ function AdminApp() {
       }));
       setActionSuccess(
         quote.quoteSource === 'RETAIL_FALLBACK'
-          ? `${quote.matchedItemName || productName} 소매 시세를 기준으로 매입 정보를 자동 입력했습니다.`
-          : `${quote.matchedItemName || productName} 최신 도매 시세를 기준으로 매입 정보를 자동 입력했습니다.`
+          ? `${quote.matchedItemName || productName} \uC18C\uB9E4 \uC2DC\uC138\uB97C \uAE30\uC900\uC73C\uB85C \uB9E4\uC785 \uC815\uBCF4\uB97C \uC790\uB3D9 \uC785\uB825\uD588\uC2B5\uB2C8\uB2E4.`
+          : `${quote.matchedItemName || productName} \uCD5C\uC2E0 \uB3C4\uB9E4 \uC2DC\uC138\uB97C \uAE30\uC900\uC73C\uB85C \uB9E4\uC785 \uC815\uBCF4\uB97C \uC790\uB3D9 \uC785\uB825\uD588\uC2B5\uB2C8\uB2E4.`
       );
     } catch (error) {
       setPurchaseQuote(null);
-      setActionError(error.message || '시세 기반 매입 정보를 불러오지 못했습니다.');
+      setActionError(error.message || '\uC2DC\uC138 \uAE30\uBC18 \uB9E4\uC785 \uC815\uBCF4\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setQuotingPurchase(false);
     }
@@ -3384,9 +3045,9 @@ function AdminApp() {
         setSelectedProductNo(savedProduct.productNo);
         setProductForm(buildProductForm(savedProduct));
       }
-      setActionSuccess('상품 정보가 정상적으로 수정되었습니다.');
+      setActionSuccess('\uC0C1\uD488 \uC815\uBCF4\uAC00 \uC815\uC0C1\uC801\uC73C\uB85C \uC218\uC815\uB418\uC5C8\uC2B5\uB2C8\uB2E4.');
     } catch (error) {
-      setActionError(error.message || '상품 저장에 실패했습니다.');
+      setActionError(error.message || '\uC0C1\uD488 \uC800\uC7A5\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setSavingProduct(false);
     }
@@ -3398,7 +3059,7 @@ function AdminApp() {
     }
 
     const shouldDelete = window.confirm(
-      `'${product.productName}' 상품을 영구삭제할까요? 주문 이력이 있는 상품은 삭제할 수 없습니다.`
+      `'${product.productName}' \uC0C1\uD488\uC744 \uC601\uAD6C \uC0AD\uC81C\uD560\uAE4C\uC694?\n\n\uC8FC\uBB38 \uC774\uB825\uC774 \uC788\uB294 \uC0C1\uD488\uC740 \uC0AD\uC81C\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.`
     );
     if (!shouldDelete) {
       return;
@@ -3418,9 +3079,9 @@ function AdminApp() {
         currentForm.productNo === product.productNo ? { ...EMPTY_PRODUCT_FORM } : currentForm
       );
       resetProductImages();
-      setActionSuccess('상품을 영구삭제했습니다.');
+      setActionSuccess('\uC0C1\uD488\uC744 \uC0AD\uC81C\uD588\uC2B5\uB2C8\uB2E4.');
     } catch (error) {
-      setActionError(error.message || '상품 삭제에 실패했습니다.');
+      setActionError(error.message || '\uC0C1\uD488 \uC0AD\uC81C \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setSavingProduct(false);
     }
@@ -3444,7 +3105,7 @@ function AdminApp() {
       setSelectedOrderDetail(detail);
       setTrackingNo(detail?.trackingNo || trackingNo);
     } catch (error) {
-      setActionError(error.message || '주문 상태 변경에 실패했습니다.');
+      setActionError(error.message || '\uC8FC\uBB38 \uC0C1\uD0DC \uBCC0\uACBD\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setUpdatingOrder(false);
     }
@@ -3459,12 +3120,12 @@ function AdminApp() {
       order.orderStatus === 'COMPLETED' && order.deliveryStatus === 'DELIVERED';
 
     if (!isDeletable) {
-      setActionError('배송 완료된 주문만 정보 제거할 수 있습니다.');
+      setActionError('\uBC30\uC1A1 \uC644\uB8CC\uB41C \uC8FC\uBB38\uB9CC \uC815\uBCF4\uB97C \uC0AD\uC81C\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.');
       return;
     }
 
     const shouldDelete = window.confirm(
-      `'${order.orderId}' 주문 정보를 제거할까요? 배송 완료 주문에 한해서만 삭제할 수 있습니다.`
+      `'${order.orderId}' \uC8FC\uBB38 \uC815\uBCF4\uB97C \uC0AD\uC81C\uD560\uAE4C\uC694?\n\n\uBC30\uC1A1 \uC644\uB8CC \uC8FC\uBB38\uB9CC \uC0AD\uC81C\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.`
     );
     if (!shouldDelete) {
       return;
@@ -3484,9 +3145,9 @@ function AdminApp() {
       setUsers(nextUsers);
       setSelectedOrderDetail(null);
       setSelectedOrderNo(nextOrders[0]?.orderNo || null);
-      setActionSuccess('배송 완료 주문 정보를 제거했습니다.');
+      setActionSuccess('\uBC30\uC1A1 \uC644\uB8CC \uC8FC\uBB38 \uC815\uBCF4\uB97C \uC0AD\uC81C\uD588\uC2B5\uB2C8\uB2E4.');
     } catch (error) {
-      setActionError(error.message || '주문 정보 제거에 실패했습니다.');
+      setActionError(error.message || '\uC8FC\uBB38 \uC815\uBCF4 \uC0AD\uC81C\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setUpdatingOrder(false);
     }
@@ -3501,7 +3162,7 @@ function AdminApp() {
       const nextUsers = await fetchAdminUsers();
       setUsers(nextUsers);
     } catch (error) {
-      setActionError(error.message || '회원 상태 변경에 실패했습니다.');
+      setActionError(error.message || '\uD68C\uC6D0 \uC0C1\uD0DC \uBCC0\uACBD\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setUpdatingUser(false);
     }
@@ -3517,10 +3178,10 @@ function AdminApp() {
       const nextUsers = await fetchAdminUsers();
       setUsers(nextUsers);
       setActionSuccess(
-        role === 'ADMIN' ? '관리자 권한을 부여했습니다.' : '관리자 권한을 해제했습니다.'
+        role === 'ADMIN' ? '\uAD00\uB9AC\uC790 \uAD8C\uD55C\uC744 \uBD80\uC5EC\uD588\uC2B5\uB2C8\uB2E4.' : '\uAD00\uB9AC\uC790 \uAD8C\uD55C\uC744 \uD574\uC81C\uD588\uC2B5\uB2C8\uB2E4.'
       );
     } catch (error) {
-      setActionError(error.message || '관리자 권한 변경에 실패했습니다.');
+      setActionError(error.message || '\uAD00\uB9AC\uC790 \uAD8C\uD55C \uBCC0\uACBD\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setUpdatingUser(false);
     }
@@ -3603,9 +3264,9 @@ function AdminApp() {
       setPurchaseForm(EMPTY_PURCHASE_FORM);
       setPurchaseQuote(null);
       resetPurchaseImages();
-      setActionSuccess('매입과 초안 상품 등록이 완료되었습니다. 소분 단계에서 판매 정보를 확정해주세요.');
+      setActionSuccess('\uB9E4\uC785\uACFC \uCD08\uC548 \uC0C1\uD488 \uB4F1\uB85D\uC774 \uC644\uB8CC\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uC18C\uBD84 \uB2E8\uACC4\uC5D0\uC11C \uD310\uB9E4 \uC815\uBCF4\uB97C \uD655\uC815\uD574\uC8FC\uC138\uC694.');
     } catch (error) {
-      setActionError(error.message || '매입 등록에 실패했습니다.');
+      setActionError(error.message || '\uB9E4\uC785 \uB4F1\uB85D\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setSavingPurchase(false);
     }
@@ -3652,9 +3313,9 @@ function AdminApp() {
       if (nextSelectedBatch?.productNo) {
         setSelectedProductNo(nextSelectedBatch.productNo);
       }
-      setActionSuccess('소분 정보가 상품에 반영되었습니다. 상품관리에서는 수정/삭제만 진행하면 됩니다.');
+      setActionSuccess('\uC18C\uBD84 \uC815\uBCF4\uAC00 \uC0C1\uD488\uC5D0 \uBC18\uC601\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uC0C1\uD488\uAD00\uB9AC\uC5D0\uC11C\uB294 \uC218\uC815/\uC0AD\uC81C\uB9CC \uC9C4\uD589\uD558\uBA74 \uB429\uB2C8\uB2E4.');
     } catch (error) {
-      setActionError(error.message || '소분 처리에 실패했습니다.');
+      setActionError(error.message || '\uC18C\uBD84 \uCC98\uB9AC\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setSavingPackage(false);
     }
@@ -3666,7 +3327,7 @@ function AdminApp() {
     }
 
     const shouldDelete = window.confirm(
-      `'${purchase.productName}' 매입/소분 이력을 삭제하시겠습니까?\n\n연결된 소분 이력은 함께 삭제되고, 상품 정보는 유지됩니다.`
+      `'${purchase.productName}' \uB9E4\uC785/\uC18C\uBD84 \uC774\uB825\uC744 \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?\n\n\uC5F0\uACB0\uB41C \uC18C\uBD84 \uC774\uB825\uC740 \uD568\uAED8 \uC0AD\uC81C\uB418\uACE0, \uC0C1\uD488 \uC815\uBCF4\uB294 \uC720\uC9C0\uB429\uB2C8\uB2E4.`
     );
     if (!shouldDelete) {
       return;
@@ -3687,9 +3348,9 @@ function AdminApp() {
       setSelectedBatchNo((currentSelectedBatchNo) =>
         currentSelectedBatchNo === purchase.batchNo ? nextPurchases[0]?.batchNo || null : currentSelectedBatchNo
       );
-      setActionSuccess('매입/소분 이력을 삭제했습니다.');
+      setActionSuccess('\uB9E4\uC785/\uC18C\uBD84 \uC774\uB825\uC744 \uC0AD\uC81C\uD588\uC2B5\uB2C8\uB2E4.');
     } catch (error) {
-      setActionError(error.message || '매입/소분 이력 삭제에 실패했습니다.');
+      setActionError(error.message || '\uB9E4\uC785/\uC18C\uBD84 \uC774\uB825 \uC0AD\uC81C\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setSavingPurchase(false);
     }
@@ -3704,7 +3365,7 @@ function AdminApp() {
       const nextMappings = await fetchAdminRecipeMappings();
       setRecipeMappings(nextMappings);
     } catch (error) {
-      setActionError(error.message || '레시피 동기화에 실패했습니다.');
+      setActionError(error.message || '\uB808\uC2DC\uD53C \uB3D9\uAE30\uD654\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setSyncingRecipes(false);
     }
@@ -3714,14 +3375,14 @@ function AdminApp() {
     return (
       <div className="admin-access">
         <div className="admin-access__card">
-          <h1>관리자 미리보기</h1>
-          <p>로그인 기능 전에는 임시 전환 버튼으로 관리자 화면에 진입합니다.</p>
+          <h1>{'\uAD00\uB9AC\uC790 \uBBF8\uB9AC\uBCF4\uAE30'}</h1>
+          <p>{'\uB85C\uADF8\uC778 \uAE30\uB2A5 \uC774\uC804\uC5D0 \uC784\uC2DC \uC804\uD658 \uBC84\uD2BC\uC73C\uB85C \uAD00\uB9AC\uC790 \uD654\uBA74\uC5D0 \uC9C4\uC785\uD569\uB2C8\uB2E4.'}</p>
           <div className="admin-page-actions">
             <button type="button" className="admin-action admin-action--line" onClick={() => leaveAdminPage('#/')}>
-              사용자 화면으로
+              {'\uC0AC\uC6A9\uC790 \uD654\uBA74\uC73C\uB85C'}
             </button>
             <button type="button" className="admin-action admin-action--primary" onClick={() => openAdminPage('#/admin')}>
-              관리자 화면 열기
+              {'\uAD00\uB9AC\uC790 \uD654\uBA74 \uC5F4\uAE30'}
             </button>
           </div>
         </div>
@@ -3738,7 +3399,7 @@ function AdminApp() {
         leaveAdminPage('#/login');
       }}
     >
-      {loading ? <div className="admin-loading">관리자 데이터를 불러오는 중입니다.</div> : null}
+      {loading ? <div className="admin-loading">{'\uAD00\uB9AC\uC790 \uB370\uC774\uD130\uB97C \uBD88\uB7EC\uC624\uB294 \uC911\uC785\uB2C8\uB2E4.'}</div> : null}
       {!loading && loadError ? <div className="admin-error">{loadError}</div> : null}
       {!loading && !loadError && actionError ? <div className="admin-inline-error">{actionError}</div> : null}
       {!loading && !loadError && actionSuccess ? (
@@ -3747,7 +3408,7 @@ function AdminApp() {
       {!loading && !loadError && false ? (
         <div className="admin-page-actions admin-page-actions--spaced">
           <span className="admin-muted">
-            선택 회원: {currentUser.nickname} ({currentUser.userId})
+            ???????????????????? {currentUser.nickname} ({currentUser.userId})
           </span>
           <button
             type="button"
@@ -3755,7 +3416,7 @@ function AdminApp() {
             onClick={() => handleDeleteUser(currentUser)}
             disabled={updatingUser}
           >
-            선택 회원 삭제
+            ????????????????????????
           </button>
         </div>
       ) : null}
@@ -3833,11 +3494,11 @@ function AdminApp() {
           ) : null}
           {currentPage === 'purchase' ? (
             <PurchasePage
-              categories={categories}
+              categories={purchaseCategories}
               products={products}
               purchases={purchases}
               packageHistories={packageHistories}
-              purchaseReferenceItems={normalizedPurchaseReferenceItems}
+              purchaseReferenceItems={purchaseReferenceItemsForFlow}
               selectedBatchNo={selectedBatchNo}
               purchaseForm={purchaseForm}
               packageForm={packageForm}
@@ -3873,4 +3534,3 @@ function AdminApp() {
 }
 
 export default AdminApp;
-

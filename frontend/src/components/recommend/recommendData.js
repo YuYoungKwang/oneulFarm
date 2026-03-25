@@ -2,7 +2,6 @@ import { isAuthenticated } from "../../auth";
 import { fetchProductsFromApi } from "../../api/productApi";
 import {
   fetchDashboardPatternsFromApi,
-  fetchDashboardProductSavingsFromApi,
   fetchPopularSearchesFromApi,
   fetchPriceTrendFromApi,
 } from "../../api/recommendApi";
@@ -38,22 +37,19 @@ export function buildEmptyRecommendData() {
 
 export async function loadRecommendData(authUser) {
   const isLoggedIn = isAuthenticated(authUser);
-  const [productList, recipePayload, patterns, productSavings] = await Promise.all([
+  const [productList, recipePayload, patterns] = await Promise.all([
     fetchProductsFromApi(),
     fetchRecipeList({ limit: 18, sort: "RECOMMENDED" }),
     isLoggedIn
       ? fetchDashboardPatternsFromApi(authUser).catch(() => EMPTY_PATTERNS)
       : Promise.resolve(EMPTY_PATTERNS),
-    isLoggedIn
-      ? fetchDashboardProductSavingsFromApi(authUser).catch(() => [])
-      : Promise.resolve([]),
   ]);
 
   const safeProductList = Array.isArray(productList) ? productList : [];
   const safeRecipeList = Array.isArray(recipePayload?.recipeList)
     ? recipePayload.recipeList
     : [];
-  const safeProductSavings = Array.isArray(productSavings) ? productSavings : [];
+  const safeProductSavings = [];
   const interestProductList = buildInterestProductList(
     safeProductList,
     patterns,

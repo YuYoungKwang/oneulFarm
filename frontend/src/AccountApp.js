@@ -151,27 +151,27 @@ function validateAddressForm(form) {
   const address1 = String(form.address1 || '').trim();
 
   if (!recipientName) {
-    return '수령인을 입력해 주세요.';
+    return '?�령?�을 ?�력??주세??';
   }
 
   if (!recipientPhone) {
-    return '연락처를 입력해 주세요.';
+    return '?�락처�? ?�력??주세??';
   }
 
   if (!/^01[0-9]-?\d{3,4}-?\d{4}$/.test(recipientPhone)) {
-    return '연락처 형식이 올바르지 않습니다. 예: 010-1234-5678';
+    return '?�락�??�식???�바르�? ?�습?�다. ?? 010-1234-5678';
   }
 
   if (!zipCode) {
-    return '우편번호를 입력해 주세요.';
+    return '?�편번호�??�력??주세??';
   }
 
   if (!/^\d{5}$/.test(zipCode)) {
-    return '우편번호는 5자리 숫자로 입력해 주세요.';
+    return '?�편번호??5?�리 ?�자�??�력??주세??';
   }
 
   if (!address1) {
-    return '기본 주소를 입력해 주세요.';
+    return '기본 주소�??�력??주세??';
   }
 
   return '';
@@ -187,18 +187,18 @@ function toProfileForm(profile) {
 
 function buildWishlistBadge(product) {
   if (product?.badgeType === 'UNDER_AVG') {
-    return '평균가 이하';
+    return '?�균가 ?�하';
   }
 
   if (product?.isSeasonal === 'Y') {
-    return '제철 추천';
+    return '?�철 추천';
   }
 
   if (product?.isSingleFriendly) {
-    return '1인 추천';
+    return '1??추천';
   }
 
-  return '관심 상품';
+  return '관???�품';
 }
 
 function buildWishlistSummary(product) {
@@ -207,18 +207,18 @@ function buildWishlistSummary(product) {
   const averageRating = Number(product?.averageRating || 0);
 
   if (savingRate > 0) {
-    return `평균가보다 ${Math.round(savingRate)}% 절약`;
+    return `?�균가보다 ${Math.round(savingRate)}% ?�약`;
   }
 
   if (reviewCount > 0) {
-    return `평점 ${averageRating.toFixed(1)} · 리뷰 ${reviewCount}건`;
+    return `���� ${averageRating.toFixed(1)} �� ���� ${reviewCount}��`;
   }
 
   if (product?.origin) {
     return `${product.origin}${product.unit ? ` · ${product.unit}` : ''}`;
   }
 
-  return '상품 상세에서 가격과 리뷰를 확인해 보세요.';
+  return '?�품 ?�세?�서 가격과 리뷰�??�인??보세??';
 }
 
 function buildWishlistSavingRate(product) {
@@ -324,14 +324,14 @@ function AccountApp({ authUser: initialAuthUser }) {
           {
             headers: accountHeaders(authUser),
           },
-          '작성 가능한 리뷰 목록을 불러오지 못했습니다.'
+          '?�성 가?�한 리뷰 목록??불러?��? 못했?�니??'
         ),
         requestAuthApi(
           `${REVIEW_API_PATH}/me`,
           {
             headers: accountHeaders(authUser),
           },
-          '내 리뷰 목록을 불러오지 못했습니다.'
+          '??리뷰 목록??불러?��? 못했?�니??'
         ),
       ]);
 
@@ -340,7 +340,7 @@ function AccountApp({ authUser: initialAuthUser }) {
     } catch (error) {
       setWritableReviews([]);
       setMyReviews([]);
-      setReviewsError(error.message || '리뷰 목록을 불러오지 못했습니다.');
+      setReviewsError(error.message || '리뷰 목록??불러?��? 못했?�니??');
     } finally {
       setReviewsLoading(false);
     }
@@ -409,14 +409,14 @@ function AccountApp({ authUser: initialAuthUser }) {
             savingRate: buildWishlistSavingRate(product),
             badge: buildWishlistBadge(product),
             imageUrl: product.mainImage?.imageUrl || '',
-            emoji: product.display?.symbol || '🛒',
+            emoji: product.display?.symbol || '?��',
           }));
 
         setWishlistItems(nextItems);
       } catch (error) {
         if (!cancelled) {
           setWishlistItems([]);
-          setWishlistError(error.message || '찜한 상품을 불러오지 못했습니다.');
+          setWishlistError(error.message || '찜한 ?�품??불러?��? 못했?�니??');
         }
       } finally {
         if (!cancelled) {
@@ -467,12 +467,12 @@ function AccountApp({ authUser: initialAuthUser }) {
             headers: accountHeaders(authUser),
             signal: controller.signal,
           },
-          '주문 목록을 불러오지 못했습니다.'
+          '주문 목록??불러?��? 못했?�니??'
         );
         setOrders(Array.isArray(payload.data) ? payload.data : []);
       } catch (error) {
         if (error.name !== 'AbortError') {
-          setOrdersError(error.message || '주문 목록을 불러오지 못했습니다.');
+          setOrdersError(error.message || '주문 목록??불러?��? 못했?�니??');
         }
       } finally {
         setOrdersLoading(false);
@@ -502,7 +502,7 @@ function AccountApp({ authUser: initialAuthUser }) {
             headers: accountHeaders(authUser),
             signal: controller.signal,
           },
-          '대시보드 요약을 불러오지 못했습니다.'
+          '?�?�보???�약??불러?��? 못했?�니??'
         );
         setSummary(payload.data ? { ...EMPTY_SUMMARY, ...payload.data } : EMPTY_SUMMARY);
       } catch (error) {
@@ -542,23 +542,16 @@ function AccountApp({ authUser: initialAuthUser }) {
               headers: accountHeaders(authUser),
               signal: controller.signal,
             },
-            '대시보드 차트 데이터를 불러오지 못했습니다.'
+            '?�?�보??차트 ?�이?��? 불러?��? 못했?�니??'
           ),
-          requestAuthApi(
-            `${DASHBOARD_API_PATH}/product-savings`,
-            {
-              headers: accountHeaders(authUser),
-              signal: controller.signal,
-            },
-            '대시보드 품목 분석 데이터를 불러오지 못했습니다.'
-          ),
+          Promise.resolve({ data: [] }),
           requestAuthApi(
             `${DASHBOARD_API_PATH}/patterns`,
             {
               headers: accountHeaders(authUser),
               signal: controller.signal,
             },
-            '대시보드 소비 패턴 데이터를 불러오지 못했습니다.'
+            '?�?�보???�비 ?�턴 ?�이?��? 불러?��? 못했?�니??'
           ),
         ]);
 
@@ -574,7 +567,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           setMonthlySavings([]);
           setProductSavings([]);
           setDashboardPatterns(EMPTY_DASHBOARD_PATTERNS);
-          setDashboardError(error.message || '대시보드 상세 데이터를 불러오지 못했습니다.');
+          setDashboardError(error.message || '?�?�보???�세 ?�이?��? 불러?��? 못했?�니??');
         }
       } finally {
         setDashboardLoading(false);
@@ -607,14 +600,14 @@ function AccountApp({ authUser: initialAuthUser }) {
             headers: accountHeaders(authUser),
             signal: controller.signal,
           },
-          '회원정보를 불러오지 못했습니다.'
+          '?�원?�보�?불러?��? 못했?�니??'
         );
         const nextProfile = payload.data ? { ...EMPTY_PROFILE, ...payload.data } : EMPTY_PROFILE;
         setProfile(nextProfile);
         setProfileForm(toProfileForm(nextProfile));
       } catch (error) {
         if (error.name !== 'AbortError') {
-          setProfileError(error.message || '회원정보를 불러오지 못했습니다.');
+          setProfileError(error.message || '?�원?�보�?불러?��? 못했?�니??');
         }
       } finally {
         setProfileLoading(false);
@@ -645,13 +638,13 @@ function AccountApp({ authUser: initialAuthUser }) {
             headers: accountHeaders(authUser),
             signal: controller.signal,
           },
-          '주문 상세를 불러오지 못했습니다.'
+          '주문 ?�세�?불러?��? 못했?�니??'
         );
         setOrderDetail(payload.data || null);
       } catch (error) {
         if (error.name !== 'AbortError') {
           setOrderDetail(null);
-          setDetailError(error.message || '주문 상세를 불러오지 못했습니다.');
+          setDetailError(error.message || '주문 ?�세�?불러?��? 못했?�니??');
         }
       } finally {
         setDetailLoading(false);
@@ -720,13 +713,13 @@ function AccountApp({ authUser: initialAuthUser }) {
           headers: accountHeaders(authUser),
           body: formData,
         },
-        '프로필 사진 변경에 실패했습니다.'
+        '?�로???�진 변경에 ?�패?�습?�다.'
       );
 
       await refreshProfile();
       return true;
     } catch (error) {
-      setProfileImageError(error.message || '프로필 사진 변경에 실패했습니다.');
+      setProfileImageError(error.message || '?�로???�진 변경에 ?�패?�습?�다.');
       return false;
     } finally {
       setProfileImageUploading(false);
@@ -743,7 +736,7 @@ function AccountApp({ authUser: initialAuthUser }) {
         [fieldKey]: {
           checking: false,
           available: false,
-          message: fieldKey === 'email' ? '이메일을 입력해 주세요.' : '닉네임을 입력해 주세요.',
+          message: fieldKey === 'email' ? '?�메?�을 ?�력??주세??' : '?�네?�을 ?�력??주세??',
           checkedValue: '',
         },
       }));
@@ -756,7 +749,7 @@ function AccountApp({ authUser: initialAuthUser }) {
         email: {
           checking: false,
           available: false,
-          message: '올바른 이메일 형식으로 입력해 주세요.',
+          message: '?�바�??�메???�식?�로 ?�력??주세??',
           checkedValue: '',
         },
       }));
@@ -769,7 +762,7 @@ function AccountApp({ authUser: initialAuthUser }) {
         [fieldKey]: {
           checking: false,
           available: true,
-          message: fieldKey === 'email' ? '현재 사용 중인 이메일입니다.' : '현재 사용 중인 닉네임입니다.',
+          message: fieldKey === 'email' ? '?�재 ?�용 중인 ?�메?�입?�다.' : '?�재 ?�용 중인 ?�네?�입?�다.',
           checkedValue: rawValue,
         },
       }));
@@ -792,7 +785,7 @@ function AccountApp({ authUser: initialAuthUser }) {
         {
           headers: accountHeaders(authUser),
         },
-        fieldKey === 'email' ? '이메일 중복 확인에 실패했습니다.' : '닉네임 중복 확인에 실패했습니다.'
+        fieldKey === 'email' ? '?�메??중복 ?�인???�패?�습?�다.' : '?�네??중복 ?�인???�패?�습?�다.'
       );
       const available = Boolean(payload.data?.available);
 
@@ -803,11 +796,11 @@ function AccountApp({ authUser: initialAuthUser }) {
           available,
           message: available
             ? fieldKey === 'email'
-              ? '사용 가능한 이메일입니다.'
-              : '사용 가능한 닉네임입니다.'
+              ? '?�용 가?�한 ?�메?�입?�다.'
+              : '?�용 가?�한 ?�네?�입?�다.'
             : fieldKey === 'email'
-              ? '이미 사용 중인 이메일입니다.'
-              : '이미 사용 중인 닉네임입니다.',
+              ? '?��? ?�용 중인 ?�메?�입?�다.'
+              : '?��? ?�용 중인 ?�네?�입?�다.',
           checkedValue: rawValue,
         },
       }));
@@ -818,8 +811,8 @@ function AccountApp({ authUser: initialAuthUser }) {
           checking: false,
           available: false,
           message: error.message || (fieldKey === 'email'
-            ? '이메일 중복 확인에 실패했습니다.'
-            : '닉네임 중복 확인에 실패했습니다.'),
+            ? '?�메??중복 ?�인???�패?�습?�다.'
+            : '?�네??중복 ?�인???�패?�습?�다.'),
           checkedValue: '',
         },
       }));
@@ -838,7 +831,7 @@ function AccountApp({ authUser: initialAuthUser }) {
 
         if (nextValue !== currentValue && (!state.available || state.checkedValue !== nextValue)) {
           setProfileSubmitError(
-          '저장에 실패했습니다. 닉네임 중복 확인을 완료해 주세요.'
+          '?�?�에 ?�패?�습?�다. ?�네??중복 ?�인???�료??주세??'
           );
           setProfileSubmitting(false);
           return false;
@@ -853,7 +846,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           headers: accountHeaders(authUser, true),
           body: JSON.stringify(profileForm),
         },
-        '회원정보를 저장하지 못했습니다.'
+        '?�원?�보�??�?�하지 못했?�니??'
       );
 
       if (payload.data) {
@@ -868,7 +861,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           [fieldKey]: {
             checking: false,
             available: true,
-            message: fieldKey === 'email' ? '이메일이 저장되었습니다.' : '닉네임이 저장되었습니다.',
+            message: fieldKey === 'email' ? '?�메?�이 ?�?�되?�습?�다.' : '?�네?�이 ?�?�되?�습?�다.',
             checkedValue: String(profileForm[fieldKey] || '').trim(),
           },
         }));
@@ -876,7 +869,7 @@ function AccountApp({ authUser: initialAuthUser }) {
 
       return true;
     } catch (error) {
-      setProfileSubmitError(error.message || '회원정보를 저장하지 못했습니다.');
+      setProfileSubmitError(error.message || '?�원?�보�??�?�하지 못했?�니??');
       return false;
     } finally {
       setProfileSubmitting(false);
@@ -917,12 +910,12 @@ function AccountApp({ authUser: initialAuthUser }) {
           headers: accountHeaders(authUser, true),
           body: JSON.stringify(passwordForm),
         },
-        '비밀번호를 변경하지 못했습니다.'
+        '비�?번호�?변경하지 못했?�니??'
       );
       setPasswordForm(EMPTY_PASSWORD_FORM);
       return true;
     } catch (error) {
-      setPasswordError(error.message || '비밀번호를 변경하지 못했습니다.');
+      setPasswordError(error.message || '비�?번호�?변경하지 못했?�니??');
       return false;
     } finally {
       setPasswordSubmitting(false);
@@ -935,7 +928,7 @@ function AccountApp({ authUser: initialAuthUser }) {
     setWithdrawError('');
 
     const confirmed = window.confirm(
-      '정말 회원 탈퇴를 진행하시겠습니까? 탈퇴 이후에는 현재 계정으로 마이페이지 기능을 계속 사용할 수 없습니다.'
+      '?�말 ?�원 ?�퇴�?진행?�시겠습?�까? ?�퇴 ?�후?�는 ?�재 계정?�로 마이?�이지 기능??계속 ?�용?????�습?�다.'
     );
     if (!confirmed) {
       setWithdrawing(false);
@@ -950,13 +943,13 @@ function AccountApp({ authUser: initialAuthUser }) {
           headers: accountHeaders(authUser, true),
           body: JSON.stringify(withdrawForm),
         },
-        '회원 탈퇴 처리에 실패했습니다.'
+        '?�원 ?�퇴 처리???�패?�습?�다.'
       );
-      window.alert('회원 탈퇴가 완료되었습니다.');
+      window.alert('?�원 ?�퇴가 ?�료?�었?�니??');
       window.location.hash = '#/products';
       return true;
     } catch (error) {
-      setWithdrawError(error.message || '회원 탈퇴 처리에 실패했습니다.');
+      setWithdrawError(error.message || '?�원 ?�퇴 처리???�패?�습?�다.');
       return false;
     } finally {
       setWithdrawing(false);
@@ -969,7 +962,7 @@ function AccountApp({ authUser: initialAuthUser }) {
       {
         headers: accountHeaders(authUser),
       },
-      '회원정보를 불러오지 못했습니다.'
+      '?�원?�보�?불러?��? 못했?�니??'
     );
     if (payload.data) {
       const nextProfile = { ...EMPTY_PROFILE, ...payload.data };
@@ -988,11 +981,11 @@ function AccountApp({ authUser: initialAuthUser }) {
         {
           headers: accountHeaders(authUser),
         },
-        '배송지 목록을 불러오지 못했습니다.'
+        '배송지 목록??불러?��? 못했?�니??'
       );
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
     } catch (error) {
-      setAddressesError(error.message || '배송지 목록을 불러오지 못했습니다.');
+      setAddressesError(error.message || '배송지 목록??불러?��? 못했?�니??');
     } finally {
       setAddressesLoading(false);
     }
@@ -1110,7 +1103,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           headers: accountHeaders(authUser, true),
           body: JSON.stringify(addressForm),
         },
-        isEditMode ? '배송지 수정에 실패했습니다.' : '배송지 등록에 실패했습니다.'
+        isEditMode ? '배송지 ?�정???�패?�습?�다.' : '배송지 ?�록???�패?�습?�다.'
       );
 
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
@@ -1122,7 +1115,7 @@ function AccountApp({ authUser: initialAuthUser }) {
     } catch (error) {
       setAddressFormError(
         error.message ||
-        (isEditMode ? '배송지 수정에 실패했습니다.' : '배송지 등록에 실패했습니다.')
+        (isEditMode ? '배송지 ?�정???�패?�습?�다.' : '배송지 ?�록???�패?�습?�다.')
       );
     } finally {
       setAddressSubmitting(false);
@@ -1140,12 +1133,12 @@ function AccountApp({ authUser: initialAuthUser }) {
           method: 'PATCH',
           headers: accountHeaders(authUser),
         },
-        '기본 배송지 변경에 실패했습니다.'
+        '기본 배송지 변경에 ?�패?�습?�다.'
       );
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
       await refreshProfile();
     } catch (error) {
-      setAddressesError(error.message || '기본 배송지 변경에 실패했습니다.');
+      setAddressesError(error.message || '기본 배송지 변경에 ?�패?�습?�다.');
     } finally {
       setChangingAddressNo(null);
     }
@@ -1153,13 +1146,13 @@ function AccountApp({ authUser: initialAuthUser }) {
 
   async function handleDeleteAddress(address) {
     const addressNo = address?.addressNo;
-    const addressLabel = address?.addressName || address?.recipientName || '선택한 배송지';
+    const addressLabel = address?.addressName || address?.recipientName || '?�택??배송지';
 
     if (!addressNo) {
       return;
     }
 
-    const confirmed = window.confirm(`'${addressLabel}' 배송지를 삭제하시겠습니까?`);
+    const confirmed = window.confirm(`'${addressLabel}' 배송지�???��?�시겠습?�까?`);
     if (!confirmed) {
       return;
     }
@@ -1174,12 +1167,12 @@ function AccountApp({ authUser: initialAuthUser }) {
           method: 'DELETE',
           headers: accountHeaders(authUser),
         },
-        '배송지 삭제에 실패했습니다.'
+        '배송지 ??��???�패?�습?�다.'
       );
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
       await refreshProfile();
     } catch (error) {
-      setAddressesError(error.message || '배송지 삭제에 실패했습니다.');
+      setAddressesError(error.message || '배송지 ??��???�패?�습?�다.');
     } finally {
       setDeletingAddressNo(null);
     }
@@ -1215,14 +1208,14 @@ function AccountApp({ authUser: initialAuthUser }) {
       const nextCart = await addCartItemToApi(productNo, 1);
       persistValue(CART_STORAGE_KEY, nextCart);
     } catch (error) {
-      setWishlistError(error.message || '장바구니 담기에 실패했습니다.');
+      setWishlistError(error.message || '?�바구니 ?�기???�패?�습?�다.');
     } finally {
       setWishlistActionProductNo(null);
     }
   }
 
   function handleRemoveWishlistItem(productNo) {
-    const confirmed = window.confirm('찜한 상품에서 제거하시겠습니까?');
+    const confirmed = window.confirm('찜한 ?�품?�서 ?�거?�시겠습?�까?');
     if (!confirmed) {
       return;
     }
@@ -1315,7 +1308,7 @@ function AccountApp({ authUser: initialAuthUser }) {
     const nextImageFiles = [...(reviewForm.imageFiles || []), ...files];
 
     if (activeExistingCount + nextImageFiles.length > 3) {
-      setReviewFormError('리뷰 사진은 최대 3장까지 등록할 수 있습니다.');
+      setReviewFormError('리뷰 ?�진?� 최�? 3?�까지 ?�록?????�습?�다.');
       event.target.value = '';
       return;
     }
@@ -1347,7 +1340,7 @@ function AccountApp({ authUser: initialAuthUser }) {
     setReviewFormError('');
 
     if (!String(reviewForm.content || '').trim()) {
-      setReviewFormError('리뷰 내용을 입력해 주세요.');
+      setReviewFormError('리뷰 ?�용???�력??주세??');
       setReviewSubmitting(false);
       return false;
     }
@@ -1375,7 +1368,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           headers: accountHeaders(authUser),
           body: formData,
         },
-        isEditMode ? '리뷰 수정에 실패했습니다.' : '리뷰 작성에 실패했습니다.'
+        isEditMode ? '리뷰 ?�정???�패?�습?�다.' : '리뷰 ?�성???�패?�습?�다.'
       );
 
       await loadReviewsData();
@@ -1385,8 +1378,8 @@ function AccountApp({ authUser: initialAuthUser }) {
     } catch (error) {
       setReviewFormError(
         error.message || (reviewEditor?.mode === 'edit'
-          ? '리뷰 수정에 실패했습니다.'
-          : '리뷰 작성에 실패했습니다.')
+          ? '리뷰 ?�정???�패?�습?�다.'
+          : '리뷰 ?�성???�패?�습?�다.')
       );
       return false;
     } finally {
@@ -1395,7 +1388,7 @@ function AccountApp({ authUser: initialAuthUser }) {
   }
 
   async function handleDeleteReview(reviewNo) {
-    const confirmed = window.confirm('이 리뷰를 삭제하시겠습니까?');
+    const confirmed = window.confirm('??리뷰�???��?�시겠습?�까?');
     if (!confirmed) {
       return;
     }
@@ -1419,7 +1412,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           method: 'DELETE',
           headers: accountHeaders(authUser),
         },
-        '리뷰 삭제에 실패했습니다.'
+        '리뷰 ??��???�패?�습?�다.'
       );
       await loadReviewsData();
       notifyReviewChange(targetProductNo);
@@ -1428,7 +1421,7 @@ function AccountApp({ authUser: initialAuthUser }) {
         handleCancelReviewEditor();
       }
     } catch (error) {
-      setReviewsError(error.message || '리뷰 삭제에 실패했습니다.');
+      setReviewsError(error.message || '리뷰 ??��???�패?�습?�다.');
     } finally {
       setDeletingReviewNo(null);
     }
@@ -1441,8 +1434,8 @@ function AccountApp({ authUser: initialAuthUser }) {
           <section className="card">
             <div className="page-head" style={{ marginBottom: '8px' }}>
               <div>
-                <h1>로그인이 필요합니다.</h1>
-                <p>마이페이지와 대시보드는 로그인 후 이용할 수 있습니다.</p>
+                <h1>로그?�이 ?�요?�니??</h1>
+                <p>마이?�이지?� ?�?�보?�는 로그?????�용?????�습?�다.</p>
               </div>
             </div>
             <div className="page-actions">
@@ -1453,7 +1446,7 @@ function AccountApp({ authUser: initialAuthUser }) {
                   window.location.hash = '#/login';
                 }}
               >
-                로그인하러 가기
+                로그?�하??가�?
               </button>
               <button
                 className="btn-outline"
@@ -1462,7 +1455,7 @@ function AccountApp({ authUser: initialAuthUser }) {
                   window.location.hash = '#/signup';
                 }}
               >
-                회원가입
+                ?�원가??
               </button>
             </div>
           </section>
@@ -1470,9 +1463,9 @@ function AccountApp({ authUser: initialAuthUser }) {
 
         <footer className="site-footer">
           <div className="footer-links">
-            <a href="#/products">개인정보처리방침</a>
-            <a href="#/products">이용약관</a>
-            <a href="#/products">고객센터</a>
+            <a href="#/products">개인?�보처리방침</a>
+            <a href="#/products">?�용?��?</a>
+            <a href="#/products">고객?�터</a>
           </div>
           <div>© 2026 oneulFarm. All rights reserved.</div>
         </footer>
@@ -1489,28 +1482,28 @@ function AccountApp({ authUser: initialAuthUser }) {
             className={`account-local-nav__link ${currentPage === 'mypage' ? 'is-active' : ''}`}
             onClick={() => moveToPage('mypage')}
           >
-            개인정보 관리
+            개인?�보 관�?
           </button>
           <button
             type="button"
             className={`account-local-nav__link ${currentPage === 'activity' ? 'is-active' : ''}`}
             onClick={() => moveToPage('activity')}
           >
-              내 활동
+              ???�동
           </button>
           <button
             type="button"
             className={`account-local-nav__link ${currentPage === 'orders' ? 'is-active' : ''}`}
             onClick={() => moveToPage('orders')}
           >
-            주문관리
+            주문관�?
           </button>
           <button
             type="button"
             className={`account-local-nav__link ${currentPage === 'dashboard' ? 'is-active' : ''}`}
             onClick={() => moveToPage('dashboard')}
           >
-            대시보드
+            ?�?�보??
           </button>
         </section>
 
@@ -1626,9 +1619,9 @@ function AccountApp({ authUser: initialAuthUser }) {
 
       <footer className="site-footer">
         <div className="footer-links">
-          <a href="#/products">개인정보처리방침</a>
-          <a href="#/products">이용약관</a>
-          <a href="#/products">고객센터</a>
+          <a href="#/products">개인?�보처리방침</a>
+          <a href="#/products">?�용?��?</a>
+          <a href="#/products">고객?�터</a>
         </div>
         <div>© 2026 oneulFarm. All rights reserved.</div>
       </footer>
