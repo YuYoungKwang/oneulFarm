@@ -158,10 +158,23 @@ public class AdminController {
 
     @PatchMapping(value = "/users/{userNo}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ApiResponse<UserProfileDto> updateUserStatus(
+        @RequestHeader(value = "X-USER-NO", required = false) Long actorUserNo,
         @PathVariable Long userNo,
         @RequestBody UserProfileDto request
     ) {
+        if (request != null && request.getRole() != null && !request.getRole().trim().isEmpty()) {
+            return ApiResponse.success(adminService.updateUserRole(actorUserNo, userNo, request), "Admin user role updated.");
+        }
         return ApiResponse.success(adminService.updateUserStatus(userNo, request), "Admin user updated.");
+    }
+
+    @PatchMapping(value = "/users/{userNo}/role", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ApiResponse<UserProfileDto> updateUserRole(
+        @RequestHeader("X-USER-NO") Long actorUserNo,
+        @PathVariable Long userNo,
+        @RequestBody UserProfileDto request
+    ) {
+        return ApiResponse.success(adminService.updateUserRole(actorUserNo, userNo, request), "Admin user role updated.");
     }
 
     @DeleteMapping("/users/{userNo}")
@@ -442,19 +455,34 @@ public class AdminController {
 
     private String resolveCatalogCategoryName(String itemCategoryCode, String itemName) {
         String normalizedCategoryCode = trimToNull(itemCategoryCode);
+        String normalizedItemName = normalizeReferenceProductName(itemName);
         if ("800".equals(normalizedCategoryCode)) {
             return "\uAC00\uACF5\uC2DD\uD488";
         }
         if ("500".equals(normalizedCategoryCode)) {
-            if (looksLikeDairyItem(itemName)) {
+            if (looksLikeDairyItem(normalizedItemName)) {
                 return "\uC720\uC81C\uD488";
             }
-            if (looksLikeEggItem(itemName)) {
+            if (looksLikeEggItem(normalizedItemName)) {
                 return "\uB2EC\uAC40";
             }
             return "\uC721\uB958";
         }
-        if (itemName != null && !looksLikeUnsupportedPurchaseReferenceItem(itemName)) {
+        if (normalizedItemName != null) {
+            if (looksLikeMushroomItem(normalizedItemName)) {
+                return "\uBC84\uC12F";
+            }
+            if (looksLikeFruitItem(normalizedItemName)) {
+                return "\uACFC\uC77C";
+            }
+        }
+        if ("400".equals(normalizedCategoryCode)) {
+            return "\uACFC\uC77C";
+        }
+        if ("300".equals(normalizedCategoryCode)) {
+            return "\uBC84\uC12F";
+        }
+        if (normalizedItemName != null && !looksLikeUnsupportedPurchaseReferenceItem(normalizedItemName)) {
             return "\uCC44\uC18C";
         }
         return null;
@@ -496,6 +524,9 @@ public class AdminController {
     private Map<String, Object> buildPurchaseQuote(String productName, String itemCode) {
         String normalizedProductName = trimToNull(productName);
         String normalizedItemCode = trimToNull(itemCode);
+        if (normalizedItemCode != null && normalizedItemCode.startsWith("catalog:")) {
+            normalizedItemCode = null;
+        }
         if (normalizedProductName == null && normalizedItemCode == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "상품명을 입력해주세요.");
         }

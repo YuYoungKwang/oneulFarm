@@ -1,9 +1,10 @@
+import { buildAuthHeaders } from '../auth';
+
 const API_BASE_PREFIXES = buildApiBasePrefixes(
   process.env.REACT_APP_API_BASE_URL || ''
 );
 const ADMIN_API_BASE = '/api/admin';
 const RECIPE_SYNC_API_BASE = '/api/admin/recipes/sync';
-const DEMO_USER_NO = '1';
 let resolvedApiBasePrefix = '';
 
 function buildApiBasePrefixes(explicitBaseUrl) {
@@ -52,22 +53,16 @@ async function requestApi(path, options, fallbackMessage) {
 }
 
 function apiHeaders(includeJson = false) {
-  const headers = {
-    'X-USER-NO': DEMO_USER_NO,
-  };
-
-  if (includeJson) {
-    headers['Content-Type'] = 'application/json';
-  }
-
-  return headers;
+  return buildAuthHeaders({ includeJson });
 }
 
 export async function fetchAdminProductCategories() {
   return (
     (await requestApi(
       `${ADMIN_API_BASE}/product-categories`,
-      undefined,
+      {
+        headers: apiHeaders(),
+      },
       '상품 카테고리를 불러오지 못했습니다.'
     )) || []
   );
@@ -77,7 +72,9 @@ export async function fetchAdminProducts() {
   return (
     (await requestApi(
       `${ADMIN_API_BASE}/products`,
-      undefined,
+      {
+        headers: apiHeaders(),
+      },
       '관리자 상품 목록을 불러오지 못했습니다.'
     )) || []
   );
@@ -193,6 +190,37 @@ export async function updateAdminUserStatus(userNo, status) {
   );
 }
 
+export async function updateAdminUserRole(userNo, role) {
+  let lastError = null;
+
+  for (const basePrefix of API_BASE_PREFIXES) {
+    const rolePath = `${basePrefix}${ADMIN_API_BASE}/users/${userNo}/role`;
+    const legacyPath = `${basePrefix}${ADMIN_API_BASE}/users/${userNo}`;
+    const options = {
+      method: 'PATCH',
+      headers: apiHeaders(true),
+      body: JSON.stringify({ role }),
+    };
+
+    try {
+      const roleResponse = await fetch(rolePath, options);
+      if (roleResponse.status === 404) {
+        const legacyResponse = await fetch(legacyPath, options);
+        const legacyData = await parseResponse(legacyResponse, '관리자 권한 변경에 실패했습니다.');
+        resolvedApiBasePrefix = basePrefix;
+        return legacyData;
+      }
+
+      const roleData = await parseResponse(roleResponse, '관리자 권한 변경에 실패했습니다.');
+      resolvedApiBasePrefix = basePrefix;
+      return roleData;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error('관리자 권한 변경에 실패했습니다.');
+}
 export async function deleteAdminUser(userNo) {
   return requestApi(
     `${ADMIN_API_BASE}/users/${userNo}`,
@@ -258,11 +286,14 @@ export async function fetchAdminPurchaseQuote(productName, itemCode) {
   );
 }
 
-export async function fetchAdminRetailPriceList(itemName, limit = 200) {
+export async function fetchAdminRetailPriceList(itemName, limit = 200, snapshotDate) {
   const searchParams = new URLSearchParams();
   searchParams.set('marketType', 'RETAIL');
   if (itemName) {
     searchParams.set('itemName', itemName);
+  }
+  if (snapshotDate) {
+    searchParams.set('snapshotDate', snapshotDate);
   }
   if (limit) {
     searchParams.set('limit', String(limit));

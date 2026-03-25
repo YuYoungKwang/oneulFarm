@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { requestAuthApi, setAuthUser } from '../auth';
+import { getPostLoginHash, requestAuthApi, setAuthUser } from '../auth';
+import { buildSocialCallbackUri, createSocialLoginState } from '../socialAuth';
 import '../styles/user.css';
 
 const INITIAL_FIND_ID_FORM = {
@@ -75,9 +76,7 @@ function LoginPage() {
 
       if (payload.data) {
         setAuthUser(payload.data);
-        window.location.hash = payload.data.passwordChangeRequired
-          ? '#/password-change'
-          : '#/mypage';
+        window.location.hash = getPostLoginHash(payload.data);
       }
     } catch (requestError) {
       setError(requestError.message || '로그인에 실패했습니다.');
@@ -187,7 +186,8 @@ function LoginPage() {
   function handleKakaoLogin() {
     const restApiKey = process.env.REACT_APP_KAKAO_REST_API_KEY || '';
     const redirectUri =
-      process.env.REACT_APP_KAKAO_REDIRECT_URI || 'http://localhost:3000/kakao/callback';
+      process.env.REACT_APP_KAKAO_REDIRECT_URI || buildSocialCallbackUri('kakao');
+    const state = createSocialLoginState('kakao');
 
     if (!restApiKey) {
       window.alert('카카오 로그인 설정이 아직 없습니다.');
@@ -198,7 +198,8 @@ function LoginPage() {
       'https://kauth.kakao.com/oauth/authorize' +
       `?client_id=${restApiKey}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-      '&response_type=code';
+      '&response_type=code' +
+      `&state=${encodeURIComponent(state)}`;
 
     window.location.href = kakaoUrl;
   }
@@ -206,8 +207,8 @@ function LoginPage() {
   function handleNaverLogin() {
     const clientId = process.env.REACT_APP_NAVER_CLIENT_ID || '';
     const redirectUri =
-      process.env.REACT_APP_NAVER_REDIRECT_URI || 'http://localhost:3000/naver/callback';
-    const state = Math.random().toString(36).slice(2);
+      process.env.REACT_APP_NAVER_REDIRECT_URI || buildSocialCallbackUri('naver');
+    const state = createSocialLoginState('naver');
 
     if (!clientId) {
       window.alert('네이버 로그인 설정이 아직 없습니다.');
@@ -226,7 +227,8 @@ function LoginPage() {
   function handleGoogleLogin() {
     const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || '';
     const redirectUri =
-      process.env.REACT_APP_GOOGLE_REDIRECT_URI || 'http://localhost:3000/google/callback';
+      process.env.REACT_APP_GOOGLE_REDIRECT_URI || buildSocialCallbackUri('google');
+    const state = createSocialLoginState('google');
 
     if (!clientId) {
       window.alert('구글 로그인 설정이 아직 없습니다.');
@@ -238,7 +240,8 @@ function LoginPage() {
       `?client_id=${clientId}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
       '&response_type=code' +
-      `&scope=${encodeURIComponent('openid email profile')}`;
+      `&scope=${encodeURIComponent('openid email profile')}` +
+      `&state=${encodeURIComponent(state)}`;
 
     window.location.href = googleUrl;
   }
@@ -371,7 +374,7 @@ function LoginPage() {
                   className="input"
                   type="email"
                   name="email"
-                  placeholder="example@naver.com"
+                  placeholder="example@domain.com"
                   value={findIdForm.email}
                   onChange={handleFindIdChange}
                   required
@@ -434,7 +437,7 @@ function LoginPage() {
                   className="input"
                   type="email"
                   name="email"
-                  placeholder="example@naver.com"
+                  placeholder="example@domain.com"
                   value={resetPasswordForm.email}
                   onChange={handleResetPasswordChange}
                   required

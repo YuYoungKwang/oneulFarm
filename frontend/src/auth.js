@@ -83,8 +83,24 @@ export function isAuthenticated(user = getAuthUser()) {
   return Boolean(user?.userNo && getAccessToken(user));
 }
 
+export function isAdminUser(user = getAuthUser()) {
+  return String(user?.role || '').toUpperCase() === 'ADMIN';
+}
+
 export function requiresPasswordChange(user = getAuthUser()) {
   return Boolean(user?.passwordChangeRequired);
+}
+
+export function getPostLoginHash(user = getAuthUser()) {
+  if (requiresPasswordChange(user)) {
+    return '#/password-change';
+  }
+
+  if (isAdminUser(user)) {
+    return '#/admin';
+  }
+
+  return '#/';
 }
 
 export function buildAuthHeaders({

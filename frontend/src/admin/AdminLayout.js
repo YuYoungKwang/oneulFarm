@@ -16,6 +16,8 @@ function navigateTo(hash) {
 
 function AdminLayout({
   activePage,
+  onLeaveUserService,
+  onLogout,
   children,
 }) {
   return (
@@ -52,7 +54,7 @@ function AdminLayout({
             <button
               type="button"
               className="admin-app__action admin-app__action--soft"
-              onClick={() => leaveAdminPage('#/mypage')}
+              onClick={onLeaveUserService || (() => leaveAdminPage('#/'))}
             >
               {'\uC0AC\uC6A9\uC790 \uC11C\uBE44\uC2A4'}
             </button>
@@ -66,7 +68,7 @@ function AdminLayout({
             <button
               type="button"
               className="admin-app__action admin-app__action--line"
-              onClick={() => leaveAdminPage('#/')}
+              onClick={onLogout || (() => leaveAdminPage('#/login'))}
             >
               {'\uB85C\uADF8\uC544\uC6C3'}
             </button>

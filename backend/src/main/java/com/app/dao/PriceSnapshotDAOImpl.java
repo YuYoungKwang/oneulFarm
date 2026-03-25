@@ -31,6 +31,11 @@ public class PriceSnapshotDAOImpl implements PriceSnapshotDAO {
     }
 
     @Override
+    public String selectLatestSnapshotDateByMarketType(String marketType) {
+        return sqlSessionTemplate.selectOne(NAMESPACE + "selectLatestSnapshotDateByMarketType", marketType);
+    }
+
+    @Override
     public List<PriceSnapshotDTO> selectPriceSnapshotList(String itemName, String marketType, String snapshotDate, int limit) {
         Map<String, Object> parameterMap = new HashMap<String, Object>();
         parameterMap.put("itemName", itemName);

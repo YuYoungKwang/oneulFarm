@@ -444,7 +444,7 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
         int resolvedLimit = resolveLimit(limit, 100, 300);
 
         if (resolvedSnapshotDate == null) {
-            resolvedSnapshotDate = priceSnapshotDAO.selectLatestSnapshotDate();
+            resolvedSnapshotDate = resolveLatestSnapshotDate(resolvedMarketType);
         }
 
         if (resolvedSnapshotDate == null) {
@@ -455,6 +455,16 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
             priceSnapshotDAO.selectPriceSnapshotList(itemName, resolvedMarketType, resolvedSnapshotDate, resolvedLimit);
         sanitizePriceSnapshotList(priceSnapshotList);
         return priceSnapshotList;
+    }
+
+    private String resolveLatestSnapshotDate(String marketType) {
+        if (marketType != null) {
+            String marketSpecificDate = priceSnapshotDAO.selectLatestSnapshotDateByMarketType(marketType);
+            if (marketSpecificDate != null) {
+                return marketSpecificDate;
+            }
+        }
+        return priceSnapshotDAO.selectLatestSnapshotDate();
     }
 
     @Override
