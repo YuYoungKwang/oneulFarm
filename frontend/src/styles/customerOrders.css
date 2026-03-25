@@ -470,6 +470,7 @@
 }
 
 .customer-order-detail__tracking,
+.customer-order-detail__actions,
 .customer-order-detail__panel,
 .customer-order-detail__items{
   display: grid;
@@ -480,6 +481,34 @@
   padding: 18px 18px 20px;
   border-radius: 26px;
   background: #f8fafb;
+}
+
+.customer-order-detail__actions{
+  padding: 18px;
+  border-radius: 26px;
+  border: 1px solid rgba(21, 154, 85, 0.16);
+  background: linear-gradient(180deg, #f4fbf6, #fbfefc);
+}
+
+.customer-order-detail__action-buttons{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.customer-order-detail__action-button{
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.customer-order-detail__action-error{
+  margin: 0;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .customer-order-detail__section-head{
@@ -708,6 +737,7 @@
   .customer-orders__section-head,
   .customer-order-detail__head,
   .customer-order-detail__section-head,
+  .customer-order-detail__action-buttons,
   .customer-order-detail__item-top,
   .customer-order-detail__item-actions,
   .customer-order-detail__row{

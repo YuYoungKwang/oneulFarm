@@ -113,6 +113,10 @@ function CustomerOrdersPage({
   onOrderFilterReset,
   onSelectOrder,
   onStartCreateReview,
+  onRequestOrderCancel,
+  onConfirmPurchase,
+  orderActionSubmitting,
+  orderActionError,
 }) {
   const summary = buildSummary(orders);
 
@@ -316,6 +320,10 @@ function CustomerOrdersPage({
             loading={detailLoading}
             error={detailError}
             onStartCreateReview={onStartCreateReview}
+            onRequestOrderCancel={onRequestOrderCancel}
+            onConfirmPurchase={onConfirmPurchase}
+            orderActionSubmitting={orderActionSubmitting}
+            orderActionError={orderActionError}
           />
         </div>
       </section>

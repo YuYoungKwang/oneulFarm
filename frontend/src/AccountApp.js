@@ -248,6 +248,8 @@ function AccountApp({ authUser: initialAuthUser }) {
   const [orderDetail, setOrderDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
+  const [orderActionSubmitting, setOrderActionSubmitting] = useState('');
+  const [orderActionError, setOrderActionError] = useState('');
 
   const [summary, setSummary] = useState(EMPTY_SUMMARY);
   const [summaryLoading, setSummaryLoading] = useState(true);
@@ -1186,6 +1188,7 @@ function AccountApp({ authUser: initialAuthUser }) {
   }
 
   function handleSelectOrder(orderNo) {
+    setOrderActionError('');
     setSelectedOrderNo((current) => (current === orderNo ? null : orderNo));
   }
 
@@ -1205,6 +1208,112 @@ function AccountApp({ authUser: initialAuthUser }) {
   function handleOrderFilterReset() {
     setOrderFilters(EMPTY_ORDER_FILTERS);
     setAppliedOrderFilters(EMPTY_ORDER_FILTERS);
+  }
+
+  async function refreshOrdersAndDetail(targetOrderNo = selectedOrderNo) {
+    const query = new URLSearchParams();
+    if (appliedOrderFilters.deliveryStatus && appliedOrderFilters.deliveryStatus !== 'ALL') {
+      query.set('deliveryStatus', appliedOrderFilters.deliveryStatus);
+    }
+    if (appliedOrderFilters.dateFrom) {
+      query.set('dateFrom', appliedOrderFilters.dateFrom);
+    }
+    if (appliedOrderFilters.dateTo) {
+      query.set('dateTo', appliedOrderFilters.dateTo);
+    }
+
+    const ordersPayload = await requestAuthApi(
+      `${ORDER_API_PATH}/me${query.toString() ? `?${query.toString()}` : ''}`,
+      {
+        headers: accountHeaders(authUser),
+      },
+      '주문 목록을 불러오지 못했습니다.'
+    );
+
+    const nextOrders = Array.isArray(ordersPayload.data) ? ordersPayload.data : [];
+    setOrders(nextOrders);
+
+    if (!targetOrderNo) {
+      return;
+    }
+
+    const stillExists = nextOrders.some((order) => Number(order.orderNo) === Number(targetOrderNo));
+    if (!stillExists) {
+      setSelectedOrderNo(null);
+      setOrderDetail(null);
+      return;
+    }
+
+    const detailPayload = await requestAuthApi(
+      `${ORDER_API_PATH}/me/${targetOrderNo}`,
+      {
+        headers: accountHeaders(authUser),
+      },
+      '주문 상세를 불러오지 못했습니다.'
+    );
+    setOrderDetail(detailPayload.data || null);
+  }
+
+  async function handleRequestOrderCancel() {
+    if (!orderDetail?.orderNo) {
+      return;
+    }
+
+    const confirmed = window.confirm('이 주문의 취소를 요청하시겠습니까?');
+    if (!confirmed) {
+      return;
+    }
+
+    setOrderActionSubmitting('cancel');
+    setOrderActionError('');
+
+    try {
+      const payload = await requestAuthApi(
+        `${ORDER_API_PATH}/me/${orderDetail.orderNo}/cancel-request`,
+        {
+          method: 'PATCH',
+          headers: accountHeaders(authUser),
+        },
+        '주문 취소 요청에 실패했습니다.'
+      );
+      setOrderDetail(payload.data || null);
+      await refreshOrdersAndDetail(orderDetail.orderNo);
+    } catch (error) {
+      setOrderActionError(error.message || '주문 취소 요청에 실패했습니다.');
+    } finally {
+      setOrderActionSubmitting('');
+    }
+  }
+
+  async function handleConfirmPurchase() {
+    if (!orderDetail?.orderNo) {
+      return;
+    }
+
+    const confirmed = window.confirm('이 주문을 구매 확정하시겠습니까?');
+    if (!confirmed) {
+      return;
+    }
+
+    setOrderActionSubmitting('purchase-confirm');
+    setOrderActionError('');
+
+    try {
+      const payload = await requestAuthApi(
+        `${ORDER_API_PATH}/me/${orderDetail.orderNo}/purchase-confirm`,
+        {
+          method: 'PATCH',
+          headers: accountHeaders(authUser),
+        },
+        '구매 확정 처리에 실패했습니다.'
+      );
+      setOrderDetail(payload.data || null);
+      await refreshOrdersAndDetail(orderDetail.orderNo);
+    } catch (error) {
+      setOrderActionError(error.message || '구매 확정 처리에 실패했습니다.');
+    } finally {
+      setOrderActionSubmitting('');
+    }
   }
 
   async function handleAddWishlistItemToCart(productNo) {
@@ -1587,6 +1696,10 @@ function AccountApp({ authUser: initialAuthUser }) {
             onOrderFilterReset={handleOrderFilterReset}
             onSelectOrder={handleSelectOrder}
             onStartCreateReview={handleStartCreateReviewFromOrder}
+            onRequestOrderCancel={handleRequestOrderCancel}
+            onConfirmPurchase={handleConfirmPurchase}
+            orderActionSubmitting={orderActionSubmitting}
+            orderActionError={orderActionError}
           />
         ) : (
           <DashboardView

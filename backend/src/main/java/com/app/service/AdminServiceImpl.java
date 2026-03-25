@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.app.common.OrderCompatibilityUtils;
+import com.app.common.OrderWorkflowRuntimeStore;
 import com.app.dao.AdminDao;
 import com.app.dao.OrderDao;
 import com.app.dao.UserDao;
@@ -50,6 +51,9 @@ public class AdminServiceImpl implements AdminService {
 
     @Autowired
     private ProductPriceMatchService productPriceMatchService;
+
+    @Autowired
+    private OrderWorkflowRuntimeStore orderWorkflowRuntimeStore;
 
     @Override
     public List<ProductCategoryDto> getProductCategories() {
@@ -207,7 +211,7 @@ public class AdminServiceImpl implements AdminService {
         order.setFinalAmount(defaultAmount(order.getFinalAmount()));
         order.setPaidAmount(defaultAmount(order.getPaidAmount()));
         order.setTotalSavedAmount(totalSavedAmount);
-        OrderCompatibilityUtils.hydrateOrderCompatibility(order);
+        hydrateOrderRuntimeState(order);
         return order;
     }
 
@@ -650,6 +654,11 @@ public class AdminServiceImpl implements AdminService {
         order.setFinalAmount(defaultAmount(order.getFinalAmount()));
         order.setTotalSavedAmount(defaultAmount(order.getTotalSavedAmount()));
         order.setPaidAmount(defaultAmount(order.getPaidAmount()));
+        hydrateOrderRuntimeState(order);
+    }
+
+    private void hydrateOrderRuntimeState(OrderDto order) {
+        orderWorkflowRuntimeStore.apply(order);
         OrderCompatibilityUtils.hydrateOrderCompatibility(order);
     }
 

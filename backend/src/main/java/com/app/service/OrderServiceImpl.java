@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.app.common.OrderCompatibilityUtils;
+import com.app.common.OrderWorkflowRuntimeStore;
 import com.app.dao.CartDao;
 import com.app.dao.OrderDao;
 import com.app.dto.CartItemDto;
@@ -32,6 +33,9 @@ public class OrderServiceImpl implements OrderService {
     @Autowired
     private CartDao cartDao;
 
+    @Autowired
+    private OrderWorkflowRuntimeStore orderWorkflowRuntimeStore;
+
     @Override
     public List<OrderDto> getMyOrders(Long userNo) {
         return getMyOrders(userNo, null, null, null);
@@ -46,7 +50,7 @@ public class OrderServiceImpl implements OrderService {
             response.setFinalAmount(defaultAmount(response.getFinalAmount()));
             response.setTotalSavedAmount(defaultAmount(response.getTotalSavedAmount()));
             response.setPreviewImageNos(orderDao.findOrderPreviewImageNos(response.getOrderNo()));
-            OrderCompatibilityUtils.hydrateOrderCompatibility(response);
+            hydrateOrderRuntimeState(response);
         }
 
         return responses;
@@ -78,7 +82,7 @@ public class OrderServiceImpl implements OrderService {
         response.setFinalAmount(defaultAmount(response.getFinalAmount()));
         response.setTotalSavedAmount(sumTotalSavedAmount(itemResponses));
         response.setItems(itemResponses);
-        OrderCompatibilityUtils.hydrateOrderCompatibility(response);
+        hydrateOrderRuntimeState(response);
         return response;
     }
 
@@ -194,6 +198,30 @@ public class OrderServiceImpl implements OrderService {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order status cannot be advanced.");
     }
 
+    @Override
+    @Transactional
+    public OrderDto requestCancel(Long userNo, Long orderNo) {
+        OrderDto currentOrder = getMyOrderDetail(userNo, orderNo);
+        if (!Boolean.TRUE.equals(currentOrder.getCancelRequestAvailable())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cancel request is not available for this order.");
+        }
+
+        orderWorkflowRuntimeStore.markCancelRequested(orderNo);
+        return getMyOrderDetail(userNo, orderNo);
+    }
+
+    @Override
+    @Transactional
+    public OrderDto confirmPurchase(Long userNo, Long orderNo) {
+        OrderDto currentOrder = getMyOrderDetail(userNo, orderNo);
+        if (!Boolean.TRUE.equals(currentOrder.getPurchaseConfirmAvailable())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Purchase confirmation is not available for this order.");
+        }
+
+        orderWorkflowRuntimeStore.markPurchaseConfirmed(orderNo);
+        return getMyOrderDetail(userNo, orderNo);
+    }
+
     private boolean isReviewWritable(String deliveryStatus, Long reviewNo) {
         return "DELIVERED".equals(deliveryStatus) && reviewNo == null;
     }
@@ -208,6 +236,11 @@ public class OrderServiceImpl implements OrderService {
             totalSavedAmount = totalSavedAmount.add(defaultAmount(item.getSavedAmount()));
         }
         return totalSavedAmount;
+    }
+
+    private void hydrateOrderRuntimeState(OrderDto order) {
+        orderWorkflowRuntimeStore.apply(order);
+        OrderCompatibilityUtils.hydrateOrderCompatibility(order);
     }
 
     private void validateCreateOrderRequest(OrderDto request) {

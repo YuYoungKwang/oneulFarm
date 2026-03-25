@@ -1,4 +1,4 @@
-import { formatDateTime, formatPrice } from './appUtils';
+import { formatDate, formatDateTime, formatPrice } from './appUtils';
 
 function getOrderItemImageSrc(imageNo) {
   return imageNo ? `/backend/api/image/product/${imageNo}` : '';
@@ -74,7 +74,53 @@ function buildTrackingSteps(detail) {
   ];
 }
 
-function CustomerOrderDetailPanel({ detail, loading, error, onStartCreateReview }) {
+function addDays(value, days) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  date.setDate(date.getDate() + days);
+  return date;
+}
+
+function resolvePurchaseConfirmMessage(detail) {
+  if (!detail) {
+    return '';
+  }
+
+  if (detail.purchaseConfirmStatus === 'PURCHASE_CONFIRMED') {
+    return detail.purchaseConfirmedAt
+      ? `구매 확정일 ${formatDate(detail.purchaseConfirmedAt)}`
+      : '구매 확정이 완료된 주문입니다.';
+  }
+
+  if ((detail.normalizedDeliveryStatus || detail.deliveryStatus) !== 'DELIVERED') {
+    return '';
+  }
+
+  const autoConfirmAt = addDays(detail.deliveredAt, 7);
+  if (autoConfirmAt) {
+    return `배송 완료 후 7일 뒤인 ${formatDate(autoConfirmAt)}에 자동으로 구매 확정됩니다.`;
+  }
+
+  return '배송 완료 후 7일이 지나면 자동으로 구매 확정됩니다.';
+}
+
+function CustomerOrderDetailPanel({
+  detail,
+  loading,
+  error,
+  onStartCreateReview,
+  onRequestOrderCancel,
+  onConfirmPurchase,
+  orderActionSubmitting,
+  orderActionError,
+}) {
   if (loading) {
     return <article className="customer-order-detail customer-order-detail--feedback">주문 상세를 불러오는 중입니다.</article>;
   }
@@ -97,6 +143,12 @@ function CustomerOrderDetailPanel({ detail, loading, error, onStartCreateReview 
 
   const trackingSteps = buildTrackingSteps(detail);
   const cancelStatusLabel = resolveCancelStatusLabel(detail);
+  const purchaseConfirmMessage = resolvePurchaseConfirmMessage(detail);
+  const hasOrderActions =
+    detail.cancelRequestAvailable ||
+    detail.purchaseConfirmAvailable ||
+    Boolean(purchaseConfirmMessage) ||
+    Boolean(orderActionError);
 
   return (
     <article className="customer-order-detail">
@@ -144,6 +196,46 @@ function CustomerOrderDetailPanel({ detail, loading, error, onStartCreateReview 
           ))}
         </div>
       </section>
+
+      {hasOrderActions && (
+        <section className="customer-order-detail__actions">
+          <div className="customer-order-detail__section-head">
+            <h3>주문 처리</h3>
+            {purchaseConfirmMessage && (
+              <span className="customer-order-detail__section-copy">
+                {purchaseConfirmMessage}
+              </span>
+            )}
+          </div>
+          {(detail.cancelRequestAvailable || detail.purchaseConfirmAvailable) && (
+            <div className="customer-order-detail__action-buttons">
+              {detail.cancelRequestAvailable && (
+                <button
+                  type="button"
+                  className="btn-outline customer-order-detail__action-button"
+                  onClick={onRequestOrderCancel}
+                  disabled={orderActionSubmitting === 'cancel'}
+                >
+                  {orderActionSubmitting === 'cancel' ? '취소 요청 중...' : '취소 요청'}
+                </button>
+              )}
+              {detail.purchaseConfirmAvailable && (
+                <button
+                  type="button"
+                  className="btn customer-order-detail__action-button"
+                  onClick={onConfirmPurchase}
+                  disabled={orderActionSubmitting === 'purchase-confirm'}
+                >
+                  {orderActionSubmitting === 'purchase-confirm' ? '구매 확정 중...' : '구매 확정'}
+                </button>
+              )}
+            </div>
+          )}
+          {orderActionError && (
+            <p className="customer-order-detail__action-error">{orderActionError}</p>
+          )}
+        </section>
+      )}
 
       <div className="customer-order-detail__grid">
         <section className="customer-order-detail__panel">

@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.app.common.OrderCompatibilityUtils;
+import com.app.common.OrderWorkflowRuntimeStore;
 import com.app.dao.AdminDao;
 import com.app.dao.OrderDao;
 import com.app.dto.OrderDto;
@@ -23,6 +24,9 @@ public class CarrierServiceImpl implements CarrierService {
 
     @Autowired
     private OrderDao orderDao;
+
+    @Autowired
+    private OrderWorkflowRuntimeStore orderWorkflowRuntimeStore;
 
     @Override
     public List<OrderDto> getOrders() {
@@ -58,7 +62,7 @@ public class CarrierServiceImpl implements CarrierService {
         order.setFinalAmount(defaultAmount(order.getFinalAmount()));
         order.setPaidAmount(defaultAmount(order.getPaidAmount()));
         order.setTotalSavedAmount(totalSavedAmount);
-        OrderCompatibilityUtils.hydrateOrderCompatibility(order);
+        hydrateOrderRuntimeState(order);
         return order;
     }
 
@@ -125,6 +129,11 @@ public class CarrierServiceImpl implements CarrierService {
         order.setFinalAmount(defaultAmount(order.getFinalAmount()));
         order.setTotalSavedAmount(defaultAmount(order.getTotalSavedAmount()));
         order.setPaidAmount(defaultAmount(order.getPaidAmount()));
+        hydrateOrderRuntimeState(order);
+    }
+
+    private void hydrateOrderRuntimeState(OrderDto order) {
+        orderWorkflowRuntimeStore.apply(order);
         OrderCompatibilityUtils.hydrateOrderCompatibility(order);
     }
 
