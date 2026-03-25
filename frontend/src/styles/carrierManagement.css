@@ -1,0 +1,308 @@
+.carrier-management-page{
+  display: grid;
+  gap: 20px;
+}
+
+.carrier-management__summary-grid{
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.carrier-management__summary-card{
+  display: grid;
+  gap: 8px;
+  padding: 18px 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(227, 232, 236, 0.88);
+  background: #fff;
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.05);
+}
+
+.carrier-management__summary-card span{
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.carrier-management__summary-card strong{
+  color: #0f172a;
+  font-size: 24px;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+}
+
+.carrier-management__summary-card--accent{
+  background: linear-gradient(180deg, #eef6ff, #fbfdff);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.carrier-management__summary-card--success{
+  background: linear-gradient(180deg, #f2fbf5, #fbfefc);
+  border-color: rgba(21, 154, 85, 0.18);
+}
+
+.carrier-management__filters{
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.carrier-management__filter-chip{
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.carrier-management__filter-chip.is-active{
+  border-color: transparent;
+  background: #eaf2ff;
+  color: #1d4ed8;
+}
+
+.carrier-management__layout{
+  display: grid;
+  grid-template-columns: minmax(340px, 0.8fr) minmax(0, 1.2fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.carrier-management__list-panel,
+.carrier-management__detail-panel{
+  display: grid;
+  gap: 16px;
+}
+
+.carrier-management__panel-head,
+.carrier-management__list-top,
+.carrier-management__list-meta,
+.carrier-management__detail-head,
+.carrier-management__box-head,
+.carrier-management__row{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.carrier-management__panel-head h2,
+.carrier-management__detail-head h2{
+  margin: 0;
+  font-size: 28px;
+}
+
+.carrier-management__panel-head p,
+.carrier-management__detail-head p{
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.carrier-management__list{
+  display: grid;
+  gap: 12px;
+}
+
+.carrier-management__list-card{
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(227, 232, 236, 0.88);
+  background: #f8fafc;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.carrier-management__list-card:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 16px 28px rgba(15, 23, 42, 0.06);
+}
+
+.carrier-management__list-card.is-selected{
+  border-color: rgba(59, 130, 246, 0.24);
+  background: linear-gradient(180deg, #ffffff, #f3f8ff);
+  box-shadow: 0 18px 30px rgba(59, 130, 246, 0.08);
+}
+
+.carrier-management__list-top strong{
+  display: block;
+  color: #0f172a;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.carrier-management__list-top span,
+.carrier-management__list-meta span,
+.carrier-management__box-head span,
+.carrier-management__timeline-step span{
+  color: #64748b;
+  font-size: 13px;
+}
+
+.carrier-management__status-chip{
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  background: #eef2f7;
+  color: #475569;
+}
+
+.carrier-management__status-chip.is-neutral{
+  background: #eef2f7;
+  color: #475569;
+}
+
+.carrier-management__status-chip.is-accent{
+  background: #eaf2ff;
+  color: #1d4ed8;
+}
+
+.carrier-management__status-chip.is-success{
+  background: #eaf8ef;
+  color: #166534;
+}
+
+.carrier-management__detail{
+  display: grid;
+  gap: 16px;
+}
+
+.carrier-management__detail-grid{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.carrier-management__box{
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 24px;
+  background: #f8fafc;
+}
+
+.carrier-management__box h3{
+  margin: 0;
+  font-size: 20px;
+}
+
+.carrier-management__row strong{
+  color: #64748b;
+  font-size: 14px;
+}
+
+.carrier-management__row span{
+  color: #0f172a;
+  font-size: 14px;
+  text-align: right;
+}
+
+.carrier-management__address{
+  color: #0f172a;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.carrier-management__tracking-form{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.carrier-management__tracking-form input{
+  width: 100%;
+  padding: 14px 15px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.carrier-management__timeline{
+  display: grid;
+  gap: 10px;
+}
+
+.carrier-management__timeline-step{
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  opacity: 0.52;
+}
+
+.carrier-management__timeline-step.is-active{
+  opacity: 1;
+}
+
+.carrier-management__timeline-dot{
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  box-shadow: inset 0 0 0 3px #fff;
+}
+
+.carrier-management__timeline-step.is-active .carrier-management__timeline-dot{
+  background: #2563eb;
+}
+
+.carrier-management__timeline-step strong{
+  display: block;
+  color: #0f172a;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.carrier-management__action-row{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 1180px){
+  .carrier-management__summary-grid{
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .carrier-management__layout,
+  .carrier-management__detail-grid{
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px){
+  .carrier-management__summary-grid{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .carrier-management__panel-head,
+  .carrier-management__list-top,
+  .carrier-management__list-meta,
+  .carrier-management__detail-head,
+  .carrier-management__box-head,
+  .carrier-management__row,
+  .carrier-management__tracking-form{
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .carrier-management__row span{
+    text-align: left;
+  }
+}

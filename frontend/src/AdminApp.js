@@ -3,6 +3,7 @@ import { clearAuthUser, getAuthUser } from './auth';
 import './styles/admin.css';
 import AdminLayout from './admin/AdminLayout';
 import AdminOrdersPage from './admin/AdminOrdersPage';
+import CarrierManagementPage from './admin/CarrierManagementPage';
 import {
   AdminEmptyState,
   AdminMetricCard,
@@ -88,7 +89,7 @@ function parseAdminPage(hash) {
   }
 
   const page = segments[1] || 'dashboard';
-  return ['dashboard', 'products', 'purchase', 'orders', 'users', 'content'].includes(page)
+  return ['dashboard', 'products', 'purchase', 'orders', 'carrier', 'users', 'content'].includes(page)
     ? page
     : 'dashboard';
 }
@@ -3467,6 +3468,34 @@ function AdminApp() {
     await handleUpdateOrder({ orderStatus: 'COMPLETED' });
   }
 
+  function buildGeneratedTrackingNo(order) {
+    const safeOrderId = String(order?.orderId || order?.orderNo || 'ORDER')
+      .replace(/[^A-Z0-9]/gi, '')
+      .slice(-10)
+      .toUpperCase();
+    const timestamp = Date.now().toString().slice(-6);
+    return `OFT-${safeOrderId || 'ORDER'}-${timestamp}`;
+  }
+
+  async function handleAssignWaybill() {
+    if (!selectedOrderDetail) {
+      return;
+    }
+
+    const nextTrackingNo = String(trackingNo || '').trim() || buildGeneratedTrackingNo(selectedOrderDetail);
+    setTrackingNo(nextTrackingNo);
+    await handleUpdateOrder({ trackingNo: nextTrackingNo });
+  }
+
+  async function handlePickupOrder() {
+    const nextTrackingNo = String(trackingNo || '').trim();
+
+    await handleUpdateOrder({
+      orderStatus: 'SHIPPING',
+      trackingNo: nextTrackingNo || undefined,
+    });
+  }
+
   async function handleDeleteOrder(order) {
     if (!order?.orderNo) {
       return;
@@ -3832,6 +3861,22 @@ function AdminApp() {
               onDeleteOrder={handleDeleteOrder}
               onRejectOrder={handleRejectOrder}
               onShipOrder={handleShipOrder}
+              onDeliverOrder={handleDeliverOrder}
+              updating={updatingOrder}
+            />
+          ) : null}
+          {currentPage === 'carrier' ? (
+            <CarrierManagementPage
+              orders={orders}
+              selectedOrderNo={selectedOrderNo}
+              selectedOrderDetail={selectedOrderDetail}
+              orderFilter={orderFilter}
+              trackingNo={trackingNo}
+              onOrderFilterChange={setOrderFilter}
+              onSelectOrder={setSelectedOrderNo}
+              onTrackingChange={(event) => setTrackingNo(event.target.value)}
+              onAssignWaybill={handleAssignWaybill}
+              onPickupOrder={handlePickupOrder}
               onDeliverOrder={handleDeliverOrder}
               updating={updatingOrder}
             />
