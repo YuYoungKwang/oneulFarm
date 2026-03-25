@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { clearAuthUser, getAuthUser } from './auth';
 import './styles/admin.css';
 import AdminLayout from './admin/AdminLayout';
@@ -1489,7 +1489,7 @@ function OrdersPage({
         actions={
           <>
             <button type="button" className="admin-action admin-action--line" disabled>
-              ??????????????
+              {'\uC1A1\uC7A5 \uB4F1\uB85D \uC900\uBE44\uC911'}
             </button>
             <button
               type="button"

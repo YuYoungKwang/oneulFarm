@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { buildAuthHeaders, getAuthUser, isAuthenticated, requestAuthApi } from './auth';
 import './styles/account.css';
 import DashboardView from './DashboardView';
@@ -151,27 +151,27 @@ function validateAddressForm(form) {
   const address1 = String(form.address1 || '').trim();
 
   if (!recipientName) {
-    return '?�령?�을 ?�력??주세??';
+    return '?占쎈졊?占쎌쓣 ?占쎈젰??二쇱꽭??';
   }
 
   if (!recipientPhone) {
-    return '?�락처�? ?�력??주세??';
+    return '?占쎈씫泥섓옙? ?占쎈젰??二쇱꽭??';
   }
 
   if (!/^01[0-9]-?\d{3,4}-?\d{4}$/.test(recipientPhone)) {
-    return '?�락�??�식???�바르�? ?�습?�다. ?? 010-1234-5678';
+    return '?占쎈씫占??占쎌떇???占쎈컮瑜댐옙? ?占쎌뒿?占쎈떎. ?? 010-1234-5678';
   }
 
   if (!zipCode) {
-    return '?�편번호�??�력??주세??';
+    return '?占쏀렪踰덊샇占??占쎈젰??二쇱꽭??';
   }
 
   if (!/^\d{5}$/.test(zipCode)) {
-    return '?�편번호??5?�리 ?�자�??�력??주세??';
+    return '?占쏀렪踰덊샇??5?占쎈━ ?占쎌옄占??占쎈젰??二쇱꽭??';
   }
 
   if (!address1) {
-    return '기본 주소�??�력??주세??';
+    return '湲곕낯 二쇱냼占??占쎈젰??二쇱꽭??';
   }
 
   return '';
@@ -187,18 +187,18 @@ function toProfileForm(profile) {
 
 function buildWishlistBadge(product) {
   if (product?.badgeType === 'UNDER_AVG') {
-    return '?�균가 ?�하';
+    return '?占쎄퇏媛 ?占쏀븯';
   }
 
   if (product?.isSeasonal === 'Y') {
-    return '?�철 추천';
+    return '?占쎌쿋 異붿쿇';
   }
 
   if (product?.isSingleFriendly) {
-    return '1??추천';
+    return '1??異붿쿇';
   }
 
-  return '관???�품';
+  return '愿???占쏀뭹';
 }
 
 function buildWishlistSummary(product) {
@@ -207,18 +207,18 @@ function buildWishlistSummary(product) {
   const averageRating = Number(product?.averageRating || 0);
 
   if (savingRate > 0) {
-    return `?�균가보다 ${Math.round(savingRate)}% ?�약`;
+    return `?占쎄퇏媛蹂대떎 ${Math.round(savingRate)}% ?占쎌빟`;
   }
 
   if (reviewCount > 0) {
-    return `���� ${averageRating.toFixed(1)} �� ���� ${reviewCount}��`;
+    return `占쏙옙占쏙옙 ${averageRating.toFixed(1)} 占쏙옙 占쏙옙占쏙옙 ${reviewCount}占쏙옙`;
   }
 
   if (product?.origin) {
-    return `${product.origin}${product.unit ? ` · ${product.unit}` : ''}`;
+    return `${product.origin}${product.unit ? ` 쨌 ${product.unit}` : ''}`;
   }
 
-  return '?�품 ?�세?�서 가격과 리뷰�??�인??보세??';
+  return '?占쏀뭹 ?占쎌꽭?占쎌꽌 媛寃⑷낵 由щ럭占??占쎌씤??蹂댁꽭??';
 }
 
 function buildWishlistSavingRate(product) {
@@ -324,14 +324,14 @@ function AccountApp({ authUser: initialAuthUser }) {
           {
             headers: accountHeaders(authUser),
           },
-          '?�성 가?�한 리뷰 목록??불러?��? 못했?�니??'
+          '?占쎌꽦 媛?占쏀븳 由щ럭 紐⑸줉??遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??'
         ),
         requestAuthApi(
           `${REVIEW_API_PATH}/me`,
           {
             headers: accountHeaders(authUser),
           },
-          '??리뷰 목록??불러?��? 못했?�니??'
+          '??由щ럭 紐⑸줉??遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??'
         ),
       ]);
 
@@ -340,7 +340,7 @@ function AccountApp({ authUser: initialAuthUser }) {
     } catch (error) {
       setWritableReviews([]);
       setMyReviews([]);
-      setReviewsError(error.message || '리뷰 목록??불러?��? 못했?�니??');
+      setReviewsError(error.message || '由щ럭 紐⑸줉??遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??');
     } finally {
       setReviewsLoading(false);
     }
@@ -409,14 +409,14 @@ function AccountApp({ authUser: initialAuthUser }) {
             savingRate: buildWishlistSavingRate(product),
             badge: buildWishlistBadge(product),
             imageUrl: product.mainImage?.imageUrl || '',
-            emoji: product.display?.symbol || '?��',
+            emoji: product.display?.symbol || '?占쏙옙',
           }));
 
         setWishlistItems(nextItems);
       } catch (error) {
         if (!cancelled) {
           setWishlistItems([]);
-          setWishlistError(error.message || '찜한 ?�품??불러?��? 못했?�니??');
+          setWishlistError(error.message || '李쒗븳 ?占쏀뭹??遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??');
         }
       } finally {
         if (!cancelled) {
@@ -467,12 +467,12 @@ function AccountApp({ authUser: initialAuthUser }) {
             headers: accountHeaders(authUser),
             signal: controller.signal,
           },
-          '주문 목록??불러?��? 못했?�니??'
+          '二쇰Ц 紐⑸줉??遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??'
         );
         setOrders(Array.isArray(payload.data) ? payload.data : []);
       } catch (error) {
         if (error.name !== 'AbortError') {
-          setOrdersError(error.message || '주문 목록??불러?��? 못했?�니??');
+          setOrdersError(error.message || '二쇰Ц 紐⑸줉??遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??');
         }
       } finally {
         setOrdersLoading(false);
@@ -502,7 +502,7 @@ function AccountApp({ authUser: initialAuthUser }) {
             headers: accountHeaders(authUser),
             signal: controller.signal,
           },
-          '?�?�보???�약??불러?��? 못했?�니??'
+          '?占?占쎈낫???占쎌빟??遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??'
         );
         setSummary(payload.data ? { ...EMPTY_SUMMARY, ...payload.data } : EMPTY_SUMMARY);
       } catch (error) {
@@ -542,7 +542,7 @@ function AccountApp({ authUser: initialAuthUser }) {
               headers: accountHeaders(authUser),
               signal: controller.signal,
             },
-            '?�?�보??차트 ?�이?��? 불러?��? 못했?�니??'
+            '?占?占쎈낫??李⑦듃 ?占쎌씠?占쏙옙? 遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??'
           ),
           Promise.resolve({ data: [] }),
           requestAuthApi(
@@ -551,7 +551,7 @@ function AccountApp({ authUser: initialAuthUser }) {
               headers: accountHeaders(authUser),
               signal: controller.signal,
             },
-            '?�?�보???�비 ?�턴 ?�이?��? 불러?��? 못했?�니??'
+            '?占?占쎈낫???占쎈퉬 ?占쏀꽩 ?占쎌씠?占쏙옙? 遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??'
           ),
         ]);
 
@@ -567,7 +567,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           setMonthlySavings([]);
           setProductSavings([]);
           setDashboardPatterns(EMPTY_DASHBOARD_PATTERNS);
-          setDashboardError(error.message || '?�?�보???�세 ?�이?��? 불러?��? 못했?�니??');
+          setDashboardError(error.message || '?占?占쎈낫???占쎌꽭 ?占쎌씠?占쏙옙? 遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??');
         }
       } finally {
         setDashboardLoading(false);
@@ -600,14 +600,14 @@ function AccountApp({ authUser: initialAuthUser }) {
             headers: accountHeaders(authUser),
             signal: controller.signal,
           },
-          '?�원?�보�?불러?��? 못했?�니??'
+          '?占쎌썝?占쎈낫占?遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??'
         );
         const nextProfile = payload.data ? { ...EMPTY_PROFILE, ...payload.data } : EMPTY_PROFILE;
         setProfile(nextProfile);
         setProfileForm(toProfileForm(nextProfile));
       } catch (error) {
         if (error.name !== 'AbortError') {
-          setProfileError(error.message || '?�원?�보�?불러?��? 못했?�니??');
+          setProfileError(error.message || '?占쎌썝?占쎈낫占?遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??');
         }
       } finally {
         setProfileLoading(false);
@@ -638,13 +638,13 @@ function AccountApp({ authUser: initialAuthUser }) {
             headers: accountHeaders(authUser),
             signal: controller.signal,
           },
-          '주문 ?�세�?불러?��? 못했?�니??'
+          '二쇰Ц ?占쎌꽭占?遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??'
         );
         setOrderDetail(payload.data || null);
       } catch (error) {
         if (error.name !== 'AbortError') {
           setOrderDetail(null);
-          setDetailError(error.message || '주문 ?�세�?불러?��? 못했?�니??');
+          setDetailError(error.message || '二쇰Ц ?占쎌꽭占?遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??');
         }
       } finally {
         setDetailLoading(false);
@@ -713,13 +713,13 @@ function AccountApp({ authUser: initialAuthUser }) {
           headers: accountHeaders(authUser),
           body: formData,
         },
-        '?�로???�진 변경에 ?�패?�습?�다.'
+        '?占쎈줈???占쎌쭊 蹂寃쎌뿉 ?占쏀뙣?占쎌뒿?占쎈떎.'
       );
 
       await refreshProfile();
       return true;
     } catch (error) {
-      setProfileImageError(error.message || '?�로???�진 변경에 ?�패?�습?�다.');
+      setProfileImageError(error.message || '?占쎈줈???占쎌쭊 蹂寃쎌뿉 ?占쏀뙣?占쎌뒿?占쎈떎.');
       return false;
     } finally {
       setProfileImageUploading(false);
@@ -736,7 +736,7 @@ function AccountApp({ authUser: initialAuthUser }) {
         [fieldKey]: {
           checking: false,
           available: false,
-          message: fieldKey === 'email' ? '?�메?�을 ?�력??주세??' : '?�네?�을 ?�력??주세??',
+          message: fieldKey === 'email' ? '?占쎈찓?占쎌쓣 ?占쎈젰??二쇱꽭??' : '?占쎈꽕?占쎌쓣 ?占쎈젰??二쇱꽭??',
           checkedValue: '',
         },
       }));
@@ -749,7 +749,7 @@ function AccountApp({ authUser: initialAuthUser }) {
         email: {
           checking: false,
           available: false,
-          message: '?�바�??�메???�식?�로 ?�력??주세??',
+          message: '?占쎈컮占??占쎈찓???占쎌떇?占쎈줈 ?占쎈젰??二쇱꽭??',
           checkedValue: '',
         },
       }));
@@ -762,7 +762,7 @@ function AccountApp({ authUser: initialAuthUser }) {
         [fieldKey]: {
           checking: false,
           available: true,
-          message: fieldKey === 'email' ? '?�재 ?�용 중인 ?�메?�입?�다.' : '?�재 ?�용 중인 ?�네?�입?�다.',
+          message: fieldKey === 'email' ? '?占쎌옱 ?占쎌슜 以묒씤 ?占쎈찓?占쎌엯?占쎈떎.' : '?占쎌옱 ?占쎌슜 以묒씤 ?占쎈꽕?占쎌엯?占쎈떎.',
           checkedValue: rawValue,
         },
       }));
@@ -785,7 +785,7 @@ function AccountApp({ authUser: initialAuthUser }) {
         {
           headers: accountHeaders(authUser),
         },
-        fieldKey === 'email' ? '?�메??중복 ?�인???�패?�습?�다.' : '?�네??중복 ?�인???�패?�습?�다.'
+        fieldKey === 'email' ? '?占쎈찓??以묐났 ?占쎌씤???占쏀뙣?占쎌뒿?占쎈떎.' : '?占쎈꽕??以묐났 ?占쎌씤???占쏀뙣?占쎌뒿?占쎈떎.'
       );
       const available = Boolean(payload.data?.available);
 
@@ -796,11 +796,11 @@ function AccountApp({ authUser: initialAuthUser }) {
           available,
           message: available
             ? fieldKey === 'email'
-              ? '?�용 가?�한 ?�메?�입?�다.'
-              : '?�용 가?�한 ?�네?�입?�다.'
+              ? '?占쎌슜 媛?占쏀븳 ?占쎈찓?占쎌엯?占쎈떎.'
+              : '?占쎌슜 媛?占쏀븳 ?占쎈꽕?占쎌엯?占쎈떎.'
             : fieldKey === 'email'
-              ? '?��? ?�용 중인 ?�메?�입?�다.'
-              : '?��? ?�용 중인 ?�네?�입?�다.',
+              ? '?占쏙옙? ?占쎌슜 以묒씤 ?占쎈찓?占쎌엯?占쎈떎.'
+              : '?占쏙옙? ?占쎌슜 以묒씤 ?占쎈꽕?占쎌엯?占쎈떎.',
           checkedValue: rawValue,
         },
       }));
@@ -811,8 +811,8 @@ function AccountApp({ authUser: initialAuthUser }) {
           checking: false,
           available: false,
           message: error.message || (fieldKey === 'email'
-            ? '?�메??중복 ?�인???�패?�습?�다.'
-            : '?�네??중복 ?�인???�패?�습?�다.'),
+            ? '?占쎈찓??以묐났 ?占쎌씤???占쏀뙣?占쎌뒿?占쎈떎.'
+            : '?占쎈꽕??以묐났 ?占쎌씤???占쏀뙣?占쎌뒿?占쎈떎.'),
           checkedValue: '',
         },
       }));
@@ -831,7 +831,7 @@ function AccountApp({ authUser: initialAuthUser }) {
 
         if (nextValue !== currentValue && (!state.available || state.checkedValue !== nextValue)) {
           setProfileSubmitError(
-          '?�?�에 ?�패?�습?�다. ?�네??중복 ?�인???�료??주세??'
+          '?占?占쎌뿉 ?占쏀뙣?占쎌뒿?占쎈떎. ?占쎈꽕??以묐났 ?占쎌씤???占쎈즺??二쇱꽭??'
           );
           setProfileSubmitting(false);
           return false;
@@ -846,7 +846,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           headers: accountHeaders(authUser, true),
           body: JSON.stringify(profileForm),
         },
-        '?�원?�보�??�?�하지 못했?�니??'
+        '?占쎌썝?占쎈낫占??占?占쏀븯吏 紐삵뻽?占쎈땲??'
       );
 
       if (payload.data) {
@@ -861,7 +861,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           [fieldKey]: {
             checking: false,
             available: true,
-            message: fieldKey === 'email' ? '?�메?�이 ?�?�되?�습?�다.' : '?�네?�이 ?�?�되?�습?�다.',
+            message: fieldKey === 'email' ? '?占쎈찓?占쎌씠 ?占?占쎈릺?占쎌뒿?占쎈떎.' : '?占쎈꽕?占쎌씠 ?占?占쎈릺?占쎌뒿?占쎈떎.',
             checkedValue: String(profileForm[fieldKey] || '').trim(),
           },
         }));
@@ -869,7 +869,7 @@ function AccountApp({ authUser: initialAuthUser }) {
 
       return true;
     } catch (error) {
-      setProfileSubmitError(error.message || '?�원?�보�??�?�하지 못했?�니??');
+      setProfileSubmitError(error.message || '?占쎌썝?占쎈낫占??占?占쏀븯吏 紐삵뻽?占쎈땲??');
       return false;
     } finally {
       setProfileSubmitting(false);
@@ -910,12 +910,12 @@ function AccountApp({ authUser: initialAuthUser }) {
           headers: accountHeaders(authUser, true),
           body: JSON.stringify(passwordForm),
         },
-        '비�?번호�?변경하지 못했?�니??'
+        '鍮꾬옙?踰덊샇占?蹂寃쏀븯吏 紐삵뻽?占쎈땲??'
       );
       setPasswordForm(EMPTY_PASSWORD_FORM);
       return true;
     } catch (error) {
-      setPasswordError(error.message || '비�?번호�?변경하지 못했?�니??');
+      setPasswordError(error.message || '鍮꾬옙?踰덊샇占?蹂寃쏀븯吏 紐삵뻽?占쎈땲??');
       return false;
     } finally {
       setPasswordSubmitting(false);
@@ -928,7 +928,7 @@ function AccountApp({ authUser: initialAuthUser }) {
     setWithdrawError('');
 
     const confirmed = window.confirm(
-      '?�말 ?�원 ?�퇴�?진행?�시겠습?�까? ?�퇴 ?�후?�는 ?�재 계정?�로 마이?�이지 기능??계속 ?�용?????�습?�다.'
+      '?占쎈쭚 ?占쎌썝 ?占쏀눜占?吏꾪뻾?占쎌떆寃좎뒿?占쎄퉴? ?占쏀눜 ?占쏀썑?占쎈뒗 ?占쎌옱 怨꾩젙?占쎈줈 留덉씠?占쎌씠吏 湲곕뒫??怨꾩냽 ?占쎌슜?????占쎌뒿?占쎈떎.'
     );
     if (!confirmed) {
       setWithdrawing(false);
@@ -943,13 +943,13 @@ function AccountApp({ authUser: initialAuthUser }) {
           headers: accountHeaders(authUser, true),
           body: JSON.stringify(withdrawForm),
         },
-        '?�원 ?�퇴 처리???�패?�습?�다.'
+        '?占쎌썝 ?占쏀눜 泥섎━???占쏀뙣?占쎌뒿?占쎈떎.'
       );
-      window.alert('?�원 ?�퇴가 ?�료?�었?�니??');
+      window.alert('?占쎌썝 ?占쏀눜媛 ?占쎈즺?占쎌뿀?占쎈땲??');
       window.location.hash = '#/products';
       return true;
     } catch (error) {
-      setWithdrawError(error.message || '?�원 ?�퇴 처리???�패?�습?�다.');
+      setWithdrawError(error.message || '?占쎌썝 ?占쏀눜 泥섎━???占쏀뙣?占쎌뒿?占쎈떎.');
       return false;
     } finally {
       setWithdrawing(false);
@@ -962,7 +962,7 @@ function AccountApp({ authUser: initialAuthUser }) {
       {
         headers: accountHeaders(authUser),
       },
-      '?�원?�보�?불러?��? 못했?�니??'
+      '?占쎌썝?占쎈낫占?遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??'
     );
     if (payload.data) {
       const nextProfile = { ...EMPTY_PROFILE, ...payload.data };
@@ -981,11 +981,11 @@ function AccountApp({ authUser: initialAuthUser }) {
         {
           headers: accountHeaders(authUser),
         },
-        '배송지 목록??불러?��? 못했?�니??'
+        '諛곗넚吏 紐⑸줉??遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??'
       );
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
     } catch (error) {
-      setAddressesError(error.message || '배송지 목록??불러?��? 못했?�니??');
+      setAddressesError(error.message || '諛곗넚吏 紐⑸줉??遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??');
     } finally {
       setAddressesLoading(false);
     }
@@ -1103,7 +1103,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           headers: accountHeaders(authUser, true),
           body: JSON.stringify(addressForm),
         },
-        isEditMode ? '배송지 ?�정???�패?�습?�다.' : '배송지 ?�록???�패?�습?�다.'
+        isEditMode ? '諛곗넚吏 ?占쎌젙???占쏀뙣?占쎌뒿?占쎈떎.' : '諛곗넚吏 ?占쎈줉???占쏀뙣?占쎌뒿?占쎈떎.'
       );
 
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
@@ -1115,7 +1115,7 @@ function AccountApp({ authUser: initialAuthUser }) {
     } catch (error) {
       setAddressFormError(
         error.message ||
-        (isEditMode ? '배송지 ?�정???�패?�습?�다.' : '배송지 ?�록???�패?�습?�다.')
+        (isEditMode ? '諛곗넚吏 ?占쎌젙???占쏀뙣?占쎌뒿?占쎈떎.' : '諛곗넚吏 ?占쎈줉???占쏀뙣?占쎌뒿?占쎈떎.')
       );
     } finally {
       setAddressSubmitting(false);
@@ -1133,12 +1133,12 @@ function AccountApp({ authUser: initialAuthUser }) {
           method: 'PATCH',
           headers: accountHeaders(authUser),
         },
-        '기본 배송지 변경에 ?�패?�습?�다.'
+        '湲곕낯 諛곗넚吏 蹂寃쎌뿉 ?占쏀뙣?占쎌뒿?占쎈떎.'
       );
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
       await refreshProfile();
     } catch (error) {
-      setAddressesError(error.message || '기본 배송지 변경에 ?�패?�습?�다.');
+      setAddressesError(error.message || '湲곕낯 諛곗넚吏 蹂寃쎌뿉 ?占쏀뙣?占쎌뒿?占쎈떎.');
     } finally {
       setChangingAddressNo(null);
     }
@@ -1146,13 +1146,13 @@ function AccountApp({ authUser: initialAuthUser }) {
 
   async function handleDeleteAddress(address) {
     const addressNo = address?.addressNo;
-    const addressLabel = address?.addressName || address?.recipientName || '?�택??배송지';
+    const addressLabel = address?.addressName || address?.recipientName || '?占쏀깮??諛곗넚吏';
 
     if (!addressNo) {
       return;
     }
 
-    const confirmed = window.confirm(`'${addressLabel}' 배송지�???��?�시겠습?�까?`);
+    const confirmed = window.confirm(`'${addressLabel}' 諛곗넚吏占???占쏙옙?占쎌떆寃좎뒿?占쎄퉴?`);
     if (!confirmed) {
       return;
     }
@@ -1167,12 +1167,12 @@ function AccountApp({ authUser: initialAuthUser }) {
           method: 'DELETE',
           headers: accountHeaders(authUser),
         },
-        '배송지 ??��???�패?�습?�다.'
+        '諛곗넚吏 ??占쏙옙???占쏀뙣?占쎌뒿?占쎈떎.'
       );
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
       await refreshProfile();
     } catch (error) {
-      setAddressesError(error.message || '배송지 ??��???�패?�습?�다.');
+      setAddressesError(error.message || '諛곗넚吏 ??占쏙옙???占쏀뙣?占쎌뒿?占쎈떎.');
     } finally {
       setDeletingAddressNo(null);
     }
@@ -1208,14 +1208,14 @@ function AccountApp({ authUser: initialAuthUser }) {
       const nextCart = await addCartItemToApi(productNo, 1);
       persistValue(CART_STORAGE_KEY, nextCart);
     } catch (error) {
-      setWishlistError(error.message || '?�바구니 ?�기???�패?�습?�다.');
+      setWishlistError(error.message || '?占쎈컮援щ땲 ?占쎄린???占쏀뙣?占쎌뒿?占쎈떎.');
     } finally {
       setWishlistActionProductNo(null);
     }
   }
 
   function handleRemoveWishlistItem(productNo) {
-    const confirmed = window.confirm('찜한 ?�품?�서 ?�거?�시겠습?�까?');
+    const confirmed = window.confirm('李쒗븳 ?占쏀뭹?占쎌꽌 ?占쎄굅?占쎌떆寃좎뒿?占쎄퉴?');
     if (!confirmed) {
       return;
     }
@@ -1308,7 +1308,7 @@ function AccountApp({ authUser: initialAuthUser }) {
     const nextImageFiles = [...(reviewForm.imageFiles || []), ...files];
 
     if (activeExistingCount + nextImageFiles.length > 3) {
-      setReviewFormError('리뷰 ?�진?� 최�? 3?�까지 ?�록?????�습?�다.');
+      setReviewFormError('由щ럭 ?占쎌쭊?占?理쒙옙? 3?占쎄퉴吏 ?占쎈줉?????占쎌뒿?占쎈떎.');
       event.target.value = '';
       return;
     }
@@ -1340,7 +1340,7 @@ function AccountApp({ authUser: initialAuthUser }) {
     setReviewFormError('');
 
     if (!String(reviewForm.content || '').trim()) {
-      setReviewFormError('리뷰 ?�용???�력??주세??');
+      setReviewFormError('由щ럭 ?占쎌슜???占쎈젰??二쇱꽭??');
       setReviewSubmitting(false);
       return false;
     }
@@ -1368,7 +1368,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           headers: accountHeaders(authUser),
           body: formData,
         },
-        isEditMode ? '리뷰 ?�정???�패?�습?�다.' : '리뷰 ?�성???�패?�습?�다.'
+        isEditMode ? '由щ럭 ?占쎌젙???占쏀뙣?占쎌뒿?占쎈떎.' : '由щ럭 ?占쎌꽦???占쏀뙣?占쎌뒿?占쎈떎.'
       );
 
       await loadReviewsData();
@@ -1378,8 +1378,8 @@ function AccountApp({ authUser: initialAuthUser }) {
     } catch (error) {
       setReviewFormError(
         error.message || (reviewEditor?.mode === 'edit'
-          ? '리뷰 ?�정???�패?�습?�다.'
-          : '리뷰 ?�성???�패?�습?�다.')
+          ? '由щ럭 ?占쎌젙???占쏀뙣?占쎌뒿?占쎈떎.'
+          : '由щ럭 ?占쎌꽦???占쏀뙣?占쎌뒿?占쎈떎.')
       );
       return false;
     } finally {
@@ -1388,7 +1388,7 @@ function AccountApp({ authUser: initialAuthUser }) {
   }
 
   async function handleDeleteReview(reviewNo) {
-    const confirmed = window.confirm('??리뷰�???��?�시겠습?�까?');
+    const confirmed = window.confirm('??由щ럭占???占쏙옙?占쎌떆寃좎뒿?占쎄퉴?');
     if (!confirmed) {
       return;
     }
@@ -1412,7 +1412,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           method: 'DELETE',
           headers: accountHeaders(authUser),
         },
-        '리뷰 ??��???�패?�습?�다.'
+        '由щ럭 ??占쏙옙???占쏀뙣?占쎌뒿?占쎈떎.'
       );
       await loadReviewsData();
       notifyReviewChange(targetProductNo);
@@ -1421,7 +1421,7 @@ function AccountApp({ authUser: initialAuthUser }) {
         handleCancelReviewEditor();
       }
     } catch (error) {
-      setReviewsError(error.message || '리뷰 ??��???�패?�습?�다.');
+      setReviewsError(error.message || '由щ럭 ??占쏙옙???占쏀뙣?占쎌뒿?占쎈떎.');
     } finally {
       setDeletingReviewNo(null);
     }
@@ -1482,28 +1482,28 @@ function AccountApp({ authUser: initialAuthUser }) {
             className={`account-local-nav__link ${currentPage === 'mypage' ? 'is-active' : ''}`}
             onClick={() => moveToPage('mypage')}
           >
-            개인?�보 관�?
+            {'\uAC1C\uC778\uC815\uBCF4 \uAD00\uB9AC'}
           </button>
           <button
             type="button"
             className={`account-local-nav__link ${currentPage === 'activity' ? 'is-active' : ''}`}
             onClick={() => moveToPage('activity')}
           >
-              ???�동
+            {'\uB0B4 \uD65C\uB3D9'}
           </button>
           <button
             type="button"
             className={`account-local-nav__link ${currentPage === 'orders' ? 'is-active' : ''}`}
             onClick={() => moveToPage('orders')}
           >
-            주문관�?
+            {'\uC8FC\uBB38\uAD00\uB9AC'}
           </button>
           <button
             type="button"
             className={`account-local-nav__link ${currentPage === 'dashboard' ? 'is-active' : ''}`}
             onClick={() => moveToPage('dashboard')}
           >
-            ?�?�보??
+            {'\uB300\uC2DC\uBCF4\uB4DC'}
           </button>
         </section>
 
@@ -1619,11 +1619,11 @@ function AccountApp({ authUser: initialAuthUser }) {
 
       <footer className="site-footer">
         <div className="footer-links">
-          <a href="#/products">개인?�보처리방침</a>
-          <a href="#/products">?�용?��?</a>
-          <a href="#/products">고객?�터</a>
+          <a href="#/products">媛쒖씤?占쎈낫泥섎━諛⑹묠</a>
+          <a href="#/products">?占쎌슜?占쏙옙?</a>
+          <a href="#/products">怨좉컼?占쏀꽣</a>
         </div>
-        <div>© 2026 oneulFarm. All rights reserved.</div>
+        <div>짤 2026 oneulFarm. All rights reserved.</div>
       </footer>
     </div>
   );
