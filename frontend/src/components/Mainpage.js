@@ -1,44 +1,20 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { buildProductModel } from "../api/productApi";
 import { fetchMainPage } from "../api/mainApi";
+import { buildProductModel } from "../api/productApi";
 import HeroSlider from "./HeroSlider";
 import { prioritizeMealRecipes } from "./recipeCategoryUtils";
 import MainIngredientLinkCard from "./recommend/MainIngredientLinkCard";
 import RecommendProductCard from "./recommend/RecommendProductCard";
 import { buildEmptyRecommendData, loadRecommendData } from "./recommend/recommendData";
-import { getDiscountRate as getProductDiscountRate } from "./productUiUtils";
+import { getDiscountRate } from "./productUiUtils";
 import "../styles/mainPage.css";
 import "../styles/recommend.css";
-
-const EMPTY_MAIN_DATA = {
-  products: [],
-  insights: [],
-  chart: [],
-  recipes: [],
-};
 
 const API_BASE_PREFIXES = buildApiBasePrefixes(process.env.REACT_APP_API_BASE_URL || "");
 
 function buildApiBasePrefixes(explicitBaseUrl) {
-  const normalizedBaseUrl = normalizeBaseUrl(explicitBaseUrl);
-  if (normalizedBaseUrl) {
-    return [normalizedBaseUrl];
-  }
-
-  return ["", "/backend"];
-}
-
-function normalizeBaseUrl(value) {
-  const trimmedValue = String(value || "").trim();
-  if (!trimmedValue) {
-    return "";
-  }
-
-  return trimmedValue.replace(/\/+$/, "");
-}
-
-function getDiscountRate(product) {
-  return getProductDiscountRate(product);
+  const normalizedBaseUrl = String(explicitBaseUrl || "").trim().replace(/\/+$/, "");
+  return normalizedBaseUrl ? [normalizedBaseUrl] : ["", "/backend"];
 }
 
 function getProductImageSources(product) {
@@ -75,7 +51,7 @@ function handleImageError(event) {
   event.currentTarget.removeAttribute("data-fallback-src");
 }
 
-function normalizeMainProducts(rawProducts) {
+function normalizeProducts(rawProducts) {
   if (!Array.isArray(rawProducts)) {
     return [];
   }
@@ -97,12 +73,8 @@ function openRecipe(recipeNo) {
   window.location.hash = `#/recipes/${recipeNo}`;
 }
 
-function openHash(hash) {
-  window.location.hash = hash;
-}
-
 export default function MainPage({ authUser }) {
-  const [mainData, setMainData] = useState(EMPTY_MAIN_DATA);
+  const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [recommendSummary, setRecommendSummary] = useState(() => buildEmptyRecommendData());
@@ -117,12 +89,7 @@ export default function MainPage({ authUser }) {
           return;
         }
 
-        setMainData({
-          products: normalizeMainProducts(data?.products),
-          insights: Array.isArray(data?.insights) ? data.insights : [],
-          chart: Array.isArray(data?.chart) ? data.chart : [],
-          recipes: Array.isArray(data?.recipes) ? data.recipes : [],
-        });
+        setProducts(normalizeProducts(data?.products));
         setErrorMessage("");
       } catch (error) {
         if (!isMounted) {
@@ -167,26 +134,6 @@ export default function MainPage({ authUser }) {
     };
   }, [authUser]);
 
-  const recipePreviewList = useMemo(
-    () =>
-      prioritizeMealRecipes(recommendSummary.recipeRecommendationList, 2)
-        .slice(0, 4)
-        .map((recipe) => ({
-          product: {
-            productName:
-              recipe?.keyword ||
-              recipe?.matchedIngredients?.[0]?.ingredientName ||
-              "인기 레시피",
-          },
-          linkedRecipes: [recipe],
-          description:
-            recipe?.description ||
-            "많이 찾는 레시피를 먼저 소개하고 필요한 재료 흐름을 카드 안에서 함께 보여줍니다.",
-          recipe,
-        })),
-    [recommendSummary.recipeRecommendationList]
-  );
-
   const seasonalPreviewList = useMemo(
     () =>
       [...recommendSummary.seasonalProductList]
@@ -195,11 +142,28 @@ export default function MainPage({ authUser }) {
     [recommendSummary.seasonalProductList]
   );
 
+  const recipePreviewList = useMemo(
+    () =>
+      prioritizeMealRecipes(recommendSummary.recipeRecommendationList, 2)
+        .slice(0, 4)
+        .map((recipe) => ({
+          product: {
+            productName:
+              recipe?.keyword || recipe?.matchedIngredients?.[0]?.ingredientName || "인기 메뉴",
+          },
+          linkedRecipes: [recipe],
+          description:
+            recipe?.description ||
+            "많이 찾는 레시피를 먼저 소개하고 필요한 재료 이름을 카드 안에서 함께 보여줍니다.",
+          recipe,
+        })),
+    [recommendSummary.recipeRecommendationList]
+  );
+
   const heroSlides = useMemo(() => {
     const recipeHero = recommendSummary.recipeRecommendationList[0] || null;
-    const seasonalHero =
-      recommendSummary.seasonalProductList[0]?.product || mainData.products[0] || null;
-    const fallbackImage = getProductImageSources(seasonalHero)[0] || "";
+    const seasonalHero = recommendSummary.seasonalProductList[0]?.product || products[0] || null;
+    const seasonalImage = getProductImageSources(seasonalHero)[0] || "";
 
     return [
       {
@@ -211,7 +175,7 @@ export default function MainPage({ authUser }) {
         primaryHref: "#/recipes",
         secondaryLabel: "인기 레시피 보기",
         secondaryHref: "#/recipes",
-        imageUrl: recipeHero?.imageUrl || fallbackImage,
+        imageUrl: recipeHero?.imageUrl || seasonalImage,
       },
       {
         key: "seasonal-main",
@@ -222,14 +186,10 @@ export default function MainPage({ authUser }) {
         primaryHref: "#/recipes",
         secondaryLabel: "제철 재료 보기",
         secondaryHref: "#/products?tag=SEASONAL",
-        imageUrl: getProductImageSources(seasonalHero)[0] || recipeHero?.imageUrl || fallbackImage,
+        imageUrl: seasonalImage || recipeHero?.imageUrl || "",
       },
     ];
-  }, [
-    mainData.products,
-    recommendSummary.recipeRecommendationList,
-    recommendSummary.seasonalProductList,
-  ]);
+  }, [products, recommendSummary.recipeRecommendationList, recommendSummary.seasonalProductList]);
 
   return (
     <div className="page-shell">
@@ -276,17 +236,10 @@ export default function MainPage({ authUser }) {
             <div>
               <div className="section-title">지금 인기 있는 메뉴</div>
               <div className="section-sub">
-                많이 찾는 레시피를 먼저 소개하고 필요한 재료 흐름을 카드 안에서 함께 보여줍니다.
+                많이 찾는 레시피를 먼저 소개하고 필요한 재료 이름을 카드 안에서 함께 보여줍니다.
               </div>
             </div>
-            <a
-              className="section-link section-link--recipes"
-              href="#/recipes"
-              onClick={(event) => {
-                event.preventDefault();
-                openHash("#/recipes");
-              }}
-            >
+            <a className="section-link section-link--recipes" href="#/recipes">
               레시피 전체 보기
             </a>
           </div>
@@ -297,9 +250,9 @@ export default function MainPage({ authUser }) {
                 <MainIngredientLinkCard
                   key={item.recipe?.recipeNo || item.recipe?.recipeName}
                   imageSources={item.recipe?.imageUrl ? [item.recipe.imageUrl] : []}
-                  onOpenRecipe={openRecipe}
-                  onImageError={handleImageError}
                   item={item}
+                  onImageError={handleImageError}
+                  onOpenRecipe={openRecipe}
                   title={item.recipe?.recipeName || "지금 인기 있는 메뉴"}
                   tone="recipe"
                 />
@@ -313,7 +266,7 @@ export default function MainPage({ authUser }) {
           )}
         </section>
 
-        {!isLoading && !recipePreviewList.length && !seasonalPreviewList.length ? (
+        {!isLoading && !seasonalPreviewList.length && !recipePreviewList.length ? (
           <div className="section-empty">메인에 표시할 추천 데이터가 아직 없습니다.</div>
         ) : null}
 
