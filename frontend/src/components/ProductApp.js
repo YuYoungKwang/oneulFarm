@@ -71,7 +71,9 @@ export default function ProductApp({ authUser }) {
     title: '',
     description: '',
   });
+  const [cartToastMessage, setCartToastMessage] = useState('');
   const isLoggedIn = isAuthenticated(authUser);
+  const cartToastTimerRef = useRef(null);
 
   useEffect(() => {
     if (!window.location.hash) {
@@ -111,6 +113,14 @@ export default function ProductApp({ authUser }) {
   useEffect(() => {
     productDetailStatesRef.current = productDetailStates;
   }, [productDetailStates]);
+
+  useEffect(() => {
+    return () => {
+      if (cartToastTimerRef.current) {
+        window.clearTimeout(cartToastTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -537,6 +547,18 @@ export default function ProductApp({ authUser }) {
     );
   }
 
+  function showCartToast(message) {
+    if (cartToastTimerRef.current) {
+      window.clearTimeout(cartToastTimerRef.current);
+    }
+
+    setCartToastMessage(message);
+    cartToastTimerRef.current = window.setTimeout(() => {
+      setCartToastMessage('');
+      cartToastTimerRef.current = null;
+    }, 1800);
+  }
+
   async function addToCart(productNo, quantity = 1) {
     if (!isLoggedIn) {
       navigateToHash('#/login');
@@ -551,10 +573,16 @@ export default function ProductApp({ authUser }) {
     if (stockLimit < 1 || safeQuantity < 1) {
       return;
     }
+
+    const targetProduct = findProduct(products, productDetails, productNo);
+    const productLabel = targetProduct?.productName || '\uC0C1\uD488';
+    const cartToastMessage = `${productLabel} \uC7A5\uBC14\uAD6C\uB2C8\uC5D0 \uB2F4\uACBC\uC2B5\uB2C8\uB2E4.`;
+
     if (process.env.NODE_ENV !== 'test') {
       try {
         const nextCart = await addCartItemToApi(productNo, safeQuantity);
         setCart(nextCart);
+        showCartToast(cartToastMessage);
         return;
       } catch (error) {
         // Fall back to local cart state.
@@ -568,6 +596,7 @@ export default function ProductApp({ authUser }) {
         (previousCart[productNo] || 0) + safeQuantity
       ),
     }));
+    showCartToast(cartToastMessage);
   }
 
   async function addMatchedProductsToCart(productList) {
@@ -885,6 +914,11 @@ export default function ProductApp({ authUser }) {
           />
         )}
       </main>
+      {cartToastMessage ? (
+        <div aria-live="polite" className="product-toast" role="status">
+          <div className="product-toast__bubble">{cartToastMessage}</div>
+        </div>
+      ) : null}
       <SiteFooter />
     </div>
   );
