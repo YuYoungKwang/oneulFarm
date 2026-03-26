@@ -5,35 +5,57 @@ export default function MainIngredientLinkCard({
   item,
   title,
   tone = "seasonal",
+  onOpenPrimary,
   onOpenProduct,
   onOpenRecipe,
   onImageError,
+  primaryLabel,
 }) {
   const product = item?.product || null;
   const recipeList = Array.isArray(item?.linkedRecipes) ? item.linkedRecipes.slice(0, 2) : [];
   const primaryRecipe = recipeList[0] || null;
 
   const badgeLabel =
-    tone === "seasonal" ? "제철" : tone === "value" ? "가격 메리트" : "인기 레시피";
+    tone === "seasonal"
+      ? "\uC81C\uCCA0"
+      : tone === "value"
+        ? "\uAC00\uACA9 \uBA54\uB9AC\uD2B8"
+        : "\uC778\uAE30 \uB808\uC2DC\uD53C";
 
   const fallbackDescription =
     tone === "seasonal"
-      ? "지금 활용하기 좋은 재료와 연결된 메뉴를 바로 확인할 수 있어요."
+      ? "\uC9C0\uAE08 \uC4F0\uAE30 \uC88B\uC740 \uC7AC\uB8CC\uC640 \uC5F0\uACB0\uB41C \uBA54\uB274\uB97C \uBC14\uB85C \uD655\uC778\uD560 \uC218 \uC788\uC5B4\uC694."
       : tone === "value"
-        ? "가격 메리트가 좋은 재료와 연결된 메뉴를 함께 확인할 수 있어요."
-        : "인기 레시피를 보고 필요한 재료와 메뉴 정보를 바로 확인할 수 있어요.";
+        ? "\uAC00\uACA9 \uBA54\uB9AC\uD2B8\uAC00 \uC88B\uC740 \uC7AC\uB8CC\uC640 \uC5F0\uACB0\uB41C \uBA54\uB274\uB97C \uD568\uAED8 \uD655\uC778\uD560 \uC218 \uC788\uC5B4\uC694."
+        : "\uC778\uAE30 \uB808\uC2DC\uD53C\uB97C \uBCF4\uACE0 \uD544\uC694\uD55C \uC7AC\uB8CC\uC640 \uBA54\uB274 \uC815\uBCF4\uB97C \uBC14\uB85C \uD655\uC778\uD560 \uC218 \uC788\uC5B4\uC694.";
 
   const emptyMessage =
-    tone === "recipe" ? "재료 정보를 준비 중입니다." : "연결된 레시피를 준비 중입니다.";
+    tone === "recipe"
+      ? "\uC7AC\uB8CC \uC815\uBCF4\uB97C \uC900\uBE44 \uC911\uC785\uB2C8\uB2E4."
+      : "\uC5F0\uACB0\uB41C \uB808\uC2DC\uD53C\uB97C \uC900\uBE44 \uC911\uC785\uB2C8\uB2E4.";
 
-  const primaryLabel = "레시피 보기";
+  const resolvedPrimaryLabel = primaryLabel || "\uB808\uC2DC\uD53C \uBCF4\uAE30";
+  const canOpenPrimary = Boolean((primaryRecipe && onOpenRecipe) || onOpenPrimary);
   const canOpenProduct = Boolean(product?.productNo && onOpenProduct);
+
+  function handlePrimaryAction() {
+    if (onOpenPrimary) {
+      onOpenPrimary(primaryRecipe, item);
+      return;
+    }
+
+    if (primaryRecipe?.recipeNo) {
+      onOpenRecipe?.(primaryRecipe.recipeNo);
+    }
+  }
 
   return (
     <article className={`main-link-card main-link-card--${tone}`}>
       <div className="main-link-card__head">
         <span className="main-link-card__badge">{badgeLabel}</span>
-        <strong className="main-link-card__name">{product?.productName || "추천 메뉴"}</strong>
+        <strong className="main-link-card__name">
+          {product?.productName || "\uCD94\uCC9C \uBA54\uB274"}
+        </strong>
       </div>
 
       <div className="main-link-card__body">
@@ -48,7 +70,7 @@ export default function MainIngredientLinkCard({
               src={imageSources[0]}
               data-fallback-src={imageSources[1] || ""}
               onError={onImageError}
-              alt={product?.productName || title || "추천 메뉴"}
+              alt={product?.productName || title || "\uCD94\uCC9C \uBA54\uB274"}
             />
           ) : (
             <span>{product?.productName?.slice(0, 1) || "?"}</span>
@@ -74,13 +96,13 @@ export default function MainIngredientLinkCard({
       )}
 
       <div className="main-link-card__actions">
-        {primaryRecipe ? (
+        {canOpenPrimary ? (
           <button
             type="button"
             className="main-link-card__button main-link-card__button--hero"
-            onClick={() => onOpenRecipe?.(primaryRecipe.recipeNo)}
+            onClick={handlePrimaryAction}
           >
-            {primaryLabel}
+            {resolvedPrimaryLabel}
           </button>
         ) : null}
 
@@ -90,7 +112,7 @@ export default function MainIngredientLinkCard({
             className="main-link-card__button main-link-card__button--subtle"
             onClick={() => onOpenProduct?.(product?.productNo)}
           >
-            재료 보기
+            {"\uC7AC\uB8CC \uBCF4\uAE30"}
           </button>
         ) : null}
       </div>
