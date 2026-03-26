@@ -1468,7 +1468,6 @@ function LegacyProductsPage({
   onSaveProduct,
   submitting,
 }) {
-  const canManageAdminRole = false;
   const filteredProducts = products.filter((product) => {
     if (productFilter === 'ALL') {
       return true;

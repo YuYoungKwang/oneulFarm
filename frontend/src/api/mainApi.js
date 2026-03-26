@@ -1,8 +1,7 @@
-const API_BASE_PREFIXES = buildApiBasePrefixes(
-  process.env.REACT_APP_API_BASE_URL || ""
-);
+const API_BASE_PREFIXES = buildApiBasePrefixes(process.env.REACT_APP_API_BASE_URL || "");
 
 const MAIN_API_PATH = "/api/main";
+const MAIN_RECOMMENDATIONS_API_PATH = "/api/main/recommendations";
 
 function buildApiBasePrefixes(explicitBaseUrl) {
   const normalizedBaseUrl = normalizeBaseUrl(explicitBaseUrl);
@@ -10,11 +9,11 @@ function buildApiBasePrefixes(explicitBaseUrl) {
     return [normalizedBaseUrl];
   }
 
-  return ["", "/backend"];
+  return ["/backend", ""];
 }
 
 function normalizeBaseUrl(value) {
-  const trimmedValue = value.trim();
+  const trimmedValue = String(value || "").trim();
   if (!trimmedValue) {
     return "";
   }
@@ -73,6 +72,18 @@ export async function fetchMainPage() {
         Accept: "application/json",
       },
     },
-    "메인 데이터를 불러오지 못했습니다."
+    "\uBA54\uC778 \uB370\uC774\uD130\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4."
+  );
+}
+
+export async function fetchMainRecommendations() {
+  return requestMainApi(
+    MAIN_RECOMMENDATIONS_API_PATH,
+    {
+      headers: {
+        Accept: "application/json",
+      },
+    },
+    "\uBA54\uC778 \uCD94\uCC9C \uB370\uC774\uD130\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4."
   );
 }
