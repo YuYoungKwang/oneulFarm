@@ -183,6 +183,41 @@ const PURCHASE_SUPPLIER_PROFILES = [
   },
 ];
 
+const PACKAGE_COST_PROFILES = [
+  {
+    key: 'small',
+    label: '소포장 기본값',
+    maxWeightKg: 0.5,
+    packagingMaterialPerUnit: 20,
+    packagingLaborPerUnit: 90,
+    otherPackagingPerUnit: 20,
+  },
+  {
+    key: 'medium',
+    label: '중포장 기본값',
+    maxWeightKg: 1,
+    packagingMaterialPerUnit: 40,
+    packagingLaborPerUnit: 120,
+    otherPackagingPerUnit: 30,
+  },
+  {
+    key: 'large',
+    label: '대포장 기본값',
+    maxWeightKg: 3,
+    packagingMaterialPerUnit: 80,
+    packagingLaborPerUnit: 170,
+    otherPackagingPerUnit: 40,
+  },
+  {
+    key: 'bulk',
+    label: '대량포장 기본값',
+    maxWeightKg: Number.POSITIVE_INFINITY,
+    packagingMaterialPerUnit: 120,
+    packagingLaborPerUnit: 220,
+    otherPackagingPerUnit: 50,
+  },
+];
+
 function splitAdminReferenceNameSegments(value) {
   return String(value || '')
     .split('/')
@@ -1172,6 +1207,60 @@ function calculateAutoPackageDefaults(batch, packageQuote, packagedQty) {
     packagedWeight: packagedWeightValue,
     salePrice,
     saleStatus: 'SELLING',
+  };
+}
+
+function resolvePackageWeightToKg(packagedWeight, unit) {
+  const quantity = resolveUnitAmount(packagedWeight, unit);
+  if (!quantity || quantity.type !== 'WEIGHT') {
+    return null;
+  }
+  return quantity.amount / 1000;
+}
+
+function findPackageCostProfile(packagedWeight, unit) {
+  const packagedWeightKg = resolvePackageWeightToKg(packagedWeight, unit);
+  if (!Number.isFinite(packagedWeightKg) || packagedWeightKg <= 0) {
+    return PACKAGE_COST_PROFILES[1];
+  }
+
+  return (
+    PACKAGE_COST_PROFILES.find((profile) => packagedWeightKg <= profile.maxWeightKg)
+    || PACKAGE_COST_PROFILES[PACKAGE_COST_PROFILES.length - 1]
+  );
+}
+
+function calculatePackageCostDefaults(batch, packageForm) {
+  if (!batch || !packageForm) {
+    return null;
+  }
+
+  const packagedQty = toNumber(packageForm.packagedQty, 0);
+  const packagedWeight = toNumber(packageForm.packagedWeight, 0);
+  if (packagedQty <= 0 || packagedWeight <= 0) {
+    return null;
+  }
+
+  const costProfile = findPackageCostProfile(packagedWeight, batch.purchaseUnit);
+  return {
+    profileLabel: costProfile.label,
+    packagingMaterialCost: costProfile.packagingMaterialPerUnit * packagedQty,
+    packagingLaborCost: costProfile.packagingLaborPerUnit * packagedQty,
+    otherPackagingCost: costProfile.otherPackagingPerUnit * packagedQty,
+  };
+}
+
+function applyPackageCostDefaultsToForm(batch, packageForm) {
+  const packageCostDefaults = calculatePackageCostDefaults(batch, packageForm);
+  if (!packageCostDefaults) {
+    return packageForm;
+  }
+
+  return {
+    ...packageForm,
+    packagingMaterialCost: formatDecimalInput(packageCostDefaults.packagingMaterialCost, 0),
+    packagingLaborCost: formatDecimalInput(packageCostDefaults.packagingLaborCost, 0),
+    otherPackagingCost: formatDecimalInput(packageCostDefaults.otherPackagingCost, 0),
   };
 }
 
@@ -2377,6 +2466,7 @@ function PurchasePage({
   onClearPurchaseImages,
   onCreatePurchase,
   onCreatePackageHistory,
+  onApplyPackageCostDefaults,
   onCancelPackageHistory,
   onDeletePurchaseBatch,
   quotingPurchase,
@@ -2398,6 +2488,7 @@ function PurchasePage({
   const selectedBatchPackageHistories = selectedBatch
     ? packageHistories.filter((history) => history.batchNo === selectedBatch.batchNo)
     : [];
+  const packageCostDefaults = calculatePackageCostDefaults(selectedBatch, packageForm);
 
   return (
     <>
@@ -2535,6 +2626,22 @@ function PurchasePage({
                       ? `${formatAdminCurrency(purchaseQuote.wholesaleSourcePrice)} / ${purchaseQuote.wholesaleSourceUnit || purchaseQuote.snapshotUnit || '-'}`
                       : '-'}
                   </div>
+                  <div className="admin-muted">
+                    {'\uC18C\uB9E4\uAC00 '}
+                    {hasAdminValue(purchaseQuote.retailComparablePrice)
+                      ? formatAdminCurrency(purchaseQuote.retailComparablePrice)
+                      : '-'}
+                  </div>
+                  <div className="admin-muted">
+                    {'\uAD8C\uC7A5\uAC00 '}
+                    {hasAdminValue(purchaseQuote.recommendedSalePrice)
+                      ? formatAdminCurrency(purchaseQuote.recommendedSalePrice)
+                      : '-'}
+                  </div>
+                  <div className="admin-muted">
+                    {'\uAC00\uACA9 \uAE30\uC900 '}
+                    {purchaseQuote.priceBasisUnit || purchaseQuote.recommendedPriceBasisUnit || '1kg'}
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -2626,6 +2733,14 @@ function PurchasePage({
           <section className="admin-section-block">
             <div className="admin-section-block__head">
               <h3>{'\uC785\uB825 \uC601\uC5ED'}</h3>
+              <button
+                type="button"
+                className="admin-action admin-action--line"
+                onClick={onApplyPackageCostDefaults}
+                disabled={!packageCostDefaults}
+              >
+                {'\uBE44\uC6A9 \uAE30\uBCF8\uAC12 \uC801\uC6A9'}
+              </button>
             </div>
             <div className="admin-form-grid admin-form-grid--spaced admin-form-grid--priority">
             {needsLegacyProductLink ? (
@@ -2659,6 +2774,21 @@ function PurchasePage({
               </select>
             </label>
             </div>
+            {packageCostDefaults ? (
+              <div className="admin-muted">
+                {packageCostDefaults.profileLabel}
+                {' · 포장재비 '}
+                {formatAdminCurrency(packageCostDefaults.packagingMaterialCost)}
+                {' · 인건비 '}
+                {formatAdminCurrency(packageCostDefaults.packagingLaborCost)}
+                {' · 기타비 '}
+                {formatAdminCurrency(packageCostDefaults.otherPackagingCost)}
+              </div>
+            ) : (
+              <div className="admin-muted">
+                {'생성 수량과 1개당 중량을 입력하면 포장재비, 인건비, 기타 소분비 기본값이 자동 계산됩니다.'}
+              </div>
+            )}
             <div className="admin-form-field admin-form-field--full admin-form-field--memo">
               <span>{'\uBA54\uBAA8'}</span>
               <textarea name="note" value={packageForm.note} onChange={onPackageFormChange} />
@@ -2746,12 +2876,14 @@ function PurchasePage({
               <div className="admin-history-list">
                 {selectedBatchPackageHistories.map((history) => (
                   <div className="admin-history-item admin-history-item--row" key={history.packageNo}>
-                    <div className="admin-history-item__meta">{'\uC0DD\uC131 : '}{history.packagedQty}{'\uAC1C'}</div>
-                    <div className="admin-history-item__meta">{'\uAC1C\uB2F9 : '}{formatDecimalInput(history.packagedWeight, 2)}{selectedBatch?.purchaseUnit || ''}</div>
-                    <div className="admin-history-item__meta">{'\uD310\uB9E4\uAC00 : '}{formatAdminCurrency(history.salePrice)}</div>
+                    <div className="admin-history-item__details">
+                      <div className="admin-history-item__meta">{'\uC0DD\uC131 : '}{history.packagedQty}{'\uAC1C'}</div>
+                      <div className="admin-history-item__meta">{'\uAC1C\uB2F9 : '}{formatDecimalInput(history.packagedWeight, 2)}{selectedBatch?.purchaseUnit || ''}</div>
+                      <div className="admin-history-item__meta">{'\uD310\uB9E4\uAC00 : '}{formatAdminCurrency(history.salePrice)}</div>
+                    </div>
                     <button
                       type="button"
-                      className="admin-action admin-action--danger"
+                      className="admin-action admin-action--danger admin-action--tiny"
                       onClick={() => onCancelPackageHistory(history)}
                       disabled={submittingPackage}
                     >
@@ -2862,6 +2994,7 @@ function AdminApp() {
   const [updatingUser, setUpdatingUser] = useState(false);
   const [savingPurchase, setSavingPurchase] = useState(false);
   const [savingPackage, setSavingPackage] = useState(false);
+  const [pendingCancelPackageHistory, setPendingCancelPackageHistory] = useState(null);
   const [quotingPurchase, setQuotingPurchase] = useState(false);
   const [, setLoadingPackageQuote] = useState(false);
   const [syncingRecipes, setSyncingRecipes] = useState(false);
@@ -3075,7 +3208,7 @@ function AdminApp() {
         }
       }
 
-      return nextForm;
+      return applyPackageCostDefaultsToForm(currentBatch, nextForm);
     });
   }, [currentBatch, packageQuote]);
 
@@ -3412,8 +3545,16 @@ function AdminApp() {
         }
       }
 
+      if (name === 'packagedQty' || name === 'packagedWeight') {
+        return applyPackageCostDefaultsToForm(currentBatch, nextForm);
+      }
+
       return nextForm;
     });
+  }
+
+  function handleApplyPackageCostDefaults() {
+    setPackageForm((current) => applyPackageCostDefaultsToForm(currentBatch, current));
   }
 
   async function handleSaveProduct() {
@@ -3782,11 +3923,11 @@ function AdminApp() {
     if (!packageHistory?.packageNo) {
       return;
     }
+    setPendingCancelPackageHistory(packageHistory);
+  }
 
-    const shouldCancel = window.confirm(
-      '이 소분 작업을 되돌리시겠습니까?\n\n재고와 상품 재고가 함께 복구됩니다.'
-    );
-    if (!shouldCancel) {
+  async function handleConfirmCancelPackageHistory() {
+    if (!pendingCancelPackageHistory?.packageNo) {
       return;
     }
 
@@ -3795,7 +3936,7 @@ function AdminApp() {
     setActionSuccess('');
 
     try {
-      await cancelAdminPackageHistory(packageHistory.packageNo);
+      await cancelAdminPackageHistory(pendingCancelPackageHistory.packageNo);
       const [nextPurchases, nextPackageHistories, nextProducts] = await Promise.all([
         fetchAdminPurchases(),
         fetchAdminPackageHistories(),
@@ -3808,6 +3949,7 @@ function AdminApp() {
     } catch (error) {
       setActionError(error.message || '소분 취소에 실패했습니다.');
     } finally {
+      setPendingCancelPackageHistory(null);
       setSavingPackage(false);
     }
   }
@@ -3969,6 +4111,7 @@ function AdminApp() {
               onClearPurchaseImages={resetPurchaseImages}
               onCreatePurchase={handleCreatePurchase}
               onCreatePackageHistory={handleCreatePackageHistory}
+              onApplyPackageCostDefaults={handleApplyPackageCostDefaults}
               onCancelPackageHistory={handleCancelPackageHistory}
               onDeletePurchaseBatch={handleDeletePurchaseBatch}
               quotingPurchase={quotingPurchase}
@@ -3983,6 +4126,61 @@ function AdminApp() {
               syncingRecipes={syncingRecipes}
               onSyncRecipes={handleSyncRecipes}
             />
+          ) : null}
+          {pendingCancelPackageHistory ? (
+            <div
+              className="admin-modal-backdrop"
+              role="presentation"
+              onClick={() => (!savingPackage ? setPendingCancelPackageHistory(null) : null)}
+            >
+              <div
+                className="admin-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="cancel-package-history-title"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="admin-modal__body">
+                  <h3 id="cancel-package-history-title">{'재고 복구 확인'}</h3>
+                  <p>{'이 소분 이력을 취소하면 배치 재고와 상품 재고가 함께 복구됩니다.'}</p>
+                  <div className="admin-modal__summary">
+                    <div className="admin-modal__summary-item">
+                      <span>{'생성'}</span>
+                      <strong>{pendingCancelPackageHistory.packagedQty}{'개'}</strong>
+                    </div>
+                    <div className="admin-modal__summary-item">
+                      <span>{'개당'}</span>
+                      <strong>
+                        {formatDecimalInput(pendingCancelPackageHistory.packagedWeight, 2)}
+                        {currentBatch?.purchaseUnit || ''}
+                      </strong>
+                    </div>
+                    <div className="admin-modal__summary-item">
+                      <span>{'판매가'}</span>
+                      <strong>{formatAdminCurrency(pendingCancelPackageHistory.salePrice)}</strong>
+                    </div>
+                  </div>
+                </div>
+                <div className="admin-page-actions admin-modal__actions">
+                  <button
+                    type="button"
+                    className="admin-action admin-action--line"
+                    onClick={() => setPendingCancelPackageHistory(null)}
+                    disabled={savingPackage}
+                  >
+                    {'닫기'}
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-action admin-action--danger"
+                    onClick={handleConfirmCancelPackageHistory}
+                    disabled={savingPackage}
+                  >
+                    {savingPackage ? '처리 중...' : '재고 복구'}
+                  </button>
+                </div>
+              </div>
+            </div>
           ) : null}
         </>
       ) : null}
