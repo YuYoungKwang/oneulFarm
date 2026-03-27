@@ -7,6 +7,25 @@ import {
 } from './AdminUi';
 import '../styles/adminOrders.css';
 
+const ADMIN_ORDER_FILTERS = [
+  { value: 'ALL', label: '전체' },
+  { value: 'PAYMENT_COMPLETED', label: '결제 완료' },
+  { value: 'ORDER_ACCEPTED', label: '주문 확정' },
+  { value: 'CANCEL_REQUESTED', label: '취소 요청' },
+  { value: 'CANCEL_ACCEPTED', label: '취소 완료' },
+  { value: 'CANCEL_REJECTED', label: '취소 거절' },
+  { value: 'ORDER_REJECTED', label: '주문 거절' },
+  { value: 'DELIVERED', label: '배송 완료' },
+];
+
+const ADMIN_CANCEL_STATUS_LABELS = {
+  NONE: '',
+  CANCEL_REQUESTED: '취소 요청',
+  CANCEL_ACCEPTED: '취소 완료',
+  CANCEL_REJECTED: '취소 거절',
+};
+
+// eslint-disable-next-line no-unused-vars
 const ORDER_FILTERS = [
   { value: 'ALL', label: '전체' },
   { value: 'PAYMENT_COMPLETED', label: '결제 완료' },
@@ -36,6 +55,7 @@ const DELIVERY_STATUS_LABELS = {
   SHIPPING: '배송 중',
 };
 
+// eslint-disable-next-line no-unused-vars
 const CANCEL_STATUS_LABELS = {
   NONE: '',
   CANCEL_REQUESTED: '취소 요청',
@@ -58,7 +78,7 @@ function getCancelStatusLabel(order) {
   if (!status || status === 'NONE') {
     return '';
   }
-  return CANCEL_STATUS_LABELS[status] || status;
+  return ADMIN_CANCEL_STATUS_LABELS[status] || status;
 }
 
 function resolveFilterStatus(order) {
@@ -66,8 +86,17 @@ function resolveFilterStatus(order) {
     return '';
   }
 
+  const cancelStatus = order.cancelStatus;
   const normalizedOrderStatus = order.normalizedOrderStatus || order.orderStatus;
   const normalizedDeliveryStatus = order.normalizedDeliveryStatus || order.deliveryStatus;
+
+  if (cancelStatus && cancelStatus !== 'NONE') {
+    return cancelStatus;
+  }
+
+  if (normalizedOrderStatus === 'ORDER_REJECTED') {
+    return 'ORDER_REJECTED';
+  }
 
   if (normalizedDeliveryStatus === 'DELIVERED') {
     return 'DELIVERED';
@@ -232,7 +261,7 @@ function AdminOrdersPage({
       </section>
 
       <div className="admin-orders-v2__filters">
-        {ORDER_FILTERS.map((filter) => (
+        {ADMIN_ORDER_FILTERS.map((filter) => (
           <button
             key={filter.value}
             type="button"
