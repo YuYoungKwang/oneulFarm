@@ -3169,6 +3169,13 @@ function AdminApp() {
   }
 
   async function handleShipOrder() {
+    const confirmed = window.confirm(
+      '배송 인계 진행 상태는 배송 담당자가 관리합니다. 정말 인계하시겠습니까?'
+    );
+    if (!confirmed) {
+      return;
+    }
+
     await handleUpdateOrder({
       orderStatus: 'SHIPPING',
       trackingNo: String(trackingNo || '').trim(),
