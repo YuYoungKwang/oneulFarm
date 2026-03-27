@@ -215,6 +215,7 @@ public class AdminServiceImpl implements AdminService {
         order.setTotalSavedAmount(totalSavedAmount);
         hydrateOrderRuntimeState(order);
         order.setTrackingHistories(orderDao.findDeliveryTrackingHistories(orderNo));
+        order.setOrderStatusHistories(orderDao.findOrderStatusHistories(orderNo));
         return order;
     }
 
@@ -259,6 +260,7 @@ public class AdminServiceImpl implements AdminService {
         }
 
         adminDao.updateAdminOrderStatus(orderNo, "CANCELED");
+        orderDao.insertOrderStatusHistory(orderNo, currentOrder.getOrderStatus(), "CANCELED", "ADMIN", null, "주문 거절");
         return getOrderDetail(orderNo);
     }
 
@@ -280,6 +282,7 @@ public class AdminServiceImpl implements AdminService {
         orderDao.updateOrderStatus(orderNo, "CANCELED");
         orderDao.updateOrderCancelStatus(orderNo, "CANCEL_ACCEPTED");
         orderDao.updateLatestOrderCancelRequest(orderNo, "CANCEL_ACCEPTED", actorUserNo, null);
+        orderDao.insertOrderStatusHistory(orderNo, currentOrder.getOrderStatus(), "CANCELED", "ADMIN", actorUserNo, "취소 요청 수락");
         return getOrderDetail(orderNo);
     }
 
@@ -315,6 +318,7 @@ public class AdminServiceImpl implements AdminService {
             : trackingNo;
         adminDao.updateAdminOrderStatus(orderNo, "SHIPPING");
         adminDao.updateAdminDeliveryForShipping(orderNo, resolvedTrackingNo, courierName);
+        orderDao.insertOrderStatusHistory(orderNo, currentOrder.getOrderStatus(), "SHIPPING", "ADMIN", null, "배송 인계");
         orderDao.insertDeliveryTrackingHistory(
             orderNo,
             OrderCompatibilityUtils.resolveCarrierCode(courierName),
@@ -336,6 +340,7 @@ public class AdminServiceImpl implements AdminService {
 
         adminDao.updateAdminOrderStatus(orderNo, "COMPLETED");
         adminDao.updateAdminDeliveryForDelivered(orderNo);
+        orderDao.insertOrderStatusHistory(orderNo, currentOrder.getOrderStatus(), "COMPLETED", "ADMIN", null, "배송 완료 처리");
         orderDao.insertDeliveryTrackingHistory(
             orderNo,
             currentOrder.getCarrierCode(),

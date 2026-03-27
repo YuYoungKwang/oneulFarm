@@ -69,6 +69,34 @@ function getPurchaseConfirmLabel(order) {
   return PURCHASE_CONFIRM_LABELS[status] || status;
 }
 
+function getOrderHistoryStatusLabel(status) {
+  switch (status) {
+    case 'PAID':
+      return '결제 완료';
+    case 'SHIPPING':
+      return '배송 중';
+    case 'COMPLETED':
+      return '배송 완료';
+    case 'CANCELED':
+      return '주문 취소';
+    default:
+      return status || '-';
+  }
+}
+
+function getOrderHistoryActorLabel(actor) {
+  switch (actor) {
+    case 'SYSTEM':
+      return '시스템';
+    case 'ADMIN':
+      return '운영자';
+    case 'CARRIER':
+      return '배송사';
+    default:
+      return actor || '-';
+  }
+}
+
 function resolveFilterStatus(order) {
   if (!order) return '';
   const cancelStatus = order.cancelStatus;
@@ -297,6 +325,27 @@ function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFi
                       <div className="admin-orders-v2__item-meta"><span>{formatAdminCurrency(item.subtotal)}</span><span>시장 평균가 {formatAdminCurrency(item.marketAvgPrice)}</span></div>
                     </div>
                   ))}
+                </div>
+              </section>
+
+              <section className="admin-orders-v2__box">
+                <div className="admin-orders-v2__box-head"><h3>주문 처리 이력</h3><span>{selectedOrderDetail.orderStatusHistories?.length || 0}건</span></div>
+                <div className="admin-orders-v2__history-list">
+                  {(selectedOrderDetail.orderStatusHistories || []).map((history) => (
+                    <div key={history.orderStatusHistoryNo} className="admin-orders-v2__history-card">
+                      <div className="admin-orders-v2__history-head">
+                        <strong>{getOrderHistoryStatusLabel(history.nextOrderStatus)}</strong>
+                        <span>{formatAdminDate(history.changedAt)}</span>
+                      </div>
+                      <div className="admin-orders-v2__history-copy">
+                        {getOrderHistoryActorLabel(history.changedByType)}
+                        {history.changeReason ? ` · ${history.changeReason}` : ''}
+                      </div>
+                    </div>
+                  ))}
+                  {!(selectedOrderDetail.orderStatusHistories || []).length ? (
+                    <div className="admin-orders-v2__history-copy">아직 기록된 주문 처리 이력이 없습니다.</div>
+                  ) : null}
                 </div>
               </section>
             </div>

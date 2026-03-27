@@ -84,6 +84,17 @@
         <result property="recordedAt" column="recordedAt" />
     </resultMap>
 
+    <resultMap id="OrderStatusHistoryResultMap" type="com.app.dto.OrderStatusHistoryDto">
+        <result property="orderStatusHistoryNo" column="orderStatusHistoryNo" />
+        <result property="orderNo" column="orderNo" />
+        <result property="prevOrderStatus" column="prevOrderStatus" />
+        <result property="nextOrderStatus" column="nextOrderStatus" />
+        <result property="changedByType" column="changedByType" />
+        <result property="changedByUserNo" column="changedByUserNo" />
+        <result property="changeReason" column="changeReason" />
+        <result property="changedAt" column="changedAt" />
+    </resultMap>
+
     <select id="selectMyOrders" parameterType="map" resultMap="OrderListResultMap">
         SELECT
             o.ORDER_NO AS orderNo,
@@ -258,6 +269,21 @@
         FROM OFT_DELIVERY_TRACKING_HISTORY
         WHERE ORDER_NO = #{_parameter}
         ORDER BY RECORDED_AT ASC, TRACKING_HISTORY_NO ASC
+    </select>
+
+    <select id="selectOrderStatusHistories" parameterType="long" resultMap="OrderStatusHistoryResultMap">
+        SELECT
+            ORDER_STATUS_HISTORY_NO AS orderStatusHistoryNo,
+            ORDER_NO AS orderNo,
+            PREV_ORDER_STATUS AS prevOrderStatus,
+            NEXT_ORDER_STATUS AS nextOrderStatus,
+            CHANGED_BY_TYPE AS changedByType,
+            CHANGED_BY_USER_NO AS changedByUserNo,
+            CHANGE_REASON AS changeReason,
+            CHANGED_AT AS changedAt
+        FROM OFT_ORDER_STATUS_HISTORY
+        WHERE ORDER_NO = #{_parameter}
+        ORDER BY CHANGED_AT ASC, ORDER_STATUS_HISTORY_NO ASC
     </select>
 
     <select id="countOrdersByOrderIdPrefix" parameterType="string" resultType="int">
@@ -460,6 +486,24 @@
             #{trackingStatus},
             #{trackingMessage},
             #{recordedByUserNo}
+        )
+    </insert>
+
+    <insert id="insertOrderStatusHistory" parameterType="map">
+        INSERT INTO OFT_ORDER_STATUS_HISTORY (
+            ORDER_NO,
+            PREV_ORDER_STATUS,
+            NEXT_ORDER_STATUS,
+            CHANGED_BY_TYPE,
+            CHANGED_BY_USER_NO,
+            CHANGE_REASON
+        ) VALUES (
+            #{orderNo},
+            #{prevOrderStatus},
+            #{nextOrderStatus},
+            #{changedByType},
+            #{changedByUserNo},
+            #{changeReason}
         )
     </insert>
 

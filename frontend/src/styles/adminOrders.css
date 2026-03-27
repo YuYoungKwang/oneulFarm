@@ -371,7 +371,21 @@
   gap: 10px;
 }
 
+.admin-orders-v2__history-list{
+  display: grid;
+  gap: 10px;
+}
+
 .admin-orders-v2__item-card{
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid rgba(227, 232, 236, 0.88);
+}
+
+.admin-orders-v2__history-card{
+  display: grid;
+  gap: 8px;
   padding: 14px 16px;
   border-radius: 18px;
   background: #fff;
@@ -383,6 +397,24 @@
   color: #0f172a;
   font-size: 15px;
   margin-bottom: 4px;
+}
+
+.admin-orders-v2__history-head{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-orders-v2__history-head strong{
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.admin-orders-v2__history-head span,
+.admin-orders-v2__history-copy{
+  color: #64748b;
+  font-size: 13px;
 }
 
 .admin-orders-v2__item-meta{
@@ -411,6 +443,7 @@
   .admin-orders-v2__list-meta,
   .admin-orders-v2__detail-head,
   .admin-orders-v2__box-head,
+  .admin-orders-v2__history-head,
   .admin-orders-v2__row,
   .admin-orders-v2__tracking-form,
   .admin-orders-v2__item-card,

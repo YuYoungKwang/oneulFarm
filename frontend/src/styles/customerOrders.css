@@ -508,6 +508,7 @@
 .customer-order-detail__tracking,
 .customer-order-detail__actions,
 .customer-order-detail__panel,
+.customer-order-detail__history,
 .customer-order-detail__items{
   display: grid;
   gap: 16px;
@@ -572,6 +573,42 @@
 .customer-order-detail__section-copy{
   color: #64748b;
   font-size: 14px;
+}
+
+.customer-order-detail__history-list{
+  display: grid;
+  gap: 10px;
+}
+
+.customer-order-detail__history-card{
+  display: grid;
+  gap: 8px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(227, 232, 236, 0.88);
+  background: #f8fafb;
+}
+
+.customer-order-detail__history-meta{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.customer-order-detail__history-meta strong{
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.customer-order-detail__history-meta span,
+.customer-order-detail__history-copy{
+  color: #64748b;
+  font-size: 13px;
+}
+
+.customer-order-detail__history-copy{
+  margin: 0;
 }
 
 .customer-order-detail__timeline{
@@ -785,6 +822,7 @@
   .customer-orders__section-head,
   .customer-order-detail__head,
   .customer-order-detail__section-head,
+  .customer-order-detail__history-meta,
   .customer-order-detail__action-buttons,
   .customer-order-detail__item-top,
   .customer-order-detail__item-actions,

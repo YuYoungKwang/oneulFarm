@@ -13,6 +13,7 @@ import com.app.dto.DeliveryDto;
 import com.app.dto.DeliveryTrackingHistoryDto;
 import com.app.dto.OrderDto;
 import com.app.dto.OrderItemDto;
+import com.app.dto.OrderStatusHistoryDto;
 import com.app.dto.PaymentDto;
 
 @Repository
@@ -49,6 +50,11 @@ public class OrderDaoImpl implements OrderDao {
     @Override
     public List<DeliveryTrackingHistoryDto> findDeliveryTrackingHistories(Long orderNo) {
         return sqlSessionTemplate.selectList(NAMESPACE + "selectDeliveryTrackingHistories", orderNo);
+    }
+
+    @Override
+    public List<OrderStatusHistoryDto> findOrderStatusHistories(Long orderNo) {
+        return sqlSessionTemplate.selectList(NAMESPACE + "selectOrderStatusHistories", orderNo);
     }
 
     @Override
@@ -159,6 +165,25 @@ public class OrderDaoImpl implements OrderDao {
         params.put("trackingMessage", trackingMessage);
         params.put("recordedByUserNo", recordedByUserNo);
         return sqlSessionTemplate.insert(NAMESPACE + "insertDeliveryTrackingHistory", params);
+    }
+
+    @Override
+    public int insertOrderStatusHistory(
+        Long orderNo,
+        String prevOrderStatus,
+        String nextOrderStatus,
+        String changedByType,
+        Long changedByUserNo,
+        String changeReason
+    ) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("orderNo", orderNo);
+        params.put("prevOrderStatus", prevOrderStatus);
+        params.put("nextOrderStatus", nextOrderStatus);
+        params.put("changedByType", changedByType);
+        params.put("changedByUserNo", changedByUserNo);
+        params.put("changeReason", changeReason);
+        return sqlSessionTemplate.insert(NAMESPACE + "insertOrderStatusHistory", params);
     }
 
     @Override

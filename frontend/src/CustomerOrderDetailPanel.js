@@ -47,6 +47,34 @@ function resolveCancelStatusLabel(detail) {
   return CANCEL_STATUS_LABELS[status] || status;
 }
 
+function resolveOrderHistoryStatusLabel(status) {
+  switch (status) {
+    case 'PAID':
+      return '결제 완료';
+    case 'SHIPPING':
+      return '배송 중';
+    case 'COMPLETED':
+      return '배송 완료';
+    case 'CANCELED':
+      return '주문 취소';
+    default:
+      return status || '-';
+  }
+}
+
+function resolveOrderHistoryActorLabel(actor) {
+  switch (actor) {
+    case 'SYSTEM':
+      return '시스템';
+    case 'ADMIN':
+      return '운영자';
+    case 'CARRIER':
+      return '배송사';
+    default:
+      return actor || '-';
+  }
+}
+
 function findTrackingHistoryTime(detail, trackingStatus) {
   const histories = Array.isArray(detail?.trackingHistories) ? detail.trackingHistories : [];
   for (let index = histories.length - 1; index >= 0; index -= 1) {
@@ -340,6 +368,30 @@ function CustomerOrderDetailPanel({
           </div>
         </section>
       </div>
+
+      <section className="customer-order-detail__history">
+        <div className="customer-order-detail__section-head">
+          <h3>주문 처리 이력</h3>
+          <span className="customer-order-detail__section-copy">{Number(detail.orderStatusHistories?.length || 0)}건</span>
+        </div>
+        <div className="customer-order-detail__history-list">
+          {(detail.orderStatusHistories || []).map((history) => (
+            <article key={history.orderStatusHistoryNo} className="customer-order-detail__history-card">
+              <div className="customer-order-detail__history-meta">
+                <strong>{resolveOrderHistoryStatusLabel(history.nextOrderStatus)}</strong>
+                <span>{formatDateTime(history.changedAt)}</span>
+              </div>
+              <p className="customer-order-detail__history-copy">
+                {resolveOrderHistoryActorLabel(history.changedByType)}
+                {history.changeReason ? ` · ${history.changeReason}` : ''}
+              </p>
+            </article>
+          ))}
+          {!(detail.orderStatusHistories || []).length ? (
+            <p className="customer-order-detail__history-copy">아직 기록된 주문 처리 이력이 없습니다.</p>
+          ) : null}
+        </div>
+      </section>
 
       <section className="customer-order-detail__items">
         <div className="customer-order-detail__section-head">

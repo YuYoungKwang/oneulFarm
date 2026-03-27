@@ -8,6 +8,7 @@ import com.app.dto.DeliveryDto;
 import com.app.dto.DeliveryTrackingHistoryDto;
 import com.app.dto.OrderDto;
 import com.app.dto.OrderItemDto;
+import com.app.dto.OrderStatusHistoryDto;
 import com.app.dto.PaymentDto;
 
 public interface OrderDao {
@@ -21,6 +22,8 @@ public interface OrderDao {
     List<OrderItemDto> findOrderItems(Long orderNo);
 
     List<DeliveryTrackingHistoryDto> findDeliveryTrackingHistories(Long orderNo);
+
+    List<OrderStatusHistoryDto> findOrderStatusHistories(Long orderNo);
 
     List<Long> findOrderPreviewImageNos(Long orderNo);
 
@@ -57,6 +60,15 @@ public interface OrderDao {
         String trackingStatus,
         String trackingMessage,
         Long recordedByUserNo
+    );
+
+    int insertOrderStatusHistory(
+        Long orderNo,
+        String prevOrderStatus,
+        String nextOrderStatus,
+        String changedByType,
+        Long changedByUserNo,
+        String changeReason
     );
 
     int updateDeliveryForShipping(Long orderNo, String trackingNo);

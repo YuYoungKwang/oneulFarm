@@ -66,6 +66,7 @@ public class CarrierServiceImpl implements CarrierService {
         order.setTotalSavedAmount(totalSavedAmount);
         hydrateOrderRuntimeState(order);
         order.setTrackingHistories(orderDao.findDeliveryTrackingHistories(orderNo));
+        order.setOrderStatusHistories(orderDao.findOrderStatusHistories(orderNo));
         return order;
     }
 
@@ -146,6 +147,7 @@ public class CarrierServiceImpl implements CarrierService {
 
         adminDao.updateAdminOrderStatus(orderNo, "SHIPPING");
         adminDao.updateAdminDeliveryForShipping(orderNo, trackingNo, courierName);
+        orderDao.insertOrderStatusHistory(orderNo, currentOrder.getOrderStatus(), "SHIPPING", "CARRIER", null, "배송 중 처리");
         orderDao.insertDeliveryTrackingHistory(
             orderNo,
             currentOrder.getCarrierCode(),
@@ -167,6 +169,7 @@ public class CarrierServiceImpl implements CarrierService {
 
         adminDao.updateAdminOrderStatus(orderNo, "COMPLETED");
         adminDao.updateAdminDeliveryForDelivered(orderNo);
+        orderDao.insertOrderStatusHistory(orderNo, currentOrder.getOrderStatus(), "COMPLETED", "CARRIER", null, "배송 완료 처리");
         orderDao.insertDeliveryTrackingHistory(
             orderNo,
             currentOrder.getCarrierCode(),
