@@ -108,6 +108,10 @@ function resolvePurchaseConfirmMessage(detail) {
     return '';
   }
 
+  if (detail.cancelStatus === 'CANCEL_REQUESTED' || detail.cancelStatus === 'CANCEL_ACCEPTED') {
+    return '';
+  }
+
   if (detail.purchaseConfirmStatus === 'PURCHASE_CONFIRMED') {
     return detail.purchaseConfirmedAt
       ? `구매 확정일 ${formatDate(detail.purchaseConfirmedAt)}`

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { formatDate, formatPrice } from './appUtils';
 import InlineInfoTip from './components/InlineInfoTip';
 import CustomerOrderDetailPanel from './CustomerOrderDetailPanel';
@@ -41,6 +42,11 @@ const CANCEL_STATUS_LABELS = {
   CANCEL_REJECTED: '취소 거절',
 };
 
+const PURCHASE_CONFIRM_LABELS = {
+  PURCHASE_PENDING: '구매 확정 대기',
+  PURCHASE_CONFIRMED: '구매 확정 완료',
+};
+
 function getOrderStatusLabel(order) {
   const status = order?.normalizedOrderStatus || order?.orderStatus;
   return ORDER_STATUS_LABELS[status] || status || '-';
@@ -61,6 +67,17 @@ function getCancelStatusLabel(order) {
     return '';
   }
   return CANCEL_STATUS_LABELS[status] || status;
+}
+
+function getPurchaseConfirmLabel(order) {
+  if (order?.cancelStatus === 'CANCEL_REQUESTED' || order?.cancelStatus === 'CANCEL_ACCEPTED') {
+    return '';
+  }
+  const status = order?.purchaseConfirmStatus;
+  if (!status) {
+    return '';
+  }
+  return PURCHASE_CONFIRM_LABELS[status] || status;
 }
 
 function getOrderStatusTone(order) {
@@ -85,6 +102,17 @@ function getDeliveryStatusTone(order) {
   return 'is-neutral';
 }
 
+function getPurchaseConfirmTone(order) {
+  const status = order?.purchaseConfirmStatus;
+  if (status === 'PURCHASE_CONFIRMED') {
+    return 'is-success';
+  }
+  if (status === 'PURCHASE_PENDING') {
+    return 'is-warn';
+  }
+  return 'is-neutral';
+}
+
 function buildSummary(orders) {
   return {
     totalCount: orders.length,
@@ -98,6 +126,17 @@ function buildSummary(orders) {
       (order) => order?.cancelStatus !== 'CANCEL_ACCEPTED'
     ).filter(
       (order) => (order?.normalizedDeliveryStatus || order?.deliveryStatus) === 'DELIVERED'
+    ).length,
+    purchasePendingCount: orders.filter(
+      (order) =>
+        order?.cancelStatus !== 'CANCEL_ACCEPTED' &&
+        order?.purchaseConfirmStatus === 'PURCHASE_PENDING' &&
+        (order?.normalizedDeliveryStatus || order?.deliveryStatus) === 'DELIVERED'
+    ).length,
+    purchaseConfirmedCount: orders.filter(
+      (order) =>
+        order?.cancelStatus !== 'CANCEL_ACCEPTED' &&
+        order?.purchaseConfirmStatus === 'PURCHASE_CONFIRMED'
     ).length,
     attentionCount: orders.filter(
       (order) =>
@@ -130,6 +169,28 @@ function CustomerOrdersPage({
   orderActionError,
 }) {
   const summary = buildSummary(orders);
+  const detailColumnRef = useRef(null);
+
+  useEffect(() => {
+    if (!selectedOrderNo || !detailColumnRef.current) {
+      return;
+    }
+
+    const detailElement = detailColumnRef.current;
+    const detailRect = detailElement.getBoundingClientRect();
+    const isDesktop = window.innerWidth >= 1180;
+    const shouldScroll =
+      !isDesktop ||
+      detailRect.top < 88 ||
+      detailRect.bottom > window.innerHeight;
+
+    if (shouldScroll) {
+      detailElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }
+  }, [selectedOrderNo]);
 
   return (
     <div className="customer-orders-page">
@@ -157,6 +218,14 @@ function CustomerOrdersPage({
         <article className="customer-orders__summary-card customer-orders__summary-card--success">
           <span className="customer-orders__summary-label">배송 완료</span>
           <strong className="customer-orders__summary-value">{summary.deliveredCount}건</strong>
+        </article>
+        <article className="customer-orders__summary-card customer-orders__summary-card--warn">
+          <span className="customer-orders__summary-label">구매 확정 대기</span>
+          <strong className="customer-orders__summary-value">{summary.purchasePendingCount}건</strong>
+        </article>
+        <article className="customer-orders__summary-card customer-orders__summary-card--success">
+          <span className="customer-orders__summary-label">구매 확정 완료</span>
+          <strong className="customer-orders__summary-value">{summary.purchaseConfirmedCount}건</strong>
         </article>
         <article className="customer-orders__summary-card customer-orders__summary-card--saving">
           <span className="customer-orders__summary-label">총 절약 금액</span>
@@ -233,6 +302,7 @@ function CustomerOrdersPage({
               {orders.map((order) => {
                 const isSelected = selectedOrderNo === order.orderNo;
                 const cancelStatusLabel = getCancelStatusLabel(order);
+                const purchaseConfirmLabel = getPurchaseConfirmLabel(order);
                 const deliveryStatusLabel = getDeliveryStatusLabel(order);
                 const previewImageNos = Array.isArray(order.previewImageNos) ? order.previewImageNos : [];
 
@@ -262,6 +332,11 @@ function CustomerOrdersPage({
                       {deliveryStatusLabel ? (
                         <span className={`customer-orders__status-chip ${getDeliveryStatusTone(order)}`}>
                           {deliveryStatusLabel}
+                        </span>
+                      ) : null}
+                      {purchaseConfirmLabel ? (
+                        <span className={`customer-orders__status-chip ${getPurchaseConfirmTone(order)}`}>
+                          {purchaseConfirmLabel}
                         </span>
                       ) : null}
                       {cancelStatusLabel ? (
@@ -314,9 +389,6 @@ function CustomerOrdersPage({
                           {order.trackingAvailable && order.cancelStatus !== 'CANCEL_ACCEPTED' ? (
                             <span className="customer-orders__flag">배송 조회 가능</span>
                           ) : null}
-                          {order.purchaseConfirmAvailable ? (
-                            <span className="customer-orders__flag">구매 확정 대기</span>
-                          ) : null}
                         </div>
                         <div className="customer-orders__quick-actions">
                           <button
@@ -337,7 +409,7 @@ function CustomerOrdersPage({
           )}
         </div>
 
-        <div className="customer-orders__detail-column">
+        <div ref={detailColumnRef} className="customer-orders__detail-column">
           <CustomerOrderDetailPanel
             detail={orderDetail}
             loading={detailLoading}

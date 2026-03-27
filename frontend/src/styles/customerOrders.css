@@ -39,7 +39,7 @@
 
 .customer-orders__summary-grid{
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -66,6 +66,11 @@
 .customer-orders__summary-card--saving{
   background: linear-gradient(180deg, #eef9f1, #fbfefc);
   border-color: rgba(21, 154, 85, 0.24);
+}
+
+.customer-orders__summary-card--warn{
+  background: linear-gradient(180deg, #fff7ed, #fffdf8);
+  border-color: rgba(251, 146, 60, 0.2);
 }
 
 .customer-orders__summary-label{
@@ -184,6 +189,8 @@
 .customer-orders__detail-column{
   position: sticky;
   top: 108px;
+  scroll-margin-top: 96px;
+  align-self: start;
 }
 
 .customer-orders__list{
@@ -416,6 +423,8 @@
   display: grid;
   gap: 20px;
   padding: 24px 24px 26px;
+  max-height: calc(100vh - 132px);
+  overflow-y: auto;
   border-radius: 32px;
   border: 1px solid rgba(227, 232, 236, 0.88);
   background:
@@ -751,6 +760,11 @@
 
   .customer-orders__detail-column{
     position: static;
+  }
+
+  .customer-order-detail{
+    max-height: none;
+    overflow-y: visible;
   }
 }
 
