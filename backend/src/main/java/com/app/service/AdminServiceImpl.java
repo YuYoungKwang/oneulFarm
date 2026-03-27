@@ -333,7 +333,9 @@ public class AdminServiceImpl implements AdminService {
             OrderCompatibilityUtils.resolveCarrierCode(courierName),
             resolvedTrackingNo,
             "IN_TRANSIT",
-            "관리자가 주문을 배송사로 인계했습니다.",
+            "관리자가 주문을 배송사 허브로 인계했습니다.",
+            getHubLocationName(courierName),
+            getHubLocationAddress(courierName),
             null
         );
         return getOrderDetail(orderNo);
@@ -356,6 +358,8 @@ public class AdminServiceImpl implements AdminService {
             currentOrder.getTrackingNo(),
             "DELIVERED",
             "관리자가 배송 완료 처리했습니다.",
+            getDestinationLocationName(currentOrder),
+            getDestinationLocationAddress(currentOrder),
             null
         );
         return getOrderDetail(orderNo);
@@ -1023,5 +1027,61 @@ public class AdminServiceImpl implements AdminService {
                 "Failed to read image file."
             );
         }
+    }
+
+    private String getHubLocationName(String courierName) {
+        String carrierCode = OrderCompatibilityUtils.resolveCarrierCode(courierName);
+        if ("CJ".equalsIgnoreCase(carrierCode)) {
+            return "CJ 동남권 허브터미널";
+        }
+        if ("LOGEN".equalsIgnoreCase(carrierCode)) {
+            return "로젠 중부권 허브터미널";
+        }
+        if ("HANJIN".equalsIgnoreCase(carrierCode)) {
+            return "한진 수도권 허브터미널";
+        }
+        return "택배사 중간 허브터미널";
+    }
+
+    private String getHubLocationAddress(String courierName) {
+        String carrierCode = OrderCompatibilityUtils.resolveCarrierCode(courierName);
+        if ("CJ".equalsIgnoreCase(carrierCode)) {
+            return "경기도 용인시 처인구 백암면 죽양대로 798 CJ 동남권 허브터미널";
+        }
+        if ("LOGEN".equalsIgnoreCase(carrierCode)) {
+            return "충청북도 청주시 흥덕구 강내면 태성탑연로 320 로젠 중부권 허브터미널";
+        }
+        if ("HANJIN".equalsIgnoreCase(carrierCode)) {
+            return "경기도 군포시 번영로 82 한진 수도권 허브터미널";
+        }
+        return "경기도 용인시 처인구 백암면 죽양대로 798 택배사 중간 허브터미널";
+    }
+
+    private String getDestinationLocationName(OrderDto order) {
+        String recipientName = trimToNull(order == null ? null : order.getRecipientName());
+        return recipientName == null ? "고객 배송지" : recipientName + "님 배송지";
+    }
+
+    private String getDestinationLocationAddress(OrderDto order) {
+        if (order == null) {
+            return null;
+        }
+
+        StringBuilder builder = new StringBuilder();
+        appendLocationPart(builder, order.getZipCode());
+        appendLocationPart(builder, order.getAddress1());
+        appendLocationPart(builder, order.getAddress2());
+        return builder.length() == 0 ? null : builder.toString();
+    }
+
+    private void appendLocationPart(StringBuilder builder, String value) {
+        String trimmed = trimToNull(value);
+        if (trimmed == null) {
+            return;
+        }
+        if (builder.length() > 0) {
+            builder.append(' ');
+        }
+        builder.append(trimmed);
     }
 }

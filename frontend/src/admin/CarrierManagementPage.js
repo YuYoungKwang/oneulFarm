@@ -468,15 +468,20 @@ function CarrierManagementPage({
                   <div className="carrier-management__history-list">
                     {(selectedOrderDetail.trackingHistories || []).map((history) => (
                       <div key={history.trackingHistoryNo} className="carrier-management__history-card">
-                        <div className="carrier-management__history-head">
-                          <strong>{getTrackingHistoryTitle(history)}</strong>
-                          <span>{history.recordedAt ? formatAdminDate(history.recordedAt) : '-'}</span>
-                        </div>
-                        <div className="carrier-management__history-copy">{getTrackingHistoryCopy(history)}</div>
+                      <div className="carrier-management__history-head">
+                        <strong>{getTrackingHistoryTitle(history)}</strong>
+                        <span>{history.recordedAt ? formatAdminDate(history.recordedAt) : '-'}</span>
                       </div>
-                    ))}
-                  </div>
-                </section>
+                      <div className="carrier-management__history-copy">{getTrackingHistoryCopy(history)}</div>
+                      {history.locationName || history.locationAddress ? (
+                        <div className="carrier-management__history-copy">
+                          {[history.locationName, history.locationAddress].filter(Boolean).join(' · ')}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </section>
               ) : null}
 
               <section className="carrier-management__box">

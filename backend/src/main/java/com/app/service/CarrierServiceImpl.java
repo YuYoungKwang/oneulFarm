@@ -103,6 +103,8 @@ public class CarrierServiceImpl implements CarrierService {
             trackingNo,
             "WAYBILL_ASSIGNED",
             "송장번호를 발급하고 배송 접수를 준비했습니다.",
+            getOriginLocationName(),
+            getOriginLocationAddress(),
             null
         );
         return getOrderDetail(orderNo);
@@ -121,9 +123,7 @@ public class CarrierServiceImpl implements CarrierService {
         if (courierName == null) {
             courierName = currentOrder.getCourierName() == null ? "oneulFarm" : currentOrder.getCourierName();
         }
-        String resolvedTrackingNo = trackingNo == null
-            ? currentOrder.getTrackingNo()
-            : trackingNo;
+        String resolvedTrackingNo = trackingNo == null ? currentOrder.getTrackingNo() : trackingNo;
         if (resolvedTrackingNo == null) {
             resolvedTrackingNo = "TRK-" + currentOrder.getOrderId();
         }
@@ -143,6 +143,8 @@ public class CarrierServiceImpl implements CarrierService {
             resolvedTrackingNo,
             "PICKED_UP",
             "집하를 완료하고 배송 허브로 이동 중입니다.",
+            getOriginLocationName(),
+            getOriginLocationAddress(),
             null
         );
         return getOrderDetail(orderNo);
@@ -164,13 +166,22 @@ public class CarrierServiceImpl implements CarrierService {
 
         adminDao.updateAdminOrderStatus(orderNo, "SHIPPING");
         adminDao.updateAdminDeliveryForShipping(orderNo, trackingNo, courierName);
-        orderDao.insertOrderStatusHistory(orderNo, currentOrder.getOrderStatus(), "SHIPPING", "CARRIER", null, "배송사가 배송 중 처리했습니다.");
+        orderDao.insertOrderStatusHistory(
+            orderNo,
+            currentOrder.getOrderStatus(),
+            "SHIPPING",
+            "CARRIER",
+            null,
+            "배송사가 배송 중 처리했습니다."
+        );
         orderDao.insertDeliveryTrackingHistory(
             orderNo,
             currentOrder.getCarrierCode(),
             trackingNo,
             "IN_TRANSIT",
-            "고객 배송지로 이동 중입니다.",
+            "택배사 허브를 출발해 고객 배송지로 이동 중입니다.",
+            getHubLocationName(courierName),
+            getHubLocationAddress(courierName),
             null
         );
         return getOrderDetail(orderNo);
@@ -186,13 +197,22 @@ public class CarrierServiceImpl implements CarrierService {
 
         adminDao.updateAdminOrderStatus(orderNo, "COMPLETED");
         adminDao.updateAdminDeliveryForDelivered(orderNo);
-        orderDao.insertOrderStatusHistory(orderNo, currentOrder.getOrderStatus(), "COMPLETED", "CARRIER", null, "배송사가 배송 완료 처리했습니다.");
+        orderDao.insertOrderStatusHistory(
+            orderNo,
+            currentOrder.getOrderStatus(),
+            "COMPLETED",
+            "CARRIER",
+            null,
+            "배송사가 배송 완료 처리했습니다."
+        );
         orderDao.insertDeliveryTrackingHistory(
             orderNo,
             currentOrder.getCarrierCode(),
             currentOrder.getTrackingNo(),
             "DELIVERED",
-            "배송이 완료되었습니다.",
+            "고객 배송지에 상품을 전달했습니다.",
+            getDestinationLocationName(currentOrder),
+            getDestinationLocationAddress(currentOrder),
             null
         );
         return getOrderDetail(orderNo);
@@ -221,5 +241,69 @@ public class CarrierServiceImpl implements CarrierService {
 
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String getOriginLocationName() {
+        return "오늘팜 성남 물류센터";
+    }
+
+    private String getOriginLocationAddress() {
+        return "경기도 성남시 수정구 창업로 42 오늘팜 물류센터";
+    }
+
+    private String getHubLocationName(String courierName) {
+        String carrierCode = OrderCompatibilityUtils.resolveCarrierCode(courierName);
+        if ("CJ".equalsIgnoreCase(carrierCode)) {
+            return "CJ 동남권 허브터미널";
+        }
+        if ("LOGEN".equalsIgnoreCase(carrierCode)) {
+            return "로젠 중부권 허브터미널";
+        }
+        if ("HANJIN".equalsIgnoreCase(carrierCode)) {
+            return "한진 수도권 허브터미널";
+        }
+        return "택배사 중간 허브터미널";
+    }
+
+    private String getHubLocationAddress(String courierName) {
+        String carrierCode = OrderCompatibilityUtils.resolveCarrierCode(courierName);
+        if ("CJ".equalsIgnoreCase(carrierCode)) {
+            return "경기도 용인시 처인구 백암면 죽양대로 798 CJ 동남권 허브터미널";
+        }
+        if ("LOGEN".equalsIgnoreCase(carrierCode)) {
+            return "충청북도 청주시 흥덕구 강내면 태성탑연로 320 로젠 중부권 허브터미널";
+        }
+        if ("HANJIN".equalsIgnoreCase(carrierCode)) {
+            return "경기도 군포시 번영로 82 한진 수도권 허브터미널";
+        }
+        return "경기도 용인시 처인구 백암면 죽양대로 798 택배사 중간 허브터미널";
+    }
+
+    private String getDestinationLocationName(OrderDto order) {
+        String recipientName = trimToNull(order == null ? null : order.getRecipientName());
+        return recipientName == null ? "고객 배송지" : recipientName + "님 배송지";
+    }
+
+    private String getDestinationLocationAddress(OrderDto order) {
+        if (order == null) {
+            return null;
+        }
+
+        StringBuilder builder = new StringBuilder();
+        appendLocationPart(builder, order.getZipCode());
+        appendLocationPart(builder, order.getAddress1());
+        appendLocationPart(builder, order.getAddress2());
+        return builder.length() == 0 ? null : builder.toString();
+    }
+
+    private void appendLocationPart(StringBuilder builder, String value) {
+        String trimmed = trimToNull(value);
+        if (trimmed == null) {
+            return;
+        }
+        if (builder.length() > 0) {
+            builder.append(' ');
+        }
+        builder.append(trimmed);
     }
 }

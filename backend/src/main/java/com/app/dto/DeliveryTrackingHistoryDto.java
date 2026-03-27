@@ -16,6 +16,8 @@ public class DeliveryTrackingHistoryDto {
     private String trackingNo;
     private String trackingStatus;
     private String trackingMessage;
+    private String locationName;
+    private String locationAddress;
     private Long recordedByUserNo;
     private LocalDateTime recordedAt;
 }

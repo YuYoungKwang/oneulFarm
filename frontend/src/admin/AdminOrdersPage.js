@@ -400,15 +400,20 @@ function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFi
                   <div className="admin-orders-v2__history-list">
                     {(selectedOrderDetail.trackingHistories || []).map((history) => (
                       <div key={history.trackingHistoryNo} className="admin-orders-v2__history-card">
-                        <div className="admin-orders-v2__history-head">
-                          <strong>{getTrackingHistoryTitle(history)}</strong>
-                          <span>{history.recordedAt ? formatAdminDate(history.recordedAt) : '-'}</span>
-                        </div>
-                        <div className="admin-orders-v2__history-copy">{getTrackingHistoryCopy(history)}</div>
+                      <div className="admin-orders-v2__history-head">
+                        <strong>{getTrackingHistoryTitle(history)}</strong>
+                        <span>{history.recordedAt ? formatAdminDate(history.recordedAt) : '-'}</span>
                       </div>
-                    ))}
-                  </div>
-                </section>
+                      <div className="admin-orders-v2__history-copy">{getTrackingHistoryCopy(history)}</div>
+                      {history.locationName || history.locationAddress ? (
+                        <div className="admin-orders-v2__history-copy">
+                          {[history.locationName, history.locationAddress].filter(Boolean).join(' · ')}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </section>
               ) : null}
 
               <div className="admin-orders-v2__compact-row">

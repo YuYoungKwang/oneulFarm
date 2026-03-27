@@ -161,6 +161,8 @@ public class OrderDaoImpl implements OrderDao {
         String trackingNo,
         String trackingStatus,
         String trackingMessage,
+        String locationName,
+        String locationAddress,
         Long recordedByUserNo
     ) {
         Map<String, Object> params = new HashMap<>();
@@ -169,6 +171,8 @@ public class OrderDaoImpl implements OrderDao {
         params.put("trackingNo", trackingNo);
         params.put("trackingStatus", trackingStatus);
         params.put("trackingMessage", trackingMessage);
+        params.put("locationName", locationName);
+        params.put("locationAddress", locationAddress);
         params.put("recordedByUserNo", recordedByUserNo);
         return sqlSessionTemplate.insert(NAMESPACE + "insertDeliveryTrackingHistory", params);
     }

@@ -360,6 +360,11 @@ function CustomerOrderDetailPanel({
                   <span>{history.recordedAt ? formatDateTime(history.recordedAt) : '-'}</span>
                 </div>
                 <p className="customer-order-detail__history-copy">{resolveTrackingHistoryCopy(history)}</p>
+                {history.locationName || history.locationAddress ? (
+                  <p className="customer-order-detail__history-copy">
+                    {[history.locationName, history.locationAddress].filter(Boolean).join(' · ')}
+                  </p>
+                ) : null}
               </article>
             ))}
           </div>

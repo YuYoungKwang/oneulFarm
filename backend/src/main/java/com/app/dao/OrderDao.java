@@ -62,6 +62,8 @@ public interface OrderDao {
         String trackingNo,
         String trackingStatus,
         String trackingMessage,
+        String locationName,
+        String locationAddress,
         Long recordedByUserNo
     );
 

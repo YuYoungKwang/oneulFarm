@@ -80,6 +80,8 @@
         <result property="trackingNo" column="trackingNo" />
         <result property="trackingStatus" column="trackingStatus" />
         <result property="trackingMessage" column="trackingMessage" />
+        <result property="locationName" column="locationName" />
+        <result property="locationAddress" column="locationAddress" />
         <result property="recordedByUserNo" column="recordedByUserNo" />
         <result property="recordedAt" column="recordedAt" />
     </resultMap>
@@ -276,6 +278,8 @@
             TRACKING_NO AS trackingNo,
             TRACKING_STATUS AS trackingStatus,
             TRACKING_MESSAGE AS trackingMessage,
+            LOCATION_NAME AS locationName,
+            LOCATION_ADDRESS AS locationAddress,
             RECORDED_BY_USER_NO AS recordedByUserNo,
             RECORDED_AT AS recordedAt
         FROM OFT_DELIVERY_TRACKING_HISTORY
@@ -501,6 +505,8 @@
             TRACKING_NO,
             TRACKING_STATUS,
             TRACKING_MESSAGE,
+            LOCATION_NAME,
+            LOCATION_ADDRESS,
             RECORDED_BY_USER_NO
         ) VALUES (
             #{orderNo},
@@ -513,6 +519,8 @@
             #{trackingNo},
             #{trackingStatus},
             #{trackingMessage},
+            #{locationName},
+            #{locationAddress},
             #{recordedByUserNo}
         )
     </insert>
