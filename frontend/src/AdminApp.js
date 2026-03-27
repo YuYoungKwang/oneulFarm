@@ -42,6 +42,7 @@ import {
   pickupCarrierOrder,
   rejectAdminOrderCancel,
   saveAdminProduct,
+  transitCarrierOrder,
   triggerAdminRecipeSync,
   uploadAdminProductImages,
   updateAdminOrder,
@@ -3614,6 +3615,27 @@ function AdminApp() {
     }
   }
 
+  async function handleCarrierTransitOrder() {
+    if (!selectedOrderNo) {
+      return;
+    }
+
+    setUpdatingOrder(true);
+    setActionError('');
+
+    try {
+      const detail = await transitCarrierOrder(selectedOrderNo);
+      const nextOrders = await fetchAdminOrders();
+      setOrders(nextOrders);
+      setSelectedOrderDetail(detail);
+      setTrackingNo(detail?.trackingNo || trackingNo);
+    } catch (error) {
+      setActionError(error.message || '배송 중 처리에 실패했습니다.');
+    } finally {
+      setUpdatingOrder(false);
+    }
+  }
+
   async function handleDeleteOrder(order) {
     if (!order?.orderNo) {
       return;
@@ -3996,6 +4018,7 @@ function AdminApp() {
               onTrackingChange={(event) => setTrackingNo(event.target.value)}
               onAssignWaybill={handleAssignWaybill}
               onPickupOrder={handlePickupOrder}
+              onTransitOrder={handleCarrierTransitOrder}
               onDeliverOrder={handleCarrierDeliverOrder}
               updating={updatingOrder}
             />

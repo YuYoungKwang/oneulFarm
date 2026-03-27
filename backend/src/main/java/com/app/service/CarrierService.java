@@ -14,5 +14,7 @@ public interface CarrierService {
 
     OrderDto pickupOrder(Long orderNo, OrderDto request);
 
+    OrderDto transitOrder(Long orderNo);
+
     OrderDto deliverOrder(Long orderNo);
 }

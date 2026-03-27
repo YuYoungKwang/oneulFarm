@@ -23,7 +23,7 @@ public final class OrderCompatibilityUtils {
         order.setCarrierCode(resolveCarrierCode(order.getCarrierName()));
         order.setWaybillStatus(order.getTrackingNo() == null ? "NOT_ASSIGNED" : "ASSIGNED");
         order.setWaybillAssignedAt(resolveWaybillAssignedAt(order));
-        order.setPickedUpAt(null);
+        order.setPickedUpAt(resolvePickedUpAt(order));
         order.setInTransitAt(resolveInTransitAt(order));
         order.setTrackingAvailable(order.getTrackingNo() != null || normalizedDeliveryStatus != null);
 
@@ -52,6 +52,7 @@ public final class OrderCompatibilityUtils {
         order.setDeliverAvailable(isDeliverAvailable(legacyOrderStatus, normalizedDeliveryStatus, order.getCancelStatus()));
         order.setWaybillAssignable(isWaybillAssignable(normalizedDeliveryStatus, order.getTrackingNo(), order.getCancelStatus()));
         order.setPickupAvailable(isPickupAvailable(normalizedDeliveryStatus, order.getTrackingNo(), order.getCancelStatus()));
+        order.setTransitAvailable(isTransitAvailable(normalizedDeliveryStatus, order.getTrackingNo(), order.getCancelStatus()));
     }
 
     public static String resolveNormalizedOrderStatus(String legacyOrderStatus) {
@@ -140,6 +141,16 @@ public final class OrderCompatibilityUtils {
         return null;
     }
 
+    public static LocalDateTime resolvePickedUpAt(OrderDto order) {
+        if (order.getPickedUpAt() != null) {
+            return order.getPickedUpAt();
+        }
+        if ("PICKED_UP".equals(order.getDeliveryStatus())) {
+            return order.getShippedAt();
+        }
+        return null;
+    }
+
     public static boolean isCancelRequestAvailable(String normalizedOrderStatus, String normalizedDeliveryStatus, String cancelStatus) {
         if (!"NONE".equals(cancelStatus)) {
             return false;
@@ -220,6 +231,13 @@ public final class OrderCompatibilityUtils {
             return false;
         }
         return trackingNo != null && "WAYBILL_ASSIGNED".equals(normalizedDeliveryStatus);
+    }
+
+    public static boolean isTransitAvailable(String normalizedDeliveryStatus, String trackingNo, String cancelStatus) {
+        if ("CANCEL_REQUESTED".equals(cancelStatus) || "CANCEL_ACCEPTED".equals(cancelStatus)) {
+            return false;
+        }
+        return trackingNo != null && "PICKED_UP".equals(normalizedDeliveryStatus);
     }
 
     private static String trimToNull(String value) {

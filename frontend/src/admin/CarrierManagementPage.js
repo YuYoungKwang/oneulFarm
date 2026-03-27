@@ -62,8 +62,14 @@ function buildTimeline(detail) {
     {
       key: 'pickup',
       label: '집하 완료',
-      value: detail?.pickedUpAt || detail?.inTransitAt,
+      value: detail?.pickedUpAt,
       active: status === 'PICKED_UP' || status === 'IN_TRANSIT' || status === 'DELIVERED',
+    },
+    {
+      key: 'transit',
+      label: '배송 중',
+      value: detail?.inTransitAt,
+      active: status === 'IN_TRANSIT' || status === 'DELIVERED',
     },
     { key: 'delivered', label: '배송 완료', value: detail?.deliveredAt, active: status === 'DELIVERED' },
   ];
@@ -78,7 +84,7 @@ function buildDeliveryStageSummary(detail) {
   return { title: '배송 준비', description: '아직 송장번호가 없고 배송 접수 전 단계입니다.' };
 }
 
-function CarrierManagementPage({ orders, selectedOrderNo, selectedOrderDetail, orderFilter, trackingNo, onOrderFilterChange, onSelectOrder, onTrackingChange, onAssignWaybill, onPickupOrder, onDeliverOrder, updating }) {
+function CarrierManagementPage({ orders, selectedOrderNo, selectedOrderDetail, orderFilter, trackingNo, onOrderFilterChange, onSelectOrder, onTrackingChange, onAssignWaybill, onPickupOrder, onTransitOrder, onDeliverOrder, updating }) {
   const filteredOrders = orders.filter((order) => orderFilter === 'ALL' || getDeliveryStatusKey(order) === orderFilter);
   const summary = buildSummary(orders);
   const timeline = buildTimeline(selectedOrderDetail);
@@ -93,6 +99,7 @@ function CarrierManagementPage({ orders, selectedOrderNo, selectedOrderDetail, o
           <>
             <button type="button" className="admin-action admin-action--line carrier-management__toolbar-button" onClick={onAssignWaybill} disabled={!selectedOrderDetail?.waybillAssignable || updating}>송장 등록</button>
             <button type="button" className="admin-action admin-action--soft carrier-management__toolbar-button" onClick={onPickupOrder} disabled={(!selectedOrderDetail?.pickupAvailable && !selectedOrderDetail?.shipAvailable) || updating}>집하 처리</button>
+            <button type="button" className="admin-action admin-action--soft carrier-management__toolbar-button" onClick={onTransitOrder} disabled={!selectedOrderDetail?.transitAvailable || updating}>배송 중</button>
             <button type="button" className="admin-action admin-action--primary carrier-management__toolbar-button" onClick={onDeliverOrder} disabled={!selectedOrderDetail?.deliverAvailable || updating}>배송 완료</button>
           </>
         }
@@ -178,10 +185,11 @@ function CarrierManagementPage({ orders, selectedOrderNo, selectedOrderDetail, o
               </section>
 
               <section className="carrier-management__box">
-                <div className="carrier-management__box-head"><h3>배송 액션</h3><span>송장 등록 후 집하 처리, 마지막으로 배송 완료 순서로 진행합니다.</span></div>
+                <div className="carrier-management__box-head"><h3>배송 액션</h3><span>송장 등록 후 집하, 배송 중, 배송 완료 순서로 진행합니다.</span></div>
                 <div className="carrier-management__action-row">
                   <button type="button" className="admin-action admin-action--line carrier-management__action-button" onClick={onAssignWaybill} disabled={!selectedOrderDetail.waybillAssignable || updating}>송장 등록</button>
                   <button type="button" className="admin-action admin-action--soft carrier-management__action-button" onClick={onPickupOrder} disabled={(!selectedOrderDetail.pickupAvailable && !selectedOrderDetail.shipAvailable) || updating}>집하 처리</button>
+                  <button type="button" className="admin-action admin-action--soft carrier-management__action-button" onClick={onTransitOrder} disabled={!selectedOrderDetail.transitAvailable || updating}>배송 중</button>
                   <button type="button" className="admin-action admin-action--primary carrier-management__action-button" onClick={onDeliverOrder} disabled={!selectedOrderDetail.deliverAvailable || updating}>배송 완료</button>
                 </div>
               </section>

@@ -65,6 +65,8 @@ public interface AdminDao {
 
     int updateAdminDeliveryForShipping(Long orderNo, String trackingNo, String courierName);
 
+    int updateAdminDeliveryForPickup(Long orderNo, String trackingNo, String courierName);
+
     int updateAdminDeliveryForDelivered(Long orderNo);
 
     int deleteReviewImagesByOrder(Long orderNo);

@@ -212,6 +212,17 @@ export async function pickupCarrierOrder(orderNo, payload) {
   );
 }
 
+export async function transitCarrierOrder(orderNo) {
+  return requestApi(
+    `${CARRIER_API_BASE}/${orderNo}/transit`,
+    {
+      method: 'PATCH',
+      headers: apiHeaders(),
+    },
+    '배송 중 처리에 실패했습니다.'
+  );
+}
+
 export async function deliverCarrierOrder(orderNo) {
   return requestApi(
     `${CARRIER_API_BASE}/${orderNo}/deliver`,

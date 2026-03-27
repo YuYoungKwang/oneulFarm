@@ -67,6 +67,7 @@ public class OrderDto {
     private Boolean deliverAvailable;
     private Boolean waybillAssignable;
     private Boolean pickupAvailable;
+    private Boolean transitAvailable;
 
     private List<OrderItemDto> items;
 }

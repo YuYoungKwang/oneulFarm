@@ -50,6 +50,13 @@ public class CarrierController {
         return ApiResponse.success(carrierService.pickupOrder(orderNo, request), "Order picked up.");
     }
 
+    @PatchMapping("/{orderNo}/transit")
+    public ApiResponse<OrderDto> transitOrder(
+        @PathVariable Long orderNo
+    ) {
+        return ApiResponse.success(carrierService.transitOrder(orderNo), "Order moved to in transit.");
+    }
+
     @PatchMapping("/{orderNo}/deliver")
     public ApiResponse<OrderDto> deliverOrder(
         @PathVariable Long orderNo

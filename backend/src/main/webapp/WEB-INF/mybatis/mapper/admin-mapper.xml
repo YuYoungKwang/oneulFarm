@@ -472,13 +472,25 @@
 
     <update id="updateAdminDeliveryForShipping" parameterType="map">
         UPDATE OFT_DELIVERY
-        SET DELIVERY_STATUS = 'SHIPPING',
+        SET DELIVERY_STATUS = 'IN_TRANSIT',
             TRACKING_NO = #{trackingNo},
             COURIER_NAME = #{courierName},
             WAYBILL_STATUS = 'ASSIGNED',
             WAYBILL_ASSIGNED_AT = NVL(WAYBILL_ASSIGNED_AT, SYSTIMESTAMP),
             IN_TRANSIT_AT = NVL(IN_TRANSIT_AT, SYSTIMESTAMP),
             SHIPPED_AT = NVL(SHIPPED_AT, SYSTIMESTAMP),
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE ORDER_NO = #{orderNo}
+    </update>
+
+    <update id="updateAdminDeliveryForPickup" parameterType="map">
+        UPDATE OFT_DELIVERY
+        SET DELIVERY_STATUS = 'PICKED_UP',
+            TRACKING_NO = #{trackingNo},
+            COURIER_NAME = #{courierName},
+            WAYBILL_STATUS = 'ASSIGNED',
+            WAYBILL_ASSIGNED_AT = NVL(WAYBILL_ASSIGNED_AT, SYSTIMESTAMP),
+            PICKED_UP_AT = NVL(PICKED_UP_AT, SYSTIMESTAMP),
             UPDATED_AT = SYSTIMESTAMP
         WHERE ORDER_NO = #{orderNo}
     </update>

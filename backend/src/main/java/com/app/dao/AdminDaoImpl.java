@@ -164,6 +164,15 @@ public class AdminDaoImpl implements AdminDao {
     }
 
     @Override
+    public int updateAdminDeliveryForPickup(Long orderNo, String trackingNo, String courierName) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("orderNo", orderNo);
+        params.put("trackingNo", trackingNo);
+        params.put("courierName", courierName);
+        return sqlSessionTemplate.update(NAMESPACE + "updateAdminDeliveryForPickup", params);
+    }
+
+    @Override
     public int updateAdminDeliveryForDelivered(Long orderNo) {
         return sqlSessionTemplate.update(NAMESPACE + "updateAdminDeliveryForDelivered", orderNo);
     }

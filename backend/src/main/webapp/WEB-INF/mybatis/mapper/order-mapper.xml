@@ -390,7 +390,7 @@
 
     <update id="updateDeliveryForShipping" parameterType="map">
         UPDATE OFT_DELIVERY
-        SET DELIVERY_STATUS = 'SHIPPING',
+        SET DELIVERY_STATUS = 'IN_TRANSIT',
             TRACKING_NO = NVL(TRACKING_NO, #{trackingNo}),
             WAYBILL_STATUS = 'ASSIGNED',
             WAYBILL_ASSIGNED_AT = NVL(WAYBILL_ASSIGNED_AT, SYSTIMESTAMP),

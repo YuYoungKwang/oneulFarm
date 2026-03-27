@@ -107,8 +107,26 @@ public class CarrierServiceImpl implements CarrierService {
             resolvedTrackingNo = "TRK-" + currentOrder.getOrderId();
         }
 
+        adminDao.updateAdminDeliveryForPickup(orderNo, resolvedTrackingNo, courierName);
+        return getOrderDetail(orderNo);
+    }
+
+    @Override
+    @Transactional
+    public OrderDto transitOrder(Long orderNo) {
+        OrderDto currentOrder = getOrderDetail(orderNo);
+        if (!Boolean.TRUE.equals(currentOrder.getTransitAvailable())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order cannot be moved to in transit in the current state.");
+        }
+
+        String courierName = currentOrder.getCourierName() == null ? "oneulFarm" : currentOrder.getCourierName();
+        String trackingNo = currentOrder.getTrackingNo();
+        if (trackingNo == null) {
+            trackingNo = "TRK-" + currentOrder.getOrderId();
+        }
+
         adminDao.updateAdminOrderStatus(orderNo, "SHIPPING");
-        adminDao.updateAdminDeliveryForShipping(orderNo, resolvedTrackingNo, courierName);
+        adminDao.updateAdminDeliveryForShipping(orderNo, trackingNo, courierName);
         return getOrderDetail(orderNo);
     }
 
