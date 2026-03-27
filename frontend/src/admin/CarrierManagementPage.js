@@ -61,6 +61,17 @@ function findTrackingHistoryTime(detail, trackingStatus) {
   return null;
 }
 
+function findLatestTrackingLocation(detail) {
+  const histories = Array.isArray(detail?.trackingHistories) ? detail.trackingHistories : [];
+  for (let index = histories.length - 1; index >= 0; index -= 1) {
+    const location = [histories[index]?.locationName, histories[index]?.locationAddress].filter(Boolean).join(' · ');
+    if (location) {
+      return location;
+    }
+  }
+  return '';
+}
+
 function buildTimeline(detail) {
   const status = getDeliveryStatusKey(detail);
   return [
@@ -249,6 +260,7 @@ function CarrierManagementPage({
   const summary = buildSummary(orders);
   const timeline = buildTimeline(selectedOrderDetail);
   const stageSummary = buildDeliveryStageSummary(selectedOrderDetail);
+  const latestTrackingLocation = findLatestTrackingLocation(selectedOrderDetail);
 
   return (
     <div className="carrier-management-page">
@@ -408,6 +420,12 @@ function CarrierManagementPage({
                     <strong>연락처</strong>
                     <span>{selectedOrderDetail.recipientPhone || '-'}</span>
                   </div>
+                  {latestTrackingLocation ? (
+                    <div className="carrier-management__row">
+                      <strong>현재 위치</strong>
+                      <span>{latestTrackingLocation}</span>
+                    </div>
+                  ) : null}
                 </section>
                 <section className="carrier-management__box">
                   <h3>배송지</h3>

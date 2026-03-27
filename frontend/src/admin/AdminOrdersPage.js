@@ -233,6 +233,17 @@ function findTrackingHistoryTime(detail, trackingStatus) {
   return null;
 }
 
+function findLatestTrackingLocation(detail) {
+  const histories = Array.isArray(detail?.trackingHistories) ? detail.trackingHistories : [];
+  for (let index = histories.length - 1; index >= 0; index -= 1) {
+    const location = [histories[index]?.locationName, histories[index]?.locationAddress].filter(Boolean).join(' · ');
+    if (location) {
+      return location;
+    }
+  }
+  return '';
+}
+
 function buildTimeline(detail) {
   const status = detail?.normalizedDeliveryStatus || detail?.deliveryStatus;
   return [
@@ -270,6 +281,7 @@ function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFi
   const cancelStatusLabel = getCancelStatusLabel(selectedOrderDetail);
   const purchaseConfirmLabel = getPurchaseConfirmLabel(selectedOrderDetail);
   const timeline = buildTimeline(selectedOrderDetail);
+  const latestTrackingLocation = findLatestTrackingLocation(selectedOrderDetail);
   const canDeleteOrder = Boolean(
     selectedOrderDetail &&
     (selectedOrderDetail.normalizedDeliveryStatus || selectedOrderDetail.deliveryStatus) === 'DELIVERED' &&
@@ -380,6 +392,12 @@ function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFi
 
               <section className="admin-orders-v2__box">
                 <div className="admin-orders-v2__box-head"><h3>송장 및 배송 처리</h3><span>{selectedOrderDetail.trackingNo || '송장 미등록'}</span></div>
+                {latestTrackingLocation ? (
+                  <div className="admin-orders-v2__row">
+                    <strong>현재 위치</strong>
+                    <span>{latestTrackingLocation}</span>
+                  </div>
+                ) : null}
                 <div className="admin-orders-v2__tracking-form">
                   <input value={trackingNo} onChange={onTrackingChange} placeholder="송장번호 입력" />
                   <button type="button" className="admin-action admin-action--soft admin-orders-v2__tracking-button" onClick={onShipOrder} disabled={!selectedOrderDetail.shipAvailable || updating}>배송 인계</button>

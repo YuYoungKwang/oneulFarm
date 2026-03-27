@@ -173,6 +173,17 @@ function findTrackingHistoryTime(detail, trackingStatus) {
   return null;
 }
 
+function findLatestTrackingLocation(detail) {
+  const histories = Array.isArray(detail?.trackingHistories) ? detail.trackingHistories : [];
+  for (let index = histories.length - 1; index >= 0; index -= 1) {
+    const location = [histories[index]?.locationName, histories[index]?.locationAddress].filter(Boolean).join(' · ');
+    if (location) {
+      return location;
+    }
+  }
+  return '';
+}
+
 function buildTrackingSteps(detail) {
   const deliveryStatus = detail?.normalizedDeliveryStatus || detail?.deliveryStatus;
 
@@ -287,6 +298,7 @@ function CustomerOrderDetailPanel({
   }
 
   const trackingSteps = buildTrackingSteps(detail);
+  const latestTrackingLocation = findLatestTrackingLocation(detail);
   const cancelStatusLabel = resolveCancelStatusLabel(detail);
   const deliveryStatusLabel = resolveDeliveryStatusLabel(detail);
   const purchaseConfirmMessage = resolvePurchaseConfirmMessage(detail);
@@ -330,6 +342,12 @@ function CustomerOrderDetailPanel({
             {detail.trackingNo ? ` · 송장 ${detail.trackingNo}` : ''}
           </span>
         </div>
+        {latestTrackingLocation ? (
+          <div className="customer-order-detail__inline-status">
+            <strong>현재 위치</strong>
+            <span>{latestTrackingLocation}</span>
+          </div>
+        ) : null}
         <div className="customer-order-detail__timeline">
           {trackingSteps.map((step) => (
             <div
