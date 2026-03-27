@@ -13,6 +13,7 @@ import {
   formatAdminDateParts,
 } from './admin/AdminUi';
 import {
+  cancelAdminPackageHistory,
   createAdminPackageHistory,
   createAdminPurchaseBatch,
   deleteAdminPurchaseBatch,
@@ -396,6 +397,8 @@ function calculatePackageDraftMetrics(batch, packageForm) {
   const finalCostPerPackage = packagedWeight > 0 ? finalCostPerKg * packagedWeight : 0;
   const expectedProfitPerUnit = salePrice - finalCostPerPackage;
   const expectedTotalProfit = expectedProfitPerUnit * packagedQty;
+  const expectedTotalSales = salePrice * packagedQty;
+  const marginRate = salePrice > 0 ? (expectedProfitPerUnit / salePrice) * 100 : 0;
   const requiredSellableQty = packagedQty * packagedWeight;
 
   return {
@@ -405,6 +408,8 @@ function calculatePackageDraftMetrics(batch, packageForm) {
     finalCostPerPackage,
     expectedProfitPerUnit,
     expectedTotalProfit,
+    expectedTotalSales,
+    marginRate,
     requiredSellableQty,
     remainingQty,
     exceedsSellableQty: requiredSellableQty > remainingQty,
@@ -1348,8 +1353,8 @@ function validatePackageForm(selectedBatch, packageForm) {
   }
 
   const salePrice = Number(packageForm.salePrice);
-  if (!Number.isFinite(salePrice) || salePrice < 0) {
-    return '\uD310\uB9E4\uAC00\uB294 0 \uC774\uC0C1 \uC22B\uC790\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
+  if (!Number.isFinite(salePrice) || salePrice <= 0) {
+    return '\uD310\uB9E4\uAC00\uB294 0\uBCF4\uB2E4 \uD070 \uC22B\uC790\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
   }
 
   const packagingMaterialCost = Number(packageForm.packagingMaterialCost);
@@ -2372,6 +2377,7 @@ function PurchasePage({
   onClearPurchaseImages,
   onCreatePurchase,
   onCreatePackageHistory,
+  onCancelPackageHistory,
   onDeletePurchaseBatch,
   quotingPurchase,
   submittingPurchase,
@@ -2389,6 +2395,9 @@ function PurchasePage({
     : [];
   const purchaseMetrics = calculatePurchaseDraftMetrics(purchaseForm);
   const packageMetrics = calculatePackageDraftMetrics(selectedBatch, packageForm);
+  const selectedBatchPackageHistories = selectedBatch
+    ? packageHistories.filter((history) => history.batchNo === selectedBatch.batchNo)
+    : [];
 
   return (
     <>
@@ -2574,36 +2583,39 @@ function PurchasePage({
 
         <article className="admin-card admin-card--panel">
           <h2>{'\uC18C\uBD84 / \uD310\uB9E4 \uC804\uD658'}</h2>
-          <div className="admin-summary-box">
-            <strong>{'\uC120\uD0DD \uBC30\uCE58'}</strong>
-            <div className="admin-muted">
-              {selectedBatch
-                ? `${selectedBatch.batchNo} / ${selectedBatch.productName} / ${selectedBatch.purchaseQty}${selectedBatch.purchaseUnit}`
-                : '\uC544\uB798 \uB9E4\uC785 / \uC18C\uBD84 \uC774\uB825 \uD14C\uC774\uBE14\uC5D0\uC11C \uBC30\uCE58\uB97C \uC120\uD0DD\uD574\uC8FC\uC138\uC694.'}
-            </div>
-            {selectedBatch ? (
+          <section className="admin-batch-overview">
+            <div className="admin-summary-box admin-summary-box--compact">
+              <strong>{'\uC120\uD0DD \uBC30\uCE58'}</strong>
               <div className="admin-muted">
-                {'\uC794\uC5EC \uC7AC\uACE0 '}{formatDecimalInput(selectedBatch.remainingQty ?? selectedBatch.sellableQty ?? 0, 2)}
-                {selectedBatch.purchaseUnit}
+                {selectedBatch
+                  ? `${selectedBatch.batchNo} / ${selectedBatch.productName} / ${selectedBatch.purchaseQty}${selectedBatch.purchaseUnit}`
+                  : '\uC544\uB798 \uB9E4\uC785 / \uC18C\uBD84 \uC774\uB825 \uD14C\uC774\uBE14\uC5D0\uC11C \uBC30\uCE58\uB97C \uC120\uD0DD\uD574\uC8FC\uC138\uC694.'}
               </div>
-            ) : null}
-          </div>
+            </div>
+            <div className="admin-summary-box admin-summary-box--compact admin-summary-box--accent">
+              <strong>{'\uC794\uC5EC \uC7AC\uACE0'}</strong>
+              <div className="admin-summary-box__kpi">
+                {formatDecimalInput(selectedBatch?.remainingQty ?? selectedBatch?.sellableQty ?? 0, 2)}
+                {selectedBatch?.purchaseUnit || ''}
+              </div>
+            </div>
+          </section>
           {selectedBatchProduct ? (
-            <div className="admin-summary-box admin-summary-box--note">
+            <div className="admin-summary-box admin-summary-box--note admin-summary-box--compact">
               <strong>{'\uC5F0\uACB0 \uC0C1\uD488'}</strong>
               <div className="admin-muted">
                 {selectedBatchProduct.productName} / {selectedBatchProduct.categoryName} / {'\uC0C1\uD488\uBC88\uD638 '}{selectedBatchProduct.productNo}
               </div>
               {linkedProductPreviews.length ? (
                 <div className="admin-image-preview-grid admin-image-preview-grid--compact">
-                  {linkedProductPreviews.map((image, index) => (
-                    <article className="admin-image-preview" key={image.key || image.imageNo || index}>
+                  {linkedProductPreviews.slice(0, 1).map((image, index) => (
+                    <article className="admin-image-preview admin-image-preview--compact" key={image.key || image.imageNo || index}>
                       <div className="admin-image-preview__thumb">
                         <img src={image.previewUrl} alt={image.name || '\uC0C1\uD488 \uC774\uBBF8\uC9C0'} />
                       </div>
                       <div className="admin-image-preview__meta">
                         <strong>{image.name || '\uC0C1\uD488 \uC774\uBBF8\uC9C0'}</strong>
-                        <span>{image.isMain ? '\uB300\uD45C \uC774\uBBF8\uC9C0' : '\uCD94\uAC00 \uC774\uBBF8\uC9C0 ' + (index + 1)}</span>
+                        <span>{image.isMain ? '\uB300\uD45C \uC774\uBBF8\uC9C0' : '\uCD94\uAC00 \uC774\uBBF8\uC9C0'}</span>
                       </div>
                     </article>
                   ))}
@@ -2611,7 +2623,11 @@ function PurchasePage({
               ) : null}
             </div>
           ) : null}
-          <div className="admin-form-grid admin-form-grid--spaced">
+          <section className="admin-section-block">
+            <div className="admin-section-block__head">
+              <h3>{'\uC785\uB825 \uC601\uC5ED'}</h3>
+            </div>
+            <div className="admin-form-grid admin-form-grid--spaced admin-form-grid--priority">
             {needsLegacyProductLink ? (
               <label>
                 <span>{'\uC5F0\uACB0 \uC0C1\uD488'}</span>
@@ -2626,8 +2642,10 @@ function PurchasePage({
               </label>
             ) : null}
             <label><span>{'\uC0DD\uC131 \uC218\uB7C9'}</span><input name="packagedQty" value={packageForm.packagedQty} onChange={onPackageFormChange} /></label>
-            <label><span>{'1\uAC1C\uB2F9 \uC911\uB7C9'}</span><input name="packagedWeight" value={packageForm.packagedWeight} onChange={onPackageFormChange} /></label>
+            <label><span>{`1\uAC1C\uB2F9 \uC911\uB7C9 (${selectedBatch?.purchaseUnit || 'kg'})`}</span><input name="packagedWeight" value={packageForm.packagedWeight} onChange={onPackageFormChange} /></label>
             <label><span>{'\uD310\uB9E4\uAC00'}</span><input name="salePrice" value={packageForm.salePrice} onChange={onPackageFormChange} /></label>
+            </div>
+            <div className="admin-form-grid admin-form-grid--spaced admin-form-grid--secondary">
             <label><span>{'\uD3EC\uC7A5\uC7AC\uBE44'}</span><input name="packagingMaterialCost" value={packageForm.packagingMaterialCost} onChange={onPackageFormChange} /></label>
             <label><span>{'\uC18C\uBD84 \uC778\uAC74\uBE44'}</span><input name="packagingLaborCost" value={packageForm.packagingLaborCost} onChange={onPackageFormChange} /></label>
             <label><span>{'\uAE30\uD0C0 \uC18C\uBD84\uBE44'}</span><input name="otherPackagingCost" value={packageForm.otherPackagingCost} onChange={onPackageFormChange} /></label>
@@ -2640,40 +2658,111 @@ function PurchasePage({
                 <option value="STOP">{'\uD310\uB9E4\uC911\uC9C0'}</option>
               </select>
             </label>
-            <label className="admin-form-field admin-form-field--full"><span>{'\uBA54\uBAA8'}</span><textarea name="note" value={packageForm.note} onChange={onPackageFormChange} /></label>
-          </div>
-          {packageMetrics ? (
-            <div className="admin-summary-grid">
-              <div className="admin-summary-box">
-                <strong>{'\uC18C\uBD84 \uCD1D\uBE44\uC6A9'}</strong>
-                <div className="admin-summary-box__kpi">{formatAdminCurrency(packageMetrics.totalPackagingCost)}</div>
-              </div>
-              <div className="admin-summary-box">
-                <strong>{'\uC794\uC5EC \uAE30\uC900 \uC7AC\uACE0'}</strong>
-                <div className="admin-summary-box__kpi">{formatDecimalInput(packageMetrics.remainingQty, 2)}{selectedBatch?.purchaseUnit || ''}</div>
-              </div>
-              <div className="admin-summary-box">
-                <strong>{'\uCD5C\uC885 \uC6D0\uAC00/kg'}</strong>
-                <div className="admin-summary-box__kpi">{formatAdminCurrency(packageMetrics.finalCostPerKg)}</div>
-              </div>
-              <div className="admin-summary-box">
-                <strong>{'\uAC1C\uB2F9 \uC608\uC0C1 \uC6D0\uAC00'}</strong>
-                <div className="admin-summary-box__kpi">{formatAdminCurrency(packageMetrics.finalCostPerPackage)}</div>
-              </div>
-              <div className="admin-summary-box">
-                <strong>{'\uAC1C\uB2F9 \uC608\uC0C1 \uC774\uC775'}</strong>
-                <div className="admin-summary-box__kpi">{formatAdminCurrency(packageMetrics.expectedProfitPerUnit)}</div>
-                {packageMetrics.exceedsSellableQty ? (
-                  <div className="admin-summary-box__alert">{'\uC18C\uBD84 \uC218\uB7C9\uC774 \uC2E4\uD310\uB9E4 \uAC00\uB2A5\uB7C9\uC744 \uCD08\uACFC\uD588\uC2B5\uB2C8\uB2E4.'}</div>
-                ) : null}
-              </div>
             </div>
+            <div className="admin-form-field admin-form-field--full admin-form-field--memo">
+              <span>{'\uBA54\uBAA8'}</span>
+              <textarea name="note" value={packageForm.note} onChange={onPackageFormChange} />
+            </div>
+          </section>
+          {packageMetrics ? (
+            <>
+              <section className="admin-section-block">
+                <div className="admin-section-block__head">
+                  <h3>{'\uACB0\uACFC \uC694\uC57D'}</h3>
+                </div>
+                <div className="admin-kpi-grid">
+                  <div className="admin-kpi-card">
+                    <div className="admin-kpi-card__label">{'\uAC1C\uB2F9 \uC608\uC0C1 \uC6D0\uAC00'}</div>
+                    <div className="admin-kpi-card__value">{formatAdminCurrency(packageMetrics.finalCostPerPackage)}</div>
+                  </div>
+                  <div className="admin-kpi-card admin-kpi-card--primary">
+                    <div className="admin-kpi-card__label">{'\uAC1C\uB2F9 \uC608\uC0C1 \uC774\uC775'}</div>
+                    <div className="admin-kpi-card__value">{formatAdminCurrency(packageMetrics.expectedProfitPerUnit)}</div>
+                  </div>
+                  <div className="admin-kpi-card">
+                    <div className="admin-kpi-card__label">{'\uB9C8\uC9C4\uC728'}</div>
+                    <div className="admin-kpi-card__value">{formatDecimalInput(packageMetrics.marginRate, 1)}%</div>
+                  </div>
+                </div>
+                {packageMetrics.exceedsSellableQty ? (
+                  <div className="admin-inline-error" style={{ marginTop: '12px' }}>
+                    {'\uC18C\uBD84 \uC218\uB7C9\uC774 \uC794\uC5EC \uC7AC\uACE0\uB97C \uCD08\uACFC\uD588\uC2B5\uB2C8\uB2E4.'}
+                  </div>
+                ) : null}
+              </section>
+              <details className="admin-disclosure">
+                <summary>{'\uC0C1\uC138 \uBCF4\uAE30'}</summary>
+                <div className="admin-disclosure__content">
+                  <div className="admin-summary-grid">
+                    <div className="admin-summary-box">
+                      <strong>{'\uC18C\uBD84 \uCD1D\uBE44\uC6A9'}</strong>
+                      <div className="admin-summary-box__kpi">{formatAdminCurrency(packageMetrics.totalPackagingCost)}</div>
+                    </div>
+                    <div className="admin-summary-box">
+                      <strong>{'\uCD1D \uC0AC\uC6A9\uB7C9'}</strong>
+                      <div className="admin-summary-box__kpi">{formatDecimalInput(packageMetrics.requiredSellableQty, 2)}{selectedBatch?.purchaseUnit || ''}</div>
+                    </div>
+                    <div className="admin-summary-box">
+                      <strong>{'\uC794\uC5EC \uC7AC\uACE0'}</strong>
+                      <div className="admin-summary-box__kpi">{formatDecimalInput(packageMetrics.remainingQty, 2)}{selectedBatch?.purchaseUnit || ''}</div>
+                    </div>
+                    <div className="admin-summary-box">
+                      <strong>{'\uCD5C\uC885 \uC6D0\uAC00/kg'}</strong>
+                      <div className="admin-summary-box__kpi">{formatAdminCurrency(packageMetrics.finalCostPerKg)}</div>
+                    </div>
+                    <div className="admin-summary-box">
+                      <strong>{'\uC608\uC0C1 \uCD1D\uB9E4\uCD9C'}</strong>
+                      <div className="admin-summary-box__kpi">{formatAdminCurrency(packageMetrics.expectedTotalSales)}</div>
+                    </div>
+                    <div className="admin-summary-box">
+                      <strong>{'\uC608\uC0C1 \uCD1D\uC774\uC775'}</strong>
+                      <div className="admin-summary-box__kpi">{formatAdminCurrency(packageMetrics.expectedTotalProfit)}</div>
+                    </div>
+                  </div>
+                </div>
+              </details>
+              <div className="admin-page-actions admin-page-actions--end admin-page-actions--spaced-top">
+                <button
+                  type="button"
+                  className="admin-action admin-action--primary"
+                  onClick={onCreatePackageHistory}
+                  disabled={!selectedBatch || submittingPackage}
+                >
+                  {submittingPackage ? '\uCC98\uB9AC \uC911...' : '\uC18C\uBD84 \uC2E4\uD589'}
+                </button>
+              </div>
+            </>
           ) : null}
-          <div className="admin-page-actions admin-page-actions--end">
-            <button type="button" className="admin-action admin-action--primary" onClick={onCreatePackageHistory} disabled={!selectedBatch || submittingPackage}>
-              {submittingPackage ? '\uCC98\uB9AC \uC911...' : '\uC18C\uBD84 \uC2E4\uD589'}
-            </button>
-          </div>
+          {selectedBatchPackageHistories.length ? (
+            <section className="admin-section-block admin-section-block--separated">
+              <div className="admin-section-block__head">
+                <h3>{'\uC18C\uBD84 \uC774\uB825 \uAD00\uB9AC'}</h3>
+              </div>
+              <div className="admin-summary-box admin-summary-box--note">
+              <div className="admin-history-note-head">
+                <strong>{'\uC774\uC804 \uC18C\uBD84 \uC791\uC5C5'}</strong>
+                <span>{formatAdminDate(selectedBatchPackageHistories[0]?.packagedAt)}</span>
+              </div>
+              <div className="admin-history-list">
+                {selectedBatchPackageHistories.map((history) => (
+                  <div className="admin-history-item admin-history-item--row" key={history.packageNo}>
+                    <div className="admin-history-item__meta">{'\uC0DD\uC131 : '}{history.packagedQty}{'\uAC1C'}</div>
+                    <div className="admin-history-item__meta">{'\uAC1C\uB2F9 : '}{formatDecimalInput(history.packagedWeight, 2)}{selectedBatch?.purchaseUnit || ''}</div>
+                    <div className="admin-history-item__meta">{'\uD310\uB9E4\uAC00 : '}{formatAdminCurrency(history.salePrice)}</div>
+                    <button
+                      type="button"
+                      className="admin-action admin-action--danger"
+                      onClick={() => onCancelPackageHistory(history)}
+                      disabled={submittingPackage}
+                    >
+                      {'\uC7AC\uACE0 \uBCF5\uAD6C'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+              </div>
+            </section>
+          ) : null}
         </article>
       </section>
 
@@ -3689,6 +3778,40 @@ function AdminApp() {
     }
   }
 
+  async function handleCancelPackageHistory(packageHistory) {
+    if (!packageHistory?.packageNo) {
+      return;
+    }
+
+    const shouldCancel = window.confirm(
+      '이 소분 작업을 되돌리시겠습니까?\n\n재고와 상품 재고가 함께 복구됩니다.'
+    );
+    if (!shouldCancel) {
+      return;
+    }
+
+    setSavingPackage(true);
+    setActionError('');
+    setActionSuccess('');
+
+    try {
+      await cancelAdminPackageHistory(packageHistory.packageNo);
+      const [nextPurchases, nextPackageHistories, nextProducts] = await Promise.all([
+        fetchAdminPurchases(),
+        fetchAdminPackageHistories(),
+        fetchAdminProducts(),
+      ]);
+      setPurchases(nextPurchases);
+      setPackageHistories(nextPackageHistories);
+      setProducts(nextProducts);
+      setActionSuccess('소분 이력을 취소하고 재고를 복구했습니다.');
+    } catch (error) {
+      setActionError(error.message || '소분 취소에 실패했습니다.');
+    } finally {
+      setSavingPackage(false);
+    }
+  }
+
   async function handleSyncRecipes() {
     setSyncingRecipes(true);
     setActionError('');
@@ -3846,6 +3969,7 @@ function AdminApp() {
               onClearPurchaseImages={resetPurchaseImages}
               onCreatePurchase={handleCreatePurchase}
               onCreatePackageHistory={handleCreatePackageHistory}
+              onCancelPackageHistory={handleCancelPackageHistory}
               onDeletePurchaseBatch={handleDeletePurchaseBatch}
               quotingPurchase={quotingPurchase}
               submittingPurchase={savingPurchase}

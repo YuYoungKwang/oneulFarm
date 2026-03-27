@@ -209,6 +209,29 @@
   margin-top: 18px;
 }
 
+.admin-section-block {
+  margin-top: 18px;
+}
+
+.admin-section-block--separated {
+  margin-top: 28px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.admin-section-block__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.admin-section-block__head h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
 .admin-metrics-grid {
   grid-template-columns: repeat(4, 1fr);
 }
@@ -311,6 +334,33 @@
   background: #f8fafb;
 }
 
+.admin-batch-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(220px, 0.6fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.admin-summary-box--compact {
+  padding: 14px 16px;
+}
+
+.admin-summary-box--compact strong {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.admin-summary-box--compact .admin-muted {
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+.admin-summary-box--accent {
+  background: linear-gradient(135deg, rgba(20, 136, 72, 0.08), rgba(255, 230, 109, 0.22));
+  border-color: rgba(20, 136, 72, 0.18);
+}
+
 .admin-summary-box__kpi {
   margin-top: 10px;
   color: var(--green-dark);
@@ -330,6 +380,7 @@
   border-radius: 22px;
   border: 1px solid var(--line);
   background: #f8fafb;
+  min-height: 118px;
 }
 
 .admin-kpi-card--primary {
@@ -381,12 +432,48 @@
   margin-top: 14px;
 }
 
+.admin-page-actions--spaced-top {
+  margin-top: 16px;
+}
+
+.admin-history-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.admin-history-note-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-history-note-head span {
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.admin-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+
 .admin-summary-box--fill {
   flex: 1 1 auto;
 }
 
 .admin-summary-box--note {
   margin-top: 16px;
+  background: linear-gradient(180deg, #fbfcfd, #f7faf8);
 }
 
 .admin-role-toggle {
@@ -655,6 +742,17 @@
   gap: 16px;
 }
 
+.admin-form-grid--priority {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.admin-form-grid--secondary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(203, 213, 225, 0.65);
+}
+
 .admin-form-grid--spaced {
   margin-top: 16px;
 }
@@ -686,8 +784,19 @@
   margin-top: 16px;
 }
 
+.admin-form-field--memo {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fbfcfd;
+}
+
+.admin-form-field--memo span {
+  font-weight: 700;
+}
+
 .admin-form-field textarea {
-  min-height: 120px;
+  min-height: 112px;
   resize: vertical;
 }
 
@@ -729,6 +838,18 @@
 
 .admin-image-preview-grid--compact {
   grid-template-columns: 1fr;
+}
+
+.admin-image-preview--compact {
+  grid-template-columns: 64px 1fr;
+  padding: 12px;
+  align-items: center;
+}
+
+.admin-image-preview--compact .admin-image-preview__thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
 }
 
 .admin-image-preview,
@@ -774,6 +895,26 @@
 .admin-image-empty {
   color: var(--muted);
   font-size: 13px;
+}
+
+.admin-history-item--row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(88px, 0.75fr)) minmax(110px, auto);
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-history-item__meta {
+  color: #4b5563;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.admin-history-item--row .admin-action {
+  min-width: 110px;
+  padding: 10px 14px;
+  white-space: nowrap;
 }
 
 .admin-inline-form input {
@@ -883,6 +1024,13 @@
   .admin-image-preview-grid {
     grid-template-columns: 1fr;
   }
+
+  .admin-batch-overview,
+  .admin-form-grid--priority,
+  .admin-form-grid--secondary,
+  .admin-history-item--row {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 900px) {
@@ -911,5 +1059,19 @@
 
   .admin-inline-form input {
     max-width: none;
+  }
+
+  .admin-summary-box--compact,
+  .admin-form-field--memo {
+    padding: 14px;
+  }
+
+  .admin-history-note-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-history-item--row {
+    gap: 8px;
   }
 }

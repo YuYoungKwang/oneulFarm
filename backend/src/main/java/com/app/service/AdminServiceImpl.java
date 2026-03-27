@@ -490,6 +490,48 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
+    public void cancelPackageHistory(Long packageNo) {
+        PackageHistoryDto packageHistory = adminDao.findPackageHistory(packageNo);
+        if (packageHistory == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Package history not found.");
+        }
+
+        PurchaseBatchDto purchaseBatch = adminDao.findPurchaseBatch(packageHistory.getBatchNo());
+        if (purchaseBatch == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Purchase batch not found.");
+        }
+        hydratePurchaseBatchDefaults(purchaseBatch);
+        hydratePackageHistoryDefaults(packageHistory);
+
+        ProductDto product = adminDao.findAdminProduct(packageHistory.getProductNo());
+        if (product == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Linked product not found.");
+        }
+
+        adminDao.deletePackageHistory(packageNo);
+        adminDao.decreaseProductStock(product.getProductNo(), packageHistory.getPackagedQty());
+
+        BigDecimal restoredRemainingQty = scaleAmount(
+            defaultAmount(purchaseBatch.getRemainingQty()).add(defaultAmount(packageHistory.getTotalUsed()))
+        );
+        if (restoredRemainingQty.compareTo(defaultAmount(purchaseBatch.getSellableQty())) > 0) {
+            restoredRemainingQty = defaultAmount(purchaseBatch.getSellableQty());
+        }
+
+        List<PackageHistoryDto> remainingPackageHistories = adminDao.findPackageHistoriesByBatch(purchaseBatch.getBatchNo());
+        String nextBatchStatus = resolveBatchStatusAfterCancel(restoredRemainingQty, remainingPackageHistories, product);
+        adminDao.updatePurchaseBatchInventory(purchaseBatch.getBatchNo(), restoredRemainingQty, nextBatchStatus);
+
+        long nextStockQty = Math.max(0L, (product.getStockQty() == null ? 0L : product.getStockQty()) - packageHistory.getPackagedQty());
+        product.setStockQty(nextStockQty);
+        if (nextStockQty == 0L) {
+            product.setSaleStatus("READY");
+        }
+        adminDao.updateAdminProduct(product);
+    }
+
+    @Override
+    @Transactional
     public void deletePurchaseBatch(Long batchNo) {
         PurchaseBatchDto purchaseBatch = adminDao.findPurchaseBatch(batchNo);
         if (purchaseBatch == null) {
@@ -588,7 +630,7 @@ public class AdminServiceImpl implements AdminService {
         }
 
         if (request.getPackagedWeight().compareTo(BigDecimal.ZERO) <= 0
-            || request.getSalePrice().compareTo(BigDecimal.ZERO) < 0
+            || request.getSalePrice().compareTo(BigDecimal.ZERO) <= 0
             || defaultAmount(request.getPackagingMaterialCost()).compareTo(BigDecimal.ZERO) < 0
             || defaultAmount(request.getPackagingLaborCost()).compareTo(BigDecimal.ZERO) < 0
             || defaultAmount(request.getOtherPackagingCost()).compareTo(BigDecimal.ZERO) < 0) {
@@ -902,6 +944,26 @@ public class AdminServiceImpl implements AdminService {
 
         if ("SELLING".equalsIgnoreCase(saleStatus)) {
             return "ON_SALE";
+        }
+
+        return "PROCESSING";
+    }
+
+    private String resolveBatchStatusAfterCancel(
+        BigDecimal restoredRemainingQty,
+        List<PackageHistoryDto> remainingPackageHistories,
+        ProductDto product
+    ) {
+        if (remainingPackageHistories == null || remainingPackageHistories.isEmpty()) {
+            return "PURCHASED";
+        }
+
+        if ("SELLING".equalsIgnoreCase(product.getSaleStatus()) && restoredRemainingQty.compareTo(BigDecimal.ZERO) > 0) {
+            return "ON_SALE";
+        }
+
+        if (restoredRemainingQty.compareTo(BigDecimal.ZERO) <= 0) {
+            return "COMPLETED";
         }
 
         return "PROCESSING";

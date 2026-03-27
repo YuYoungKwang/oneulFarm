@@ -232,6 +232,14 @@ public class AdminController {
         return ApiResponse.success(adminService.packageBatch(userNo, batchNo, request), "Package history created.");
     }
 
+    @DeleteMapping("/package-histories/{packageNo}")
+    public ApiResponse<Void> cancelPackageHistory(
+        @PathVariable Long packageNo
+    ) {
+        adminService.cancelPackageHistory(packageNo);
+        return ApiResponse.success(null, "Package history canceled.");
+    }
+
     @GetMapping("/content/banners")
     public ApiResponse<List<MainBannerDto>> getBanners() {
         return ApiResponse.success(adminService.getMainBanners(), "Admin banners loaded.");
