@@ -156,6 +156,35 @@ function getCancelHistoryCopy(history) {
   return '';
 }
 
+function getTrackingHistoryTitle(history) {
+  switch (history?.trackingStatus) {
+    case 'WAYBILL_ASSIGNED':
+      return '송장 등록';
+    case 'PICKED_UP':
+      return '집하 완료';
+    case 'IN_TRANSIT':
+      return '배송 중';
+    case 'DELIVERED':
+      return '배송 완료';
+    default:
+      return history?.trackingStatus || '-';
+  }
+}
+
+function getTrackingHistoryCopy(history) {
+  if (!history) {
+    return '';
+  }
+
+  if (history.trackingMessage) {
+    return history.trackingNo
+      ? `${history.trackingMessage} · 송장 ${history.trackingNo}`
+      : history.trackingMessage;
+  }
+
+  return history.trackingNo ? `송장 ${history.trackingNo}` : '';
+}
+
 function resolveFilterStatus(order) {
   if (!order) return '';
   const cancelStatus = order.cancelStatus;
@@ -364,6 +393,23 @@ function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFi
                   ))}
                 </div>
               </section>
+
+              {(selectedOrderDetail.trackingHistories || []).length ? (
+                <section className="admin-orders-v2__box">
+                  <div className="admin-orders-v2__box-head"><h3>배송 추적 이력</h3><span>{selectedOrderDetail.trackingHistories?.length || 0}건</span></div>
+                  <div className="admin-orders-v2__history-list">
+                    {(selectedOrderDetail.trackingHistories || []).map((history) => (
+                      <div key={history.trackingHistoryNo} className="admin-orders-v2__history-card">
+                        <div className="admin-orders-v2__history-head">
+                          <strong>{getTrackingHistoryTitle(history)}</strong>
+                          <span>{history.recordedAt ? formatAdminDate(history.recordedAt) : '-'}</span>
+                        </div>
+                        <div className="admin-orders-v2__history-copy">{getTrackingHistoryCopy(history)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
 
               <div className="admin-orders-v2__compact-row">
                 <section className="admin-orders-v2__box admin-orders-v2__box--compact">

@@ -134,6 +134,35 @@ function resolveCancelHistoryCopy(history) {
   return '';
 }
 
+function resolveTrackingHistoryTitle(history) {
+  switch (history?.trackingStatus) {
+    case 'WAYBILL_ASSIGNED':
+      return '송장 등록';
+    case 'PICKED_UP':
+      return '집하 완료';
+    case 'IN_TRANSIT':
+      return '배송 중';
+    case 'DELIVERED':
+      return '배송 완료';
+    default:
+      return history?.trackingStatus || '-';
+  }
+}
+
+function resolveTrackingHistoryCopy(history) {
+  if (!history) {
+    return '';
+  }
+
+  if (history.trackingMessage) {
+    return history.trackingNo
+      ? `${history.trackingMessage} · 송장 ${history.trackingNo}`
+      : history.trackingMessage;
+  }
+
+  return history.trackingNo ? `송장 ${history.trackingNo}` : '';
+}
+
 function findTrackingHistoryTime(detail, trackingStatus) {
   const histories = Array.isArray(detail?.trackingHistories) ? detail.trackingHistories : [];
   for (let index = histories.length - 1; index >= 0; index -= 1) {
@@ -316,6 +345,26 @@ function CustomerOrderDetailPanel({
           ))}
         </div>
       </section>
+
+      {(detail.trackingHistories || []).length ? (
+        <section className="customer-order-detail__history">
+          <div className="customer-order-detail__section-head">
+            <h3>배송 추적 이력</h3>
+            <span className="customer-order-detail__section-copy">{Number(detail.trackingHistories?.length || 0)}건</span>
+          </div>
+          <div className="customer-order-detail__history-list">
+            {(detail.trackingHistories || []).map((history) => (
+              <article key={history.trackingHistoryNo} className="customer-order-detail__history-card">
+                <div className="customer-order-detail__history-meta">
+                  <strong>{resolveTrackingHistoryTitle(history)}</strong>
+                  <span>{history.recordedAt ? formatDateTime(history.recordedAt) : '-'}</span>
+                </div>
+                <p className="customer-order-detail__history-copy">{resolveTrackingHistoryCopy(history)}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {showActionSection ? (
         <section className="customer-order-detail__actions">
