@@ -251,6 +251,27 @@
   gap: 10px;
 }
 
+.carrier-management__timeline-summary{
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #eef6ff;
+  border: 1px solid rgba(59, 130, 246, 0.12);
+}
+
+.carrier-management__timeline-summary strong{
+  color: #1d4ed8;
+  font-size: 14px;
+}
+
+.carrier-management__timeline-summary p{
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .carrier-management__timeline-step{
   display: grid;
   grid-template-columns: 14px minmax(0, 1fr);

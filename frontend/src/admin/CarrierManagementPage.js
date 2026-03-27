@@ -6,6 +6,26 @@ import {
 } from './AdminUi';
 import '../styles/carrierManagement.css';
 
+const CARRIER_DELIVERY_FILTERS = [
+  { value: 'ALL', label: '전체' },
+  { value: 'NOT_STARTED', label: '배송 준비' },
+  { value: 'WAYBILL_ASSIGNED', label: '송장 등록' },
+  { value: 'PICKED_UP', label: '집하 완료' },
+  { value: 'IN_TRANSIT', label: '배송 중' },
+  { value: 'DELIVERED', label: '배송 완료' },
+];
+
+const CARRIER_DELIVERY_STATUS_LABELS = {
+  NOT_STARTED: '배송 준비',
+  WAYBILL_ASSIGNED: '송장 등록',
+  PICKED_UP: '집하 완료',
+  IN_TRANSIT: '배송 중',
+  DELIVERED: '배송 완료',
+  READY: '배송 준비',
+  SHIPPING: '배송 중',
+};
+
+// eslint-disable-next-line no-unused-vars
 const DELIVERY_FILTERS = [
   { value: 'ALL', label: '전체' },
   { value: 'NOT_STARTED', label: '배송 준비 전' },
@@ -14,6 +34,7 @@ const DELIVERY_FILTERS = [
   { value: 'DELIVERED', label: '배송 완료' },
 ];
 
+// eslint-disable-next-line no-unused-vars
 const DELIVERY_STATUS_LABELS = {
   NOT_STARTED: '배송 준비 전',
   WAYBILL_ASSIGNED: '송장 등록',
@@ -26,7 +47,7 @@ const DELIVERY_STATUS_LABELS = {
 
 function getDeliveryStatusLabel(order) {
   const status = order?.normalizedDeliveryStatus || order?.deliveryStatus;
-  return DELIVERY_STATUS_LABELS[status] || status || '-';
+  return CARRIER_DELIVERY_STATUS_LABELS[status] || status || '-';
 }
 
 function getDeliveryStatusKey(order) {
@@ -87,6 +108,43 @@ function buildTimeline(detail) {
   ];
 }
 
+function buildDeliveryStageSummary(detail) {
+  const status = getDeliveryStatusKey(detail);
+
+  if (status === 'DELIVERED') {
+    return {
+      title: '배송 완료',
+      description: '고객이 상품을 수령한 단계입니다.',
+    };
+  }
+
+  if (status === 'IN_TRANSIT') {
+    return {
+      title: '배송 중',
+      description: '집하가 끝났고 고객 배송지로 이동 중입니다.',
+    };
+  }
+
+  if (status === 'PICKED_UP') {
+    return {
+      title: '집하 완료',
+      description: '상품을 접수했고 본격 배송 이동 전 단계입니다.',
+    };
+  }
+
+  if (status === 'WAYBILL_ASSIGNED') {
+    return {
+      title: '송장 등록',
+      description: '송장번호가 발급되어 집하 처리만 남아 있습니다.',
+    };
+  }
+
+  return {
+    title: '배송 준비',
+    description: '아직 송장번호가 없고 배송 접수 전 단계입니다.',
+  };
+}
+
 function CarrierManagementPage({
   orders,
   selectedOrderNo,
@@ -109,6 +167,7 @@ function CarrierManagementPage({
   });
   const summary = buildSummary(orders);
   const timeline = buildTimeline(selectedOrderDetail);
+  const stageSummary = buildDeliveryStageSummary(selectedOrderDetail);
 
   return (
     <div className="carrier-management-page">
@@ -169,7 +228,7 @@ function CarrierManagementPage({
       </section>
 
       <div className="carrier-management__filters">
-        {DELIVERY_FILTERS.map((filter) => (
+        {CARRIER_DELIVERY_FILTERS.map((filter) => (
           <button
             key={filter.value}
             type="button"
@@ -290,6 +349,10 @@ function CarrierManagementPage({
                 <div className="carrier-management__box-head">
                   <h3>배송 추적 흐름</h3>
                   <span>배송사가 조작하는 상태만 단계별로 보여줍니다.</span>
+                </div>
+                <div className="carrier-management__timeline-summary">
+                  <strong>{stageSummary.title}</strong>
+                  <p>{stageSummary.description}</p>
                 </div>
                 <div className="carrier-management__timeline">
                   {timeline.map((step) => (
