@@ -39,6 +39,10 @@ public interface OrderDao {
 
     int updateOrderPurchaseConfirm(Long orderNo, String purchaseConfirmStatus, LocalDateTime purchaseConfirmedAt);
 
+    int autoConfirmEligiblePurchasesByUser(Long userNo);
+
+    int autoConfirmEligiblePurchases();
+
     int insertOrderCancelRequest(Long orderNo, Long requestedByUserNo, String cancelStatus, String requestReason);
 
     int updateLatestOrderCancelRequest(Long orderNo, String cancelStatus, Long decidedByUserNo, String decisionReason);

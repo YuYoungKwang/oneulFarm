@@ -30,6 +30,7 @@ public class CarrierServiceImpl implements CarrierService {
 
     @Override
     public List<OrderDto> getOrders() {
+        orderDao.autoConfirmEligiblePurchases();
         List<OrderDto> orders = adminDao.findAdminOrders();
         for (OrderDto order : orders) {
             hydrateOrderSummary(order);
@@ -39,6 +40,7 @@ public class CarrierServiceImpl implements CarrierService {
 
     @Override
     public OrderDto getOrderDetail(Long orderNo) {
+        orderDao.autoConfirmEligiblePurchases();
         OrderDto order = adminDao.findAdminOrderDetail(orderNo);
         if (order == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Carrier order not found.");

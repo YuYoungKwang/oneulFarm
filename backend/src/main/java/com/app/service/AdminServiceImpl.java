@@ -179,6 +179,7 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public List<OrderDto> getOrders() {
+        orderDao.autoConfirmEligiblePurchases();
         List<OrderDto> orders = adminDao.findAdminOrders();
         for (OrderDto order : orders) {
             hydrateOrderSummary(order);
@@ -188,6 +189,7 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public OrderDto getOrderDetail(Long orderNo) {
+        orderDao.autoConfirmEligiblePurchases();
         OrderDto order = adminDao.findAdminOrderDetail(orderNo);
         if (order == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found.");

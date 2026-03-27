@@ -44,6 +44,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public List<OrderDto> getMyOrders(Long userNo, String deliveryStatus, String dateFrom, String dateTo) {
+        orderDao.autoConfirmEligiblePurchasesByUser(userNo);
         Map<String, Object> params = buildOrderFilterParams(userNo, deliveryStatus, dateFrom, dateTo);
         List<OrderDto> responses = orderDao.findMyOrders(params);
 
@@ -59,6 +60,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public OrderDto getMyOrderDetail(Long userNo, Long orderNo) {
+        orderDao.autoConfirmEligiblePurchasesByUser(userNo);
         OrderDto response = orderDao.findOrderDetail(userNo, orderNo);
         if (response == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found.");

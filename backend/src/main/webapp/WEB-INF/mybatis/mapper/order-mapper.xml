@@ -356,6 +356,47 @@
         WHERE ORDER_NO = #{orderNo}
     </update>
 
+    <update id="autoConfirmEligiblePurchasesByUser" parameterType="long">
+        UPDATE OFT_ORDERS o
+        SET PURCHASE_CONFIRM_STATUS = 'PURCHASE_CONFIRMED',
+            PURCHASE_CONFIRMED_AT = (
+                SELECT d.DELIVERED_AT + NUMTODSINTERVAL(7, 'DAY')
+                FROM OFT_DELIVERY d
+                WHERE d.ORDER_NO = o.ORDER_NO
+            ),
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE o.USER_NO = #{_parameter}
+          AND NVL(o.PURCHASE_CONFIRM_STATUS, 'PURCHASE_PENDING') != 'PURCHASE_CONFIRMED'
+          AND NVL(o.CANCEL_STATUS, 'NONE') NOT IN ('CANCEL_REQUESTED', 'CANCEL_ACCEPTED')
+          AND EXISTS (
+              SELECT 1
+              FROM OFT_DELIVERY d
+              WHERE d.ORDER_NO = o.ORDER_NO
+                AND d.DELIVERED_AT IS NOT NULL
+                AND d.DELIVERED_AT <= SYSTIMESTAMP - NUMTODSINTERVAL(7, 'DAY')
+          )
+    </update>
+
+    <update id="autoConfirmEligiblePurchases">
+        UPDATE OFT_ORDERS o
+        SET PURCHASE_CONFIRM_STATUS = 'PURCHASE_CONFIRMED',
+            PURCHASE_CONFIRMED_AT = (
+                SELECT d.DELIVERED_AT + NUMTODSINTERVAL(7, 'DAY')
+                FROM OFT_DELIVERY d
+                WHERE d.ORDER_NO = o.ORDER_NO
+            ),
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE NVL(o.PURCHASE_CONFIRM_STATUS, 'PURCHASE_PENDING') != 'PURCHASE_CONFIRMED'
+          AND NVL(o.CANCEL_STATUS, 'NONE') NOT IN ('CANCEL_REQUESTED', 'CANCEL_ACCEPTED')
+          AND EXISTS (
+              SELECT 1
+              FROM OFT_DELIVERY d
+              WHERE d.ORDER_NO = o.ORDER_NO
+                AND d.DELIVERED_AT IS NOT NULL
+                AND d.DELIVERED_AT <= SYSTIMESTAMP - NUMTODSINTERVAL(7, 'DAY')
+          )
+    </update>
+
     <insert id="insertOrderCancelRequest" parameterType="map">
         INSERT INTO OFT_ORDER_CANCEL_REQUEST (
             ORDER_NO,

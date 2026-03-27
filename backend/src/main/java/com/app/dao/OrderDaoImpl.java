@@ -107,6 +107,16 @@ public class OrderDaoImpl implements OrderDao {
     }
 
     @Override
+    public int autoConfirmEligiblePurchasesByUser(Long userNo) {
+        return sqlSessionTemplate.update(NAMESPACE + "autoConfirmEligiblePurchasesByUser", userNo);
+    }
+
+    @Override
+    public int autoConfirmEligiblePurchases() {
+        return sqlSessionTemplate.update(NAMESPACE + "autoConfirmEligiblePurchases");
+    }
+
+    @Override
     public int insertOrderCancelRequest(Long orderNo, Long requestedByUserNo, String cancelStatus, String requestReason) {
         Map<String, Object> params = new HashMap<>();
         params.put("orderNo", orderNo);

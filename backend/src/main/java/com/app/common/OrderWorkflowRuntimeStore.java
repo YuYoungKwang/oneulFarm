@@ -23,15 +23,7 @@ public class OrderWorkflowRuntimeStore {
             if (runtimeState.cancelStatus != null) {
                 order.setCancelStatus(runtimeState.cancelStatus);
             }
-            if (runtimeState.purchaseConfirmStatus != null) {
-                order.setPurchaseConfirmStatus(runtimeState.purchaseConfirmStatus);
-            }
-            if (runtimeState.purchaseConfirmedAt != null) {
-                order.setPurchaseConfirmedAt(runtimeState.purchaseConfirmedAt);
-            }
         }
-
-        applyAutoPurchaseConfirmation(order);
     }
 
     public void markCancelRequested(Long orderNo) {
@@ -83,25 +75,6 @@ public class OrderWorkflowRuntimeStore {
             next.purchaseConfirmedAt = LocalDateTime.now();
             return next;
         });
-    }
-
-    private void applyAutoPurchaseConfirmation(OrderDto order) {
-        if (order.getDeliveredAt() == null) {
-            return;
-        }
-
-        if ("PURCHASE_CONFIRMED".equals(order.getPurchaseConfirmStatus())
-            && order.getPurchaseConfirmedAt() != null) {
-            return;
-        }
-
-        LocalDateTime autoConfirmedAt = order.getDeliveredAt().plusDays(7);
-        if (!autoConfirmedAt.isAfter(LocalDateTime.now())) {
-            order.setPurchaseConfirmStatus("PURCHASE_CONFIRMED");
-            if (order.getPurchaseConfirmedAt() == null) {
-                order.setPurchaseConfirmedAt(autoConfirmedAt);
-            }
-        }
     }
 
     private static final class RuntimeState {
