@@ -373,7 +373,7 @@
               FROM OFT_DELIVERY d
               WHERE d.ORDER_NO = o.ORDER_NO
                 AND d.DELIVERED_AT IS NOT NULL
-                AND d.DELIVERED_AT <= SYSTIMESTAMP - NUMTODSINTERVAL(7, 'DAY')
+                AND d.DELIVERED_AT &lt;= SYSTIMESTAMP - NUMTODSINTERVAL(7, 'DAY')
           )
     </update>
 
@@ -393,7 +393,7 @@
               FROM OFT_DELIVERY d
               WHERE d.ORDER_NO = o.ORDER_NO
                 AND d.DELIVERED_AT IS NOT NULL
-                AND d.DELIVERED_AT <= SYSTIMESTAMP - NUMTODSINTERVAL(7, 'DAY')
+                AND d.DELIVERED_AT &lt;= SYSTIMESTAMP - NUMTODSINTERVAL(7, 'DAY')
           )
     </update>
 
