@@ -10,6 +10,7 @@ import { addCartItemToApi, fetchProductsFromApi } from './api/productApi';
 import { persistValue, readStoredValue } from './components/productUiUtils';
 
 const ORDER_API_PATH = '/api/orders';
+const CLIENT_ORDER_STATUS_FILTERS = new Set(['PURCHASE_PENDING', 'PURCHASE_CONFIRMED']);
 const DASHBOARD_API_PATH = '/api/dashboard';
 const USER_API_PATH = '/api/users';
 const ADDRESS_API_PATH = '/api/users/me/addresses';
@@ -451,11 +452,15 @@ function AccountApp({ authUser: initialAuthUser }) {
       setOrdersLoading(true);
       setOrdersError('');
 
-      try {
-        const query = new URLSearchParams();
-        if (appliedOrderFilters.deliveryStatus && appliedOrderFilters.deliveryStatus !== 'ALL') {
-          query.set('deliveryStatus', appliedOrderFilters.deliveryStatus);
-        }
+        try {
+          const query = new URLSearchParams();
+          if (
+            appliedOrderFilters.deliveryStatus &&
+            appliedOrderFilters.deliveryStatus !== 'ALL' &&
+            !CLIENT_ORDER_STATUS_FILTERS.has(appliedOrderFilters.deliveryStatus)
+          ) {
+            query.set('deliveryStatus', appliedOrderFilters.deliveryStatus);
+          }
         if (appliedOrderFilters.dateFrom) {
           query.set('dateFrom', appliedOrderFilters.dateFrom);
         }
@@ -1210,9 +1215,13 @@ function AccountApp({ authUser: initialAuthUser }) {
     setAppliedOrderFilters(EMPTY_ORDER_FILTERS);
   }
 
-  async function refreshOrdersAndDetail(targetOrderNo = selectedOrderNo) {
-    const query = new URLSearchParams();
-    if (appliedOrderFilters.deliveryStatus && appliedOrderFilters.deliveryStatus !== 'ALL') {
+    async function refreshOrdersAndDetail(targetOrderNo = selectedOrderNo) {
+      const query = new URLSearchParams();
+    if (
+      appliedOrderFilters.deliveryStatus &&
+      appliedOrderFilters.deliveryStatus !== 'ALL' &&
+      !CLIENT_ORDER_STATUS_FILTERS.has(appliedOrderFilters.deliveryStatus)
+    ) {
       query.set('deliveryStatus', appliedOrderFilters.deliveryStatus);
     }
     if (appliedOrderFilters.dateFrom) {
@@ -1691,6 +1700,7 @@ function AccountApp({ authUser: initialAuthUser }) {
             ordersLoading={ordersLoading}
             ordersError={ordersError}
             orderFilters={orderFilters}
+            appliedOrderFilters={appliedOrderFilters}
             selectedOrderNo={selectedOrderNo}
             orderDetail={orderDetail}
             detailLoading={detailLoading}

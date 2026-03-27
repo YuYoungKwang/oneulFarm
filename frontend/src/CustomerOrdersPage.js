@@ -13,6 +13,8 @@ const DELIVERY_FILTER_OPTIONS = [
   { value: 'READY', label: '배송 준비' },
   { value: 'SHIPPING', label: '배송 중' },
   { value: 'DELIVERED', label: '배송 완료' },
+  { value: 'PURCHASE_PENDING', label: '구매 확정 대기' },
+  { value: 'PURCHASE_CONFIRMED', label: '구매 확정 완료' },
 ];
 
 const ORDER_STATUS_LABELS = {
@@ -113,6 +115,26 @@ function getPurchaseConfirmTone(order) {
   return 'is-neutral';
 }
 
+function matchesAppliedFilter(order, filterValue) {
+  if (!filterValue || filterValue === 'ALL') {
+    return true;
+  }
+
+  if (filterValue === 'PURCHASE_PENDING') {
+    return (
+      order?.cancelStatus !== 'CANCEL_ACCEPTED' &&
+      order?.purchaseConfirmStatus === 'PURCHASE_PENDING' &&
+      (order?.normalizedDeliveryStatus || order?.deliveryStatus) === 'DELIVERED'
+    );
+  }
+
+  if (filterValue === 'PURCHASE_CONFIRMED') {
+    return order?.cancelStatus !== 'CANCEL_ACCEPTED' && order?.purchaseConfirmStatus === 'PURCHASE_CONFIRMED';
+  }
+
+  return true;
+}
+
 function buildSummary(orders) {
   return {
     totalCount: orders.length,
@@ -154,6 +176,7 @@ function CustomerOrdersPage({
   ordersLoading,
   ordersError,
   orderFilters,
+  appliedOrderFilters,
   selectedOrderNo,
   orderDetail,
   detailLoading,
@@ -169,6 +192,7 @@ function CustomerOrdersPage({
   orderActionError,
 }) {
   const summary = buildSummary(orders);
+  const filteredOrders = orders.filter((order) => matchesAppliedFilter(order, appliedOrderFilters?.deliveryStatus));
   const detailColumnRef = useRef(null);
 
   useEffect(() => {
@@ -293,13 +317,13 @@ function CustomerOrdersPage({
             </article>
           )}
 
-          {!ordersLoading && !ordersError && orders.length === 0 && (
+          {!ordersLoading && !ordersError && filteredOrders.length === 0 && (
             <article className="customer-orders__feedback-card">조건에 맞는 주문이 없습니다.</article>
           )}
 
-          {!ordersLoading && !ordersError && orders.length > 0 && (
+          {!ordersLoading && !ordersError && filteredOrders.length > 0 && (
             <div className="customer-orders__list">
-              {orders.map((order) => {
+              {filteredOrders.map((order) => {
                 const isSelected = selectedOrderNo === order.orderNo;
                 const cancelStatusLabel = getCancelStatusLabel(order);
                 const purchaseConfirmLabel = getPurchaseConfirmLabel(order);
