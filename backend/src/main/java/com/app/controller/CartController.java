@@ -14,7 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.app.common.ApiResponse;
 import com.app.dto.CartDto;
-import com.app.dto.CartItemDto;
+import com.app.dto.CartGroupRequestDto;
+import com.app.dto.CartItemRequestDto;
 import com.app.service.CartService;
 
 @RestController
@@ -34,7 +35,7 @@ public class CartController {
     @PostMapping(value = "/me/items", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ApiResponse<CartDto> addCartItem(
         @RequestHeader("X-USER-NO") Long userNo,
-        @RequestBody CartItemDto request
+        @RequestBody CartItemRequestDto request
     ) {
         return ApiResponse.success(
             cartService.addCartItem(userNo, request.getProductNo(), request.getQuantity()),
@@ -42,24 +43,35 @@ public class CartController {
         );
     }
 
-    @PatchMapping(value = "/me/items/{productNo}", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ApiResponse<CartDto> updateCartItem(
+    @PostMapping(value = "/me/recipe-groups", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ApiResponse<CartDto> addRecipeCartGroup(
         @RequestHeader("X-USER-NO") Long userNo,
-        @PathVariable Long productNo,
-        @RequestBody CartItemDto request
+        @RequestBody CartGroupRequestDto request
     ) {
         return ApiResponse.success(
-            cartService.updateCartItem(userNo, productNo, request.getQuantity()),
+            cartService.addRecipeCartGroup(userNo, request),
+            "Recipe cart group added."
+        );
+    }
+
+    @PatchMapping(value = "/me/items/{cartItemNo}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ApiResponse<CartDto> updateCartItem(
+        @RequestHeader("X-USER-NO") Long userNo,
+        @PathVariable Long cartItemNo,
+        @RequestBody CartItemRequestDto request
+    ) {
+        return ApiResponse.success(
+            cartService.updateCartItem(userNo, cartItemNo, request.getQuantity()),
             "Cart updated."
         );
     }
 
-    @DeleteMapping("/me/items/{productNo}")
+    @DeleteMapping("/me/items/{cartItemNo}")
     public ApiResponse<CartDto> removeCartItem(
         @RequestHeader("X-USER-NO") Long userNo,
-        @PathVariable Long productNo
+        @PathVariable Long cartItemNo
     ) {
-        return ApiResponse.success(cartService.removeCartItem(userNo, productNo), "Cart item removed.");
+        return ApiResponse.success(cartService.removeCartItem(userNo, cartItemNo), "Cart item removed.");
     }
 
     @DeleteMapping("/me/items")

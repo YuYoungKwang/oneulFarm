@@ -5,19 +5,19 @@ const FALLBACK_SLIDES = [
   {
     key: "seasonal",
     eyebrow: "Seasonal Pick",
-    title: "제철추천",
-    desc: "지금 가장 신선한 제철 품목을 메인에서 먼저 보고 바로 상품으로 이어집니다.",
-    primaryLabel: "제철 상품 보기",
+    title: "제철 추천",
+    desc: "지금 가장 신선한 제철 재료와 연결되는 추천 정보를 먼저 보여드립니다.",
+    primaryLabel: "제철 재료 보기",
     primaryHref: "#/products?tag=SEASONAL",
-    secondaryLabel: "오늘 추천상품",
-    secondaryHref: "#main-recommended-products",
+    secondaryLabel: "상품 전체 보기",
+    secondaryHref: "#/products",
     imageUrl: buildFallbackArtwork("seasonal"),
   },
   {
     key: "sale",
     eyebrow: "Special Price",
-    title: "특가 할인상품",
-    desc: "가격 메리트가 큰 상품만 먼저 확인하고 오늘 장보기 비용을 더 가볍게 정리합니다.",
+    title: "특가 추천",
+    desc: "가격 메리트가 좋은 상품과 바로 이어지는 추천 구성을 확인할 수 있습니다.",
     primaryLabel: "특가 상품 보기",
     primaryHref: "#/products?tag=UNDER_AVG",
     secondaryLabel: "상품 전체 보기",
@@ -27,12 +27,12 @@ const FALLBACK_SLIDES = [
   {
     key: "recipe",
     eyebrow: "Recipe Match",
-    title: "인기 추천레시피",
-    desc: "지금 많이 보는 품목과 연결되는 레시피를 메인에서 바로 이어서 볼 수 있습니다.",
+    title: "인기 레시피",
+    desc: "지금 많이 보는 레시피와 연결되는 메뉴를 메인에서 바로 확인할 수 있습니다.",
     primaryLabel: "레시피 보러가기",
     primaryHref: "#/recipes",
     secondaryLabel: "추천 레시피",
-    secondaryHref: "#main-recommended-recipes",
+    secondaryHref: "#/recipes",
     imageUrl: buildFallbackArtwork("recipe"),
   },
 ];
@@ -85,7 +85,7 @@ function normalizeSlides(slides) {
   }));
 }
 
-const HeroSlider = ({ slides }) => {
+export default function HeroSlider({ slides }) {
   const normalizedSlides = useMemo(() => normalizeSlides(slides), [slides]);
   const [index, setIndex] = useState(0);
 
@@ -111,9 +111,9 @@ const HeroSlider = ({ slides }) => {
         <span className="hero-banner__eyebrow">{currentSlide.eyebrow}</span>
 
         <h1 className="hero-banner__title">
-          오늘팜에서
+          오늘의
           <br />
-          <span>{currentSlide.title}</span>입니다
+          <span>{currentSlide.title}</span>
         </h1>
 
         <p className="hero-banner__desc">{currentSlide.desc}</p>
@@ -145,6 +145,4 @@ const HeroSlider = ({ slides }) => {
       </div>
     </section>
   );
-};
-
-export default HeroSlider;
+}

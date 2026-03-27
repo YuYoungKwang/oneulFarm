@@ -1713,8 +1713,233 @@ function DashboardPage({
 }
 
 // eslint-disable-next-line no-unused-vars
-function LegacyProductsPage() {
-  return null;
+function LegacyProductsPage({
+  categories,
+  products,
+  selectedProductNo,
+  productFilter,
+  productForm,
+  productImagePreviews,
+  onSelectProduct,
+  onProductFilterChange,
+  onProductFormChange,
+  onProductImagesChange,
+  onClearProductImages,
+  onResetProductForm,
+  onRetireProduct,
+  onSaveProduct,
+  submitting,
+}) {
+  const filteredProducts = products.filter((product) => {
+    if (productFilter === 'ALL') {
+      return true;
+    }
+    if (productFilter === 'LOW_STOCK') {
+      return toNumber(product.stockQty, 0) <= 10;
+    }
+    if (productFilter === 'SEASONAL') {
+      return product.isSeasonal === 'Y';
+    }
+    return product.saleStatus === productFilter;
+  });
+
+  return (
+    <>
+      <AdminPageHeader
+        title="상품 관리"
+        description="상품 등록, 수정, 재고 현황을 관리하는 화면"
+        actions={
+          <>
+            <button type="button" className="admin-action admin-action--line" onClick={onClearProductImages}>
+              엑셀 업로드
+            </button>
+            <button type="button" className="admin-action admin-action--primary" onClick={onResetProductForm}>
+              상품 등록
+            </button>
+          </>
+        }
+      />
+
+      <div className="admin-filter-row">
+        {[
+          ['ALL', '전체'],
+          ['SELLING', '판매중'],
+          ['STOP', '판매중지'],
+          ['LOW_STOCK', '재고부족'],
+          ['SEASONAL', '제철상품'],
+        ].map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            className={`admin-filter-chip ${productFilter === value ? 'is-active' : ''}`}
+            onClick={() => onProductFilterChange(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <section className="admin-grid admin-grid--2">
+        <article className="admin-card admin-card--panel">
+          <h2>상품 목록</h2>
+          <table className="admin-table admin-table--clickable">
+            <thead>
+              <tr>
+                <th>상품</th>
+                <th>카테고리</th>
+                <th>판매가</th>
+                <th>재고</th>
+                <th>상태</th>
+                <th>관리</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProducts.map((product) => (
+                <tr
+                  key={product.productNo}
+                  className={product.productNo === selectedProductNo ? 'is-selected' : ''}
+                  onClick={() => onSelectProduct(product)}
+                >
+                  <td>{product.productName}</td>
+                  <td>{product.categoryName}</td>
+                  <td>{formatAdminCurrency(product.salePrice)}</td>
+                  <td>{formatAdminCount(product.stockQty, '개')}</td>
+                  <td><AdminStatusBadge status={product.saleStatus} /></td>
+                  <td className="admin-table__actions">
+                    <button
+                      type="button"
+                      className="admin-action admin-action--danger"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onRetireProduct(product);
+                      }}
+                      disabled={submitting}
+                    >
+                      영구삭제
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </article>
+
+        <article className="admin-card admin-card--panel">
+          <h2>상품 등록 / 수정</h2>
+          <div className="admin-form-grid">
+            <label>
+              <span>상품명</span>
+              <input name="productName" value={productForm.productName} onChange={onProductFormChange} />
+            </label>
+            <label>
+              <span>카테고리</span>
+              <select name="categoryNo" value={productForm.categoryNo} onChange={onProductFormChange}>
+                <option value="">선택</option>
+                {categories.map((category) => (
+                  <option key={category.categoryNo} value={category.categoryNo}>
+                    {category.categoryName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>판매가</span>
+              <input name="salePrice" value={productForm.salePrice} onChange={onProductFormChange} />
+            </label>
+            <label>
+              <span>재고 수량</span>
+              <input name="stockQty" value={productForm.stockQty} onChange={onProductFormChange} />
+            </label>
+            <label>
+              <span>원산지</span>
+              <input name="origin" value={productForm.origin} onChange={onProductFormChange} />
+            </label>
+            <label>
+              <span>단위</span>
+              <input name="unit" value={productForm.unit} onChange={onProductFormChange} />
+            </label>
+            <label>
+              <span>포장 중량</span>
+              <input name="packageWeight" value={productForm.packageWeight} onChange={onProductFormChange} />
+            </label>
+            <label>
+              <span>판매 상태</span>
+              <select name="saleStatus" value={productForm.saleStatus} onChange={onProductFormChange}>
+                <option value="READY">준비</option>
+                <option value="SELLING">판매중</option>
+                <option value="SOLD_OUT">품절</option>
+                <option value="STOP">판매중지</option>
+              </select>
+            </label>
+            <label>
+              <span>제철 상품</span>
+              <select name="isSeasonal" value={productForm.isSeasonal} onChange={onProductFormChange}>
+                <option value="N">일반</option>
+                <option value="Y">제철</option>
+              </select>
+            </label>
+          </div>
+          <label className="admin-form-field admin-form-field--full">
+            <span>상품 설명</span>
+            <textarea name="description" value={productForm.description} onChange={onProductFormChange} />
+          </label>
+          <div className="admin-form-field admin-form-field--full">
+            <span>상품 이미지</span>
+            <label className="admin-file-upload">
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={onProductImagesChange}
+              />
+              <strong>이미지 선택</strong>
+              <small>최소 1장 필수 · 여러 장 업로드 가능</small>
+            </label>
+            <div className="admin-file-upload__hint">
+              권장 사이즈: 1200 x 1200px 이상 / 정사각형 비율 / JPG, PNG, WEBP
+            </div>
+            <div className="admin-page-actions">
+              <button type="button" className="admin-action admin-action--line" onClick={onClearProductImages}>
+                선택 이미지 초기화
+              </button>
+            </div>
+            {productImagePreviews.length ? (
+              <div className="admin-image-preview-grid">
+                {productImagePreviews.map((image, index) => (
+                  <article className="admin-image-preview" key={image.key || image.imageNo || index}>
+                    <div className="admin-image-preview__thumb">
+                      <img
+                        src={image.previewUrl}
+                        alt={image.name || `상품 이미지 ${index + 1}`}
+                      />
+                    </div>
+                    <div className="admin-image-preview__meta">
+                      <strong>{image.name || `상품 이미지 ${index + 1}`}</strong>
+                      <span>{image.isMain ? '대표 이미지' : `추가 이미지 ${index + 1}`}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="admin-image-empty">
+                등록된 이미지가 없습니다. 상품 이미지는 최소 1장 이상 필요합니다.
+              </div>
+            )}
+          </div>
+          <div className="admin-page-actions admin-page-actions--end">
+            <button type="button" className="admin-action admin-action--line" disabled>
+              이미지 업로드
+            </button>
+            <button type="button" className="admin-action admin-action--soft" onClick={onResetProductForm}>
+              초기화
+            </button>
+            <button type="button" className="admin-action admin-action--primary" onClick={onSaveProduct} disabled={submitting}>
+              {submitting ? '저장 중...' : '저장'}
+            </button>
+          </div>
+        </article>
+      </section>
+    </>
+  );
 }
 
 function OrdersPage({

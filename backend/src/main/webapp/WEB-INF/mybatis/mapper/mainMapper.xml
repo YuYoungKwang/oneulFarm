@@ -34,4 +34,169 @@
         ORDER BY P.CREATED_AT DESC
     </select>
 
+    <resultMap id="SeasonalProductCardResultMap" type="com.app.dto.main.SeasonalProductCardDto">
+        <result property="avgPrice" column="avgPrice" />
+        <association property="product" javaType="com.app.dto.main.ProductDto">
+            <id property="productNo" column="productNo" />
+            <result property="productName" column="productName" />
+            <result property="salePrice" column="salePrice" />
+            <result property="imageUrl" column="imageUrl" />
+            <result property="imageNo" column="imageNo" />
+        </association>
+    </resultMap>
+
+    <resultMap id="LinkedRecipeResultMap" type="com.app.dto.main.LinkedRecipeDto">
+        <id property="recipeNo" column="recipeNo" />
+        <result property="recipeName" column="recipeName" />
+    </resultMap>
+
+    <resultMap id="PopularRecipeCardResultMap" type="com.app.dto.main.PopularRecipeCardDto">
+        <id property="recipeNo" column="recipeNo" />
+        <result property="recipeName" column="recipeName" />
+        <result property="imageUrl" column="imageUrl" />
+    </resultMap>
+
+    <select id="selectSeasonalRecommendationProducts" parameterType="map" resultMap="SeasonalProductCardResultMap">
+        WITH latest_match AS (
+            SELECT
+                ppm.PRODUCT_NO,
+                ps.AVG_PRICE,
+                ps.SNAPSHOT_DATE,
+                ROW_NUMBER() OVER (
+                    PARTITION BY ppm.PRODUCT_NO
+                    ORDER BY ps.SNAPSHOT_DATE DESC, ps.SNAPSHOT_NO DESC
+                ) AS rn
+            FROM OFT_PRODUCT_PRICE_MATCH ppm
+            JOIN OFT_PRICE_SNAPSHOT ps
+              ON ps.SNAPSHOT_NO = ppm.SNAPSHOT_NO
+        ),
+        main_image AS (
+            SELECT
+                pi.PRODUCT_NO,
+                pi.IMAGE_NO,
+                ROW_NUMBER() OVER (
+                    PARTITION BY pi.PRODUCT_NO
+                    ORDER BY CASE WHEN pi.IS_MAIN = 'Y' THEN 0 ELSE 1 END, pi.IMAGE_NO ASC
+                ) AS rn
+            FROM OFT_PRODUCT_IMAGE pi
+        )
+        SELECT
+            productNo,
+            productName,
+            salePrice,
+            avgPrice,
+            imageNo,
+            imageUrl
+        FROM (
+            SELECT
+                p.PRODUCT_NO AS productNo,
+                p.PRODUCT_NAME AS productName,
+                p.SALE_PRICE AS salePrice,
+                lm.AVG_PRICE AS avgPrice,
+                mi.IMAGE_NO AS imageNo,
+                CASE
+                    WHEN mi.IMAGE_NO IS NOT NULL THEN '/api/image/product/' || mi.IMAGE_NO
+                    ELSE ''
+                END AS imageUrl,
+                ROW_NUMBER() OVER (
+                    ORDER BY
+                        CASE
+                            WHEN lm.AVG_PRICE IS NOT NULL
+                             AND lm.AVG_PRICE > 0
+                             AND p.SALE_PRICE &lt; lm.AVG_PRICE
+                            THEN ((lm.AVG_PRICE - p.SALE_PRICE) / lm.AVG_PRICE)
+                            ELSE 0
+                        END DESC,
+                        p.UPDATED_AT DESC NULLS LAST,
+                        p.CREATED_AT DESC,
+                        p.PRODUCT_NO DESC
+                ) AS rowNo
+            FROM OFT_PRODUCT p
+            LEFT JOIN latest_match lm
+              ON lm.PRODUCT_NO = p.PRODUCT_NO
+             AND lm.rn = 1
+            LEFT JOIN main_image mi
+              ON mi.PRODUCT_NO = p.PRODUCT_NO
+             AND mi.rn = 1
+            WHERE p.IS_SEASONAL = 'Y'
+              AND p.SALE_STATUS = 'SELLING'
+        )
+        WHERE rowNo <![CDATA[<=]]> #{limit}
+        ORDER BY rowNo
+    </select>
+
+    <select id="selectLinkedRecipesByProductName" parameterType="map" resultMap="LinkedRecipeResultMap">
+        SELECT
+            recipeNo,
+            recipeName
+        FROM (
+            SELECT
+                r.RECIPE_NO AS recipeNo,
+                r.RECIPE_NAME AS recipeName,
+                ROW_NUMBER() OVER (
+                    ORDER BY NVL(rv.reviewCount, 0) DESC, r.RECIPE_NO DESC
+                ) AS rowNo
+            FROM OFT_RECIPE r
+            JOIN OFT_RECIPE_INGREDIENT ri
+              ON ri.RECIPE_NO = r.RECIPE_NO
+            LEFT JOIN (
+                SELECT
+                    RECIPE_NO,
+                    COUNT(*) AS reviewCount
+                FROM OFT_REVIEW
+                WHERE RECIPE_NO IS NOT NULL
+                  AND DELETED_AT IS NULL
+                GROUP BY RECIPE_NO
+            ) rv
+              ON rv.RECIPE_NO = r.RECIPE_NO
+            WHERE UPPER(ri.INGREDIENT_NAME) LIKE '%' || UPPER(#{productName}) || '%'
+        )
+        WHERE rowNo <![CDATA[<=]]> #{limit}
+        ORDER BY rowNo
+    </select>
+
+    <select id="selectPopularRecipes" parameterType="map" resultMap="PopularRecipeCardResultMap">
+        SELECT
+            recipeNo,
+            recipeName,
+            imageUrl
+        FROM (
+            SELECT
+                r.RECIPE_NO AS recipeNo,
+                r.RECIPE_NAME AS recipeName,
+                r.IMAGE_URL AS imageUrl,
+                ROW_NUMBER() OVER (
+                    ORDER BY NVL(rv.reviewCount, 0) DESC, r.RECIPE_NO DESC
+                ) AS rowNo
+            FROM OFT_RECIPE r
+            LEFT JOIN (
+                SELECT
+                    RECIPE_NO,
+                    COUNT(*) AS reviewCount
+                FROM OFT_REVIEW
+                WHERE RECIPE_NO IS NOT NULL
+                  AND DELETED_AT IS NULL
+                GROUP BY RECIPE_NO
+            ) rv
+              ON rv.RECIPE_NO = r.RECIPE_NO
+        )
+        WHERE rowNo <![CDATA[<=]]> #{limit}
+        ORDER BY rowNo
+    </select>
+
+    <select id="selectMatchedIngredientsByRecipeNo" parameterType="map" resultType="string">
+        SELECT ingredientName
+        FROM (
+            SELECT
+                ri.INGREDIENT_NAME AS ingredientName,
+                ROW_NUMBER() OVER (
+                    ORDER BY ri.INGREDIENT_NO ASC
+                ) AS rowNo
+            FROM OFT_RECIPE_INGREDIENT ri
+            WHERE ri.RECIPE_NO = #{recipeNo}
+        )
+        WHERE rowNo <![CDATA[<=]]> #{limit}
+        ORDER BY rowNo
+    </select>
+
 </mapper>

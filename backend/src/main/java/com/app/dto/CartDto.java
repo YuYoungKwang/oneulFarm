@@ -11,6 +11,7 @@ import lombok.Setter;
 public class CartDto {
 
     private Long cartNo;
+    private List<CartGroupDto> groups;
     private List<CartItemDto> items;
     private Integer totalQuantity;
     private BigDecimal totalAmount;
