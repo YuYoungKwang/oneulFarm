@@ -69,10 +69,16 @@ function buildTrackingSteps(detail) {
         deliveryStatus === 'DELIVERED',
     },
     {
+      key: 'pickup',
+      label: '집하 완료',
+      value: detail?.pickedUpAt,
+      active: deliveryStatus === 'PICKED_UP' || deliveryStatus === 'IN_TRANSIT' || deliveryStatus === 'DELIVERED',
+    },
+    {
       key: 'transit',
       label: '배송 중',
       value: detail?.inTransitAt,
-      active: deliveryStatus === 'PICKED_UP' || deliveryStatus === 'IN_TRANSIT' || deliveryStatus === 'DELIVERED',
+      active: deliveryStatus === 'IN_TRANSIT' || deliveryStatus === 'DELIVERED',
     },
     {
       key: 'delivered',
