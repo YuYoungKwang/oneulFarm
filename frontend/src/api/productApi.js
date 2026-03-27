@@ -206,7 +206,7 @@ function buildReviews(rawReviews = []) {
   }));
 }
 
-function buildProductModel(rawProduct) {
+export function buildProductModel(rawProduct) {
   const display = buildDisplay(rawProduct.productNo);
   const images = enrichProductImages(buildGalleryItems(rawProduct, display));
   const avgPrice = toNumber(rawProduct.avgPrice, toNumber(rawProduct.salePrice, 0));

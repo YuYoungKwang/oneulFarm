@@ -61,12 +61,23 @@ public class NaverDataLabServiceImpl implements NaverDataLabService {
         String endDate,
         String timeUnit
     ) {
-        validateCredentials();
-
         List<String> resolvedKeywordList = normalizeKeywordList(keywordList);
         String resolvedEndDate = resolveEndDate(endDate);
         String resolvedStartDate = resolveStartDate(startDate, resolvedEndDate);
         String resolvedTimeUnit = resolveTimeUnit(timeUnit);
+
+        if (!hasCredentials()) {
+            logger.warn(
+                "Naver DataLab credentials are missing. Skip DataLab request and return empty result. keywords={}",
+                resolvedKeywordList
+            );
+            return buildEmptySearchTrendResponse(
+                resolvedKeywordList,
+                resolvedStartDate,
+                resolvedEndDate,
+                resolvedTimeUnit
+            );
+        }
 
         logger.info(
             "Naver DataLab request - keywords={}, startDate={}, endDate={}, timeUnit={}",
@@ -92,12 +103,8 @@ public class NaverDataLabServiceImpl implements NaverDataLabService {
         );
     }
 
-    private void validateCredentials() {
-        if (isBlank(naverClientId) || isBlank(naverClientSecret)) {
-            throw new IllegalStateException(
-                "Naver DataLab credentials are missing. Check naver.datalab.clientId and naver.datalab.clientSecret in api.properties."
-            );
-        }
+    private boolean hasCredentials() {
+        return !isBlank(naverClientId) && !isBlank(naverClientSecret);
     }
 
     private List<String> normalizeKeywordList(List<String> keywordList) {
@@ -256,6 +263,22 @@ public class NaverDataLabServiceImpl implements NaverDataLabService {
         } catch (IOException exception) {
             throw new IllegalStateException("Failed to parse Naver DataLab response.", exception);
         }
+    }
+
+    private Map<String, Object> buildEmptySearchTrendResponse(
+        List<String> keywordList,
+        String startDate,
+        String endDate,
+        String timeUnit
+    ) {
+        Map<String, Object> responseData = new LinkedHashMap<String, Object>();
+        responseData.put("startDate", startDate);
+        responseData.put("endDate", endDate);
+        responseData.put("timeUnit", timeUnit);
+        responseData.put("keywordList", keywordList);
+        responseData.put("count", Integer.valueOf(0));
+        responseData.put("popularSearchList", new ArrayList<Map<String, Object>>());
+        return responseData;
     }
 
     private Map<String, Object> buildPopularSearchItem(JsonNode resultNode) {
