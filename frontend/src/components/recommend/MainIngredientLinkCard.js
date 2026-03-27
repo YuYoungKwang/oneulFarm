@@ -12,7 +12,7 @@ export default function MainIngredientLinkCard({
   primaryLabel,
 }) {
   const product = item?.product || null;
-  const recipeList = Array.isArray(item?.linkedRecipes) ? item.linkedRecipes.slice(0, 2) : [];
+  const recipeList = Array.isArray(item?.linkedRecipes) ? item.linkedRecipes.slice(0, 4) : [];
   const primaryRecipe = recipeList[0] || null;
 
   const badgeLabel =

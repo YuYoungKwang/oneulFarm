@@ -26,11 +26,6 @@ export default function RecommendProductCard({
   const productName = title || product?.productName || "추천 상품";
   const displaySymbol = product?.display?.symbol || "P";
   const salePrice = Number(product?.salePrice || 0);
-  const averagePrice = Number(
-    product?.priceSnapshot?.displayAvgPrice ||
-      product?.priceSnapshot?.avgPrice ||
-      salePrice
-  );
   const savingRate = Number(product?.priceMatch?.savingRate || 0);
   const imageSources = buildProductImageSources(product);
   const hasMetric = Boolean(metricLabel && metricValue);

@@ -8,6 +8,9 @@ public class PopularRecipeCardDto {
     private Long recipeNo;
     private String recipeName;
     private String summary = "";
+    private String categoryLabel = "";
+    private String sourceKeyword = "";
+    private boolean datalabDriven;
     private List<String> matchedIngredients = new ArrayList<String>();
     private String imageUrl = "";
 
@@ -33,6 +36,30 @@ public class PopularRecipeCardDto {
 
     public void setSummary(String summary) {
         this.summary = summary == null ? "" : summary;
+    }
+
+    public String getCategoryLabel() {
+        return categoryLabel;
+    }
+
+    public void setCategoryLabel(String categoryLabel) {
+        this.categoryLabel = categoryLabel == null ? "" : categoryLabel;
+    }
+
+    public String getSourceKeyword() {
+        return sourceKeyword;
+    }
+
+    public void setSourceKeyword(String sourceKeyword) {
+        this.sourceKeyword = sourceKeyword == null ? "" : sourceKeyword;
+    }
+
+    public boolean isDatalabDriven() {
+        return datalabDriven;
+    }
+
+    public void setDatalabDriven(boolean datalabDriven) {
+        this.datalabDriven = datalabDriven;
     }
 
     public List<String> getMatchedIngredients() {

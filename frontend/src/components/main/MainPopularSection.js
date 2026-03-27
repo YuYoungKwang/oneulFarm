@@ -39,70 +39,139 @@ function openRecipeListByIngredient(ingredientKeyword) {
   )}`;
 }
 
-function getRecipeItem(recipe) {
-  const firstIngredient = Array.isArray(recipe?.matchedIngredients)
-    ? recipe.matchedIngredients.find(Boolean)
+function buildGroupDescription(group) {
+  const sourceKeyword = String(group?.sourceKeyword || "").trim();
+  const categories = Array.isArray(group?.categoryLabels)
+    ? group.categoryLabels.filter(Boolean).join(", ")
     : "";
-  const normalizedIngredient = normalizeIngredientKeyword(firstIngredient);
 
+  if (group?.datalabDriven && sourceKeyword && categories) {
+    return `네이버 데이터랩 인기 검색어 "${sourceKeyword}" 기준으로 ${categories} 레시피를 모았습니다.`;
+  }
+
+  if (group?.datalabDriven && sourceKeyword) {
+    return `네이버 데이터랩 인기 검색어 "${sourceKeyword}" 기준으로 관련 레시피를 모았습니다.`;
+  }
+
+  if (categories) {
+    return `${categories} 분류 중심으로 관련 레시피를 모았습니다.`;
+  }
+
+  return "관련 레시피를 한 번에 확인할 수 있어요.";
+}
+
+function groupPopularItems(items) {
+  const groupMap = new Map();
+
+  items.forEach((recipe) => {
+    const firstIngredient = Array.isArray(recipe?.matchedIngredients)
+      ? recipe.matchedIngredients.find(Boolean)
+      : "";
+    const normalizedIngredient = normalizeIngredientKeyword(firstIngredient);
+    const sourceKeyword = String(recipe?.sourceKeyword || "").trim();
+    const groupKey =
+      sourceKeyword ||
+      normalizedIngredient ||
+      String(recipe?.categoryLabel || "").trim() ||
+      String(recipe?.recipeName || "").trim();
+
+    if (!groupKey) {
+      return;
+    }
+
+    if (!groupMap.has(groupKey)) {
+      groupMap.set(groupKey, {
+        key: groupKey,
+        sourceKeyword: sourceKeyword || groupKey,
+        ingredientKeyword: sourceKeyword || normalizedIngredient || groupKey,
+        datalabDriven: Boolean(recipe?.datalabDriven),
+        categoryLabels: [],
+        recipes: [],
+        imageUrl: recipe?.imageUrl || "",
+      });
+    }
+
+    const group = groupMap.get(groupKey);
+    group.datalabDriven = group.datalabDriven || Boolean(recipe?.datalabDriven);
+
+    if (recipe?.categoryLabel && !group.categoryLabels.includes(recipe.categoryLabel)) {
+      group.categoryLabels.push(recipe.categoryLabel);
+    }
+
+    if (recipe?.imageUrl && !group.imageUrl) {
+      group.imageUrl = recipe.imageUrl;
+    }
+
+    if (
+      recipe &&
+      !group.recipes.some(
+        (item) =>
+          (item?.recipeNo && item.recipeNo === recipe.recipeNo) ||
+          (item?.recipeName && item.recipeName === recipe.recipeName)
+      )
+    ) {
+      group.recipes.push(recipe);
+    }
+  });
+
+  return Array.from(groupMap.values());
+}
+
+function getRecipeItem(group) {
   return {
     product: {
-      productName: normalizedIngredient || "\uC7AC\uB8CC \uC815\uBCF4 \uC900\uBE44 \uC911",
+      productName: group.sourceKeyword || "인기 검색어",
     },
-    linkedRecipes: recipe ? [recipe] : [],
-    description:
-      recipe?.summary || "\uCD94\uCC9C \uBA54\uB274 \uC815\uBCF4\uB97C \uC900\uBE44 \uC911\uC785\uB2C8\uB2E4.",
-    ingredientKeyword: normalizedIngredient,
+    linkedRecipes: group.recipes,
+    description: buildGroupDescription(group),
+    ingredientKeyword: group.ingredientKeyword,
   };
 }
 
 export default function MainPopularSection({ items }) {
+  const groupedItems = groupPopularItems(Array.isArray(items) ? items : []);
+
   return (
     <section className="section" id="popular-section">
       <div className="section-head">
         <div>
-          <div className="section-title">
-            {"\uC9C0\uAE08 \uC778\uAE30 \uC788\uB294 \uBA54\uB274"}
-          </div>
+          <div className="section-title">지금 인기 있는 메뉴</div>
           <div className="section-sub">
-            {
-              "\uB9CE\uC774 \uCC3E\uB294 \uBA54\uB274\uB97C \uBCF4\uACE0 \uD544\uC694\uD55C \uC7AC\uB8CC\uC640 \uB808\uC2DC\uD53C \uC0C1\uC138 \uD398\uC774\uC9C0\uB97C \uC774\uC5B4\uC11C \uD655\uC778\uD560 \uC218 \uC788\uC5B4\uC694."
-            }
+            네이버 데이터랩 검색 흐름을 먼저 반영하고, 메인요리 반찬 국/찜/탕
+            면/파스타 밥/죽 샐러드 분류 안에서 관련 레시피를 묶어 보여줍니다.
           </div>
         </div>
         <a className="section-link section-link--recipes" href="#/recipes">
-          {"\uB808\uC2DC\uD53C \uC804\uCCB4 \uBCF4\uAE30"}
+          레시피 전체 보기
         </a>
       </div>
 
-      {items.length ? (
+      {groupedItems.length ? (
         <div className="main-link-card-grid">
-          {items.map((recipe) => {
-            const item = getRecipeItem(recipe);
+          {groupedItems.map((group) => {
+            const item = getRecipeItem(group);
+            const title = `${group.sourceKeyword || "인기 검색어"} 관련 레시피`;
 
             return (
-              <MainIngredientLinkCard
-                key={recipe.recipeNo || recipe.recipeName}
-                imageSources={recipe.imageUrl ? [recipe.imageUrl] : []}
-                item={item}
-                onImageError={handleImageError}
-                onOpenPrimary={() => openRecipeListByIngredient(item.ingredientKeyword)}
-                onOpenRecipe={openRecipe}
-                primaryLabel={"\uAD00\uB828 \uB808\uC2DC\uD53C \uBCF4\uAE30"}
-                title={recipe.recipeName || "\uC9C0\uAE08 \uC778\uAE30 \uC788\uB294 \uBA54\uB274"}
-                tone="recipe"
-              />
+              <div key={group.key}>
+                <MainIngredientLinkCard
+                  imageSources={group.imageUrl ? [group.imageUrl] : []}
+                  item={item}
+                  onImageError={handleImageError}
+                  onOpenPrimary={() => openRecipeListByIngredient(item.ingredientKeyword)}
+                  onOpenRecipe={openRecipe}
+                  primaryLabel="관련 레시피 보기"
+                  title={title}
+                  tone="recipe"
+                />
+              </div>
             );
           })}
         </div>
       ) : (
         <div className="recommend-section-empty">
-          <strong>{"\uCD94\uCC9C\uD560 \uBA54\uB274\uAC00 \uC544\uC9C1 \uC5C6\uC2B5\uB2C8\uB2E4."}</strong>
-          <p>
-            {
-              "\uB808\uC2DC\uD53C \uB370\uC774\uD130\uAC00 \uB354 \uBAA8\uC774\uBA74 \uC5EC\uAE30\uC5D0\uC11C \uBCF4\uC5EC\uB4DC\uB9B4\uAC8C\uC694."
-            }
-          </p>
+          <strong>추천할 메뉴가 아직 없습니다.</strong>
+          <p>레시피 데이터가 더 모이면 여기서 보여드릴게요.</p>
         </div>
       )}
     </section>
