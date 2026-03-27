@@ -95,6 +95,18 @@
         <result property="changedAt" column="changedAt" />
     </resultMap>
 
+    <resultMap id="CancelRequestHistoryResultMap" type="com.app.dto.CancelRequestHistoryDto">
+        <result property="cancelRequestNo" column="cancelRequestNo" />
+        <result property="orderNo" column="orderNo" />
+        <result property="requestedByUserNo" column="requestedByUserNo" />
+        <result property="cancelStatus" column="cancelStatus" />
+        <result property="requestReason" column="requestReason" />
+        <result property="decisionReason" column="decisionReason" />
+        <result property="decidedByUserNo" column="decidedByUserNo" />
+        <result property="requestedAt" column="requestedAt" />
+        <result property="decidedAt" column="decidedAt" />
+    </resultMap>
+
     <select id="selectMyOrders" parameterType="map" resultMap="OrderListResultMap">
         SELECT
             o.ORDER_NO AS orderNo,
@@ -284,6 +296,22 @@
         FROM OFT_ORDER_STATUS_HISTORY
         WHERE ORDER_NO = #{_parameter}
         ORDER BY CHANGED_AT ASC, ORDER_STATUS_HISTORY_NO ASC
+    </select>
+
+    <select id="selectCancelRequestHistories" parameterType="long" resultMap="CancelRequestHistoryResultMap">
+        SELECT
+            CANCEL_REQUEST_NO AS cancelRequestNo,
+            ORDER_NO AS orderNo,
+            REQUESTED_BY_USER_NO AS requestedByUserNo,
+            CANCEL_STATUS AS cancelStatus,
+            REQUEST_REASON AS requestReason,
+            DECISION_REASON AS decisionReason,
+            DECIDED_BY_USER_NO AS decidedByUserNo,
+            REQUESTED_AT AS requestedAt,
+            DECIDED_AT AS decidedAt
+        FROM OFT_ORDER_CANCEL_REQUEST
+        WHERE ORDER_NO = #{_parameter}
+        ORDER BY REQUESTED_AT ASC, CANCEL_REQUEST_NO ASC
     </select>
 
     <select id="countOrdersByOrderIdPrefix" parameterType="string" resultType="int">

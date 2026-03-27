@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
+import com.app.dto.CancelRequestHistoryDto;
 import com.app.dto.DeliveryDto;
 import com.app.dto.DeliveryTrackingHistoryDto;
 import com.app.dto.OrderDto;
@@ -24,6 +25,8 @@ public interface OrderDao {
     List<DeliveryTrackingHistoryDto> findDeliveryTrackingHistories(Long orderNo);
 
     List<OrderStatusHistoryDto> findOrderStatusHistories(Long orderNo);
+
+    List<CancelRequestHistoryDto> findCancelRequestHistories(Long orderNo);
 
     List<Long> findOrderPreviewImageNos(Long orderNo);
 

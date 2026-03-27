@@ -72,4 +72,5 @@ public class OrderDto {
     private List<OrderItemDto> items;
     private List<DeliveryTrackingHistoryDto> trackingHistories;
     private List<OrderStatusHistoryDto> orderStatusHistories;
+    private List<CancelRequestHistoryDto> cancelRequestHistories;
 }

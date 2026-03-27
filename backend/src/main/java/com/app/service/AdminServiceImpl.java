@@ -216,6 +216,7 @@ public class AdminServiceImpl implements AdminService {
         hydrateOrderRuntimeState(order);
         order.setTrackingHistories(orderDao.findDeliveryTrackingHistories(orderNo));
         order.setOrderStatusHistories(orderDao.findOrderStatusHistories(orderNo));
+        order.setCancelRequestHistories(orderDao.findCancelRequestHistories(orderNo));
         return order;
     }
 

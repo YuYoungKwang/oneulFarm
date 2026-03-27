@@ -117,6 +117,45 @@ function getOrderHistoryCopy(history) {
   return actorLabel;
 }
 
+function getCancelHistoryTitle(history) {
+  switch (history?.cancelStatus) {
+    case 'CANCEL_REQUESTED':
+      return '취소 요청';
+    case 'CANCEL_ACCEPTED':
+      return '취소 수락';
+    case 'CANCEL_REJECTED':
+      return '취소 거절';
+    default:
+      return history?.cancelStatus || '-';
+  }
+}
+
+function getCancelHistoryCopy(history) {
+  if (!history) {
+    return '';
+  }
+
+  if (history.cancelStatus === 'CANCEL_REQUESTED') {
+    return history.requestReason
+      ? `고객 · ${history.requestReason}`
+      : '고객이 취소를 요청했습니다.';
+  }
+
+  if (history.cancelStatus === 'CANCEL_ACCEPTED') {
+    return history.decisionReason
+      ? `운영자 · ${history.decisionReason}`
+      : '운영자가 취소 요청을 수락했습니다.';
+  }
+
+  if (history.cancelStatus === 'CANCEL_REJECTED') {
+    return history.decisionReason
+      ? `운영자 · ${history.decisionReason}`
+      : '운영자가 취소 요청을 거절했습니다.';
+  }
+
+  return '';
+}
+
 function resolveFilterStatus(order) {
   if (!order) return '';
   const cancelStatus = order.cancelStatus;
@@ -365,6 +404,30 @@ function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFi
                   ) : null}
                 </div>
               </section>
+
+              {(selectedOrderDetail.cancelRequestHistories || []).length ? (
+                <section className="admin-orders-v2__box">
+                  <div className="admin-orders-v2__box-head"><h3>취소 처리 이력</h3><span>{selectedOrderDetail.cancelRequestHistories?.length || 0}건</span></div>
+                  <div className="admin-orders-v2__history-list">
+                    {(selectedOrderDetail.cancelRequestHistories || []).map((history) => {
+                      const eventTime =
+                        history.cancelStatus === 'CANCEL_REQUESTED'
+                          ? history.requestedAt
+                          : history.decidedAt || history.requestedAt;
+
+                      return (
+                        <div key={history.cancelRequestNo} className="admin-orders-v2__history-card">
+                          <div className="admin-orders-v2__history-head">
+                            <strong>{getCancelHistoryTitle(history)}</strong>
+                            <span>{eventTime ? formatAdminDate(eventTime) : '-'}</span>
+                          </div>
+                          <div className="admin-orders-v2__history-copy">{getCancelHistoryCopy(history)}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              ) : null}
             </div>
           )}
         </article>

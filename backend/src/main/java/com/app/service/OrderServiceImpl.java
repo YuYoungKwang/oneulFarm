@@ -87,6 +87,7 @@ public class OrderServiceImpl implements OrderService {
         response.setItems(itemResponses);
         response.setTrackingHistories(orderDao.findDeliveryTrackingHistories(orderNo));
         response.setOrderStatusHistories(orderDao.findOrderStatusHistories(orderNo));
+        response.setCancelRequestHistories(orderDao.findCancelRequestHistories(orderNo));
         hydrateOrderRuntimeState(response);
         return response;
     }

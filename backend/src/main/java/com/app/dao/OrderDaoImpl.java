@@ -9,6 +9,7 @@ import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
+import com.app.dto.CancelRequestHistoryDto;
 import com.app.dto.DeliveryDto;
 import com.app.dto.DeliveryTrackingHistoryDto;
 import com.app.dto.OrderDto;
@@ -55,6 +56,11 @@ public class OrderDaoImpl implements OrderDao {
     @Override
     public List<OrderStatusHistoryDto> findOrderStatusHistories(Long orderNo) {
         return sqlSessionTemplate.selectList(NAMESPACE + "selectOrderStatusHistories", orderNo);
+    }
+
+    @Override
+    public List<CancelRequestHistoryDto> findCancelRequestHistories(Long orderNo) {
+        return sqlSessionTemplate.selectList(NAMESPACE + "selectCancelRequestHistories", orderNo);
     }
 
     @Override

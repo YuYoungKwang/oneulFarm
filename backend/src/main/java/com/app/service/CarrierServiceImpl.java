@@ -67,6 +67,7 @@ public class CarrierServiceImpl implements CarrierService {
         hydrateOrderRuntimeState(order);
         order.setTrackingHistories(orderDao.findDeliveryTrackingHistories(orderNo));
         order.setOrderStatusHistories(orderDao.findOrderStatusHistories(orderNo));
+        order.setCancelRequestHistories(orderDao.findCancelRequestHistories(orderNo));
         return order;
     }
 
