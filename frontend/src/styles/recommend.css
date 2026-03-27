@@ -362,14 +362,11 @@
   line-height: 1.6;
 }
 
-.recommend-page .recommend-product-card__copy p {
-  color: #334155;
-  font-size: 14px;
-}
+
 
 .recommend-page .recommend-product-card__copy small {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .recommend-page .recommend-product-card__badges {

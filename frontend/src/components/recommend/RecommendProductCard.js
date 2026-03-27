@@ -1,5 +1,5 @@
 import { buildProductImageSources } from "../../api/productApi";
-import { formatCurrency, formatPercent, getSavingAmount } from "../productUiUtils";
+import { formatCurrency, formatPercent } from "../productUiUtils";
 
 function handleImageError(event) {
   const nextSource = event.currentTarget.dataset.fallbackSrc;
@@ -31,7 +31,6 @@ export default function RecommendProductCard({
       product?.priceSnapshot?.avgPrice ||
       salePrice
   );
-  const savingAmount = getSavingAmount(product);
   const savingRate = Number(product?.priceMatch?.savingRate || 0);
   const imageSources = buildProductImageSources(product);
   const hasMetric = Boolean(metricLabel && metricValue);
@@ -71,12 +70,11 @@ export default function RecommendProductCard({
 
         <div className="recommend-product-card__price">
           <strong>{formatCurrency(salePrice)}</strong>
-          <span>평균가 대비 {formatCurrency(savingAmount)} 절약</span>
           {!hideSavingRate ? <span>{formatPercent(savingRate)}</span> : null}
         </div>
 
         <div className="recommend-product-card__copy">
-          <p>평균가 {formatCurrency(averagePrice)}</p>
+          {/* <p>평균가 {formatCurrency(averagePrice)}</p> */}
           <p>{summary}</p>
           {detail ? <small>{detail}</small> : null}
         </div>
