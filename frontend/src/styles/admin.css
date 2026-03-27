@@ -42,10 +42,19 @@
 }
 
 .admin-app__logo {
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
-  background: linear-gradient(135deg, var(--green), var(--yellow));
+  width: 76px;
+  height: 76px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.admin-app__logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .admin-app__menu {

@@ -52,21 +52,6 @@ export async function fetchDashboardPatternsFromApi(authUser) {
   return payload.data;
 }
 
-export async function fetchDashboardProductSavingsFromApi(authUser) {
-  const payload = await requestAuthApi(
-    `${DASHBOARD_API_PATH}/product-savings`,
-    {
-      headers: {
-        ...defaultHeaders(),
-        ...buildAuthHeaders({ user: authUser }),
-      },
-    },
-    '상품 절약 데이터를 불러오지 못했습니다.'
-  );
-
-  return payload.data;
-}
-
 export async function fetchPriceTrendFromApi({
   days = 30,
   itemCode,

@@ -2,14 +2,14 @@ import { formatCurrency, getSavingAmount } from './productUiUtils';
 import SafeImage from './SafeImage';
 
 export default function CartPage({
-  cartItems,
+  cartGroups = [],
+  cartItems = [],
   onClearCart,
-  onDecreaseQuantity,
-  onIncreaseQuantity,
   onOpenProduct,
   onProceedToCheckout,
   onRemoveItem,
   onReturnToProducts,
+  onUpdateQuantity,
 }) {
   const totalQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const totalAmount = cartItems.reduce(
@@ -17,7 +17,7 @@ export default function CartPage({
     0
   );
   const totalSaving = cartItems.reduce(
-    (sum, item) => sum + getSavingAmount(item.product) * item.quantity,
+    (sum, item) => sum + Number(item.savedAmount || getSavingAmount(item.product) * item.quantity),
     0
   );
 
@@ -26,7 +26,7 @@ export default function CartPage({
       <section className="empty-state detail-empty">
         <div className="empty-icon">CART</div>
         <h1>장바구니가 비어 있습니다.</h1>
-        <p>마음에 드는 상품을 담고 한 번에 주문해보세요.</p>
+        <p>원하는 상품을 담은 뒤 주문서를 작성해보세요.</p>
         <button className="btn" type="button" onClick={onReturnToProducts}>
           상품 보러 가기
         </button>
@@ -40,7 +40,7 @@ export default function CartPage({
         <div>
           <span className="eyebrow">Cart</span>
           <h1>장바구니</h1>
-          <p>담아둔 상품을 확인하고 수량을 조절한 뒤 바로 주문할 수 있습니다.</p>
+          <p>레시피 묶음과 개별 담기를 함께 확인하고 바로 주문할 수 있어요.</p>
         </div>
         <div className="page-actions">
           <button className="btn-outline" type="button" onClick={onReturnToProducts}>
@@ -54,9 +54,9 @@ export default function CartPage({
 
       <section className="quick-grid">
         <article className="quick-card soft-green">
-          <div className="quick-label">담은 상품 수</div>
-          <div className="quick-value">{cartItems.length}개</div>
-          <div className="section-sub">지금 주문 가능한 상품 종류</div>
+          <div className="quick-label">담긴 묶음</div>
+          <div className="quick-value">{cartGroups.length}개</div>
+          <div className="section-sub">레시피 묶음과 개별 담기 기준</div>
         </article>
         <article className="quick-card">
           <div className="quick-label">총 수량</div>
@@ -77,113 +77,124 @@ export default function CartPage({
 
       <section className="cart-layout">
         <div className="cart-list">
-          {cartItems.map(({ product, quantity }) => {
-            const isMaxQuantity = quantity >= product.stockQty;
-            const mainImage =
-              product.mainImage ||
-              product.images?.find((image) => image.isMain === 'Y') ||
-              product.images?.[0] ||
-              null;
-            const hasImage = Boolean(mainImage?.imageUrl);
-
-            return (
-              <article
-                key={product.productNo}
-                className="cart-card"
-                style={{
-                  '--media-soft': product.display.softColor,
-                  '--media-glow': product.display.glowColor,
-                }}
-              >
-                <div className={`cart-thumb ${hasImage ? 'has-image' : ''}`}>
-                  {hasImage ? (
-                    <SafeImage
-                      alt={product.productName}
-                      className="cart-thumb-image"
-                      fallback={<div className="cart-thumb-symbol">{product.display.symbol}</div>}
-                      src={mainImage.imageUrl}
-                    />
-                  ) : (
-                    <div className="cart-thumb-symbol">{product.display.symbol}</div>
-                  )}
+          {cartGroups.map((group) => (
+            <article key={group.cartGroupNo} className="cart-card cart-card--group">
+              <div className="cart-group-head">
+                <div>
+                  <div className="meta-row">
+                    <span
+                      className={`meta-pill ${
+                        group.groupType === 'RECIPE'
+                          ? 'meta-pill--recipe'
+                          : 'meta-pill--product'
+                      }`}
+                    >
+                      {group.groupType === 'RECIPE' ? '레시피 묶음' : '개별 담기'}
+                    </span>
+                  </div>
+                  <div className="card-title cart-group-title">{group.displayName}</div>
+                  <div className="section-sub">
+                    품목 {group.items.length}개 · 총 수량 {group.totalQuantity}개 · 예상 절약{' '}
+                    {formatCurrency(group.totalSavedAmount)}
+                  </div>
                 </div>
+              </div>
 
-                <div className="cart-copy">
-                  <div className="cart-copy-top">
-                    <div>
-                      <div className="card-title cart-title">{product.productName}</div>
-                      <div className="section-sub">
-                        {product.origin} · 남은 수량 {product.stockQty}개 · 평균가{' '}
-                        {formatCurrency(product.priceSnapshot.avgPrice)}
+              <div className="cart-group-items">
+                {group.items.map((item) => {
+                  const product = item.product;
+                  const mainImage =
+                    product.mainImage ||
+                    product.images?.find((image) => image.isMain === 'Y') ||
+                    product.images?.[0] ||
+                    null;
+                  const hasImage = Boolean(mainImage?.imageUrl);
+                  const isMaxQuantity = item.quantity >= Number(product.stockQty || 0);
+
+                  return (
+                    <div className="cart-group-item" key={item.cartItemNo}>
+                      <div className={`cart-thumb ${hasImage ? 'has-image' : ''}`}>
+                        {hasImage ? (
+                          <SafeImage
+                            alt={product.productName}
+                            className="cart-thumb-image"
+                            fallback={<div className="cart-thumb-symbol">{product.display.symbol}</div>}
+                            src={mainImage.imageUrl}
+                          />
+                        ) : (
+                          <div className="cart-thumb-symbol">{product.display.symbol}</div>
+                        )}
+                      </div>
+
+                      <div className="cart-copy">
+                        <div className="cart-copy-top">
+                          <div>
+                            <div className="card-title cart-title">{product.productName}</div>
+                            <div className="section-sub">
+                              {product.origin || '원산지 정보 없음'} · {product.packageWeight}
+                              {product.unit} · 남은 재고 {product.stockQty}개
+                            </div>
+                          </div>
+                          <button
+                            className="text-action danger"
+                            type="button"
+                            aria-label={`${product.productName} 삭제`}
+                            onClick={() => onRemoveItem(item.cartItemNo)}
+                          >
+                            삭제
+                          </button>
+                        </div>
+
+                        <div className="cart-controls">
+                          <div className="qty-inline">
+                            <button
+                              type="button"
+                              aria-label={`${product.productName} 수량 감소`}
+                              onClick={() => onUpdateQuantity(item.cartItemNo, item.quantity - 1)}
+                              disabled={item.quantity <= 1}
+                            >
+                              -
+                            </button>
+                            <span>{item.quantity}</span>
+                            <button
+                              type="button"
+                              aria-label={`${product.productName} 수량 증가`}
+                              onClick={() => onUpdateQuantity(item.cartItemNo, item.quantity + 1)}
+                              disabled={isMaxQuantity}
+                            >
+                              +
+                            </button>
+                          </div>
+
+                          <div className="cart-price-meta">
+                            <div className="section-sub">상품 금액</div>
+                            <strong>{formatCurrency(product.salePrice * item.quantity)}</strong>
+                          </div>
+
+                          <div className="cart-price-meta">
+                            <div className="section-sub">예상 절약</div>
+                            <strong>{formatCurrency(getSavingAmount(product) * item.quantity)}</strong>
+                          </div>
+
+                          <button
+                            className="btn-outline compact-btn"
+                            type="button"
+                            onClick={() => onOpenProduct(product.productNo)}
+                          >
+                            상품 보기
+                          </button>
+                        </div>
+
+                        {isMaxQuantity ? (
+                          <div className="section-sub">현재 재고 한도까지 담겨 있습니다.</div>
+                        ) : null}
                       </div>
                     </div>
-                    <button
-                      className="text-action danger"
-                      type="button"
-                      aria-label={`${product.productName} 삭제`}
-                      onClick={() => onRemoveItem(product.productNo)}
-                    >
-                      삭제
-                    </button>
-                  </div>
-
-                  <div className="meta-row">
-                    {product.recommendedFor.map((tag) => (
-                      <span className="meta-pill" key={tag}>
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="cart-controls">
-                    <div className="qty-inline">
-                      <button
-                        type="button"
-                        aria-label={`${product.productName} 수량 감소`}
-                        onClick={() => onDecreaseQuantity(product.productNo)}
-                        disabled={quantity <= 1}
-                      >
-                        -
-                      </button>
-                      <span>{quantity}</span>
-                      <button
-                        type="button"
-                        aria-label={`${product.productName} 수량 증가`}
-                        onClick={() => onIncreaseQuantity(product.productNo)}
-                        disabled={isMaxQuantity}
-                      >
-                        +
-                      </button>
-                    </div>
-
-                    <div className="cart-price-meta">
-                      <div className="section-sub">상품 금액</div>
-                      <strong>{formatCurrency(product.salePrice * quantity)}</strong>
-                    </div>
-
-                    <div className="cart-price-meta">
-                      <div className="section-sub">예상 절약</div>
-                      <strong>{formatCurrency(getSavingAmount(product) * quantity)}</strong>
-                    </div>
-
-                    <button
-                      className="btn-outline compact-btn"
-                      type="button"
-                      onClick={() => onOpenProduct(product.productNo)}
-                    >
-                      상세 보기
-                    </button>
-                  </div>
-
-                  {isMaxQuantity ? (
-                    <div className="section-sub">
-                      현재 재고만큼만 주문할 수 있습니다.
-                    </div>
-                  ) : null}
-                </div>
-              </article>
-            );
-          })}
+                  );
+                })}
+              </div>
+            </article>
+          ))}
         </div>
 
         <aside className="cart-summary">
@@ -203,7 +214,7 @@ export default function CartPage({
             </div>
           </div>
           <div className="summary-total">
-            <span>최종 예정 금액</span>
+            <span>최종 예상 금액</span>
             <strong>{formatCurrency(totalAmount)}</strong>
           </div>
           <div className="summary-actions">

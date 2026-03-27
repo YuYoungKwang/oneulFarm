@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.app.common.ApiResponse;
+import com.app.dto.main.MainRecommendationResponseDto;
 import com.app.service.MainService;
 
 @RestController
@@ -20,6 +21,14 @@ public class MainController {
 
     @GetMapping
     public ApiResponse<Map<String, Object>> getMainPage() {
-        return ApiResponse.success(mainService.getMainPage(), "메인 조회 성공");
+        return ApiResponse.success(mainService.getMainPage(), "\uBA54\uC778 \uC870\uD68C \uC131\uACF5");
+    }
+
+    @GetMapping("/recommendations")
+    public ApiResponse<MainRecommendationResponseDto> getMainRecommendations() {
+        return ApiResponse.success(
+            mainService.getMainRecommendations(),
+            "\uBA54\uC778 \uCD94\uCC9C \uC870\uD68C \uC131\uACF5"
+        );
     }
 }

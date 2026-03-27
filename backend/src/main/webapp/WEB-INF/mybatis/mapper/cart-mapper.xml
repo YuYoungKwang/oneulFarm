@@ -32,38 +32,121 @@
         VALUES (#{_parameter})
     </insert>
 
+    <select id="selectCartGroups" parameterType="long" resultType="com.app.dto.CartGroupDto">
+        SELECT
+            cg.CART_GROUP_NO AS cartGroupNo,
+            cg.CART_NO AS cartNo,
+            cg.GROUP_KEY AS groupKey,
+            cg.GROUP_TYPE AS groupType,
+            cg.RECIPE_NO AS recipeNo,
+            cg.GROUP_NAME AS groupName,
+            cg.CREATED_AT AS createdAt,
+            cg.UPDATED_AT AS updatedAt
+        FROM OFT_CART c
+        JOIN OFT_CART_GROUP cg
+            ON cg.CART_NO = c.CART_NO
+        WHERE c.USER_NO = #{_parameter}
+        ORDER BY cg.CREATED_AT ASC, cg.CART_GROUP_NO ASC
+    </select>
+
     <select id="selectCartItems" parameterType="long" resultType="com.app.dto.CartItemDto">
         <include refid="LatestMatchCte" />
         SELECT
             ci.CART_ITEM_NO AS cartItemNo,
-            c.CART_NO AS cartNo,
+            ci.CART_NO AS cartNo,
+            ci.CART_GROUP_NO AS cartGroupNo,
             ci.PRODUCT_NO AS productNo,
             p.PRODUCT_NAME AS productName,
+            p.ORIGIN AS origin,
+            p.UNIT AS unit,
+            p.PACKAGE_WEIGHT AS packageWeight,
             p.SALE_PRICE AS salePrice,
             p.STOCK_QTY AS stockQty,
             p.SALE_STATUS AS saleStatus,
             NVL(lm.COMPARED_PRICE, lm.AVG_PRICE) AS avgPrice,
             lm.SAVING_RATE AS savingRate,
             GREATEST(NVL(lm.COMPARED_PRICE, NVL(lm.AVG_PRICE, 0)) - p.SALE_PRICE, 0) * ci.QUANTITY AS savedAmount,
-            ci.QUANTITY AS quantity
+            img.IMAGE_NO AS imageNo,
+            ci.QUANTITY AS quantity,
+            ci.CREATED_AT AS createdAt,
+            ci.UPDATED_AT AS updatedAt
         FROM OFT_CART c
+        JOIN OFT_CART_GROUP cg
+            ON cg.CART_NO = c.CART_NO
         JOIN OFT_CART_ITEM ci
-            ON ci.CART_NO = c.CART_NO
+            ON ci.CART_GROUP_NO = cg.CART_GROUP_NO
         JOIN OFT_PRODUCT p
             ON p.PRODUCT_NO = ci.PRODUCT_NO
         LEFT JOIN latest_match lm
             ON lm.PRODUCT_NO = p.PRODUCT_NO
            AND lm.rn = 1
+        LEFT JOIN (
+            SELECT
+                PRODUCT_NO,
+                MIN(IMAGE_NO) KEEP (
+                    DENSE_RANK FIRST ORDER BY
+                        CASE WHEN IS_MAIN = 'Y' THEN 0 ELSE 1 END,
+                        NVL(SORT_ORDER, 99999),
+                        IMAGE_NO
+                ) AS IMAGE_NO
+            FROM OFT_PRODUCT_IMAGE
+            GROUP BY PRODUCT_NO
+        ) img
+            ON img.PRODUCT_NO = p.PRODUCT_NO
         WHERE c.USER_NO = #{_parameter}
-        ORDER BY ci.CREATED_AT ASC, ci.CART_ITEM_NO ASC
+        ORDER BY cg.CREATED_AT ASC, cg.CART_GROUP_NO ASC, ci.CREATED_AT ASC, ci.CART_ITEM_NO ASC
     </select>
 
-    <select id="selectCartItem" parameterType="map" resultType="com.app.dto.CartItemDto">
+    <select id="selectCartGroupByKey" parameterType="map" resultType="com.app.dto.CartGroupDto">
+        SELECT
+            CART_GROUP_NO AS cartGroupNo,
+            CART_NO AS cartNo,
+            GROUP_KEY AS groupKey,
+            GROUP_TYPE AS groupType,
+            RECIPE_NO AS recipeNo,
+            GROUP_NAME AS groupName,
+            CREATED_AT AS createdAt,
+            UPDATED_AT AS updatedAt
+        FROM OFT_CART_GROUP
+        WHERE CART_NO = #{cartNo}
+          AND GROUP_KEY = #{groupKey}
+        FETCH FIRST 1 ROWS ONLY
+    </select>
+
+    <select id="selectCartGroupItem" parameterType="map" resultType="com.app.dto.CartItemDto">
+        SELECT
+            CART_ITEM_NO AS cartItemNo,
+            CART_NO AS cartNo,
+            CART_GROUP_NO AS cartGroupNo,
+            PRODUCT_NO AS productNo,
+            QUANTITY AS quantity,
+            CREATED_AT AS createdAt,
+            UPDATED_AT AS updatedAt
+        FROM OFT_CART_ITEM
+        WHERE CART_GROUP_NO = #{cartGroupNo}
+          AND PRODUCT_NO = #{productNo}
+        FETCH FIRST 1 ROWS ONLY
+    </select>
+
+    <select id="selectCartItemByNo" parameterType="map" resultType="com.app.dto.CartItemDto">
         SELECT
             ci.CART_ITEM_NO AS cartItemNo,
-            c.CART_NO AS cartNo,
+            ci.CART_NO AS cartNo,
+            ci.CART_GROUP_NO AS cartGroupNo,
             ci.PRODUCT_NO AS productNo,
-            ci.QUANTITY AS quantity
+            ci.QUANTITY AS quantity,
+            ci.CREATED_AT AS createdAt,
+            ci.UPDATED_AT AS updatedAt
+        FROM OFT_CART c
+        JOIN OFT_CART_ITEM ci
+            ON ci.CART_NO = c.CART_NO
+        WHERE c.USER_NO = #{userNo}
+          AND ci.CART_ITEM_NO = #{cartItemNo}
+        FETCH FIRST 1 ROWS ONLY
+    </select>
+
+    <select id="sumCartProductQuantity" parameterType="map" resultType="int">
+        SELECT NVL(SUM(ci.QUANTITY), 0)
         FROM OFT_CART c
         JOIN OFT_CART_ITEM ci
             ON ci.CART_NO = c.CART_NO
@@ -71,26 +154,76 @@
           AND ci.PRODUCT_NO = #{productNo}
     </select>
 
+    <insert id="insertCartGroup" parameterType="map">
+        INSERT INTO OFT_CART_GROUP (
+            CART_NO,
+            GROUP_KEY,
+            GROUP_TYPE,
+            RECIPE_NO,
+            GROUP_NAME
+        ) VALUES (
+            #{cartNo},
+            #{groupKey},
+            #{groupType},
+            #{recipeNo},
+            #{groupName}
+        )
+    </insert>
+
+    <update id="updateCartGroupName" parameterType="map">
+        UPDATE OFT_CART_GROUP
+        SET GROUP_NAME = #{groupName}
+        WHERE CART_GROUP_NO = #{cartGroupNo}
+    </update>
+
+    <update id="touchCartGroup" parameterType="long">
+        UPDATE OFT_CART_GROUP
+        SET UPDATED_AT = SYSTIMESTAMP
+        WHERE CART_GROUP_NO = #{_parameter}
+    </update>
+
     <insert id="insertCartItem" parameterType="map">
-        INSERT INTO OFT_CART_ITEM (CART_NO, PRODUCT_NO, QUANTITY)
-        VALUES (#{cartNo}, #{productNo}, #{quantity})
+        INSERT INTO OFT_CART_ITEM (
+            CART_NO,
+            CART_GROUP_NO,
+            PRODUCT_NO,
+            QUANTITY
+        ) VALUES (
+            #{cartNo},
+            #{cartGroupNo},
+            #{productNo},
+            #{quantity}
+        )
     </insert>
 
     <update id="updateCartItemQuantity" parameterType="map">
         UPDATE OFT_CART_ITEM
         SET QUANTITY = #{quantity}
-        WHERE CART_NO = #{cartNo}
-          AND PRODUCT_NO = #{productNo}
+        WHERE CART_ITEM_NO = #{cartItemNo}
     </update>
 
-    <delete id="deleteCartItem" parameterType="map">
+    <delete id="deleteCartItem" parameterType="long">
         DELETE FROM OFT_CART_ITEM
-        WHERE CART_NO = #{cartNo}
-          AND PRODUCT_NO = #{productNo}
+        WHERE CART_ITEM_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteCartGroupIfEmpty" parameterType="long">
+        DELETE FROM OFT_CART_GROUP
+        WHERE CART_GROUP_NO = #{_parameter}
+          AND NOT EXISTS (
+              SELECT 1
+              FROM OFT_CART_ITEM
+              WHERE CART_GROUP_NO = #{_parameter}
+          )
     </delete>
 
     <delete id="deleteAllCartItems" parameterType="long">
         DELETE FROM OFT_CART_ITEM
+        WHERE CART_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteAllCartGroups" parameterType="long">
+        DELETE FROM OFT_CART_GROUP
         WHERE CART_NO = #{_parameter}
     </delete>
 
