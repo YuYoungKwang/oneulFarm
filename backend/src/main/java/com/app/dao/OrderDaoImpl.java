@@ -146,4 +146,12 @@ public class OrderDaoImpl implements OrderDao {
         params.put("quantity", quantity);
         return sqlSessionTemplate.update(NAMESPACE + "decreaseProductStock", params);
     }
+
+    @Override
+    public int increaseProductStock(Long productNo, Integer quantity) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("productNo", productNo);
+        params.put("quantity", quantity);
+        return sqlSessionTemplate.update(NAMESPACE + "increaseProductStock", params);
+    }
 }

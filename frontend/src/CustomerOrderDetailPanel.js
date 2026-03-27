@@ -11,7 +11,7 @@ const ORDER_STATUS_LABELS = {
 };
 
 const DELIVERY_STATUS_LABELS = {
-  NOT_STARTED: '배송 준비 전',
+  NOT_STARTED: '배송 준비',
   WAYBILL_ASSIGNED: '송장 등록',
   PICKED_UP: '집하 완료',
   IN_TRANSIT: '배송 중',
@@ -21,7 +21,7 @@ const DELIVERY_STATUS_LABELS = {
 const CANCEL_STATUS_LABELS = {
   NONE: '취소 없음',
   CANCEL_REQUESTED: '취소 요청',
-  CANCEL_ACCEPTED: '취소 승인',
+  CANCEL_ACCEPTED: '취소 완료',
   CANCEL_REJECTED: '취소 거절',
 };
 
@@ -31,6 +31,10 @@ function resolveOrderStatusLabel(detail) {
 }
 
 function resolveDeliveryStatusLabel(detail) {
+  if (detail?.cancelStatus === 'CANCEL_ACCEPTED') {
+    return '';
+  }
+
   const status = detail?.normalizedDeliveryStatus || detail?.deliveryStatus;
   return DELIVERY_STATUS_LABELS[status] || status || '-';
 }
@@ -57,7 +61,12 @@ function buildTrackingSteps(detail) {
       key: 'waybill',
       label: '송장 등록',
       value: detail?.waybillAssignedAt,
-      active: Boolean(detail?.trackingNo) || deliveryStatus === 'WAYBILL_ASSIGNED' || deliveryStatus === 'PICKED_UP' || deliveryStatus === 'IN_TRANSIT' || deliveryStatus === 'DELIVERED',
+      active:
+        Boolean(detail?.trackingNo) ||
+        deliveryStatus === 'WAYBILL_ASSIGNED' ||
+        deliveryStatus === 'PICKED_UP' ||
+        deliveryStatus === 'IN_TRANSIT' ||
+        deliveryStatus === 'DELIVERED',
     },
     {
       key: 'transit',
@@ -143,6 +152,7 @@ function CustomerOrderDetailPanel({
 
   const trackingSteps = buildTrackingSteps(detail);
   const cancelStatusLabel = resolveCancelStatusLabel(detail);
+  const deliveryStatusLabel = resolveDeliveryStatusLabel(detail);
   const purchaseConfirmMessage = resolvePurchaseConfirmMessage(detail);
   const showActionSection =
     Boolean(detail) ||
@@ -163,14 +173,16 @@ function CustomerOrderDetailPanel({
           <span className="customer-order-detail__status customer-order-detail__status--order">
             {resolveOrderStatusLabel(detail)}
           </span>
-          <span className="customer-order-detail__status customer-order-detail__status--delivery">
-            {resolveDeliveryStatusLabel(detail)}
-          </span>
-          {cancelStatusLabel && (
+          {deliveryStatusLabel ? (
+            <span className="customer-order-detail__status customer-order-detail__status--delivery">
+              {deliveryStatusLabel}
+            </span>
+          ) : null}
+          {cancelStatusLabel ? (
             <span className="customer-order-detail__status customer-order-detail__status--cancel">
               {cancelStatusLabel}
             </span>
-          )}
+          ) : null}
         </div>
       </header>
 
@@ -178,7 +190,7 @@ function CustomerOrderDetailPanel({
         <div className="customer-order-detail__section-head">
           <h3>배송 흐름</h3>
           <span className="customer-order-detail__section-copy">
-            {detail.carrierName || detail.courierName || '배송사 미지정'}
+            {detail.carrierName || detail.courierName || '배송사 미정'}
             {detail.trackingNo ? ` · 송장 ${detail.trackingNo}` : ''}
           </span>
         </div>
@@ -198,46 +210,44 @@ function CustomerOrderDetailPanel({
         </div>
       </section>
 
-      {showActionSection && (
+      {showActionSection ? (
         <section className="customer-order-detail__actions">
           <div className="customer-order-detail__section-head">
             <h3>주문 처리</h3>
-            {purchaseConfirmMessage && (
-              <span className="customer-order-detail__section-copy">
-                {purchaseConfirmMessage}
-              </span>
-            )}
+            {purchaseConfirmMessage ? (
+              <span className="customer-order-detail__section-copy">{purchaseConfirmMessage}</span>
+            ) : null}
           </div>
-            <div className="customer-order-detail__action-buttons">
-                <button
-                  type="button"
-                  className="btn-outline customer-order-detail__action-button"
-                  onClick={onRequestOrderCancel}
-                  disabled={!detail.cancelRequestAvailable || orderActionSubmitting === 'cancel'}
-                >
-                  {orderActionSubmitting === 'cancel' ? '취소 요청 중...' : '취소 요청'}
-                </button>
-              {detail.purchaseConfirmAvailable && (
-                <button
-                  type="button"
-                  className="btn customer-order-detail__action-button"
-                  onClick={onConfirmPurchase}
-                  disabled={orderActionSubmitting === 'purchase-confirm'}
-                >
-                  {orderActionSubmitting === 'purchase-confirm' ? '구매 확정 중...' : '구매 확정'}
-                </button>
-              )}
-            </div>
-          {!detail.cancelRequestAvailable && (
+          <div className="customer-order-detail__action-buttons">
+            <button
+              type="button"
+              className="btn-outline customer-order-detail__action-button"
+              onClick={onRequestOrderCancel}
+              disabled={!detail.cancelRequestAvailable || orderActionSubmitting === 'cancel'}
+            >
+              {orderActionSubmitting === 'cancel' ? '취소 요청 중...' : '취소 요청'}
+            </button>
+            {detail.purchaseConfirmAvailable ? (
+              <button
+                type="button"
+                className="btn customer-order-detail__action-button"
+                onClick={onConfirmPurchase}
+                disabled={orderActionSubmitting === 'purchase-confirm'}
+              >
+                {orderActionSubmitting === 'purchase-confirm' ? '구매 확정 중...' : '구매 확정'}
+              </button>
+            ) : null}
+          </div>
+          {!detail.cancelRequestAvailable ? (
             <p className="customer-order-detail__action-help">
               주문 취소는 배송 준비 전 주문만 요청할 수 있습니다.
             </p>
-          )}
-          {orderActionError && (
+          ) : null}
+          {orderActionError ? (
             <p className="customer-order-detail__action-error">{orderActionError}</p>
-          )}
+          ) : null}
         </section>
-      )}
+      ) : null}
 
       <div className="customer-order-detail__grid">
         <section className="customer-order-detail__panel">
@@ -309,7 +319,6 @@ function CustomerOrderDetailPanel({
             </div>
           </div>
         </section>
-
       </div>
 
       <section className="customer-order-detail__items">

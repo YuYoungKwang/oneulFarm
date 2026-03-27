@@ -27,7 +27,7 @@ const ORDER_STATUS_LABELS = {
 };
 
 const DELIVERY_STATUS_LABELS = {
-  NOT_STARTED: '배송 준비 전',
+  NOT_STARTED: '배송 준비',
   WAYBILL_ASSIGNED: '송장 등록',
   PICKED_UP: '집하 완료',
   IN_TRANSIT: '배송 중',
@@ -83,7 +83,12 @@ function getTone(status) {
   if (status === 'DELIVERED' || status === 'ORDER_ACCEPTED' || status === 'CANCEL_ACCEPTED') {
     return 'is-success';
   }
-  if (status === 'WAYBILL_ASSIGNED' || status === 'PICKED_UP' || status === 'IN_TRANSIT' || status === 'SHIPPING') {
+  if (
+    status === 'WAYBILL_ASSIGNED' ||
+    status === 'PICKED_UP' ||
+    status === 'IN_TRANSIT' ||
+    status === 'SHIPPING'
+  ) {
     return 'is-accent';
   }
   if (status === 'CANCEL_REQUESTED') {
@@ -122,7 +127,12 @@ function buildTimeline(detail) {
       key: 'waybill',
       label: '송장 등록',
       value: detail?.waybillAssignedAt,
-      active: Boolean(detail?.trackingNo) || status === 'WAYBILL_ASSIGNED' || status === 'PICKED_UP' || status === 'IN_TRANSIT' || status === 'DELIVERED',
+      active:
+        Boolean(detail?.trackingNo) ||
+        status === 'WAYBILL_ASSIGNED' ||
+        status === 'PICKED_UP' ||
+        status === 'IN_TRANSIT' ||
+        status === 'DELIVERED',
     },
     {
       key: 'pickup',
@@ -161,21 +171,22 @@ function AdminOrdersPage({
     }
     return resolveFilterStatus(order) === orderFilter;
   });
+
   const summary = buildSummary(orders);
   const cancelStatusLabel = getCancelStatusLabel(selectedOrderDetail);
   const timeline = buildTimeline(selectedOrderDetail);
   const canDeleteOrder = Boolean(
-    selectedOrderDetail
-      && (selectedOrderDetail.normalizedDeliveryStatus || selectedOrderDetail.deliveryStatus) === 'DELIVERED'
-      && (selectedOrderDetail.normalizedOrderStatus || selectedOrderDetail.orderStatus) === 'ORDER_ACCEPTED'
+    selectedOrderDetail &&
+      (selectedOrderDetail.normalizedDeliveryStatus || selectedOrderDetail.deliveryStatus) === 'DELIVERED' &&
+      (selectedOrderDetail.normalizedOrderStatus || selectedOrderDetail.orderStatus) === 'ORDER_ACCEPTED'
   );
 
   return (
     <div className="admin-orders-v2">
       <AdminPageHeader
         title="주문 관리"
-        description="결제 이후 주문 확정, 거절, 배송 인계까지 관리하는 주문 운영 화면"
-        actions={(
+        description="결제 이후 주문 상태와 배송 준비를 관리하는 운영 화면"
+        actions={
           <>
             <button
               type="button"
@@ -188,29 +199,13 @@ function AdminOrdersPage({
             <button
               type="button"
               className="admin-action admin-action--soft admin-orders-v2__toolbar-button"
-              onClick={onAcceptOrderCancel}
-              disabled={!selectedOrderDetail?.cancelAcceptAvailable || updating}
-            >
-              취소 수락
-            </button>
-            <button
-              type="button"
-              className="admin-action admin-action--line admin-orders-v2__toolbar-button"
-              onClick={onRejectOrderCancel}
-              disabled={!selectedOrderDetail?.cancelRejectAvailable || updating}
-            >
-              취소 거절
-            </button>
-            <button
-              type="button"
-              className="admin-action admin-action--soft admin-orders-v2__toolbar-button"
               onClick={onShipOrder}
               disabled={!selectedOrderDetail?.shipAvailable || updating}
             >
               배송 인계
             </button>
           </>
-        )}
+        }
       />
 
       <section className="admin-orders-v2__summary-grid">
@@ -254,7 +249,6 @@ function AdminOrdersPage({
           <div className="admin-orders-v2__panel-head">
             <div>
               <h2>주문 목록</h2>
-              <p>처리할 주문을 고른 뒤 오른쪽에서 상태를 변경합니다.</p>
             </div>
           </div>
 
@@ -266,7 +260,9 @@ function AdminOrdersPage({
                 <button
                   key={order.orderNo}
                   type="button"
-                  className={`admin-orders-v2__list-card ${order.orderNo === selectedOrderNo ? 'is-selected' : ''}`}
+                  className={`admin-orders-v2__list-card ${
+                    order.orderNo === selectedOrderNo ? 'is-selected' : ''
+                  }`}
                   onClick={() => onSelectOrder(order.orderNo)}
                 >
                   <div className="admin-orders-v2__list-top">
@@ -274,7 +270,11 @@ function AdminOrdersPage({
                       <strong>{order.orderId}</strong>
                       <span>{formatAdminDate(order.orderedAt)}</span>
                     </div>
-                    <span className={`admin-orders-v2__status-chip ${getTone(order.normalizedOrderStatus || order.orderStatus)}`}>
+                    <span
+                      className={`admin-orders-v2__status-chip ${getTone(
+                        order.normalizedOrderStatus || order.orderStatus
+                      )}`}
+                    >
                       {getOrderStatusLabel(order)}
                     </span>
                   </div>
@@ -283,7 +283,11 @@ function AdminOrdersPage({
                     <span>{formatAdminCurrency(order.finalAmount)}</span>
                   </div>
                   <div className="admin-orders-v2__list-tags">
-                    <span className={`admin-orders-v2__status-chip ${getTone(order.normalizedDeliveryStatus || order.deliveryStatus)}`}>
+                    <span
+                      className={`admin-orders-v2__status-chip ${getTone(
+                        order.normalizedDeliveryStatus || order.deliveryStatus
+                      )}`}
+                    >
                       {getDeliveryStatusLabel(order)}
                     </span>
                     {cancelLabel ? (
@@ -292,7 +296,7 @@ function AdminOrdersPage({
                       </span>
                     ) : null}
                     {order.legacyStatusNeedsReview ? (
-                      <span className="admin-orders-v2__status-chip is-warn">레거시 검토</span>
+                      <span className="admin-orders-v2__status-chip is-warn">상태 검토 필요</span>
                     ) : null}
                   </div>
                 </button>
@@ -311,8 +315,8 @@ function AdminOrdersPage({
         <article className="admin-card admin-card--panel admin-orders-v2__detail-panel">
           {!selectedOrderDetail ? (
             <AdminEmptyState
-              title="주문을 선택해주세요."
-              description="왼쪽 주문 목록에서 주문을 선택하면 처리 단계와 배송 흐름을 확인할 수 있습니다."
+              title="주문을 선택해 주세요."
+              description="왼쪽 목록에서 주문을 고르면 상세 내용을 확인할 수 있습니다."
             />
           ) : (
             <div className="admin-orders-v2__detail">
@@ -326,14 +330,24 @@ function AdminOrdersPage({
                   </p>
                 </div>
                 <div className="admin-orders-v2__detail-tags">
-                  <span className={`admin-orders-v2__status-chip ${getTone(selectedOrderDetail.normalizedOrderStatus || selectedOrderDetail.orderStatus)}`}>
+                  <span
+                    className={`admin-orders-v2__status-chip ${getTone(
+                      selectedOrderDetail.normalizedOrderStatus || selectedOrderDetail.orderStatus
+                    )}`}
+                  >
                     {getOrderStatusLabel(selectedOrderDetail)}
                   </span>
-                  <span className={`admin-orders-v2__status-chip ${getTone(selectedOrderDetail.normalizedDeliveryStatus || selectedOrderDetail.deliveryStatus)}`}>
+                  <span
+                    className={`admin-orders-v2__status-chip ${getTone(
+                      selectedOrderDetail.normalizedDeliveryStatus || selectedOrderDetail.deliveryStatus
+                    )}`}
+                  >
                     {getDeliveryStatusLabel(selectedOrderDetail)}
                   </span>
                   {cancelStatusLabel ? (
-                    <span className={`admin-orders-v2__status-chip ${getTone(selectedOrderDetail.cancelStatus)}`}>
+                    <span
+                      className={`admin-orders-v2__status-chip ${getTone(selectedOrderDetail.cancelStatus)}`}
+                    >
                       {cancelStatusLabel}
                     </span>
                   ) : null}
@@ -343,19 +357,71 @@ function AdminOrdersPage({
               <div className="admin-orders-v2__detail-grid">
                 <section className="admin-orders-v2__box">
                   <h3>고객 및 배송 정보</h3>
-                  <div className="admin-orders-v2__row"><strong>수령인</strong><span>{selectedOrderDetail.recipientName || '-'}</span></div>
-                  <div className="admin-orders-v2__row"><strong>연락처</strong><span>{selectedOrderDetail.recipientPhone || '-'}</span></div>
-                  <div className="admin-orders-v2__row"><strong>주소</strong><span>{[selectedOrderDetail.address1, selectedOrderDetail.address2].filter(Boolean).join(' ') || '-'}</span></div>
-                  <div className="admin-orders-v2__row"><strong>배송사</strong><span>{selectedOrderDetail.carrierName || selectedOrderDetail.courierName || 'oneulFarm'}</span></div>
+                  <div className="admin-orders-v2__row">
+                    <strong>수령인</strong>
+                    <span>{selectedOrderDetail.recipientName || '-'}</span>
+                  </div>
+                  <div className="admin-orders-v2__row">
+                    <strong>연락처</strong>
+                    <span>{selectedOrderDetail.recipientPhone || '-'}</span>
+                  </div>
+                  <div className="admin-orders-v2__row">
+                    <strong>주소</strong>
+                    <span>
+                      {[selectedOrderDetail.address1, selectedOrderDetail.address2].filter(Boolean).join(' ') || '-'}
+                    </span>
+                  </div>
+                  <div className="admin-orders-v2__row">
+                    <strong>배송사</strong>
+                    <span>{selectedOrderDetail.carrierName || selectedOrderDetail.courierName || 'oneulFarm'}</span>
+                  </div>
                 </section>
 
                 <section className="admin-orders-v2__box">
                   <h3>결제 정보</h3>
-                  <div className="admin-orders-v2__row"><strong>결제 수단</strong><span>{selectedOrderDetail.paymentMethod || '-'}</span></div>
-                  <div className="admin-orders-v2__row"><strong>결제 상태</strong><span>{selectedOrderDetail.paymentStatus || '-'}</span></div>
-                  <div className="admin-orders-v2__row"><strong>결제 금액</strong><span>{formatAdminCurrency(selectedOrderDetail.finalAmount)}</span></div>
-                  <div className="admin-orders-v2__row"><strong>절약 금액</strong><span>{formatAdminCurrency(selectedOrderDetail.totalSavedAmount)}</span></div>
+                  <div className="admin-orders-v2__row">
+                    <strong>결제 수단</strong>
+                    <span>{selectedOrderDetail.paymentMethod || '-'}</span>
+                  </div>
+                  <div className="admin-orders-v2__row">
+                    <strong>결제 상태</strong>
+                    <span>{selectedOrderDetail.paymentStatus || '-'}</span>
+                  </div>
+                  <div className="admin-orders-v2__row">
+                    <strong>결제 금액</strong>
+                    <span>{formatAdminCurrency(selectedOrderDetail.finalAmount)}</span>
+                  </div>
+                  <div className="admin-orders-v2__row">
+                    <strong>절약 금액</strong>
+                    <span>{formatAdminCurrency(selectedOrderDetail.totalSavedAmount)}</span>
+                  </div>
                 </section>
+              </div>
+
+              <div className="admin-orders-v2__compact-row">
+              <section className="admin-orders-v2__box admin-orders-v2__box--compact">
+                <div className="admin-orders-v2__box-head">
+                  <h3>취소 요청 처리</h3>
+                </div>
+                <div className="admin-orders-v2__action-row">
+                  <button
+                    type="button"
+                    className="admin-action admin-action--soft admin-orders-v2__action-button"
+                    onClick={onAcceptOrderCancel}
+                    disabled={!selectedOrderDetail.cancelAcceptAvailable || updating}
+                  >
+                    취소 수락
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-action admin-action--line admin-orders-v2__action-button"
+                    onClick={onRejectOrderCancel}
+                    disabled={!selectedOrderDetail.cancelRejectAvailable || updating}
+                  >
+                    취소 거절
+                  </button>
+                </div>
+              </section>
               </div>
 
               <section className="admin-orders-v2__box">
@@ -371,23 +437,7 @@ function AdminOrdersPage({
                   />
                   <button
                     type="button"
-                    className="admin-action admin-action--line admin-orders-v2__tracking-button"
-                    onClick={onAcceptOrderCancel}
-                    disabled={!selectedOrderDetail.cancelAcceptAvailable || updating}
-                  >
-                    취소 수락
-                  </button>
-                  <button
-                    type="button"
-                    className="admin-action admin-action--line admin-orders-v2__action-button"
-                    onClick={onRejectOrderCancel}
-                    disabled={!selectedOrderDetail.cancelRejectAvailable || updating}
-                  >
-                    취소 거절
-                  </button>
-                  <button
-                    type="button"
-                    className="admin-action admin-action--soft admin-orders-v2__action-button"
+                    className="admin-action admin-action--soft admin-orders-v2__tracking-button"
                     onClick={onShipOrder}
                     disabled={!selectedOrderDetail.shipAvailable || updating}
                   >
@@ -410,10 +460,10 @@ function AdminOrdersPage({
                 </div>
               </section>
 
-              <section className="admin-orders-v2__box">
+              <div className="admin-orders-v2__compact-row">
+              <section className="admin-orders-v2__box admin-orders-v2__box--compact">
                 <div className="admin-orders-v2__box-head">
                   <h3>운영 액션</h3>
-                  <span>가능한 작업만 활성화됩니다.</span>
                 </div>
                 <div className="admin-orders-v2__action-row">
                   <button
@@ -424,14 +474,6 @@ function AdminOrdersPage({
                   >
                     주문 거절
                   </button>
-                  <button
-                    type="button"
-                    className="admin-action admin-action--soft admin-orders-v2__action-button"
-                    onClick={onShipOrder}
-                    disabled={!selectedOrderDetail.shipAvailable || updating}
-                  >
-                    배송 인계
-                  </button>
                   {canDeleteOrder ? (
                     <button
                       type="button"
@@ -439,11 +481,12 @@ function AdminOrdersPage({
                       onClick={() => onDeleteOrder(selectedOrderDetail)}
                       disabled={updating}
                     >
-                      주문 정보 제거
+                      주문 정보 삭제
                     </button>
                   ) : null}
                 </div>
               </section>
+              </div>
 
               <section className="admin-orders-v2__box">
                 <div className="admin-orders-v2__box-head">

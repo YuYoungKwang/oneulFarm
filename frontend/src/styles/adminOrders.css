@@ -85,7 +85,8 @@
 }
 
 .admin-orders-v2__detail-panel{
-  min-height: 100%;
+  min-height: 0;
+  align-content: start;
 }
 
 .admin-orders-v2__panel-head{
@@ -175,17 +176,45 @@
 .admin-orders-v2__action-row{
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
+}
+
+.admin-orders-v2__action-row{
+  align-items: flex-start;
+  justify-content: flex-start;
 }
 
 .admin-orders-v2__toolbar-button,
 .admin-orders-v2__tracking-button,
 .admin-orders-v2__action-button{
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
   min-height: 40px;
   padding: 0 14px;
   border-radius: 12px;
   font-size: 13px;
   font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.admin-orders-v2__toolbar-button{
+  min-width: auto;
+}
+
+.admin-orders-v2__detail .admin-orders-v2__action-button{
+  min-width: 92px;
+  flex: 0 0 auto;
+  padding: 0 12px;
+  align-self: flex-start;
+}
+
+.admin-orders-v2__detail .admin-orders-v2__tracking-button{
+  min-width: 116px;
+  padding: 0 12px;
+  align-self: flex-start;
 }
 
 .admin-orders-v2__status-chip{
@@ -227,21 +256,42 @@
 
 .admin-orders-v2__detail{
   display: grid;
-  gap: 16px;
+  gap: 12px;
+  align-content: start;
+}
+
+.admin-orders-v2__compact-row{
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 .admin-orders-v2__detail-grid{
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
+  align-items: start;
 }
 
 .admin-orders-v2__box{
-  display: grid;
-  gap: 12px;
-  padding: 18px;
-  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 15px 16px;
+  border-radius: 20px;
   background: #f8fafb;
+}
+
+.admin-orders-v2__box--compact{
+  align-self: start;
+  justify-self: start;
+  width: fit-content;
+  min-width: 0;
+}
+
+.admin-orders-v2__box--compact .admin-orders-v2__action-row{
+  flex-wrap: nowrap;
 }
 
 .admin-orders-v2__box h3{
@@ -263,12 +313,13 @@
 .admin-orders-v2__tracking-form{
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
+  gap: 8px;
 }
 
 .admin-orders-v2__tracking-form input{
   width: 100%;
-  padding: 14px 15px;
+  min-height: 40px;
+  padding: 10px 13px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: #fff;
@@ -371,5 +422,10 @@
 
   .admin-orders-v2__row span{
     text-align: left;
+  }
+
+  .admin-orders-v2__detail .admin-orders-v2__action-button,
+  .admin-orders-v2__detail .admin-orders-v2__tracking-button{
+    width: 100%;
   }
 }

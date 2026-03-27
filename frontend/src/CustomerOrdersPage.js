@@ -37,7 +37,7 @@ const DELIVERY_STATUS_LABELS = {
 
 const CANCEL_STATUS_LABELS = {
   CANCEL_REQUESTED: '취소 요청',
-  CANCEL_ACCEPTED: '취소 승인',
+  CANCEL_ACCEPTED: '취소 완료',
   CANCEL_REJECTED: '취소 거절',
 };
 
@@ -47,6 +47,10 @@ function getOrderStatusLabel(order) {
 }
 
 function getDeliveryStatusLabel(order) {
+  if (order?.cancelStatus === 'CANCEL_ACCEPTED') {
+    return '';
+  }
+
   const status = order?.normalizedDeliveryStatus || order?.deliveryStatus;
   return DELIVERY_STATUS_LABELS[status] || status || '-';
 }
@@ -85,18 +89,24 @@ function buildSummary(orders) {
   return {
     totalCount: orders.length,
     activeCount: orders.filter((order) =>
+      order?.cancelStatus !== 'CANCEL_ACCEPTED' &&
       ['WAYBILL_ASSIGNED', 'PICKED_UP', 'IN_TRANSIT', 'READY', 'SHIPPING'].includes(
         order?.normalizedDeliveryStatus || order?.deliveryStatus
       )
     ).length,
     deliveredCount: orders.filter(
+      (order) => order?.cancelStatus !== 'CANCEL_ACCEPTED'
+    ).filter(
       (order) => (order?.normalizedDeliveryStatus || order?.deliveryStatus) === 'DELIVERED'
     ).length,
     attentionCount: orders.filter(
       (order) =>
         order?.cancelRequestAvailable || order?.purchaseConfirmAvailable || order?.legacyStatusNeedsReview
     ).length,
-    totalSavedAmount: orders.reduce((sum, order) => sum + Number(order?.totalSavedAmount || 0), 0),
+    totalSavedAmount: orders.reduce(
+      (sum, order) => sum + (order?.cancelStatus === 'CANCEL_ACCEPTED' ? 0 : Number(order?.totalSavedAmount || 0)),
+      0
+    ),
   };
 }
 
@@ -127,10 +137,10 @@ function CustomerOrdersPage({
         <div>
           <div className="customer-orders__title-row">
             <h1>내 주문</h1>
-            <InlineInfoTip content="결제 이후 배송 준비, 송장 등록, 배송 완료 흐름을 한 화면에서 확인할 수 있도록 주문 내역을 다시 구성했습니다." />
+            <InlineInfoTip content="결제 이후 배송 준비, 송장 등록, 배송 완료 흐름을 한 화면에서 확인할 수 있도록 주문 내역을 정리했습니다." />
           </div>
           <p className="customer-orders__hero-copy">
-            최근 주문 상태와 배송 흐름을 직관적인 순서로 확인할 수 있도록 고객용 주문 화면을 정리했습니다.
+            최근 주문 상태와 배송 흐름을 한눈에 확인하고, 필요한 주문은 바로 상세로 들어갈 수 있습니다.
           </p>
         </div>
       </section>
@@ -158,7 +168,7 @@ function CustomerOrdersPage({
         <div className="customer-orders__section-head">
           <div className="customer-orders__section-title-row">
             <h2>주문 조회 조건</h2>
-            <InlineInfoTip content="배송 상태와 기간 기준으로 먼저 좁혀서 원하는 주문만 빠르게 확인할 수 있습니다." />
+            <InlineInfoTip content="배송 상태와 기간 기준으로 원하는 주문만 빠르게 확인할 수 있습니다." />
           </div>
           <span className="customer-orders__section-copy">조건에 맞는 주문만 빠르게 추려서 볼 수 있습니다.</span>
         </div>
@@ -223,6 +233,7 @@ function CustomerOrdersPage({
               {orders.map((order) => {
                 const isSelected = selectedOrderNo === order.orderNo;
                 const cancelStatusLabel = getCancelStatusLabel(order);
+                const deliveryStatusLabel = getDeliveryStatusLabel(order);
                 const previewImageNos = Array.isArray(order.previewImageNos) ? order.previewImageNos : [];
 
                 return (
@@ -248,15 +259,17 @@ function CustomerOrdersPage({
                       <span className={`customer-orders__status-chip ${getOrderStatusTone(order)}`}>
                         {getOrderStatusLabel(order)}
                       </span>
-                      <span className={`customer-orders__status-chip ${getDeliveryStatusTone(order)}`}>
-                        {getDeliveryStatusLabel(order)}
-                      </span>
-                      {cancelStatusLabel && (
+                      {deliveryStatusLabel ? (
+                        <span className={`customer-orders__status-chip ${getDeliveryStatusTone(order)}`}>
+                          {deliveryStatusLabel}
+                        </span>
+                      ) : null}
+                      {cancelStatusLabel ? (
                         <span className="customer-orders__status-chip is-danger-soft">{cancelStatusLabel}</span>
-                      )}
-                      {order.legacyStatusNeedsReview && (
+                      ) : null}
+                      {order.legacyStatusNeedsReview ? (
                         <span className="customer-orders__status-chip is-warn">상태 검토 필요</span>
-                      )}
+                      ) : null}
                     </div>
 
                     {previewImageNos.length > 0 && (
@@ -298,12 +311,12 @@ function CustomerOrdersPage({
                       </div>
                       <div className="customer-orders__card-side">
                         <div className="customer-orders__flag-row">
-                          {order.trackingAvailable && (
+                          {order.trackingAvailable && order.cancelStatus !== 'CANCEL_ACCEPTED' ? (
                             <span className="customer-orders__flag">배송 조회 가능</span>
-                          )}
-                          {order.purchaseConfirmAvailable && (
+                          ) : null}
+                          {order.purchaseConfirmAvailable ? (
                             <span className="customer-orders__flag">구매 확정 대기</span>
-                          )}
+                          ) : null}
                         </div>
                         <div className="customer-orders__quick-actions">
                           <button

@@ -419,4 +419,14 @@
           AND STOCK_QTY &gt;= #{quantity}
     </update>
 
+    <update id="increaseProductStock" parameterType="map">
+        UPDATE OFT_PRODUCT
+        SET STOCK_QTY = STOCK_QTY + #{quantity},
+            SALE_STATUS = CASE
+                WHEN SALE_STATUS = 'SOLD_OUT' AND STOCK_QTY + #{quantity} &gt; 0 THEN 'SELLING'
+                ELSE SALE_STATUS
+            END
+        WHERE PRODUCT_NO = #{productNo}
+    </update>
+
 </mapper>

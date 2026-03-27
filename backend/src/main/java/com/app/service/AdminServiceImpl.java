@@ -267,6 +267,14 @@ public class AdminServiceImpl implements AdminService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cancel request cannot be accepted in the current state.");
         }
 
+        List<OrderItemDto> orderItems = orderDao.findOrderItems(orderNo);
+        for (OrderItemDto orderItem : orderItems) {
+            if (orderItem.getProductNo() != null && orderItem.getQuantity() != null && orderItem.getQuantity() > 0) {
+                orderDao.increaseProductStock(orderItem.getProductNo(), orderItem.getQuantity());
+            }
+        }
+
+        orderDao.updateOrderStatus(orderNo, "CANCELED");
         orderDao.updateOrderCancelStatus(orderNo, "CANCEL_ACCEPTED");
         orderDao.updateLatestOrderCancelRequest(orderNo, "CANCEL_ACCEPTED", actorUserNo, null);
         return getOrderDetail(orderNo);

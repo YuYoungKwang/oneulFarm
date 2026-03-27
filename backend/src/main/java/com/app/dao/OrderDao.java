@@ -48,4 +48,6 @@ public interface OrderDao {
     int updateDeliveryForDelivered(Long orderNo);
 
     int decreaseProductStock(Long productNo, Integer quantity);
+
+    int increaseProductStock(Long productNo, Integer quantity);
 }

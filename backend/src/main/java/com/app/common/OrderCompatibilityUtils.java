@@ -27,12 +27,14 @@ public final class OrderCompatibilityUtils {
         order.setInTransitAt(resolveInTransitAt(order));
         order.setTrackingAvailable(order.getTrackingNo() != null || normalizedDeliveryStatus != null);
 
-        if ("CANCELED".equals(legacyOrderStatus)) {
+        if ("CANCELED".equals(legacyOrderStatus) && trimToNull(order.getCancelStatus()) == null) {
             order.setLegacyStatusNeedsReview(Boolean.TRUE);
             order.setCancelStatus(null);
         } else if (order.getCancelStatus() == null) {
             order.setLegacyStatusNeedsReview(Boolean.FALSE);
             order.setCancelStatus("NONE");
+        } else {
+            order.setLegacyStatusNeedsReview(Boolean.FALSE);
         }
 
         if (order.getPurchaseConfirmStatus() == null
