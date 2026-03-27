@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getAuthUser, isAuthenticated } from '../auth';
 import { fetchPriceTrendFromApi } from '../api/priceAnalysisApi';
 import SafeImage from './SafeImage';

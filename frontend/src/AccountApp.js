@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { buildAuthHeaders, getAuthUser, isAuthenticated, requestAuthApi } from './auth';
 import './styles/account.css';
 import DashboardView from './DashboardView';
