@@ -5,6 +5,8 @@ const ADMIN_ORDER_FILTERS = [
   { value: 'ALL', label: '전체' },
   { value: 'PAYMENT_COMPLETED', label: '결제 완료' },
   { value: 'ORDER_ACCEPTED', label: '주문 확정' },
+  { value: 'PURCHASE_PENDING', label: '구매 확정 대기' },
+  { value: 'PURCHASE_CONFIRMED', label: '구매 확정 완료' },
   { value: 'CANCEL_REQUESTED', label: '취소 요청' },
   { value: 'CANCEL_ACCEPTED', label: '취소 완료' },
   { value: 'CANCEL_REJECTED', label: '취소 거절' },
@@ -40,6 +42,11 @@ const CANCEL_STATUS_LABELS = {
   CANCEL_REJECTED: '취소 거절',
 };
 
+const PURCHASE_CONFIRM_LABELS = {
+  PURCHASE_PENDING: '구매 확정 대기',
+  PURCHASE_CONFIRMED: '구매 확정 완료',
+};
+
 function getOrderStatusLabel(order) {
   const status = order?.normalizedOrderStatus || order?.orderStatus;
   return ORDER_STATUS_LABELS[status] || status || '-';
@@ -56,12 +63,21 @@ function getCancelStatusLabel(order) {
   return CANCEL_STATUS_LABELS[status] || status;
 }
 
+function getPurchaseConfirmLabel(order) {
+  const status = order?.purchaseConfirmStatus;
+  if (!status) return '';
+  return PURCHASE_CONFIRM_LABELS[status] || status;
+}
+
 function resolveFilterStatus(order) {
   if (!order) return '';
   const cancelStatus = order.cancelStatus;
+  const purchaseConfirmStatus = order.purchaseConfirmStatus;
   const normalizedOrderStatus = order.normalizedOrderStatus || order.orderStatus;
   const normalizedDeliveryStatus = order.normalizedDeliveryStatus || order.deliveryStatus;
   if (cancelStatus && cancelStatus !== 'NONE') return cancelStatus;
+  if (purchaseConfirmStatus === 'PURCHASE_CONFIRMED') return 'PURCHASE_CONFIRMED';
+  if (purchaseConfirmStatus === 'PURCHASE_PENDING' && normalizedDeliveryStatus === 'DELIVERED') return 'PURCHASE_PENDING';
   if (normalizedOrderStatus === 'ORDER_REJECTED') return 'ORDER_REJECTED';
   if (normalizedDeliveryStatus === 'DELIVERED') return 'DELIVERED';
   return normalizedOrderStatus || normalizedDeliveryStatus || '';
@@ -69,9 +85,9 @@ function resolveFilterStatus(order) {
 
 function getTone(status) {
   if (status === 'ORDER_REJECTED' || status === 'CANCELED' || status === 'CANCEL_REJECTED') return 'is-danger';
-  if (status === 'DELIVERED' || status === 'ORDER_ACCEPTED' || status === 'CANCEL_ACCEPTED') return 'is-success';
+  if (status === 'DELIVERED' || status === 'ORDER_ACCEPTED' || status === 'CANCEL_ACCEPTED' || status === 'PURCHASE_CONFIRMED') return 'is-success';
   if (status === 'WAYBILL_ASSIGNED' || status === 'PICKED_UP' || status === 'IN_TRANSIT' || status === 'SHIPPING') return 'is-accent';
-  if (status === 'CANCEL_REQUESTED') return 'is-warn';
+  if (status === 'CANCEL_REQUESTED' || status === 'PURCHASE_PENDING') return 'is-warn';
   return 'is-neutral';
 }
 
@@ -80,6 +96,12 @@ function buildSummary(orders) {
     totalCount: orders.length,
     paymentCompletedCount: orders.filter((order) => (order.normalizedOrderStatus || order.orderStatus) === 'PAYMENT_COMPLETED').length,
     acceptedCount: orders.filter((order) => (order.normalizedOrderStatus || order.orderStatus) === 'ORDER_ACCEPTED').length,
+    purchasePendingCount: orders.filter(
+      (order) =>
+        order.purchaseConfirmStatus === 'PURCHASE_PENDING' &&
+        (order.normalizedDeliveryStatus || order.deliveryStatus) === 'DELIVERED'
+    ).length,
+    purchaseConfirmedCount: orders.filter((order) => order.purchaseConfirmStatus === 'PURCHASE_CONFIRMED').length,
     cancelRequestedCount: orders.filter((order) => order.cancelStatus === 'CANCEL_REQUESTED').length,
     deliveredCount: orders.filter((order) => (order.normalizedDeliveryStatus || order.deliveryStatus) === 'DELIVERED').length,
   };
@@ -109,6 +131,7 @@ function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFi
   const filteredOrders = orders.filter((order) => orderFilter === 'ALL' || resolveFilterStatus(order) === orderFilter);
   const summary = buildSummary(orders);
   const cancelStatusLabel = getCancelStatusLabel(selectedOrderDetail);
+  const purchaseConfirmLabel = getPurchaseConfirmLabel(selectedOrderDetail);
   const timeline = buildTimeline(selectedOrderDetail);
   const canDeleteOrder = Boolean(
     selectedOrderDetail &&
@@ -133,6 +156,8 @@ function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFi
         <article className="admin-orders-v2__summary-card"><span>전체 주문</span><strong>{summary.totalCount}건</strong></article>
         <article className="admin-orders-v2__summary-card admin-orders-v2__summary-card--accent"><span>결제 완료</span><strong>{summary.paymentCompletedCount}건</strong></article>
         <article className="admin-orders-v2__summary-card admin-orders-v2__summary-card--success"><span>주문 확정</span><strong>{summary.acceptedCount}건</strong></article>
+        <article className="admin-orders-v2__summary-card admin-orders-v2__summary-card--warn"><span>구매 확정 대기</span><strong>{summary.purchasePendingCount}건</strong></article>
+        <article className="admin-orders-v2__summary-card admin-orders-v2__summary-card--success"><span>구매 확정 완료</span><strong>{summary.purchaseConfirmedCount}건</strong></article>
         <article className="admin-orders-v2__summary-card admin-orders-v2__summary-card--warn"><span>취소 요청</span><strong>{summary.cancelRequestedCount}건</strong></article>
         <article className="admin-orders-v2__summary-card admin-orders-v2__summary-card--success"><span>배송 완료</span><strong>{summary.deliveredCount}건</strong></article>
       </section>
@@ -151,6 +176,7 @@ function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFi
           <div className="admin-orders-v2__list">
             {filteredOrders.map((order) => {
               const cancelLabel = getCancelStatusLabel(order);
+              const purchaseLabel = getPurchaseConfirmLabel(order);
               return (
                 <button key={order.orderNo} type="button" className={`admin-orders-v2__list-card ${order.orderNo === selectedOrderNo ? 'is-selected' : ''}`} onClick={() => onSelectOrder(order.orderNo)}>
                   <div className="admin-orders-v2__list-top">
@@ -160,6 +186,7 @@ function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFi
                   <div className="admin-orders-v2__list-meta"><span>{order.recipientName || '-'}</span><span>{formatAdminCurrency(order.finalAmount)}</span></div>
                   <div className="admin-orders-v2__list-tags">
                     <span className={`admin-orders-v2__status-chip ${getTone(order.normalizedDeliveryStatus || order.deliveryStatus)}`}>{getDeliveryStatusLabel(order)}</span>
+                    {purchaseLabel ? <span className={`admin-orders-v2__status-chip ${getTone(order.purchaseConfirmStatus)}`}>{purchaseLabel}</span> : null}
                     {cancelLabel ? <span className={`admin-orders-v2__status-chip ${getTone(order.cancelStatus)}`}>{cancelLabel}</span> : null}
                     {order.legacyStatusNeedsReview ? <span className="admin-orders-v2__status-chip is-warn">상태 검토 필요</span> : null}
                   </div>
@@ -180,6 +207,7 @@ function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFi
                 <div className="admin-orders-v2__detail-tags">
                   <span className={`admin-orders-v2__status-chip ${getTone(selectedOrderDetail.normalizedOrderStatus || selectedOrderDetail.orderStatus)}`}>{getOrderStatusLabel(selectedOrderDetail)}</span>
                   <span className={`admin-orders-v2__status-chip ${getTone(selectedOrderDetail.normalizedDeliveryStatus || selectedOrderDetail.deliveryStatus)}`}>{getDeliveryStatusLabel(selectedOrderDetail)}</span>
+                  {purchaseConfirmLabel ? <span className={`admin-orders-v2__status-chip ${getTone(selectedOrderDetail.purchaseConfirmStatus)}`}>{purchaseConfirmLabel}</span> : null}
                   {cancelStatusLabel ? <span className={`admin-orders-v2__status-chip ${getTone(selectedOrderDetail.cancelStatus)}`}>{cancelStatusLabel}</span> : null}
                 </div>
               </div>
@@ -196,6 +224,8 @@ function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFi
                   <h3>결제 정보</h3>
                   <div className="admin-orders-v2__row"><strong>결제 수단</strong><span>{selectedOrderDetail.paymentMethod || '-'}</span></div>
                   <div className="admin-orders-v2__row"><strong>결제 상태</strong><span>{selectedOrderDetail.paymentStatus || '-'}</span></div>
+                  <div className="admin-orders-v2__row"><strong>구매 확정</strong><span>{purchaseConfirmLabel || '-'}</span></div>
+                  <div className="admin-orders-v2__row"><strong>구매 확정일</strong><span>{selectedOrderDetail.purchaseConfirmedAt ? formatAdminDate(selectedOrderDetail.purchaseConfirmedAt) : '-'}</span></div>
                   <div className="admin-orders-v2__row"><strong>결제 금액</strong><span>{formatAdminCurrency(selectedOrderDetail.finalAmount)}</span></div>
                   <div className="admin-orders-v2__row"><strong>절약 금액</strong><span>{formatAdminCurrency(selectedOrderDetail.totalSavedAmount)}</span></div>
                 </section>
