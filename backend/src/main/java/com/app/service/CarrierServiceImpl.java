@@ -65,6 +65,7 @@ public class CarrierServiceImpl implements CarrierService {
         order.setPaidAmount(defaultAmount(order.getPaidAmount()));
         order.setTotalSavedAmount(totalSavedAmount);
         hydrateOrderRuntimeState(order);
+        order.setTrackingHistories(orderDao.findDeliveryTrackingHistories(orderNo));
         return order;
     }
 
@@ -86,6 +87,14 @@ public class CarrierServiceImpl implements CarrierService {
         }
 
         adminDao.updateAdminDeliveryTracking(orderNo, trackingNo, courierName);
+        orderDao.insertDeliveryTrackingHistory(
+            orderNo,
+            OrderCompatibilityUtils.resolveCarrierCode(courierName),
+            trackingNo,
+            "WAYBILL_ASSIGNED",
+            "송장번호를 발급하고 배송 접수를 준비했습니다.",
+            null
+        );
         return getOrderDetail(orderNo);
     }
 
@@ -110,6 +119,14 @@ public class CarrierServiceImpl implements CarrierService {
         }
 
         adminDao.updateAdminDeliveryForPickup(orderNo, resolvedTrackingNo, courierName);
+        orderDao.insertDeliveryTrackingHistory(
+            orderNo,
+            OrderCompatibilityUtils.resolveCarrierCode(courierName),
+            resolvedTrackingNo,
+            "PICKED_UP",
+            "집하를 완료하고 배송 허브로 이동 중입니다.",
+            null
+        );
         return getOrderDetail(orderNo);
     }
 
@@ -129,6 +146,14 @@ public class CarrierServiceImpl implements CarrierService {
 
         adminDao.updateAdminOrderStatus(orderNo, "SHIPPING");
         adminDao.updateAdminDeliveryForShipping(orderNo, trackingNo, courierName);
+        orderDao.insertDeliveryTrackingHistory(
+            orderNo,
+            currentOrder.getCarrierCode(),
+            trackingNo,
+            "IN_TRANSIT",
+            "고객 배송지로 이동 중입니다.",
+            null
+        );
         return getOrderDetail(orderNo);
     }
 
@@ -142,6 +167,14 @@ public class CarrierServiceImpl implements CarrierService {
 
         adminDao.updateAdminOrderStatus(orderNo, "COMPLETED");
         adminDao.updateAdminDeliveryForDelivered(orderNo);
+        orderDao.insertDeliveryTrackingHistory(
+            orderNo,
+            currentOrder.getCarrierCode(),
+            currentOrder.getTrackingNo(),
+            "DELIVERED",
+            "배송이 완료되었습니다.",
+            null
+        );
         return getOrderDetail(orderNo);
     }
 

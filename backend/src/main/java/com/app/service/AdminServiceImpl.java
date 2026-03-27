@@ -214,6 +214,7 @@ public class AdminServiceImpl implements AdminService {
         order.setPaidAmount(defaultAmount(order.getPaidAmount()));
         order.setTotalSavedAmount(totalSavedAmount);
         hydrateOrderRuntimeState(order);
+        order.setTrackingHistories(orderDao.findDeliveryTrackingHistories(orderNo));
         return order;
     }
 
@@ -314,6 +315,14 @@ public class AdminServiceImpl implements AdminService {
             : trackingNo;
         adminDao.updateAdminOrderStatus(orderNo, "SHIPPING");
         adminDao.updateAdminDeliveryForShipping(orderNo, resolvedTrackingNo, courierName);
+        orderDao.insertDeliveryTrackingHistory(
+            orderNo,
+            OrderCompatibilityUtils.resolveCarrierCode(courierName),
+            resolvedTrackingNo,
+            "IN_TRANSIT",
+            "관리자가 주문을 배송사로 인계했습니다.",
+            null
+        );
         return getOrderDetail(orderNo);
     }
 
@@ -327,6 +336,14 @@ public class AdminServiceImpl implements AdminService {
 
         adminDao.updateAdminOrderStatus(orderNo, "COMPLETED");
         adminDao.updateAdminDeliveryForDelivered(orderNo);
+        orderDao.insertDeliveryTrackingHistory(
+            orderNo,
+            currentOrder.getCarrierCode(),
+            currentOrder.getTrackingNo(),
+            "DELIVERED",
+            "관리자가 배송 완료 처리했습니다.",
+            null
+        );
         return getOrderDetail(orderNo);
     }
 

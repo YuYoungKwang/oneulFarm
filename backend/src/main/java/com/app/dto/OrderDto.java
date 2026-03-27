@@ -70,4 +70,5 @@ public class OrderDto {
     private Boolean transitAvailable;
 
     private List<OrderItemDto> items;
+    private List<DeliveryTrackingHistoryDto> trackingHistories;
 }

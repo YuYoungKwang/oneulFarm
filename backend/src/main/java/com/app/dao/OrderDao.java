@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.app.dto.DeliveryDto;
+import com.app.dto.DeliveryTrackingHistoryDto;
 import com.app.dto.OrderDto;
 import com.app.dto.OrderItemDto;
 import com.app.dto.PaymentDto;
@@ -18,6 +19,8 @@ public interface OrderDao {
     OrderDto findOrderDetail(Long userNo, Long orderNo);
 
     List<OrderItemDto> findOrderItems(Long orderNo);
+
+    List<DeliveryTrackingHistoryDto> findDeliveryTrackingHistories(Long orderNo);
 
     List<Long> findOrderPreviewImageNos(Long orderNo);
 
@@ -46,6 +49,15 @@ public interface OrderDao {
     int insertOrderCancelRequest(Long orderNo, Long requestedByUserNo, String cancelStatus, String requestReason);
 
     int updateLatestOrderCancelRequest(Long orderNo, String cancelStatus, Long decidedByUserNo, String decisionReason);
+
+    int insertDeliveryTrackingHistory(
+        Long orderNo,
+        String carrierCode,
+        String trackingNo,
+        String trackingStatus,
+        String trackingMessage,
+        Long recordedByUserNo
+    );
 
     int updateDeliveryForShipping(Long orderNo, String trackingNo);
 

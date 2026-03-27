@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import com.app.dto.DeliveryDto;
+import com.app.dto.DeliveryTrackingHistoryDto;
 import com.app.dto.OrderDto;
 import com.app.dto.OrderItemDto;
 import com.app.dto.PaymentDto;
@@ -43,6 +44,11 @@ public class OrderDaoImpl implements OrderDao {
     @Override
     public List<OrderItemDto> findOrderItems(Long orderNo) {
         return sqlSessionTemplate.selectList(NAMESPACE + "selectOrderItems", orderNo);
+    }
+
+    @Override
+    public List<DeliveryTrackingHistoryDto> findDeliveryTrackingHistories(Long orderNo) {
+        return sqlSessionTemplate.selectList(NAMESPACE + "selectDeliveryTrackingHistories", orderNo);
     }
 
     @Override
@@ -134,6 +140,25 @@ public class OrderDaoImpl implements OrderDao {
         params.put("decidedByUserNo", decidedByUserNo);
         params.put("decisionReason", decisionReason);
         return sqlSessionTemplate.update(NAMESPACE + "updateLatestOrderCancelRequest", params);
+    }
+
+    @Override
+    public int insertDeliveryTrackingHistory(
+        Long orderNo,
+        String carrierCode,
+        String trackingNo,
+        String trackingStatus,
+        String trackingMessage,
+        Long recordedByUserNo
+    ) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("orderNo", orderNo);
+        params.put("carrierCode", carrierCode);
+        params.put("trackingNo", trackingNo);
+        params.put("trackingStatus", trackingStatus);
+        params.put("trackingMessage", trackingMessage);
+        params.put("recordedByUserNo", recordedByUserNo);
+        return sqlSessionTemplate.insert(NAMESPACE + "insertDeliveryTrackingHistory", params);
     }
 
     @Override

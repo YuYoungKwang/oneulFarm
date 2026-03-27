@@ -72,6 +72,18 @@
         <result property="reviewNo" column="reviewNo" />
     </resultMap>
 
+    <resultMap id="DeliveryTrackingHistoryResultMap" type="com.app.dto.DeliveryTrackingHistoryDto">
+        <result property="trackingHistoryNo" column="trackingHistoryNo" />
+        <result property="orderNo" column="orderNo" />
+        <result property="deliveryNo" column="deliveryNo" />
+        <result property="carrierCode" column="carrierCode" />
+        <result property="trackingNo" column="trackingNo" />
+        <result property="trackingStatus" column="trackingStatus" />
+        <result property="trackingMessage" column="trackingMessage" />
+        <result property="recordedByUserNo" column="recordedByUserNo" />
+        <result property="recordedAt" column="recordedAt" />
+    </resultMap>
+
     <select id="selectMyOrders" parameterType="map" resultMap="OrderListResultMap">
         SELECT
             o.ORDER_NO AS orderNo,
@@ -230,6 +242,22 @@
             ORDER BY oi.ORDER_ITEM_NO ASC
         )
         WHERE ROWNUM &lt;= 3
+    </select>
+
+    <select id="selectDeliveryTrackingHistories" parameterType="long" resultMap="DeliveryTrackingHistoryResultMap">
+        SELECT
+            TRACKING_HISTORY_NO AS trackingHistoryNo,
+            ORDER_NO AS orderNo,
+            DELIVERY_NO AS deliveryNo,
+            CARRIER_CODE AS carrierCode,
+            TRACKING_NO AS trackingNo,
+            TRACKING_STATUS AS trackingStatus,
+            TRACKING_MESSAGE AS trackingMessage,
+            RECORDED_BY_USER_NO AS recordedByUserNo,
+            RECORDED_AT AS recordedAt
+        FROM OFT_DELIVERY_TRACKING_HISTORY
+        WHERE ORDER_NO = #{_parameter}
+        ORDER BY RECORDED_AT ASC, TRACKING_HISTORY_NO ASC
     </select>
 
     <select id="countOrdersByOrderIdPrefix" parameterType="string" resultType="int">
@@ -408,6 +436,30 @@
             #{requestedByUserNo},
             #{cancelStatus},
             #{requestReason}
+        )
+    </insert>
+
+    <insert id="insertDeliveryTrackingHistory" parameterType="map">
+        INSERT INTO OFT_DELIVERY_TRACKING_HISTORY (
+            ORDER_NO,
+            DELIVERY_NO,
+            CARRIER_CODE,
+            TRACKING_NO,
+            TRACKING_STATUS,
+            TRACKING_MESSAGE,
+            RECORDED_BY_USER_NO
+        ) VALUES (
+            #{orderNo},
+            (
+                SELECT DELIVERY_NO
+                FROM OFT_DELIVERY
+                WHERE ORDER_NO = #{orderNo}
+            ),
+            #{carrierCode},
+            #{trackingNo},
+            #{trackingStatus},
+            #{trackingMessage},
+            #{recordedByUserNo}
         )
     </insert>
 

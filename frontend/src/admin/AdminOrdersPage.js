@@ -107,6 +107,16 @@ function buildSummary(orders) {
   };
 }
 
+function findTrackingHistoryTime(detail, trackingStatus) {
+  const histories = Array.isArray(detail?.trackingHistories) ? detail.trackingHistories : [];
+  for (let index = histories.length - 1; index >= 0; index -= 1) {
+    if (histories[index]?.trackingStatus === trackingStatus) {
+      return histories[index]?.recordedAt || null;
+    }
+  }
+  return null;
+}
+
 function buildTimeline(detail) {
   const status = detail?.normalizedDeliveryStatus || detail?.deliveryStatus;
   return [
@@ -114,16 +124,27 @@ function buildTimeline(detail) {
     {
       key: 'waybill',
       label: '송장 등록',
-      value: detail?.waybillAssignedAt,
+      value: findTrackingHistoryTime(detail, 'WAYBILL_ASSIGNED') || detail?.waybillAssignedAt,
       active: Boolean(detail?.trackingNo) || status === 'WAYBILL_ASSIGNED' || status === 'PICKED_UP' || status === 'IN_TRANSIT' || status === 'DELIVERED',
     },
     {
       key: 'pickup',
       label: '집하 완료',
-      value: detail?.pickedUpAt || detail?.inTransitAt,
+      value: findTrackingHistoryTime(detail, 'PICKED_UP') || detail?.pickedUpAt || detail?.inTransitAt,
       active: status === 'PICKED_UP' || status === 'IN_TRANSIT' || status === 'DELIVERED',
     },
-    { key: 'delivered', label: '배송 완료', value: detail?.deliveredAt, active: status === 'DELIVERED' },
+    {
+      key: 'transit',
+      label: '배송 중',
+      value: findTrackingHistoryTime(detail, 'IN_TRANSIT') || detail?.inTransitAt,
+      active: status === 'IN_TRANSIT' || status === 'DELIVERED',
+    },
+    {
+      key: 'delivered',
+      label: '배송 완료',
+      value: findTrackingHistoryTime(detail, 'DELIVERED') || detail?.deliveredAt,
+      active: status === 'DELIVERED',
+    },
   ];
 }
 

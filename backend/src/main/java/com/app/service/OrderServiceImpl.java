@@ -85,6 +85,7 @@ public class OrderServiceImpl implements OrderService {
         response.setFinalAmount(defaultAmount(response.getFinalAmount()));
         response.setTotalSavedAmount(sumTotalSavedAmount(itemResponses));
         response.setItems(itemResponses);
+        response.setTrackingHistories(orderDao.findDeliveryTrackingHistories(orderNo));
         hydrateOrderRuntimeState(response);
         return response;
     }
