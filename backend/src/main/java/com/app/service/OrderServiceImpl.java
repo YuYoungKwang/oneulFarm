@@ -178,7 +178,7 @@ public class OrderServiceImpl implements OrderService {
         delivery.setTrackingNo(null);
         delivery.setDeliveryStatus("READY");
         orderDao.insertDelivery(delivery);
-        orderDao.insertOrderStatusHistory(orderNo, null, "PAID", "SYSTEM", null, "주문 생성 및 결제 완료");
+        orderDao.insertOrderStatusHistory(orderNo, null, "PAID", "SYSTEM", null, "주문을 생성하고 결제를 완료했습니다.");
 
         Long cartNo = cartDao.findCartNoByUser(userNo);
         if (cartNo != null) {
@@ -197,14 +197,14 @@ public class OrderServiceImpl implements OrderService {
         if ("PAID".equals(currentStatus)) {
             orderDao.updateOrderStatus(orderNo, "SHIPPING");
             orderDao.updateDeliveryForShipping(orderNo, "TRK-" + currentOrder.getOrderId());
-            orderDao.insertOrderStatusHistory(orderNo, currentStatus, "SHIPPING", "SYSTEM", null, "주문 상태 자동 진행");
+            orderDao.insertOrderStatusHistory(orderNo, currentStatus, "SHIPPING", "SYSTEM", null, "시스템이 주문을 배송 단계로 전환했습니다.");
             return getMyOrderDetail(userNo, orderNo);
         }
 
         if ("SHIPPING".equals(currentStatus)) {
             orderDao.updateOrderStatus(orderNo, "COMPLETED");
             orderDao.updateDeliveryForDelivered(orderNo);
-            orderDao.insertOrderStatusHistory(orderNo, currentStatus, "COMPLETED", "SYSTEM", null, "주문 상태 자동 진행");
+            orderDao.insertOrderStatusHistory(orderNo, currentStatus, "COMPLETED", "SYSTEM", null, "시스템이 주문을 배송 완료 단계로 전환했습니다.");
             return getMyOrderDetail(userNo, orderNo);
         }
 

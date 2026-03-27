@@ -75,6 +75,26 @@ function resolveOrderHistoryActorLabel(actor) {
   }
 }
 
+function resolveOrderHistoryTitle(history) {
+  const reason = history?.changeReason || '';
+  if (reason.includes('송장번호')) return '송장 등록';
+  if (reason.includes('집하')) return '집하 완료';
+  if (reason.includes('배송사로 인계')) return '배송 인계';
+  if (reason.includes('취소 요청을 수락')) return '취소 요청 수락';
+  if (reason.includes('취소 요청을 거절')) return '취소 요청 거절';
+  if (reason.includes('주문을 거절')) return '주문 거절';
+  return resolveOrderHistoryStatusLabel(history?.nextOrderStatus);
+}
+
+function resolveOrderHistoryCopy(history) {
+  const actorLabel = resolveOrderHistoryActorLabel(history?.changedByType);
+  const reason = history?.changeReason;
+  if (reason) {
+    return `${actorLabel} · ${reason}`;
+  }
+  return actorLabel;
+}
+
 function findTrackingHistoryTime(detail, trackingStatus) {
   const histories = Array.isArray(detail?.trackingHistories) ? detail.trackingHistories : [];
   for (let index = histories.length - 1; index >= 0; index -= 1) {
@@ -378,13 +398,10 @@ function CustomerOrderDetailPanel({
           {(detail.orderStatusHistories || []).map((history) => (
             <article key={history.orderStatusHistoryNo} className="customer-order-detail__history-card">
               <div className="customer-order-detail__history-meta">
-                <strong>{resolveOrderHistoryStatusLabel(history.nextOrderStatus)}</strong>
+                <strong>{resolveOrderHistoryTitle(history)}</strong>
                 <span>{formatDateTime(history.changedAt)}</span>
               </div>
-              <p className="customer-order-detail__history-copy">
-                {resolveOrderHistoryActorLabel(history.changedByType)}
-                {history.changeReason ? ` · ${history.changeReason}` : ''}
-              </p>
+              <p className="customer-order-detail__history-copy">{resolveOrderHistoryCopy(history)}</p>
             </article>
           ))}
           {!(detail.orderStatusHistories || []).length ? (

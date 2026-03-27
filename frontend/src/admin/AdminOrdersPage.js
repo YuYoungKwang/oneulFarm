@@ -97,6 +97,26 @@ function getOrderHistoryActorLabel(actor) {
   }
 }
 
+function getOrderHistoryTitle(history) {
+  const reason = history?.changeReason || '';
+  if (reason.includes('송장번호')) return '송장 등록';
+  if (reason.includes('집하')) return '집하 완료';
+  if (reason.includes('배송사로 인계')) return '배송 인계';
+  if (reason.includes('취소 요청을 수락')) return '취소 요청 수락';
+  if (reason.includes('취소 요청을 거절')) return '취소 요청 거절';
+  if (reason.includes('주문을 거절')) return '주문 거절';
+  return getOrderHistoryStatusLabel(history?.nextOrderStatus);
+}
+
+function getOrderHistoryCopy(history) {
+  const actorLabel = getOrderHistoryActorLabel(history?.changedByType);
+  const reason = history?.changeReason;
+  if (reason) {
+    return `${actorLabel} · ${reason}`;
+  }
+  return actorLabel;
+}
+
 function resolveFilterStatus(order) {
   if (!order) return '';
   const cancelStatus = order.cancelStatus;
@@ -334,13 +354,10 @@ function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFi
                   {(selectedOrderDetail.orderStatusHistories || []).map((history) => (
                     <div key={history.orderStatusHistoryNo} className="admin-orders-v2__history-card">
                       <div className="admin-orders-v2__history-head">
-                        <strong>{getOrderHistoryStatusLabel(history.nextOrderStatus)}</strong>
+                        <strong>{getOrderHistoryTitle(history)}</strong>
                         <span>{formatAdminDate(history.changedAt)}</span>
                       </div>
-                      <div className="admin-orders-v2__history-copy">
-                        {getOrderHistoryActorLabel(history.changedByType)}
-                        {history.changeReason ? ` · ${history.changeReason}` : ''}
-                      </div>
+                      <div className="admin-orders-v2__history-copy">{getOrderHistoryCopy(history)}</div>
                     </div>
                   ))}
                   {!(selectedOrderDetail.orderStatusHistories || []).length ? (

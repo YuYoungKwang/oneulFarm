@@ -88,6 +88,14 @@ public class CarrierServiceImpl implements CarrierService {
         }
 
         adminDao.updateAdminDeliveryTracking(orderNo, trackingNo, courierName);
+        orderDao.insertOrderStatusHistory(
+            orderNo,
+            currentOrder.getOrderStatus(),
+            currentOrder.getOrderStatus(),
+            "CARRIER",
+            null,
+            "배송사가 송장번호를 등록했습니다."
+        );
         orderDao.insertDeliveryTrackingHistory(
             orderNo,
             OrderCompatibilityUtils.resolveCarrierCode(courierName),
@@ -120,6 +128,14 @@ public class CarrierServiceImpl implements CarrierService {
         }
 
         adminDao.updateAdminDeliveryForPickup(orderNo, resolvedTrackingNo, courierName);
+        orderDao.insertOrderStatusHistory(
+            orderNo,
+            currentOrder.getOrderStatus(),
+            currentOrder.getOrderStatus(),
+            "CARRIER",
+            null,
+            "배송사가 집하 완료 처리했습니다."
+        );
         orderDao.insertDeliveryTrackingHistory(
             orderNo,
             OrderCompatibilityUtils.resolveCarrierCode(courierName),
@@ -147,7 +163,7 @@ public class CarrierServiceImpl implements CarrierService {
 
         adminDao.updateAdminOrderStatus(orderNo, "SHIPPING");
         adminDao.updateAdminDeliveryForShipping(orderNo, trackingNo, courierName);
-        orderDao.insertOrderStatusHistory(orderNo, currentOrder.getOrderStatus(), "SHIPPING", "CARRIER", null, "배송 중 처리");
+        orderDao.insertOrderStatusHistory(orderNo, currentOrder.getOrderStatus(), "SHIPPING", "CARRIER", null, "배송사가 배송 중 처리했습니다.");
         orderDao.insertDeliveryTrackingHistory(
             orderNo,
             currentOrder.getCarrierCode(),
@@ -169,7 +185,7 @@ public class CarrierServiceImpl implements CarrierService {
 
         adminDao.updateAdminOrderStatus(orderNo, "COMPLETED");
         adminDao.updateAdminDeliveryForDelivered(orderNo);
-        orderDao.insertOrderStatusHistory(orderNo, currentOrder.getOrderStatus(), "COMPLETED", "CARRIER", null, "배송 완료 처리");
+        orderDao.insertOrderStatusHistory(orderNo, currentOrder.getOrderStatus(), "COMPLETED", "CARRIER", null, "배송사가 배송 완료 처리했습니다.");
         orderDao.insertDeliveryTrackingHistory(
             orderNo,
             currentOrder.getCarrierCode(),
