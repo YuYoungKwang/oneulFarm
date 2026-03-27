@@ -31,7 +31,9 @@ function getDeliveryStatusKey(order) {
 
 function getTone(status) {
   if (status === 'DELIVERED') return 'is-success';
-  if (status === 'WAYBILL_ASSIGNED' || status === 'PICKED_UP' || status === 'IN_TRANSIT' || status === 'SHIPPING') return 'is-accent';
+  if (status === 'WAYBILL_ASSIGNED' || status === 'PICKED_UP' || status === 'IN_TRANSIT' || status === 'SHIPPING') {
+    return 'is-accent';
+  }
   return 'is-neutral';
 }
 
@@ -67,7 +69,12 @@ function buildTimeline(detail) {
       key: 'waybill',
       label: '송장 등록',
       value: findTrackingHistoryTime(detail, 'WAYBILL_ASSIGNED') || detail?.waybillAssignedAt,
-      active: Boolean(detail?.trackingNo) || status === 'WAYBILL_ASSIGNED' || status === 'PICKED_UP' || status === 'IN_TRANSIT' || status === 'DELIVERED',
+      active:
+        Boolean(detail?.trackingNo) ||
+        status === 'WAYBILL_ASSIGNED' ||
+        status === 'PICKED_UP' ||
+        status === 'IN_TRANSIT' ||
+        status === 'DELIVERED',
     },
     {
       key: 'pickup',
@@ -92,14 +99,64 @@ function buildTimeline(detail) {
 
 function buildDeliveryStageSummary(detail) {
   const status = getDeliveryStatusKey(detail);
-  if (status === 'DELIVERED') return { title: '배송 완료', description: '고객이 상품을 수령한 단계입니다.' };
-  if (status === 'IN_TRANSIT') return { title: '배송 중', description: '집하가 끝났고 고객 배송지로 이동 중입니다.' };
-  if (status === 'PICKED_UP') return { title: '집하 완료', description: '상품을 접수했고 본격 배송 이동 전 단계입니다.' };
-  if (status === 'WAYBILL_ASSIGNED') return { title: '송장 등록', description: '송장번호가 발급되어 집하 처리만 남아 있습니다.' };
+  if (status === 'DELIVERED') {
+    return { title: '배송 완료', description: '고객에게 상품 전달이 끝난 상태입니다.' };
+  }
+  if (status === 'IN_TRANSIT') {
+    return { title: '배송 중', description: '집하가 끝났고 고객 배송지로 이동 중입니다.' };
+  }
+  if (status === 'PICKED_UP') {
+    return { title: '집하 완료', description: '상품을 접수했고 본격 배송 이동 전 단계입니다.' };
+  }
+  if (status === 'WAYBILL_ASSIGNED') {
+    return { title: '송장 등록', description: '송장번호가 발급되어 집하 처리만 남아 있습니다.' };
+  }
   return { title: '배송 준비', description: '아직 송장번호가 없고 배송 접수 전 단계입니다.' };
 }
 
-function CarrierManagementPage({ orders, selectedOrderNo, selectedOrderDetail, orderFilter, trackingNo, onOrderFilterChange, onSelectOrder, onTrackingChange, onAssignWaybill, onPickupOrder, onTransitOrder, onDeliverOrder, updating }) {
+function getOrderHistoryStatusLabel(status) {
+  switch (status) {
+    case 'PAID':
+      return '결제 완료';
+    case 'SHIPPING':
+      return '배송 중';
+    case 'COMPLETED':
+      return '배송 완료';
+    case 'CANCELED':
+      return '주문 취소';
+    default:
+      return status || '-';
+  }
+}
+
+function getOrderHistoryActorLabel(actor) {
+  switch (actor) {
+    case 'SYSTEM':
+      return '시스템';
+    case 'ADMIN':
+      return '운영자';
+    case 'CARRIER':
+      return '배송사';
+    default:
+      return actor || '-';
+  }
+}
+
+function CarrierManagementPage({
+  orders,
+  selectedOrderNo,
+  selectedOrderDetail,
+  orderFilter,
+  trackingNo,
+  onOrderFilterChange,
+  onSelectOrder,
+  onTrackingChange,
+  onAssignWaybill,
+  onPickupOrder,
+  onTransitOrder,
+  onDeliverOrder,
+  updating,
+}) {
   const filteredOrders = orders.filter((order) => orderFilter === 'ALL' || getDeliveryStatusKey(order) === orderFilter);
   const summary = buildSummary(orders);
   const timeline = buildTimeline(selectedOrderDetail);
@@ -112,26 +169,77 @@ function CarrierManagementPage({ orders, selectedOrderNo, selectedOrderDetail, o
         description="배송사 관점에서 송장 등록, 집하 처리, 배송 완료를 관리하는 화면"
         actions={
           <>
-            <button type="button" className="admin-action admin-action--line carrier-management__toolbar-button" onClick={onAssignWaybill} disabled={!selectedOrderDetail?.waybillAssignable || updating}>송장 등록</button>
-            <button type="button" className="admin-action admin-action--soft carrier-management__toolbar-button" onClick={onPickupOrder} disabled={(!selectedOrderDetail?.pickupAvailable && !selectedOrderDetail?.shipAvailable) || updating}>집하 처리</button>
-            <button type="button" className="admin-action admin-action--soft carrier-management__toolbar-button" onClick={onTransitOrder} disabled={!selectedOrderDetail?.transitAvailable || updating}>배송 중</button>
-            <button type="button" className="admin-action admin-action--primary carrier-management__toolbar-button" onClick={onDeliverOrder} disabled={!selectedOrderDetail?.deliverAvailable || updating}>배송 완료</button>
+            <button
+              type="button"
+              className="admin-action admin-action--line carrier-management__toolbar-button"
+              onClick={onAssignWaybill}
+              disabled={!selectedOrderDetail?.waybillAssignable || updating}
+            >
+              송장 등록
+            </button>
+            <button
+              type="button"
+              className="admin-action admin-action--soft carrier-management__toolbar-button"
+              onClick={onPickupOrder}
+              disabled={(!selectedOrderDetail?.pickupAvailable && !selectedOrderDetail?.shipAvailable) || updating}
+            >
+              집하 처리
+            </button>
+            <button
+              type="button"
+              className="admin-action admin-action--soft carrier-management__toolbar-button"
+              onClick={onTransitOrder}
+              disabled={!selectedOrderDetail?.transitAvailable || updating}
+            >
+              배송 중
+            </button>
+            <button
+              type="button"
+              className="admin-action admin-action--primary carrier-management__toolbar-button"
+              onClick={onDeliverOrder}
+              disabled={!selectedOrderDetail?.deliverAvailable || updating}
+            >
+              배송 완료
+            </button>
           </>
         }
       />
 
       <section className="carrier-management__summary-grid">
-        <article className="carrier-management__summary-card"><span>전체 배송</span><strong>{summary.totalCount}건</strong></article>
-        <article className="carrier-management__summary-card"><span>배송 준비</span><strong>{summary.waitingCount}건</strong></article>
-        <article className="carrier-management__summary-card carrier-management__summary-card--accent"><span>송장 등록</span><strong>{summary.waybillCount}건</strong></article>
-        <article className="carrier-management__summary-card carrier-management__summary-card--accent"><span>집하 완료</span><strong>{summary.pickedUpCount}건</strong></article>
-        <article className="carrier-management__summary-card carrier-management__summary-card--accent"><span>배송 중</span><strong>{summary.inTransitCount}건</strong></article>
-        <article className="carrier-management__summary-card carrier-management__summary-card--success"><span>배송 완료</span><strong>{summary.deliveredCount}건</strong></article>
+        <article className="carrier-management__summary-card">
+          <span>전체 배송</span>
+          <strong>{summary.totalCount}건</strong>
+        </article>
+        <article className="carrier-management__summary-card">
+          <span>배송 준비</span>
+          <strong>{summary.waitingCount}건</strong>
+        </article>
+        <article className="carrier-management__summary-card carrier-management__summary-card--accent">
+          <span>송장 등록</span>
+          <strong>{summary.waybillCount}건</strong>
+        </article>
+        <article className="carrier-management__summary-card carrier-management__summary-card--accent">
+          <span>집하 완료</span>
+          <strong>{summary.pickedUpCount}건</strong>
+        </article>
+        <article className="carrier-management__summary-card carrier-management__summary-card--accent">
+          <span>배송 중</span>
+          <strong>{summary.inTransitCount}건</strong>
+        </article>
+        <article className="carrier-management__summary-card carrier-management__summary-card--success">
+          <span>배송 완료</span>
+          <strong>{summary.deliveredCount}건</strong>
+        </article>
       </section>
 
       <div className="carrier-management__filters">
         {DELIVERY_FILTERS.map((filter) => (
-          <button key={filter.value} type="button" className={`carrier-management__filter-chip ${orderFilter === filter.value ? 'is-active' : ''}`} onClick={() => onOrderFilterChange(filter.value)}>
+          <button
+            key={filter.value}
+            type="button"
+            className={`carrier-management__filter-chip ${orderFilter === filter.value ? 'is-active' : ''}`}
+            onClick={() => onOrderFilterChange(filter.value)}
+          >
             {filter.label}
           </button>
         ))}
@@ -139,73 +247,192 @@ function CarrierManagementPage({ orders, selectedOrderNo, selectedOrderDetail, o
 
       <section className="carrier-management__layout">
         <article className="admin-card admin-card--panel carrier-management__list-panel">
-          <div className="carrier-management__panel-head"><div><h2>배송 대상 주문</h2><p>배송사가 처리할 주문을 선택해 송장과 상태를 관리합니다.</p></div></div>
+          <div className="carrier-management__panel-head">
+            <div>
+              <h2>배송 대상 주문</h2>
+              <p>배송을 처리할 주문을 고른 뒤 송장과 상태를 관리합니다.</p>
+            </div>
+          </div>
           <div className="carrier-management__list">
             {filteredOrders.map((order) => (
-              <button key={order.orderNo} type="button" className={`carrier-management__list-card ${order.orderNo === selectedOrderNo ? 'is-selected' : ''}`} onClick={() => onSelectOrder(order.orderNo)}>
+              <button
+                key={order.orderNo}
+                type="button"
+                className={`carrier-management__list-card ${order.orderNo === selectedOrderNo ? 'is-selected' : ''}`}
+                onClick={() => onSelectOrder(order.orderNo)}
+              >
                 <div className="carrier-management__list-top">
-                  <div><strong>{order.orderId}</strong><span>{formatAdminDate(order.orderedAt)}</span></div>
-                  <span className={`carrier-management__status-chip ${getTone(getDeliveryStatusKey(order))}`}>{getDeliveryStatusLabel(order)}</span>
+                  <div>
+                    <strong>{order.orderId}</strong>
+                    <span>{formatAdminDate(order.orderedAt)}</span>
+                  </div>
+                  <span className={`carrier-management__status-chip ${getTone(getDeliveryStatusKey(order))}`}>
+                    {getDeliveryStatusLabel(order)}
+                  </span>
                 </div>
-                <div className="carrier-management__list-meta"><span>{order.recipientName || '-'}</span><span>{order.trackingNo || '송장 미등록'}</span></div>
+                <div className="carrier-management__list-meta">
+                  <span>{order.recipientName || '-'}</span>
+                  <span>{order.trackingNo || '송장 미등록'}</span>
+                </div>
               </button>
             ))}
-            {!filteredOrders.length ? <AdminEmptyState title="처리할 배송이 없습니다." description="필터를 바꾸거나 다른 주문 상태를 확인해 주세요." /> : null}
+            {!filteredOrders.length ? (
+              <AdminEmptyState title="처리할 배송이 없습니다." description="필터를 바꾸거나 다른 주문 상태를 확인해 주세요." />
+            ) : null}
           </div>
         </article>
 
         <article className="admin-card admin-card--panel carrier-management__detail-panel">
           {!selectedOrderDetail ? (
-            <AdminEmptyState title="주문을 선택해 주세요." description="왼쪽 목록에서 주문을 고르면 배송 흐름과 송장 처리 영역이 열립니다." />
+            <AdminEmptyState title="주문을 선택해 주세요." description="왼쪽 목록에서 주문을 고르면 배송 흐름과 송장 처리를 볼 수 있습니다." />
           ) : (
             <div className="carrier-management__detail">
               <div className="carrier-management__detail-head">
-                <div><h2>{selectedOrderDetail.orderId}</h2><p>{selectedOrderDetail.recipientName || '-'}{' · '}{formatAdminCurrency(selectedOrderDetail.finalAmount)}</p></div>
-                <span className={`carrier-management__status-chip ${getTone(getDeliveryStatusKey(selectedOrderDetail))}`}>{getDeliveryStatusLabel(selectedOrderDetail)}</span>
+                <div>
+                  <h2>{selectedOrderDetail.orderId}</h2>
+                  <p>
+                    {selectedOrderDetail.recipientName || '-'}
+                    {' · '}
+                    {formatAdminCurrency(selectedOrderDetail.finalAmount)}
+                  </p>
+                </div>
+                <span className={`carrier-management__status-chip ${getTone(getDeliveryStatusKey(selectedOrderDetail))}`}>
+                  {getDeliveryStatusLabel(selectedOrderDetail)}
+                </span>
               </div>
 
               <div className="carrier-management__detail-grid">
                 <section className="carrier-management__box">
                   <h3>배송 기본 정보</h3>
-                  <div className="carrier-management__row"><strong>배송사</strong><span>{selectedOrderDetail.carrierName || selectedOrderDetail.courierName || 'oneulFarm 배송'}</span></div>
-                  <div className="carrier-management__row"><strong>송장번호</strong><span>{selectedOrderDetail.trackingNo || '미등록'}</span></div>
-                  <div className="carrier-management__row"><strong>수령인</strong><span>{selectedOrderDetail.recipientName || '-'}</span></div>
-                  <div className="carrier-management__row"><strong>연락처</strong><span>{selectedOrderDetail.recipientPhone || '-'}</span></div>
+                  <div className="carrier-management__row">
+                    <strong>배송사</strong>
+                    <span>{selectedOrderDetail.carrierName || selectedOrderDetail.courierName || 'oneulFarm 배송'}</span>
+                  </div>
+                  <div className="carrier-management__row">
+                    <strong>송장번호</strong>
+                    <span>{selectedOrderDetail.trackingNo || '미등록'}</span>
+                  </div>
+                  <div className="carrier-management__row">
+                    <strong>수령인</strong>
+                    <span>{selectedOrderDetail.recipientName || '-'}</span>
+                  </div>
+                  <div className="carrier-management__row">
+                    <strong>연락처</strong>
+                    <span>{selectedOrderDetail.recipientPhone || '-'}</span>
+                  </div>
                 </section>
                 <section className="carrier-management__box">
                   <h3>배송지</h3>
-                  <div className="carrier-management__address">{[selectedOrderDetail.zipCode, selectedOrderDetail.address1, selectedOrderDetail.address2].filter(Boolean).join(' ') || '-'}</div>
+                  <div className="carrier-management__address">
+                    {[selectedOrderDetail.zipCode, selectedOrderDetail.address1, selectedOrderDetail.address2]
+                      .filter(Boolean)
+                      .join(' ') || '-'}
+                  </div>
                 </section>
               </div>
 
               <section className="carrier-management__box">
-                <div className="carrier-management__box-head"><h3>송장 관리</h3><span>송장 등록이 끝나야 집하와 배송 완료 처리가 가능합니다.</span></div>
+                <div className="carrier-management__box-head">
+                  <h3>송장 관리</h3>
+                  <span>송장 등록 후 집하, 배송 중, 배송 완료 처리가 가능합니다.</span>
+                </div>
                 <div className="carrier-management__tracking-form">
                   <input value={trackingNo} onChange={onTrackingChange} placeholder="송장번호 입력 또는 자동 생성" />
-                  <button type="button" className="admin-action admin-action--line carrier-management__tracking-button" onClick={onAssignWaybill} disabled={!selectedOrderDetail.waybillAssignable || updating}>송장 등록</button>
+                  <button
+                    type="button"
+                    className="admin-action admin-action--line carrier-management__tracking-button"
+                    onClick={onAssignWaybill}
+                    disabled={!selectedOrderDetail.waybillAssignable || updating}
+                  >
+                    송장 등록
+                  </button>
                 </div>
               </section>
 
               <section className="carrier-management__box">
-                <div className="carrier-management__box-head"><h3>배송 추적 흐름</h3><span>배송사가 조작하는 상태만 단계별로 보여줍니다.</span></div>
-                <div className="carrier-management__timeline-summary"><strong>{stageSummary.title}</strong><p>{stageSummary.description}</p></div>
+                <div className="carrier-management__box-head">
+                  <h3>배송 추적 흐름</h3>
+                  <span>배송사가 조작한 상태만 단계별로 보여줍니다.</span>
+                </div>
+                <div className="carrier-management__timeline-summary">
+                  <strong>{stageSummary.title}</strong>
+                  <p>{stageSummary.description}</p>
+                </div>
                 <div className="carrier-management__timeline">
                   {timeline.map((step) => (
                     <div key={step.key} className={`carrier-management__timeline-step ${step.active ? 'is-active' : ''}`}>
                       <span className="carrier-management__timeline-dot" />
-                      <div><strong>{step.label}</strong><span>{step.value ? formatAdminDate(step.value) : '대기 중'}</span></div>
+                      <div>
+                        <strong>{step.label}</strong>
+                        <span>{step.value ? formatAdminDate(step.value) : '대기 중'}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
               </section>
 
               <section className="carrier-management__box">
-                <div className="carrier-management__box-head"><h3>배송 액션</h3><span>송장 등록 후 집하, 배송 중, 배송 완료 순서로 진행합니다.</span></div>
+                <div className="carrier-management__box-head">
+                  <h3>배송 액션</h3>
+                  <span>송장 등록 후 집하, 배송 중, 배송 완료 순서로 진행합니다.</span>
+                </div>
                 <div className="carrier-management__action-row">
-                  <button type="button" className="admin-action admin-action--line carrier-management__action-button" onClick={onAssignWaybill} disabled={!selectedOrderDetail.waybillAssignable || updating}>송장 등록</button>
-                  <button type="button" className="admin-action admin-action--soft carrier-management__action-button" onClick={onPickupOrder} disabled={(!selectedOrderDetail.pickupAvailable && !selectedOrderDetail.shipAvailable) || updating}>집하 처리</button>
-                  <button type="button" className="admin-action admin-action--soft carrier-management__action-button" onClick={onTransitOrder} disabled={!selectedOrderDetail.transitAvailable || updating}>배송 중</button>
-                  <button type="button" className="admin-action admin-action--primary carrier-management__action-button" onClick={onDeliverOrder} disabled={!selectedOrderDetail.deliverAvailable || updating}>배송 완료</button>
+                  <button
+                    type="button"
+                    className="admin-action admin-action--line carrier-management__action-button"
+                    onClick={onAssignWaybill}
+                    disabled={!selectedOrderDetail.waybillAssignable || updating}
+                  >
+                    송장 등록
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-action admin-action--soft carrier-management__action-button"
+                    onClick={onPickupOrder}
+                    disabled={(!selectedOrderDetail.pickupAvailable && !selectedOrderDetail.shipAvailable) || updating}
+                  >
+                    집하 처리
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-action admin-action--soft carrier-management__action-button"
+                    onClick={onTransitOrder}
+                    disabled={!selectedOrderDetail.transitAvailable || updating}
+                  >
+                    배송 중
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-action admin-action--primary carrier-management__action-button"
+                    onClick={onDeliverOrder}
+                    disabled={!selectedOrderDetail.deliverAvailable || updating}
+                  >
+                    배송 완료
+                  </button>
+                </div>
+              </section>
+
+              <section className="carrier-management__box">
+                <div className="carrier-management__box-head">
+                  <h3>주문 처리 이력</h3>
+                  <span>{selectedOrderDetail.orderStatusHistories?.length || 0}건</span>
+                </div>
+                <div className="carrier-management__history-list">
+                  {(selectedOrderDetail.orderStatusHistories || []).map((history) => (
+                    <div key={history.orderStatusHistoryNo} className="carrier-management__history-card">
+                      <div className="carrier-management__history-head">
+                        <strong>{getOrderHistoryStatusLabel(history.nextOrderStatus)}</strong>
+                        <span>{formatAdminDate(history.changedAt)}</span>
+                      </div>
+                      <div className="carrier-management__history-copy">
+                        {getOrderHistoryActorLabel(history.changedByType)}
+                        {history.changeReason ? ` · ${history.changeReason}` : ''}
+                      </div>
+                    </div>
+                  ))}
+                  {!(selectedOrderDetail.orderStatusHistories || []).length ? (
+                    <div className="carrier-management__history-copy">아직 기록된 주문 처리 이력이 없습니다.</div>
+                  ) : null}
                 </div>
               </section>
             </div>

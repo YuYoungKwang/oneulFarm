@@ -251,6 +251,38 @@
   gap: 10px;
 }
 
+.carrier-management__history-list{
+  display: grid;
+  gap: 10px;
+}
+
+.carrier-management__history-card{
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid rgba(227, 232, 236, 0.88);
+}
+
+.carrier-management__history-head{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.carrier-management__history-head strong{
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.carrier-management__history-head span,
+.carrier-management__history-copy{
+  color: #64748b;
+  font-size: 13px;
+}
+
 .carrier-management__timeline-summary{
   display: grid;
   gap: 4px;
@@ -331,6 +363,7 @@
   .carrier-management__list-meta,
   .carrier-management__detail-head,
   .carrier-management__box-head,
+  .carrier-management__history-head,
   .carrier-management__row,
   .carrier-management__tracking-form{
     flex-direction: column;
