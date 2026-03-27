@@ -1254,8 +1254,8 @@ function AccountApp({ authUser: initialAuthUser }) {
     setOrderDetail(detailPayload.data || null);
   }
 
-  async function handleRequestOrderCancel() {
-    if (!orderDetail?.orderNo) {
+  async function handleRequestOrderCancel(targetOrderNo = orderDetail?.orderNo) {
+    if (!targetOrderNo) {
       return;
     }
 
@@ -1269,15 +1269,19 @@ function AccountApp({ authUser: initialAuthUser }) {
 
     try {
       const payload = await requestAuthApi(
-        `${ORDER_API_PATH}/me/${orderDetail.orderNo}/cancel-request`,
+        `${ORDER_API_PATH}/me/${targetOrderNo}/cancel-request`,
         {
           method: 'PATCH',
           headers: accountHeaders(authUser),
         },
         '주문 취소 요청에 실패했습니다.'
       );
-      setOrderDetail(payload.data || null);
-      await refreshOrdersAndDetail(orderDetail.orderNo);
+      if (Number(selectedOrderNo) === Number(targetOrderNo)) {
+        setOrderDetail(payload.data || null);
+      }
+      await refreshOrdersAndDetail(
+        Number(selectedOrderNo) === Number(targetOrderNo) ? targetOrderNo : selectedOrderNo
+      );
     } catch (error) {
       setOrderActionError(error.message || '주문 취소 요청에 실패했습니다.');
     } finally {

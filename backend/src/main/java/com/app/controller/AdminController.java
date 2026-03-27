@@ -150,6 +150,28 @@ public class AdminController {
         return ApiResponse.success(adminService.rejectOrder(orderNo), "Admin order rejected.");
     }
 
+    @PatchMapping("/orders/{orderNo}/cancel/accept")
+    public ApiResponse<OrderDto> acceptCancelRequest(
+        @RequestHeader(value = "X-USER-NO", required = false) Long actorUserNo,
+        @PathVariable Long orderNo
+    ) {
+        return ApiResponse.success(
+            adminService.acceptCancelRequest(orderNo, actorUserNo),
+            "Cancel request accepted."
+        );
+    }
+
+    @PatchMapping("/orders/{orderNo}/cancel/reject")
+    public ApiResponse<OrderDto> rejectCancelRequest(
+        @RequestHeader(value = "X-USER-NO", required = false) Long actorUserNo,
+        @PathVariable Long orderNo
+    ) {
+        return ApiResponse.success(
+            adminService.rejectCancelRequest(orderNo, actorUserNo),
+            "Cancel request rejected."
+        );
+    }
+
     @PatchMapping("/orders/{orderNo}/ship")
     public ApiResponse<OrderDto> shipOrder(
         @PathVariable Long orderNo,

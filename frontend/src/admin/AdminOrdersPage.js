@@ -150,6 +150,8 @@ function AdminOrdersPage({
   onTrackingChange,
   onDeleteOrder,
   onRejectOrder,
+  onAcceptOrderCancel,
+  onRejectOrderCancel,
   onShipOrder,
   updating,
 }) {
@@ -182,6 +184,22 @@ function AdminOrdersPage({
               disabled={!selectedOrderDetail?.rejectAvailable || updating}
             >
               주문 거절
+            </button>
+            <button
+              type="button"
+              className="admin-action admin-action--soft admin-orders-v2__toolbar-button"
+              onClick={onAcceptOrderCancel}
+              disabled={!selectedOrderDetail?.cancelAcceptAvailable || updating}
+            >
+              취소 수락
+            </button>
+            <button
+              type="button"
+              className="admin-action admin-action--line admin-orders-v2__toolbar-button"
+              onClick={onRejectOrderCancel}
+              disabled={!selectedOrderDetail?.cancelRejectAvailable || updating}
+            >
+              취소 거절
             </button>
             <button
               type="button"
@@ -354,6 +372,22 @@ function AdminOrdersPage({
                   <button
                     type="button"
                     className="admin-action admin-action--line admin-orders-v2__tracking-button"
+                    onClick={onAcceptOrderCancel}
+                    disabled={!selectedOrderDetail.cancelAcceptAvailable || updating}
+                  >
+                    취소 수락
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-action admin-action--line admin-orders-v2__action-button"
+                    onClick={onRejectOrderCancel}
+                    disabled={!selectedOrderDetail.cancelRejectAvailable || updating}
+                  >
+                    취소 거절
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-action admin-action--soft admin-orders-v2__action-button"
                     onClick={onShipOrder}
                     disabled={!selectedOrderDetail.shipAvailable || updating}
                   >

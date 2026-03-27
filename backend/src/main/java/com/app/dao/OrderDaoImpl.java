@@ -1,5 +1,6 @@
 package com.app.dao;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -86,6 +87,43 @@ public class OrderDaoImpl implements OrderDao {
         params.put("orderNo", orderNo);
         params.put("orderStatus", orderStatus);
         return sqlSessionTemplate.update(NAMESPACE + "updateOrderStatus", params);
+    }
+
+    @Override
+    public int updateOrderCancelStatus(Long orderNo, String cancelStatus) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("orderNo", orderNo);
+        params.put("cancelStatus", cancelStatus);
+        return sqlSessionTemplate.update(NAMESPACE + "updateOrderCancelStatus", params);
+    }
+
+    @Override
+    public int updateOrderPurchaseConfirm(Long orderNo, String purchaseConfirmStatus, LocalDateTime purchaseConfirmedAt) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("orderNo", orderNo);
+        params.put("purchaseConfirmStatus", purchaseConfirmStatus);
+        params.put("purchaseConfirmedAt", purchaseConfirmedAt);
+        return sqlSessionTemplate.update(NAMESPACE + "updateOrderPurchaseConfirm", params);
+    }
+
+    @Override
+    public int insertOrderCancelRequest(Long orderNo, Long requestedByUserNo, String cancelStatus, String requestReason) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("orderNo", orderNo);
+        params.put("requestedByUserNo", requestedByUserNo);
+        params.put("cancelStatus", cancelStatus);
+        params.put("requestReason", requestReason);
+        return sqlSessionTemplate.insert(NAMESPACE + "insertOrderCancelRequest", params);
+    }
+
+    @Override
+    public int updateLatestOrderCancelRequest(Long orderNo, String cancelStatus, Long decidedByUserNo, String decisionReason) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("orderNo", orderNo);
+        params.put("cancelStatus", cancelStatus);
+        params.put("decidedByUserNo", decidedByUserNo);
+        params.put("decisionReason", decisionReason);
+        return sqlSessionTemplate.update(NAMESPACE + "updateLatestOrderCancelRequest", params);
     }
 
     @Override

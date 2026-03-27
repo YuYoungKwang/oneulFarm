@@ -166,6 +166,28 @@ export async function updateAdminOrder(orderNo, payload) {
   );
 }
 
+export async function acceptAdminOrderCancel(orderNo) {
+  return requestApi(
+    `${ADMIN_API_BASE}/orders/${orderNo}/cancel/accept`,
+    {
+      method: 'PATCH',
+      headers: apiHeaders(),
+    },
+    '취소 요청 수락에 실패했습니다.'
+  );
+}
+
+export async function rejectAdminOrderCancel(orderNo) {
+  return requestApi(
+    `${ADMIN_API_BASE}/orders/${orderNo}/cancel/reject`,
+    {
+      method: 'PATCH',
+      headers: apiHeaders(),
+    },
+    '취소 요청 거절에 실패했습니다.'
+  );
+}
+
 export async function assignCarrierWaybill(orderNo, payload) {
   return requestApi(
     `${CARRIER_API_BASE}/${orderNo}/waybill`,

@@ -8,7 +8,18 @@
         <result property="orderId" column="orderId" />
         <result property="orderedAt" column="orderedAt" />
         <result property="orderStatus" column="orderStatus" />
+        <result property="cancelStatus" column="cancelStatus" />
+        <result property="purchaseConfirmStatus" column="purchaseConfirmStatus" />
+        <result property="purchaseConfirmedAt" column="purchaseConfirmedAt" />
         <result property="deliveryStatus" column="deliveryStatus" />
+        <result property="carrierCode" column="carrierCode" />
+        <result property="courierName" column="courierName" />
+        <result property="trackingNo" column="trackingNo" />
+        <result property="waybillStatus" column="waybillStatus" />
+        <result property="waybillAssignedAt" column="waybillAssignedAt" />
+        <result property="pickedUpAt" column="pickedUpAt" />
+        <result property="inTransitAt" column="inTransitAt" />
+        <result property="deliveredAt" column="deliveredAt" />
         <result property="displayProductName" column="displayProductName" />
         <result property="itemCount" column="itemCount" />
         <result property="finalAmount" column="finalAmount" />
@@ -20,13 +31,21 @@
         <result property="orderId" column="orderId" />
         <result property="orderedAt" column="orderedAt" />
         <result property="orderStatus" column="orderStatus" />
+        <result property="cancelStatus" column="cancelStatus" />
+        <result property="purchaseConfirmStatus" column="purchaseConfirmStatus" />
+        <result property="purchaseConfirmedAt" column="purchaseConfirmedAt" />
         <result property="recipientName" column="recipientName" />
         <result property="recipientPhone" column="recipientPhone" />
         <result property="zipCode" column="zipCode" />
         <result property="address1" column="address1" />
         <result property="address2" column="address2" />
         <result property="deliveryStatus" column="deliveryStatus" />
+        <result property="carrierCode" column="carrierCode" />
         <result property="courierName" column="courierName" />
+        <result property="waybillStatus" column="waybillStatus" />
+        <result property="waybillAssignedAt" column="waybillAssignedAt" />
+        <result property="pickedUpAt" column="pickedUpAt" />
+        <result property="inTransitAt" column="inTransitAt" />
         <result property="trackingNo" column="trackingNo" />
         <result property="deliveredAt" column="deliveredAt" />
         <result property="paymentMethod" column="paymentMethod" />
@@ -59,7 +78,18 @@
             o.ORDER_ID AS orderId,
             o.ORDERED_AT AS orderedAt,
             o.ORDER_STATUS AS orderStatus,
+            o.CANCEL_STATUS AS cancelStatus,
+            o.PURCHASE_CONFIRM_STATUS AS purchaseConfirmStatus,
+            o.PURCHASE_CONFIRMED_AT AS purchaseConfirmedAt,
             NVL(d.DELIVERY_STATUS, 'READY') AS deliveryStatus,
+            d.CARRIER_CODE AS carrierCode,
+            d.COURIER_NAME AS courierName,
+            d.TRACKING_NO AS trackingNo,
+            d.WAYBILL_STATUS AS waybillStatus,
+            d.WAYBILL_ASSIGNED_AT AS waybillAssignedAt,
+            d.PICKED_UP_AT AS pickedUpAt,
+            d.IN_TRANSIT_AT AS inTransitAt,
+            d.DELIVERED_AT AS deliveredAt,
             CASE
                 WHEN oi.ITEM_COUNT &lt;= 1 THEN oi.FIRST_PRODUCT_NAME
                 ELSE oi.FIRST_PRODUCT_NAME || ' +' || TO_CHAR(oi.ITEM_COUNT - 1)
@@ -108,13 +138,21 @@
             o.ORDER_ID AS orderId,
             o.ORDERED_AT AS orderedAt,
             o.ORDER_STATUS AS orderStatus,
+            o.CANCEL_STATUS AS cancelStatus,
+            o.PURCHASE_CONFIRM_STATUS AS purchaseConfirmStatus,
+            o.PURCHASE_CONFIRMED_AT AS purchaseConfirmedAt,
             o.RECIPIENT_NAME AS recipientName,
             o.RECIPIENT_PHONE AS recipientPhone,
             o.ZIP_CODE AS zipCode,
             o.ADDRESS1 AS address1,
             o.ADDRESS2 AS address2,
             NVL(d.DELIVERY_STATUS, 'READY') AS deliveryStatus,
+            d.CARRIER_CODE AS carrierCode,
             d.COURIER_NAME AS courierName,
+            d.WAYBILL_STATUS AS waybillStatus,
+            d.WAYBILL_ASSIGNED_AT AS waybillAssignedAt,
+            d.PICKED_UP_AT AS pickedUpAt,
+            d.IN_TRANSIT_AT AS inTransitAt,
             d.TRACKING_NO AS trackingNo,
             d.DELIVERED_AT AS deliveredAt,
             p.PAYMENT_METHOD AS paymentMethod,
@@ -298,22 +336,75 @@
 
     <update id="updateOrderStatus" parameterType="map">
         UPDATE OFT_ORDERS
-        SET ORDER_STATUS = #{orderStatus}
+        SET ORDER_STATUS = #{orderStatus},
+            UPDATED_AT = SYSTIMESTAMP
         WHERE ORDER_NO = #{orderNo}
+    </update>
+
+    <update id="updateOrderCancelStatus" parameterType="map">
+        UPDATE OFT_ORDERS
+        SET CANCEL_STATUS = #{cancelStatus},
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE ORDER_NO = #{orderNo}
+    </update>
+
+    <update id="updateOrderPurchaseConfirm" parameterType="map">
+        UPDATE OFT_ORDERS
+        SET PURCHASE_CONFIRM_STATUS = #{purchaseConfirmStatus},
+            PURCHASE_CONFIRMED_AT = #{purchaseConfirmedAt},
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE ORDER_NO = #{orderNo}
+    </update>
+
+    <insert id="insertOrderCancelRequest" parameterType="map">
+        INSERT INTO OFT_ORDER_CANCEL_REQUEST (
+            ORDER_NO,
+            REQUESTED_BY_USER_NO,
+            CANCEL_STATUS,
+            REQUEST_REASON
+        ) VALUES (
+            #{orderNo},
+            #{requestedByUserNo},
+            #{cancelStatus},
+            #{requestReason}
+        )
+    </insert>
+
+    <update id="updateLatestOrderCancelRequest" parameterType="map">
+        UPDATE OFT_ORDER_CANCEL_REQUEST
+        SET CANCEL_STATUS = #{cancelStatus},
+            DECIDED_BY_USER_NO = #{decidedByUserNo},
+            DECISION_REASON = #{decisionReason},
+            DECIDED_AT = SYSTIMESTAMP
+        WHERE CANCEL_REQUEST_NO = (
+            SELECT cancelRequestNo
+            FROM (
+                SELECT CANCEL_REQUEST_NO AS cancelRequestNo
+                FROM OFT_ORDER_CANCEL_REQUEST
+                WHERE ORDER_NO = #{orderNo}
+                ORDER BY REQUESTED_AT DESC, CANCEL_REQUEST_NO DESC
+            )
+            WHERE ROWNUM = 1
+        )
     </update>
 
     <update id="updateDeliveryForShipping" parameterType="map">
         UPDATE OFT_DELIVERY
         SET DELIVERY_STATUS = 'SHIPPING',
             TRACKING_NO = NVL(TRACKING_NO, #{trackingNo}),
-            SHIPPED_AT = NVL(SHIPPED_AT, SYSTIMESTAMP)
+            WAYBILL_STATUS = 'ASSIGNED',
+            WAYBILL_ASSIGNED_AT = NVL(WAYBILL_ASSIGNED_AT, SYSTIMESTAMP),
+            IN_TRANSIT_AT = NVL(IN_TRANSIT_AT, SYSTIMESTAMP),
+            SHIPPED_AT = NVL(SHIPPED_AT, SYSTIMESTAMP),
+            UPDATED_AT = SYSTIMESTAMP
         WHERE ORDER_NO = #{orderNo}
     </update>
 
     <update id="updateDeliveryForDelivered" parameterType="long">
         UPDATE OFT_DELIVERY
         SET DELIVERY_STATUS = 'DELIVERED',
-            DELIVERED_AT = NVL(DELIVERED_AT, SYSTIMESTAMP)
+            DELIVERED_AT = NVL(DELIVERED_AT, SYSTIMESTAMP),
+            UPDATED_AT = SYSTIMESTAMP
         WHERE ORDER_NO = #{_parameter}
     </update>
 

@@ -1,5 +1,6 @@
 package com.app.dao;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -33,6 +34,14 @@ public interface OrderDao {
     int insertDelivery(DeliveryDto delivery);
 
     int updateOrderStatus(Long orderNo, String orderStatus);
+
+    int updateOrderCancelStatus(Long orderNo, String cancelStatus);
+
+    int updateOrderPurchaseConfirm(Long orderNo, String purchaseConfirmStatus, LocalDateTime purchaseConfirmedAt);
+
+    int insertOrderCancelRequest(Long orderNo, Long requestedByUserNo, String cancelStatus, String requestReason);
+
+    int updateLatestOrderCancelRequest(Long orderNo, String cancelStatus, Long decidedByUserNo, String decisionReason);
 
     int updateDeliveryForShipping(Long orderNo, String trackingNo);
 

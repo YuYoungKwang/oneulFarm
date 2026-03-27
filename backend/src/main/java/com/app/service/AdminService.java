@@ -31,6 +31,10 @@ public interface AdminService {
 
     OrderDto rejectOrder(Long orderNo);
 
+    OrderDto acceptCancelRequest(Long orderNo, Long actorUserNo);
+
+    OrderDto rejectCancelRequest(Long orderNo, Long actorUserNo);
+
     OrderDto shipOrder(Long orderNo, OrderDto request);
 
     OrderDto deliverOrder(Long orderNo);

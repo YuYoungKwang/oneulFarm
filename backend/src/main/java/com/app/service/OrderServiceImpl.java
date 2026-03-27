@@ -212,7 +212,8 @@ public class OrderServiceImpl implements OrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cancel request is not available for this order.");
         }
 
-        orderWorkflowRuntimeStore.markCancelRequested(orderNo);
+        orderDao.updateOrderCancelStatus(orderNo, "CANCEL_REQUESTED");
+        orderDao.insertOrderCancelRequest(orderNo, userNo, "CANCEL_REQUESTED", null);
         return getMyOrderDetail(userNo, orderNo);
     }
 
@@ -224,7 +225,7 @@ public class OrderServiceImpl implements OrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Purchase confirmation is not available for this order.");
         }
 
-        orderWorkflowRuntimeStore.markPurchaseConfirmed(orderNo);
+        orderDao.updateOrderPurchaseConfirm(orderNo, "PURCHASE_CONFIRMED", LocalDateTime.now());
         return getMyOrderDetail(userNo, orderNo);
     }
 

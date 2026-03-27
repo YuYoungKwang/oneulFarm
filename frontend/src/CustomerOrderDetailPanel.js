@@ -144,7 +144,8 @@ function CustomerOrderDetailPanel({
   const trackingSteps = buildTrackingSteps(detail);
   const cancelStatusLabel = resolveCancelStatusLabel(detail);
   const purchaseConfirmMessage = resolvePurchaseConfirmMessage(detail);
-  const hasOrderActions =
+  const showActionSection =
+    Boolean(detail) ||
     detail.cancelRequestAvailable ||
     detail.purchaseConfirmAvailable ||
     Boolean(purchaseConfirmMessage) ||
@@ -197,7 +198,7 @@ function CustomerOrderDetailPanel({
         </div>
       </section>
 
-      {hasOrderActions && (
+      {showActionSection && (
         <section className="customer-order-detail__actions">
           <div className="customer-order-detail__section-head">
             <h3>주문 처리</h3>
@@ -207,18 +208,15 @@ function CustomerOrderDetailPanel({
               </span>
             )}
           </div>
-          {(detail.cancelRequestAvailable || detail.purchaseConfirmAvailable) && (
             <div className="customer-order-detail__action-buttons">
-              {detail.cancelRequestAvailable && (
                 <button
                   type="button"
                   className="btn-outline customer-order-detail__action-button"
                   onClick={onRequestOrderCancel}
-                  disabled={orderActionSubmitting === 'cancel'}
+                  disabled={!detail.cancelRequestAvailable || orderActionSubmitting === 'cancel'}
                 >
                   {orderActionSubmitting === 'cancel' ? '취소 요청 중...' : '취소 요청'}
                 </button>
-              )}
               {detail.purchaseConfirmAvailable && (
                 <button
                   type="button"
@@ -230,6 +228,10 @@ function CustomerOrderDetailPanel({
                 </button>
               )}
             </div>
+          {!detail.cancelRequestAvailable && (
+            <p className="customer-order-detail__action-help">
+              주문 취소는 배송 준비 전 주문만 요청할 수 있습니다.
+            </p>
           )}
           {orderActionError && (
             <p className="customer-order-detail__action-error">{orderActionError}</p>

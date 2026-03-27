@@ -261,6 +261,32 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
+    public OrderDto acceptCancelRequest(Long orderNo, Long actorUserNo) {
+        OrderDto currentOrder = getOrderDetail(orderNo);
+        if (!Boolean.TRUE.equals(currentOrder.getCancelAcceptAvailable())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cancel request cannot be accepted in the current state.");
+        }
+
+        orderDao.updateOrderCancelStatus(orderNo, "CANCEL_ACCEPTED");
+        orderDao.updateLatestOrderCancelRequest(orderNo, "CANCEL_ACCEPTED", actorUserNo, null);
+        return getOrderDetail(orderNo);
+    }
+
+    @Override
+    @Transactional
+    public OrderDto rejectCancelRequest(Long orderNo, Long actorUserNo) {
+        OrderDto currentOrder = getOrderDetail(orderNo);
+        if (!Boolean.TRUE.equals(currentOrder.getCancelRejectAvailable())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cancel request cannot be rejected in the current state.");
+        }
+
+        orderDao.updateOrderCancelStatus(orderNo, "CANCEL_REJECTED");
+        orderDao.updateLatestOrderCancelRequest(orderNo, "CANCEL_REJECTED", actorUserNo, null);
+        return getOrderDetail(orderNo);
+    }
+
+    @Override
+    @Transactional
     public OrderDto shipOrder(Long orderNo, OrderDto request) {
         OrderDto currentOrder = getOrderDetail(orderNo);
         if (!Boolean.TRUE.equals(currentOrder.getShipAvailable())) {

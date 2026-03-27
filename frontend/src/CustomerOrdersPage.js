@@ -26,7 +26,7 @@ const ORDER_STATUS_LABELS = {
 };
 
 const DELIVERY_STATUS_LABELS = {
-  NOT_STARTED: '배송 준비 전',
+  NOT_STARTED: '배송 준비',
   WAYBILL_ASSIGNED: '송장 등록',
   PICKED_UP: '집하 완료',
   IN_TRANSIT: '배송 중',
@@ -89,11 +89,12 @@ function buildSummary(orders) {
         order?.normalizedDeliveryStatus || order?.deliveryStatus
       )
     ).length,
-    deliveredCount: orders.filter((order) =>
-      (order?.normalizedDeliveryStatus || order?.deliveryStatus) === 'DELIVERED'
+    deliveredCount: orders.filter(
+      (order) => (order?.normalizedDeliveryStatus || order?.deliveryStatus) === 'DELIVERED'
     ).length,
     attentionCount: orders.filter(
-      (order) => order?.cancelRequestAvailable || order?.purchaseConfirmAvailable || order?.legacyStatusNeedsReview
+      (order) =>
+        order?.cancelRequestAvailable || order?.purchaseConfirmAvailable || order?.legacyStatusNeedsReview
     ).length,
     totalSavedAmount: orders.reduce((sum, order) => sum + Number(order?.totalSavedAmount || 0), 0),
   };
@@ -126,10 +127,10 @@ function CustomerOrdersPage({
         <div>
           <div className="customer-orders__title-row">
             <h1>내 주문</h1>
-            <InlineInfoTip content="결제 이후 배송 준비, 송장 등록, 배송 완료 흐름을 한 화면에서 확인할 수 있게 주문 영역을 다시 구성했습니다." />
+            <InlineInfoTip content="결제 이후 배송 준비, 송장 등록, 배송 완료 흐름을 한 화면에서 확인할 수 있도록 주문 내역을 다시 구성했습니다." />
           </div>
           <p className="customer-orders__hero-copy">
-            최근 주문 상태와 배송 흐름을 더 현실적인 순서로 확인할 수 있도록 정리한 고객용 주문 화면입니다.
+            최근 주문 상태와 배송 흐름을 직관적인 순서로 확인할 수 있도록 고객용 주문 화면을 정리했습니다.
           </p>
         </div>
       </section>
@@ -157,9 +158,9 @@ function CustomerOrdersPage({
         <div className="customer-orders__section-head">
           <div className="customer-orders__section-title-row">
             <h2>주문 조회 조건</h2>
-            <InlineInfoTip content="현재 필터는 기존 API와 연결되어 있어 배송 상태와 기간 기준으로 먼저 좁힌 뒤 주문을 확인합니다." />
+            <InlineInfoTip content="배송 상태와 기간 기준으로 먼저 좁혀서 원하는 주문만 빠르게 확인할 수 있습니다." />
           </div>
-          <span className="customer-orders__section-copy">확인할 주문만 빠르게 추려서 볼 수 있습니다.</span>
+          <span className="customer-orders__section-copy">조건에 맞는 주문만 빠르게 추려서 볼 수 있습니다.</span>
         </div>
 
         <form className="customer-orders__filter-form" onSubmit={onOrderFilterSubmit}>
@@ -292,19 +293,28 @@ function CustomerOrdersPage({
 
                     <div className="customer-orders__card-bottom">
                       <div className="customer-orders__ship-meta">
-                        <span>{order.carrierName || order.courierName || '배송사 미지정'}</span>
+                        <span>{order.carrierName || order.courierName || '배송사 미정'}</span>
                         <span>{order.trackingNo || '송장 미등록'}</span>
                       </div>
-                      <div className="customer-orders__flag-row">
-                        {order.trackingAvailable && (
-                          <span className="customer-orders__flag">배송 조회 가능</span>
-                        )}
-                        {order.cancelRequestAvailable && (
-                          <span className="customer-orders__flag">취소 요청 가능</span>
-                        )}
-                        {order.purchaseConfirmAvailable && (
-                          <span className="customer-orders__flag">구매 확정 대기</span>
-                        )}
+                      <div className="customer-orders__card-side">
+                        <div className="customer-orders__flag-row">
+                          {order.trackingAvailable && (
+                            <span className="customer-orders__flag">배송 조회 가능</span>
+                          )}
+                          {order.purchaseConfirmAvailable && (
+                            <span className="customer-orders__flag">구매 확정 대기</span>
+                          )}
+                        </div>
+                        <div className="customer-orders__quick-actions">
+                          <button
+                            type="button"
+                            className="btn-outline customer-orders__quick-action"
+                            onClick={() => onRequestOrderCancel(order.orderNo)}
+                            disabled={!order.cancelRequestAvailable || orderActionSubmitting === 'cancel'}
+                          >
+                            취소 요청
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </article>

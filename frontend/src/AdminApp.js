@@ -15,6 +15,7 @@ import {
   formatAdminDateParts,
 } from './admin/AdminUi';
 import {
+  acceptAdminOrderCancel,
   createAdminPackageHistory,
   assignCarrierWaybill,
   createAdminPurchaseBatch,
@@ -39,6 +40,7 @@ import {
   getAdminBannerImageUrl,
   getAdminProductImageUrl,
   pickupCarrierOrder,
+  rejectAdminOrderCancel,
   saveAdminProduct,
   triggerAdminRecipeSync,
   uploadAdminProductImages,
@@ -3467,6 +3469,48 @@ function AdminApp() {
     await handleUpdateOrder({ orderStatus: 'CANCELED' });
   }
 
+  async function handleAcceptOrderCancel() {
+    if (!selectedOrderNo) {
+      return;
+    }
+
+    setUpdatingOrder(true);
+    setActionError('');
+
+    try {
+      const detail = await acceptAdminOrderCancel(selectedOrderNo);
+      const nextOrders = await fetchAdminOrders();
+      setOrders(nextOrders);
+      setSelectedOrderDetail(detail);
+      setTrackingNo(detail?.trackingNo || trackingNo);
+    } catch (error) {
+      setActionError(error.message || '취소 요청 수락에 실패했습니다.');
+    } finally {
+      setUpdatingOrder(false);
+    }
+  }
+
+  async function handleRejectOrderCancel() {
+    if (!selectedOrderNo) {
+      return;
+    }
+
+    setUpdatingOrder(true);
+    setActionError('');
+
+    try {
+      const detail = await rejectAdminOrderCancel(selectedOrderNo);
+      const nextOrders = await fetchAdminOrders();
+      setOrders(nextOrders);
+      setSelectedOrderDetail(detail);
+      setTrackingNo(detail?.trackingNo || trackingNo);
+    } catch (error) {
+      setActionError(error.message || '취소 요청 거절에 실패했습니다.');
+    } finally {
+      setUpdatingOrder(false);
+    }
+  }
+
   async function handleShipOrder() {
     await handleUpdateOrder({
       orderStatus: 'SHIPPING',
@@ -3934,6 +3978,8 @@ function AdminApp() {
               onTrackingChange={(event) => setTrackingNo(event.target.value)}
               onDeleteOrder={handleDeleteOrder}
               onRejectOrder={handleRejectOrder}
+              onAcceptOrderCancel={handleAcceptOrderCancel}
+              onRejectOrderCancel={handleRejectOrderCancel}
               onShipOrder={handleShipOrder}
               updating={updatingOrder}
             />
