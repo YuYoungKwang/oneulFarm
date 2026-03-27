@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { getAuthUser, isAuthenticated } from '../auth';
 import { fetchPriceTrendFromApi } from '../api/priceAnalysisApi';
+import SafeImage from './SafeImage';
 import '../styles/recipe.css';
 import {
   createRecipeReview,
@@ -11,9 +12,9 @@ import {
 
 const SAVED_KEY = 'oneulfarm_saved_recipes';
 const SCALE_OPTIONS = [
-  { value: 0.5, label: '0.5배' },
-  { value: 1, label: '1배' },
-  { value: 2, label: '2배' },
+  { value: 0.5, label: '0.5인분' },
+  { value: 1, label: '1인분' },
+  { value: 2, label: '2인분' },
 ];
 const EMPTY_REVIEW_FORM = {
   rating: 5,
@@ -24,6 +25,7 @@ const formatStepLabel = (stepSeq) => `STEP ${stepSeq}`;
 
 export default function RecipeDetailPage({
   authUser: authUserProp,
+  cartItems = [],
   onAddMatchedProductsToCart,
   onBack,
   recipeNo,
@@ -45,6 +47,9 @@ export default function RecipeDetailPage({
   const [reviewErrorMessage, setReviewErrorMessage] = useState('');
   const [deletingReviewNo, setDeletingReviewNo] = useState(null);
   const [productTrendMap, setProductTrendMap] = useState({});
+  const [recipeCartModalOpen, setRecipeCartModalOpen] = useState(false);
+  const [recipeCartDraft, setRecipeCartDraft] = useState([]);
+  const cartQuantityMap = buildCartQuantityMap(cartItems);
 
   const ingredientList = Array.isArray(recipe?.ingredientList) ? recipe.ingredientList : [];
   const stepList = Array.isArray(recipe?.stepList) ? recipe.stepList : [];
@@ -79,17 +84,17 @@ export default function RecipeDetailPage({
     {
       label: '보관 가이드',
       value: inferStorageGuide(recipe),
-      hint: '조리 후 보관 기준',
+      hint: '조리 전 확인',
     },
     {
       label: '추천 도구',
       value: inferToolGuide(stepList),
-      hint: '준비해두면 좋은 도구',
+      hint: '준비하면 좋은 도구',
     },
     {
       label: '알레르기 체크',
       value: inferAllergenGuide(ingredientList),
-      hint: '민감한 재료 여부를 확인하세요',
+      hint: '민감한 재료 확인',
     },
   ];
   const reviewAverage = reviewList.length
@@ -142,7 +147,7 @@ export default function RecipeDetailPage({
   }, [recipeNo]);
 
   useEffect(() => {
-    if (!selectedStep || typeof document === 'undefined') {
+    if ((!selectedStep && !recipeCartModalOpen) || typeof document === 'undefined') {
       return undefined;
     }
     const previousOverflow = document.body.style.overflow;
@@ -150,7 +155,31 @@ export default function RecipeDetailPage({
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [selectedStep]);
+  }, [recipeCartModalOpen, selectedStep]);
+
+  useEffect(() => {
+    if (!selectedStep && !recipeCartModalOpen) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key !== 'Escape') {
+        return;
+      }
+
+      if (recipeCartModalOpen) {
+        closeRecipeCartModal();
+        return;
+      }
+
+      setSelectedStep(null);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [recipeCartModalOpen, selectedStep]);
 
   useEffect(
     () => () => {
@@ -274,8 +303,13 @@ export default function RecipeDetailPage({
     }
   }
 
-  async function handleAddIngredients() {
+  function handleAddIngredients() {
+    openRecipeCartModal();
+  }
+
+  function openRecipeCartModal() {
     setActionMessage('');
+    setSelectedStep(null);
 
     if (!recommendedProductList.length) {
       setActionMessage('지금 판매 중인 재료 상품이 없어요.');
@@ -292,12 +326,15 @@ export default function RecipeDetailPage({
       return;
     }
 
-    const addedCount = await onAddMatchedProductsToCart(recommendedProductList);
-    setActionMessage(
-      addedCount > 0
-        ? `판매 중인 재료 상품 ${addedCount}개를 장바구니에 담았어요.`
-        : '담을 수 있는 판매 상품이 없어요.'
-    );
+    const nextDraft = buildRecipeCartDraft(groupedIngredients, cartQuantityMap);
+
+    if (!nextDraft.length) {
+      setActionMessage('담을 수 있는 판매 상품이 없어요.');
+      return;
+    }
+
+    setRecipeCartDraft(nextDraft);
+    setRecipeCartModalOpen(true);
   }
 
   function openProductDetail(productNo) {
@@ -331,6 +368,108 @@ export default function RecipeDetailPage({
     setActionMessage(
       addedCount > 0
         ? `${primaryProduct?.productName || '상품'}을(를) 장바구니에 담았어요.`
+        : '장바구니에 담지 못했어요.'
+    );
+  }
+
+  function closeRecipeCartModal() {
+    setRecipeCartModalOpen(false);
+    setRecipeCartDraft([]);
+  }
+
+  function updateRecipeCartDraftItem(ingredientKey, updater) {
+    setRecipeCartDraft((previousDraft) =>
+      previousDraft.map((item) =>
+        item.ingredientKey === ingredientKey ? updater(item) : item
+      )
+    );
+  }
+
+  function handleRecipeCartQuantityChange(ingredientKey, nextQuantity) {
+    updateRecipeCartDraftItem(ingredientKey, (item) => {
+      const selectedProduct = getSelectedRecipeCartProduct(item);
+      return {
+        ...item,
+        quantity: clampRecipeCartQuantity(nextQuantity, selectedProduct),
+      };
+    });
+  }
+
+  function handleRecipeCartToggleItem(ingredientKey, included) {
+    updateRecipeCartDraftItem(ingredientKey, (item) => ({
+      ...item,
+      included,
+    }));
+  }
+
+  function handleRecipeCartCycleProduct(ingredientKey) {
+    updateRecipeCartDraftItem(ingredientKey, (item) => {
+      const candidateProducts = Array.isArray(item.candidateProducts)
+        ? item.candidateProducts
+        : [];
+
+      if (candidateProducts.length < 2) {
+        return item;
+      }
+
+      const nextIndex = (item.selectedProductIndex + 1) % candidateProducts.length;
+      const nextProduct = candidateProducts[nextIndex];
+
+      return {
+        ...item,
+        selectedProductIndex: nextIndex,
+        quantity: clampRecipeCartQuantity(item.quantity, nextProduct),
+      };
+    });
+  }
+
+  async function handleConfirmRecipeCart() {
+    if (typeof onAddMatchedProductsToCart !== 'function') {
+      setActionMessage('장바구니 기능이 아직 연결되지 않았어요.');
+      return;
+    }
+
+    const selectedItems = recipeCartDraft.filter((item) => item.included);
+    if (!selectedItems.length) {
+      setActionMessage('담을 품목을 하나 이상 선택해 주세요.');
+      return;
+    }
+
+    const payload = selectedItems
+      .map((item) => {
+        const selectedProduct = getSelectedRecipeCartProduct(item);
+        if (!selectedProduct?.productNo) {
+          return null;
+        }
+
+        return {
+          productNo: selectedProduct.productNo,
+          quantity: item.quantity,
+        };
+      })
+      .filter(Boolean);
+
+    if (!payload.length) {
+      setActionMessage('담을 수 있는 판매 상품이 없어요.');
+      return;
+    }
+
+    const totalQuantity = payload.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+    const totalSaving = selectedItems.reduce((sum, item) => {
+      const selectedProduct = getSelectedRecipeCartProduct(item);
+      const salePrice = toNumber(selectedProduct?.salePrice, 0);
+      const averagePrice = toNumber(
+        selectedProduct?.avgPrice,
+        salePrice
+      );
+      return sum + Math.max(averagePrice - salePrice, 0) * item.quantity;
+    }, 0);
+
+    const addedCount = await onAddMatchedProductsToCart(payload);
+    closeRecipeCartModal();
+    setActionMessage(
+      addedCount > 0
+        ? `선택한 품목 ${selectedItems.length}개를 장바구니에 담았어요. 총 ${totalQuantity}개, 총 절약 ${formatCurrency(totalSaving)}.`
         : '장바구니에 담지 못했어요.'
     );
   }
@@ -521,7 +660,7 @@ export default function RecipeDetailPage({
             <p className="recipe-hero-summary">{summarize(recipe.description)}</p>
           </div>
 
-          <div className="recipe-hero-quickfacts" aria-label="핵심 정보">
+          <div className="recipe-hero-quickfacts" aria-label="요약 정보">
             {quickFacts.map((item) => (
               <div className="recipe-hero-fact" key={item.label}>
                 <strong>{item.value}</strong>
@@ -549,7 +688,7 @@ export default function RecipeDetailPage({
 
           <div className="recipe-scale-row">
             <div className="recipe-scale-copy">
-              <strong>재료 양 조절</strong>
+              <strong>레시피 분량 조절</strong>
             </div>
             <div className="recipe-scale-options">
               {SCALE_OPTIONS.map((option) => (
@@ -770,7 +909,7 @@ export default function RecipeDetailPage({
           </div>
           <div className="recipe-review-summary">
             <strong>{reviewAverage}</strong>
-            <span>평균 별점 · 리뷰 {reviewList.length}건</span>
+            <span>평균 평점 · 리뷰 {reviewList.length}건</span>
           </div>
         </div>
 
@@ -966,9 +1105,9 @@ export default function RecipeDetailPage({
         ) : (
           <RecipeStateCard
             extraClassName="recipe-review-empty"
-            icon="⭐"
+            icon="💬"
             title="아직 등록된 리뷰가 없어요"
-            description="첫 리뷰를 남기고 별점과 사진으로 레시피 경험을 공유해 보세요."
+            description="첫 리뷰를 남기고 평점과 사진으로 경험을 공유해보세요."
             action={
               !myReview && isLoggedIn ? (
                 <button className="btn" type="button" onClick={startCreateReview}>
@@ -979,6 +1118,253 @@ export default function RecipeDetailPage({
           />
         )}
       </section>
+
+      {recipeCartModalOpen ? (
+        <div
+          className="recipe-cart-modal"
+          role="presentation"
+          onClick={closeRecipeCartModal}
+        >
+          <div
+            className="recipe-cart-modal__card"
+            role="dialog"
+            aria-modal="true"
+            aria-label="장바구니에 담을 상품 확인"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="recipe-cart-modal__head">
+              <div className="recipe-cart-modal__title">
+                <span className="recipe-kicker">RECIPE CART</span>
+                <h2>담을 상품을 확인해보세요</h2>
+              </div>
+              <button
+                className="recipe-cart-modal__close"
+                type="button"
+                onClick={closeRecipeCartModal}
+              >
+                닫기
+              </button>
+            </div>
+
+            <div className="recipe-cart-modal__body">
+              {recipeCartDraft.filter((item) => item.included).length ? (
+                <div className="recipe-cart-modal__selected">
+                  <div className="recipe-cart-modal__section-head">
+                    <strong>장바구니에 담을 품목</strong>
+                  </div>
+
+                  <div className="recipe-cart-modal__list">
+                    {recipeCartDraft
+                      .filter((item) => item.included)
+                      .map((item) => {
+                        const selectedProduct = getSelectedRecipeCartProduct(item);
+                        if (!selectedProduct) {
+                          return null;
+                        }
+
+                        const salePrice = toNumber(selectedProduct.salePrice, 0);
+                        const averagePrice = toNumber(selectedProduct.avgPrice, salePrice);
+                        const savingAmount = Math.max(averagePrice - salePrice, 0);
+                        const stockQty = Math.max(toNumber(selectedProduct.stockQty, 0), 1);
+
+                        return (
+                          <article className="recipe-cart-modal__item" key={item.ingredientKey}>
+                            <button
+                              className="recipe-cart-modal__remove"
+                              type="button"
+                              onClick={() => handleRecipeCartToggleItem(item.ingredientKey, false)}
+                            >
+                              삭제
+                            </button>
+
+                            <div className="recipe-cart-modal__item-head">
+                              <div className="recipe-cart-modal__thumb" aria-hidden="true">
+                                {getRecipeCartProductImageUrl(selectedProduct) ? (
+                                  <SafeImage
+                                    alt=""
+                                    className="recipe-cart-modal__thumb-image"
+                                    fallback={<span>{getProductSymbol(selectedProduct)}</span>}
+                                    src={getRecipeCartProductImageUrl(selectedProduct)}
+                                  />
+                                ) : (
+                                  <span>{getProductSymbol(selectedProduct)}</span>
+                                )}
+                              </div>
+                              <div className="recipe-cart-modal__item-copy">
+                                <strong>{selectedProduct.productName}</strong>
+                                <div className="recipe-cart-modal__specs">
+                                  <span>
+                                    레시피 필요량 <strong>{item.ingredientAmount}</strong>
+                                  </span>
+                                  <span>
+                                    상품 규격 <strong>{formatProductSpecification(selectedProduct)}</strong>
+                                  </span>
+                                  <span className="recipe-cart-modal__cart-badge">
+                                    장바구니 보유 <strong>{getCartQuantity(cartQuantityMap, selectedProduct.productNo)}개</strong>
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="recipe-cart-modal__meta">
+                              <span>
+                                현재가 {formatCurrency(salePrice)} · 평균가 대비 {formatCurrency(savingAmount)} 절약
+                              </span>
+                              <span>재고 {toNumber(selectedProduct.stockQty, 0)}개</span>
+                            </div>
+
+                            <div className="recipe-cart-modal__controls">
+                              <div className="recipe-cart-modal__quantity-block">
+                                <span>추가 수량</span>
+                                <div className="recipe-cart-modal__quantity">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleRecipeCartQuantityChange(
+                                        item.ingredientKey,
+                                        item.quantity - 1
+                                      )
+                                    }
+                                    disabled={item.quantity <= 1}
+                                  >
+                                    -
+                                  </button>
+                                  <strong>{item.quantity}</strong>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleRecipeCartQuantityChange(
+                                        item.ingredientKey,
+                                        Math.min(item.quantity + 1, stockQty)
+                                      )
+                                    }
+                                    disabled={item.quantity >= stockQty}
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="recipe-cart-modal__actions">
+                                {item.candidateProducts.length > 1 ? (
+                                  <button
+                                    className="btn-outline recipe-cart-modal__sub-action"
+                                    type="button"
+                                    onClick={() => handleRecipeCartCycleProduct(item.ingredientKey)}
+                                  >
+                                    품목 변경
+                                  </button>
+                                ) : null}
+                                <button
+                                  className="btn-outline recipe-cart-modal__sub-action"
+                                  type="button"
+                                  onClick={() => openProductDetail(selectedProduct.productNo)}
+                                >
+                                  상품 보기
+                                </button>
+                              </div>
+                            </div>
+                          </article>
+                        );
+                      })}
+                  </div>
+                </div>
+              ) : (
+                <RecipeStateCard
+                  extraClassName="recipe-cart-modal__empty"
+                  icon="🧺"
+                  title="담을 상품을 먼저 골라주세요"
+                  description="레시피에서 품목을 고르면 여기에서 바로 담을 수 있어요."
+                />
+              )}
+
+              <div className="recipe-cart-modal__sidebar">
+                <div className="recipe-cart-modal__summary">
+                  <div className="recipe-cart-modal__summary-item">
+                    <span>담을 품목</span>
+                    <strong>{recipeCartDraft.filter((item) => item.included).length}개</strong>
+                  </div>
+                  <div className="recipe-cart-modal__summary-item">
+                    <span>총 구매 수량</span>
+                    <strong>
+                      {recipeCartDraft
+                        .filter((item) => item.included)
+                        .reduce((sum, item) => sum + Number(item.quantity || 0), 0)}개
+                    </strong>
+                  </div>
+                  <div className="recipe-cart-modal__summary-item">
+                    <span>총 할인 금액</span>
+                    <strong>
+                      {formatCurrency(
+                        recipeCartDraft
+                          .filter((item) => item.included)
+                          .reduce((sum, item) => {
+                            const selectedProduct = getSelectedRecipeCartProduct(item);
+                            const salePrice = toNumber(selectedProduct?.salePrice, 0);
+                            const averagePrice = toNumber(selectedProduct?.avgPrice, salePrice);
+                            return sum + Math.max(averagePrice - salePrice, 0) * item.quantity;
+                          }, 0)
+                      )}
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="recipe-cart-modal__available">
+                  <div className="recipe-cart-modal__section-head">
+                    <strong>추가 가능한 품목</strong>
+                  </div>
+
+                  {recipeCartDraft.some((item) => !item.included) ? (
+                    <div className="recipe-cart-modal__available-list">
+                      {recipeCartDraft
+                        .filter((item) => !item.included)
+                        .map((item) => {
+                          const selectedProduct = getSelectedRecipeCartProduct(item);
+                          if (!selectedProduct) {
+                            return null;
+                          }
+
+                          return (
+                            <button
+                              className="recipe-cart-modal__available-item"
+                              key={item.ingredientKey}
+                              type="button"
+                              onClick={() => handleRecipeCartToggleItem(item.ingredientKey, true)}
+                            >
+                              <strong>{selectedProduct.productName}</strong>
+                              <span>
+                                레시피 필요량 {item.ingredientAmount} · 상품 규격 {formatProductSpecification(selectedProduct)}
+                              </span>
+                              <small>지금 추가</small>
+                            </button>
+                          );
+                        })}
+                    </div>
+                  ) : (
+                    <div className="recipe-cart-modal__available-empty">
+                      <strong>추가 가능한 품목이 없습니다</strong>
+                      <span>현재 선택 가능한 품목은 모두 담겨 있어요.</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          <div className="recipe-cart-modal__foot">
+            <button className="btn-outline" type="button" onClick={closeRecipeCartModal}>
+                취소
+              </button>
+              <button
+                className="btn"
+                type="button"
+                disabled={!recipeCartDraft.some((item) => item.included)}
+                onClick={handleConfirmRecipeCart}
+              >
+                장바구니 담기
+              </button>
+          </div>
+          </div>
+        </div>
+      ) : null}
 
       {selectedStep ? (
         <div className="recipe-step-modal" role="presentation" onClick={() => setSelectedStep(null)}>
@@ -1039,7 +1425,7 @@ function IngredientTrendMiniChart({ rows }) {
     : [];
 
   if (!valueList.length) {
-    return <div className="recipe-ingredient-hover-empty">최근 시세 추이가 아직 없어요.</div>;
+    return <div className="recipe-ingredient-hover-empty">최근 시세 데이터가 아직 없어요.</div>;
   }
 
   const minValue = Math.min(...valueList);
@@ -1080,6 +1466,124 @@ function IngredientTrendMiniChart({ rows }) {
   );
 }
 
+function buildRecipeCartDraft(groupedIngredients, cartQuantityMap = new Map()) {
+  const draft = [];
+
+  (Array.isArray(groupedIngredients) ? groupedIngredients : []).forEach((section) => {
+    (Array.isArray(section?.items) ? section.items : []).forEach((item) => {
+      const candidateProducts = dedupeProducts(Array.isArray(item?.matchedProducts) ? item.matchedProducts : [])
+        .filter((product) => toNumber(product?.stockQty, 0) > 0)
+        .slice(0, 2);
+
+      if (!item?.isPurchasable || !candidateProducts.length) {
+        return;
+      }
+
+      const existingProductIndex = candidateProducts.findIndex(
+        (product) => getCartQuantity(cartQuantityMap, product?.productNo) > 0
+      );
+      const selectedProductIndex = existingProductIndex >= 0 ? existingProductIndex : 0;
+
+      draft.push({
+        candidateProducts,
+        included: true,
+        ingredientAmount: item.amount || '적당량',
+        ingredientKey: item.key,
+        ingredientName: item.name,
+        quantity: clampRecipeCartQuantity(1, candidateProducts[selectedProductIndex]),
+        selectedProductIndex,
+      });
+    });
+  });
+
+  return draft;
+}
+
+function getSelectedRecipeCartProduct(item) {
+  const candidateProducts = Array.isArray(item?.candidateProducts) ? item.candidateProducts : [];
+  if (!candidateProducts.length) {
+    return null;
+  }
+
+  const nextIndex = Math.max(0, Math.min(Number(item?.selectedProductIndex || 0), candidateProducts.length - 1));
+  return candidateProducts[nextIndex] || candidateProducts[0] || null;
+}
+
+function getCartQuantity(cartQuantityMap, productNo) {
+  const normalizedProductNo = Number(productNo);
+  if (!Number.isFinite(normalizedProductNo) || normalizedProductNo <= 0) {
+    return 0;
+  }
+
+  if (cartQuantityMap instanceof Map) {
+    return Number(cartQuantityMap.get(normalizedProductNo) || 0);
+  }
+
+  return 0;
+}
+
+function buildCartQuantityMap(cartItems) {
+  const map = new Map();
+
+  (Array.isArray(cartItems) ? cartItems : []).forEach(({ product, quantity }) => {
+    const productNo = Number(product?.productNo);
+    if (!Number.isFinite(productNo) || productNo <= 0) {
+      return;
+    }
+
+    map.set(productNo, Number(quantity || 0));
+  });
+
+  return map;
+}
+
+function clampRecipeCartQuantity(quantity, product) {
+  const stockQty = Math.max(toNumber(product?.stockQty, 0), 1);
+  const normalized = Math.max(Number(quantity) || 1, 1);
+  return Math.min(normalized, stockQty);
+}
+
+function getProductSymbol(product) {
+  const displaySymbol = String(product?.display?.symbol || '').trim();
+  if (displaySymbol) {
+    return displaySymbol;
+  }
+
+  const name = stripIngredientText(product?.productName);
+  if (!name) {
+    return '상품';
+  }
+
+  return name.slice(0, 2);
+}
+
+function getRecipeCartProductImageUrl(product) {
+  const mainImage =
+    product?.mainImage ||
+    product?.images?.find((image) => image?.isMain === 'Y') ||
+    product?.images?.[0] ||
+    null;
+
+  const directUrl = mainImage?.imageUrl || product?.mainImageUrl || product?.imageUrl || '';
+  if (directUrl) {
+    return resolveApiImageUrl(directUrl);
+  }
+
+  const imageNo = mainImage?.imageNo || product?.mainImageNo || product?.imageNo || '';
+  if (imageNo) {
+    return resolveApiImageUrl(`/api/image/product/${imageNo}`);
+  }
+
+  return '';
+}
+
+function formatProductSpecification(product) {
+  const packageWeight = stripIngredientText(product?.packageWeight);
+  const unit = stripIngredientText(product?.unit);
+  const joined = `${packageWeight}${unit}`.trim();
+  return joined || '규격 확인';
+}
+
 function dedupeProducts(productList) {
   const map = new Map();
 
@@ -1098,8 +1602,8 @@ function dedupeProducts(productList) {
 function groupIngredients(ingredientList, scale, matchedProductMap = new Map()) {
   const groups = new Map([
     ['기본 재료', []],
-    ['양념 · 소스', []],
-    ['토핑 · 마무리', []],
+    ['소스', []],
+    ['토핑', []],
   ]);
 
   (Array.isArray(ingredientList) ? ingredientList : []).forEach((ingredient, index) => {
@@ -1178,30 +1682,14 @@ function getDisplayIngredientAmount(ingredient, scale) {
 
 function resolveIngredientGroup(name) {
   const normalized = String(name || '').toLowerCase();
-  const sauceKeywords = [
-    '소스',
-    '드레싱',
-    '양념',
-    '육수',
-    '간장',
-    '고추장',
-    '된장',
-    '식초',
-    '소금',
-    '설탕',
-    '참기름',
-    '들기름',
-    '버터',
-    '마요',
-    '케첩',
-  ];
-  const toppingKeywords = ['김', '치즈', '고명', '토핑', '깨', '파슬리', '후추', '견과'];
+  const sauceKeywords = ['소스', '드레싱', '마요', '양념', '간장', '케첩', '머스터드'];
+  const toppingKeywords = ['치즈', '견과', '과일', '버터', '크림', '토핑', '시럽'];
 
   if (sauceKeywords.some((keyword) => normalized.includes(keyword))) {
-    return '양념 · 소스';
+    return '소스';
   }
   if (toppingKeywords.some((keyword) => normalized.includes(keyword))) {
-    return '토핑 · 마무리';
+    return '토핑';
   }
   return '기본 재료';
 }
@@ -1319,18 +1807,18 @@ function parseFraction(token) {
 }
 
 function inferServingText(ingredientCount) {
-  if (ingredientCount >= 12) return '3~4인분';
-  if (ingredientCount >= 7) return '2~3인분';
-  return '1~2인분';
+  if (ingredientCount >= 12) return '3~4명분';
+  if (ingredientCount >= 7) return '2~3명분';
+  return '1~2명분';
 }
 
 function inferStorageGuide(recipe) {
   const text = `${recipe?.recipeName || ''} ${recipe?.description || ''}`.toLowerCase();
-  if (text.includes('샐러드') || text.includes('무침')) return '냉장 보관 · 당일 섭취 권장';
-  if (text.includes('국') || text.includes('찌개') || text.includes('스프')) {
+  if (text.includes('냉장') || text.includes('무침')) return '냉장 보관 · 빠른 섭취 권장';
+  if (text.includes('구이') || text.includes('찜') || text.includes('스프')) {
     return '냉장 보관 · 1~2일 내 섭취 권장';
   }
-  if (text.includes('구이') || text.includes('볶음')) return '냉장 보관 · 2일 내 섭취 권장';
+  if (text.includes('국') || text.includes('볶음')) return '냉장 보관 · 2일 내 섭취 권장';
   return '냉장 보관 · 2~3일 내 섭취 권장';
 }
 
@@ -1340,10 +1828,10 @@ function inferToolGuide(stepList) {
     .join(' ')
     .toLowerCase();
 
-  if (text.includes('오븐') || text.includes('에어프라이어')) return '오븐 또는 에어프라이어';
-  if (text.includes('끓')) return '냄비와 국자';
-  if (text.includes('볶') || text.includes('굽')) return '팬과 뒤집개';
-  return '도마, 칼, 기본 조리도구';
+  if (text.includes('믹서') || text.includes('블렌더')) return '믹서 또는 블렌더';
+  if (text.includes('팬')) return '팬';
+  if (text.includes('솥') || text.includes('냄비')) return '냄비, 기본 조리도구';
+  return '냄비, 팬, 기본 조리도구';
 }
 
 function inferAllergenGuide(ingredientList) {
@@ -1356,15 +1844,15 @@ function inferAllergenGuide(ingredientList) {
   if (combinedText.includes('우유') || combinedText.includes('치즈') || combinedText.includes('버터')) {
     allergenList.push('유제품');
   }
-  if (combinedText.includes('계란')) allergenList.push('계란');
-  if (combinedText.includes('새우') || combinedText.includes('오징어') || combinedText.includes('조개')) {
-    allergenList.push('해산물');
+  if (combinedText.includes('계란')) allergenList.push('달걀');
+  if (combinedText.includes('대두') || combinedText.includes('콩')) {
+    allergenList.push('대두');
   }
-  if (combinedText.includes('땅콩') || combinedText.includes('호두') || combinedText.includes('아몬드')) {
+  if (combinedText.includes('땅콩') || combinedText.includes('견과') || combinedText.includes('호두')) {
     allergenList.push('견과류');
   }
 
-  return allergenList.length ? allergenList.join(', ') : '특이 알레르기 재료 적음';
+  return allergenList.length ? allergenList.join(', ') : '알레르기 정보 없음';
 }
 
 function normalizeStepDescription(description) {
@@ -1382,7 +1870,7 @@ function normalizeStepDescription(description) {
 
 // eslint-disable-next-line no-unused-vars
 function buildStepTitle(stepSeq) {
-  return `${stepSeq}단계`;
+  return `STEP ${stepSeq}`;
 }
 
 function renderStars(rating) {
@@ -1393,7 +1881,7 @@ function renderStars(rating) {
 function summarize(value) {
   const normalized = String(value || '').replace(/\s+/g, ' ').trim();
   if (!normalized) {
-    return '레시피 설명이 아직 등록되지 않았습니다.';
+    return '설명이 아직 등록되지 않았어요.';
   }
   return normalized.length <= 150 ? normalized : `${normalized.slice(0, 150)}...`;
 }
@@ -1427,11 +1915,11 @@ function isRecipeSaved(recipeNo) {
 
 function getRecipeEmoji(recipeName) {
   const name = stripIngredientText(recipeName).toLowerCase();
-  if (name.includes('국') || name.includes('탕') || name.includes('스프')) return '🍲';
-  if (name.includes('샐러드') || name.includes('무침')) return '🥗';
+  if (name.includes('국') || name.includes('스프') || name.includes('찌개')) return '🍲';
+  if (name.includes('무침') || name.includes('샐러드')) return '🥗';
   if (name.includes('볶음') || name.includes('구이')) return '🍳';
-  if (name.includes('파스타') || name.includes('국수')) return '🍝';
-  return '🥬';
+  if (name.includes('디저트') || name.includes('간식')) return '🍰';
+  return '🍽️';
 }
 
 function resolveApiImageUrl(imageUrl) {

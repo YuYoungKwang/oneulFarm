@@ -576,22 +576,31 @@ export default function ProductApp({ authUser }) {
       return 0;
     }
 
-    const uniqueProductNoList = Array.from(
-      new Set(
-        (Array.isArray(productList) ? productList : [])
-          .map((product) => Number(product?.productNo))
-          .filter((productNo) => Number.isFinite(productNo) && productNo > 0)
-      )
-    );
+    const quantityMap = new Map();
+
+    (Array.isArray(productList) ? productList : []).forEach((entry) => {
+      const sourceProduct = entry?.product || entry?.selectedProduct || entry;
+      const productNo = Number(sourceProduct?.productNo ?? entry?.productNo);
+
+      if (!Number.isFinite(productNo) || productNo <= 0) {
+        return;
+      }
+
+      const quantity = Math.max(
+        Number(entry?.quantity ?? sourceProduct?.quantity ?? 1) || 1,
+        1
+      );
+      quantityMap.set(productNo, (quantityMap.get(productNo) || 0) + quantity);
+    });
 
     let addedCount = 0;
-    for (const productNo of uniqueProductNoList) {
+    for (const [productNo, quantity] of quantityMap.entries()) {
       const stockLimit = getProductStockLimit(productNo);
       if (stockLimit < 1) {
         continue;
       }
 
-      await addToCart(productNo, 1);
+      await addToCart(productNo, Math.min(quantity, stockLimit));
       addedCount += 1;
     }
 
@@ -835,6 +844,7 @@ export default function ProductApp({ authUser }) {
         ) : route.page === 'recipe-detail' ? (
           <RecipeDetailPage
             authUser={authUser}
+            cartItems={cartItems}
             onAddMatchedProductsToCart={addMatchedProductsToCart}
             recipeNo={route.recipeNo}
             onBack={openRecipeList}

@@ -10,6 +10,7 @@
 
 .product-app .recipe-kicker {
   display: inline-flex;
+  width: fit-content;
   align-items: center;
   gap: 8px;
   padding: 8px 14px;
@@ -1104,6 +1105,425 @@
   white-space: nowrap;
 }
 
+.product-app .recipe-cart-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 76;
+  padding: 20px;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(10px);
+}
+
+.product-app .recipe-cart-modal__card {
+  width: min(1080px, 100%);
+  max-height: min(92vh, 920px);
+  overflow: auto;
+  padding: 18px;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.74);
+  background: linear-gradient(180deg, #ffffff, #f8fbf8);
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.28);
+  display: grid;
+  gap: 14px;
+}
+
+.product-app .recipe-cart-modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.product-app .recipe-cart-modal__title {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.product-app .recipe-cart-modal__title .recipe-kicker {
+  width: fit-content;
+}
+
+.product-app .recipe-cart-modal__title h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 26px;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+
+.product-app .recipe-cart-modal__title p {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.product-app .recipe-cart-modal__close {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(22, 101, 52, 0.16);
+  background: #fff;
+  color: #166534;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.product-app .recipe-cart-modal__summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.product-app .recipe-cart-modal__summary--legacy {
+  display: none;
+}
+
+.product-app .recipe-cart-modal__sidebar {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.product-app .recipe-cart-modal__summary-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(226, 232, 240, 0.96);
+  background: #fff;
+}
+
+.product-app .recipe-cart-modal__summary-item span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.product-app .recipe-cart-modal__summary-item strong {
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.product-app .recipe-cart-modal__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.85fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.product-app .recipe-cart-modal__selected,
+.product-app .recipe-cart-modal__available {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(226, 232, 240, 0.96);
+  background: #fff;
+}
+
+.product-app .recipe-cart-modal__section-head {
+  display: grid;
+  gap: 4px;
+}
+
+.product-app .recipe-cart-modal__section-head strong {
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.product-app .recipe-cart-modal__section-head span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.product-app .recipe-cart-modal__list {
+  display: grid;
+  gap: 7px;
+}
+
+.product-app .recipe-cart-modal__item {
+  position: relative;
+  display: grid;
+  gap: 5px;
+  padding: 11px;
+  padding-top: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.96);
+  background: linear-gradient(180deg, #ffffff, #f8fbf8);
+}
+
+.product-app .recipe-cart-modal__remove {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border: none;
+  background: transparent;
+  color: #ea580c;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.product-app .recipe-cart-modal__item-head {
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr);
+  gap: 7px;
+  align-items: center;
+  padding-right: 36px;
+}
+
+.product-app .recipe-cart-modal__thumb {
+  width: 50px;
+  height: 50px;
+  border-radius: 13px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #e8f5ea, #fdf8e7);
+  color: #166534;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.product-app .recipe-cart-modal__thumb-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.product-app .recipe-cart-modal__item-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.product-app .recipe-cart-modal__item-copy strong {
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+
+.product-app .recipe-cart-modal__item-copy p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.product-app .recipe-cart-modal__specs {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.product-app .recipe-cart-modal__specs span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(21, 154, 85, 0.08);
+  color: #166534;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.product-app .recipe-cart-modal__specs .recipe-cart-modal__cart-badge {
+  padding: 3px 8px;
+  background: rgba(21, 154, 85, 0.12);
+}
+
+.product-app .recipe-cart-modal__specs strong {
+  color: #0f172a;
+  font-weight: 900;
+}
+
+.product-app .recipe-cart-modal__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.product-app .recipe-cart-modal__meta span {
+  color: #475569;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.product-app .recipe-cart-modal__cart-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(21, 154, 85, 0.1);
+  color: #166534;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.product-app .recipe-cart-modal__cart-badge strong {
+  color: #0f172a;
+  font-weight: 900;
+}
+
+.product-app .recipe-cart-modal__controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.product-app .recipe-cart-modal__quantity {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid rgba(226, 232, 240, 0.96);
+  background: #fff;
+}
+
+.product-app .recipe-cart-modal__quantity-block {
+  display: grid;
+  gap: 6px;
+}
+
+.product-app .recipe-cart-modal__quantity-block > span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.product-app .recipe-cart-modal__quantity button {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 999px;
+  background: #eff6ee;
+  color: #166534;
+  font-size: 17px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.product-app .recipe-cart-modal__quantity button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.product-app .recipe-cart-modal__quantity strong {
+  min-width: 20px;
+  color: #0f172a;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.product-app .recipe-cart-modal__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.product-app .recipe-cart-modal__sub-action {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.product-app .recipe-cart-modal__available-list {
+  display: grid;
+  gap: 10px;
+}
+
+.product-app .recipe-cart-modal__available-empty {
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  min-height: 112px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px dashed rgba(203, 213, 225, 0.95);
+  background: linear-gradient(180deg, #fbfdfb, #f8fbf8);
+}
+
+.product-app .recipe-cart-modal__available-empty strong {
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.product-app .recipe-cart-modal__available-empty span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.product-app .recipe-cart-modal__available-item {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(21, 154, 85, 0.18);
+  background: linear-gradient(135deg, #f6fbf7, #ffffff);
+  color: #0f172a;
+  text-align: left;
+  cursor: pointer;
+}
+
+.product-app .recipe-cart-modal__available-item strong {
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.product-app .recipe-cart-modal__available-item span,
+.product-app .recipe-cart-modal__available-item small {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.product-app .recipe-cart-modal__available-item small {
+  color: #166534;
+}
+
+.product-app .recipe-cart-modal__empty {
+  margin: 0;
+  min-height: 220px;
+}
+
+.product-app .recipe-cart-modal__foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 2px;
+}
+
 .product-app .recipe-step-section {
   display: grid;
   gap: 14px;
@@ -2008,6 +2428,60 @@
 
   .product-app .recipe-step-media--dense img {
     min-height: 164px;
+  }
+
+  .product-app .recipe-cart-modal {
+    padding: 14px;
+  }
+
+  .product-app .recipe-cart-modal__card {
+    padding: 16px;
+    gap: 14px;
+  }
+
+  .product-app .recipe-cart-modal__head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .product-app .recipe-cart-modal__summary {
+    grid-template-columns: 1fr;
+  }
+
+  .product-app .recipe-cart-modal__body {
+    grid-template-columns: 1fr;
+  }
+
+  .product-app .recipe-cart-modal__item-head {
+    padding-right: 0;
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+
+  .product-app .recipe-cart-modal__thumb {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    font-size: 18px;
+  }
+
+  .product-app .recipe-cart-modal__controls,
+  .product-app .recipe-cart-modal__foot {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .product-app .recipe-cart-modal__specs {
+    gap: 6px;
+  }
+
+  .product-app .recipe-cart-modal__actions {
+    justify-content: stretch;
+  }
+
+  .product-app .recipe-cart-modal__sub-action,
+  .product-app .recipe-cart-modal__foot :is(.btn, .btn-outline) {
+    width: 100%;
+    justify-content: center;
   }
 
   .product-app .recipe-recommend-card {
