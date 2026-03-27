@@ -351,6 +351,15 @@ public class AdminDaoImpl implements AdminDao {
     }
 
     @Override
+    public int updatePurchaseBatchInventory(Long batchNo, java.math.BigDecimal remainingQty, String status) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("batchNo", batchNo);
+        params.put("remainingQty", remainingQty);
+        params.put("status", status);
+        return sqlSessionTemplate.update(NAMESPACE + "updatePurchaseBatchInventory", params);
+    }
+
+    @Override
     public int increaseProductStock(Long productNo, Integer quantity) {
         Map<String, Object> params = new HashMap<>();
         params.put("productNo", productNo);

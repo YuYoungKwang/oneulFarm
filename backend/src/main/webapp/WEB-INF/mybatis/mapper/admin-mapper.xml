@@ -689,6 +689,23 @@
             PURCHASE_UNIT AS purchaseUnit,
             PURCHASE_QTY AS purchaseQty,
             PURCHASE_PRICE AS purchasePrice,
+            REFERENCE_UNIT_PRICE AS referenceUnitPrice,
+            REFERENCE_TOTAL_PRICE AS referenceTotalPrice,
+            REFERENCE_SNAPSHOT_DATE AS referenceSnapshotDate,
+            GRADE AS grade,
+            SUPPLIER_TYPE AS supplierType,
+            ACTUAL_UNIT_PRICE AS actualUnitPrice,
+            ACTUAL_PURCHASE_AMOUNT AS actualPurchaseAmount,
+            LOGISTICS_COST AS logisticsCost,
+            COMMISSION_RATE AS commissionRate,
+            COMMISSION_COST AS commissionCost,
+            OTHER_PURCHASE_COST AS otherPurchaseCost,
+            DISCARD_RATE AS discardRate,
+            DISCARD_QTY AS discardQty,
+            SELLABLE_QTY AS sellableQty,
+            REMAINING_QTY AS remainingQty,
+            TOTAL_PURCHASE_COST AS totalPurchaseCost,
+            ACTUAL_COST_PER_KG AS actualCostPerKg,
             PURCHASE_DATE AS purchaseDate,
             SUPPLIER_NAME AS supplierName,
             STATUS AS status,
@@ -707,6 +724,23 @@
             PURCHASE_UNIT AS purchaseUnit,
             PURCHASE_QTY AS purchaseQty,
             PURCHASE_PRICE AS purchasePrice,
+            REFERENCE_UNIT_PRICE AS referenceUnitPrice,
+            REFERENCE_TOTAL_PRICE AS referenceTotalPrice,
+            REFERENCE_SNAPSHOT_DATE AS referenceSnapshotDate,
+            GRADE AS grade,
+            SUPPLIER_TYPE AS supplierType,
+            ACTUAL_UNIT_PRICE AS actualUnitPrice,
+            ACTUAL_PURCHASE_AMOUNT AS actualPurchaseAmount,
+            LOGISTICS_COST AS logisticsCost,
+            COMMISSION_RATE AS commissionRate,
+            COMMISSION_COST AS commissionCost,
+            OTHER_PURCHASE_COST AS otherPurchaseCost,
+            DISCARD_RATE AS discardRate,
+            DISCARD_QTY AS discardQty,
+            SELLABLE_QTY AS sellableQty,
+            REMAINING_QTY AS remainingQty,
+            TOTAL_PURCHASE_COST AS totalPurchaseCost,
+            ACTUAL_COST_PER_KG AS actualCostPerKg,
             PURCHASE_DATE AS purchaseDate,
             SUPPLIER_NAME AS supplierName,
             STATUS AS status,
@@ -727,6 +761,23 @@
                 PURCHASE_UNIT AS purchaseUnit,
                 PURCHASE_QTY AS purchaseQty,
                 PURCHASE_PRICE AS purchasePrice,
+                REFERENCE_UNIT_PRICE AS referenceUnitPrice,
+                REFERENCE_TOTAL_PRICE AS referenceTotalPrice,
+                REFERENCE_SNAPSHOT_DATE AS referenceSnapshotDate,
+                GRADE AS grade,
+                SUPPLIER_TYPE AS supplierType,
+                ACTUAL_UNIT_PRICE AS actualUnitPrice,
+                ACTUAL_PURCHASE_AMOUNT AS actualPurchaseAmount,
+                LOGISTICS_COST AS logisticsCost,
+                COMMISSION_RATE AS commissionRate,
+                COMMISSION_COST AS commissionCost,
+                OTHER_PURCHASE_COST AS otherPurchaseCost,
+                DISCARD_RATE AS discardRate,
+                DISCARD_QTY AS discardQty,
+                SELLABLE_QTY AS sellableQty,
+                REMAINING_QTY AS remainingQty,
+                TOTAL_PURCHASE_COST AS totalPurchaseCost,
+                ACTUAL_COST_PER_KG AS actualCostPerKg,
                 PURCHASE_DATE AS purchaseDate,
                 SUPPLIER_NAME AS supplierName,
                 STATUS AS status,
@@ -739,6 +790,22 @@
               AND PURCHASE_UNIT = #{purchaseUnit}
               AND PURCHASE_QTY = #{purchaseQty}
               AND PURCHASE_PRICE = #{purchasePrice}
+              AND REFERENCE_UNIT_PRICE = #{referenceUnitPrice}
+              AND REFERENCE_TOTAL_PRICE = #{referenceTotalPrice}
+              AND NVL(GRADE, ' ') = NVL(#{grade}, ' ')
+              AND NVL(SUPPLIER_TYPE, ' ') = NVL(#{supplierType}, ' ')
+              AND ACTUAL_UNIT_PRICE = #{actualUnitPrice}
+              AND ACTUAL_PURCHASE_AMOUNT = #{actualPurchaseAmount}
+              AND LOGISTICS_COST = #{logisticsCost}
+              AND COMMISSION_RATE = #{commissionRate}
+              AND COMMISSION_COST = #{commissionCost}
+              AND OTHER_PURCHASE_COST = #{otherPurchaseCost}
+              AND DISCARD_RATE = #{discardRate}
+              AND DISCARD_QTY = #{discardQty}
+              AND SELLABLE_QTY = #{sellableQty}
+              AND REMAINING_QTY = #{remainingQty}
+              AND TOTAL_PURCHASE_COST = #{totalPurchaseCost}
+              AND ACTUAL_COST_PER_KG = #{actualCostPerKg}
               AND PURCHASE_DATE = #{purchaseDate}
               AND NVL(SUPPLIER_NAME, ' ') = NVL(#{supplierName}, ' ')
               AND STATUS = #{status}
@@ -756,6 +823,23 @@
             PURCHASE_UNIT,
             PURCHASE_QTY,
             PURCHASE_PRICE,
+            REFERENCE_UNIT_PRICE,
+            REFERENCE_TOTAL_PRICE,
+            REFERENCE_SNAPSHOT_DATE,
+            GRADE,
+            SUPPLIER_TYPE,
+            ACTUAL_UNIT_PRICE,
+            ACTUAL_PURCHASE_AMOUNT,
+            LOGISTICS_COST,
+            COMMISSION_RATE,
+            COMMISSION_COST,
+            OTHER_PURCHASE_COST,
+            DISCARD_RATE,
+            DISCARD_QTY,
+            SELLABLE_QTY,
+            REMAINING_QTY,
+            TOTAL_PURCHASE_COST,
+            ACTUAL_COST_PER_KG,
             PURCHASE_DATE,
             SUPPLIER_NAME,
             STATUS
@@ -767,6 +851,23 @@
             #{purchaseUnit},
             #{purchaseQty},
             #{purchasePrice},
+            #{referenceUnitPrice},
+            #{referenceTotalPrice},
+            #{referenceSnapshotDate},
+            #{grade},
+            #{supplierType},
+            #{actualUnitPrice},
+            #{actualPurchaseAmount},
+            #{logisticsCost},
+            #{commissionRate},
+            #{commissionCost},
+            #{otherPurchaseCost},
+            #{discardRate},
+            #{discardQty},
+            #{sellableQty},
+            #{remainingQty},
+            #{totalPurchaseCost},
+            #{actualCostPerKg},
             #{purchaseDate},
             #{supplierName},
             #{status}
@@ -786,7 +887,15 @@
             PRODUCT_NO AS productNo,
             PACKAGED_QTY AS packagedQty,
             PACKAGED_WEIGHT AS packagedWeight,
+            TOTAL_USED AS totalUsed,
             SALE_PRICE AS salePrice,
+            PACKAGING_MATERIAL_COST AS packagingMaterialCost,
+            PACKAGING_LABOR_COST AS packagingLaborCost,
+            OTHER_PACKAGING_COST AS otherPackagingCost,
+            FINAL_COST_PER_KG AS finalCostPerKg,
+            FINAL_COST_PER_PACKAGE AS finalCostPerPackage,
+            EXPECTED_PROFIT_PER_UNIT AS expectedProfitPerUnit,
+            EXPECTED_TOTAL_PROFIT AS expectedTotalProfit,
             SALE_STATUS AS saleStatus,
             PACKAGED_AT AS packagedAt,
             NOTE AS note,
@@ -801,7 +910,15 @@
             PRODUCT_NO,
             PACKAGED_QTY,
             PACKAGED_WEIGHT,
+            TOTAL_USED,
             SALE_PRICE,
+            PACKAGING_MATERIAL_COST,
+            PACKAGING_LABOR_COST,
+            OTHER_PACKAGING_COST,
+            FINAL_COST_PER_KG,
+            FINAL_COST_PER_PACKAGE,
+            EXPECTED_PROFIT_PER_UNIT,
+            EXPECTED_TOTAL_PROFIT,
             SALE_STATUS,
             NOTE,
             USER_NO
@@ -810,7 +927,15 @@
             #{productNo},
             #{packagedQty},
             #{packagedWeight},
+            #{totalUsed},
             #{salePrice},
+            #{packagingMaterialCost},
+            #{packagingLaborCost},
+            #{otherPackagingCost},
+            #{finalCostPerKg},
+            #{finalCostPerPackage},
+            #{expectedProfitPerUnit},
+            #{expectedTotalProfit},
             #{saleStatus},
             #{note},
             #{userNo}
@@ -830,6 +955,13 @@
     <update id="updatePurchaseBatchStatus" parameterType="map">
         UPDATE OFT_PURCHASE_BATCH
         SET STATUS = #{status}
+        WHERE BATCH_NO = #{batchNo}
+    </update>
+
+    <update id="updatePurchaseBatchInventory" parameterType="map">
+        UPDATE OFT_PURCHASE_BATCH
+        SET REMAINING_QTY = #{remainingQty},
+            STATUS = #{status}
         WHERE BATCH_NO = #{batchNo}
     </update>
 

@@ -61,11 +61,24 @@ const EMPTY_PURCHASE_FORM = {
   referenceItemCode: '',
   productName: '',
   origin: '',
+  supplierProfileKey: 'farm-cheonan',
   purchaseUnit: 'kg',
   purchaseQty: '0',
+  referenceUnitPrice: '0',
+  referenceTotalPrice: '0',
+  referenceSnapshotDate: '',
+  grade: '상',
+  supplierType: '농가',
+  actualUnitPrice: '0',
+  actualPurchaseAmount: '0',
+  logisticsCost: '0',
+  commissionRate: '0',
+  commissionCost: '0',
+  otherPurchaseCost: '0',
+  discardRate: '3',
   purchasePrice: '0',
   purchaseDate: new Date().toISOString().slice(0, 10),
-  supplierName: '',
+  supplierName: '천안 농가',
   status: 'PURCHASED',
 };
 
@@ -74,6 +87,9 @@ const EMPTY_PACKAGE_FORM = {
   packagedQty: '0',
   packagedWeight: '1',
   salePrice: '0',
+  packagingMaterialCost: '0',
+  packagingLaborCost: '0',
+  otherPackagingCost: '0',
   saleStatus: 'SELLING',
   note: '',
 };
@@ -129,6 +145,42 @@ const ADMIN_REFERENCE_ALIAS_MAP = {
     { key: 'zucchini', productName: '\uC96C\uD0A4\uB2C8', quoteName: '\uD638\uBC15' },
   ],
 };
+
+const PURCHASE_SUPPLIER_PROFILES = [
+  {
+    key: 'farm-cheonan',
+    supplierName: '천안 농가',
+    supplierType: '농가',
+    defaultLogisticsCost: 8000,
+    defaultCommissionRate: 0,
+    defaultDiscardRate: 3,
+    priceMultiplierMin: 0.9,
+    priceMultiplierMax: 0.95,
+    note: '시세보다 약간 저렴한 단가를 기본 제안합니다.',
+  },
+  {
+    key: 'wholesale-daejeon',
+    supplierName: '대전 도매시장',
+    supplierType: '도매',
+    defaultLogisticsCost: 5000,
+    defaultCommissionRate: 5,
+    defaultDiscardRate: 7,
+    priceMultiplierMin: 0.97,
+    priceMultiplierMax: 1.04,
+    note: '시세와 비슷한 단가를 기본 제안합니다.',
+  },
+  {
+    key: 'distributor-seoul',
+    supplierName: '서울 식자재 유통',
+    supplierType: '유통',
+    defaultLogisticsCost: 0,
+    defaultCommissionRate: 0,
+    defaultDiscardRate: 2,
+    priceMultiplierMin: 1.1,
+    priceMultiplierMax: 1.2,
+    note: '단가 포함형이라 물류비는 0원으로 시작합니다.',
+  },
+];
 
 function splitAdminReferenceNameSegments(value) {
   return String(value || '')
@@ -277,6 +329,86 @@ function calculatePurchasePriceFromQuote(purchaseQuote, purchaseQty, purchaseUni
   }
 
   return (basePrice * currentQuantity.amount) / baseQuantity.amount;
+}
+
+function calculatePurchaseDraftMetrics(purchaseForm) {
+  const purchaseQty = toNumber(purchaseForm.purchaseQty, 0);
+  const referenceUnitPrice = toNumber(purchaseForm.referenceUnitPrice, 0);
+  const actualUnitPrice = toNumber(purchaseForm.actualUnitPrice, 0);
+  const typedActualPurchaseAmount = toNumber(purchaseForm.actualPurchaseAmount, 0);
+  const logisticsCost = toNumber(purchaseForm.logisticsCost, 0);
+  const commissionRate = toNumber(purchaseForm.commissionRate, 0);
+  const otherPurchaseCost = toNumber(purchaseForm.otherPurchaseCost, 0);
+  const discardRate = toNumber(purchaseForm.discardRate, 0);
+
+  const referenceTotalPrice = referenceUnitPrice > 0 ? referenceUnitPrice * purchaseQty : 0;
+  const actualPurchaseAmount =
+    typedActualPurchaseAmount > 0 ? typedActualPurchaseAmount : actualUnitPrice * purchaseQty;
+  const commissionCost = actualPurchaseAmount * Math.max(commissionRate, 0) / 100;
+  const discardQty = purchaseQty * Math.max(discardRate, 0) / 100;
+  const sellableQty = Math.max(purchaseQty - discardQty, 0);
+  const totalPurchaseCost = actualPurchaseAmount + logisticsCost + commissionCost + otherPurchaseCost;
+  const actualCostPerKg = sellableQty > 0 ? totalPurchaseCost / sellableQty : 0;
+
+  return {
+    referenceTotalPrice,
+    actualPurchaseAmount,
+    commissionCost,
+    discardQty,
+    sellableQty,
+    totalPurchaseCost,
+    actualCostPerKg,
+  };
+}
+
+function findPurchaseSupplierProfile(profileKey) {
+  return PURCHASE_SUPPLIER_PROFILES.find((profile) => profile.key === profileKey) || PURCHASE_SUPPLIER_PROFILES[0];
+}
+
+function calculateSupplierSuggestedUnitPrice(referenceUnitPrice, supplierProfile) {
+  const numericReferenceUnitPrice = Number(referenceUnitPrice);
+  if (!Number.isFinite(numericReferenceUnitPrice) || numericReferenceUnitPrice <= 0 || !supplierProfile) {
+    return 0;
+  }
+
+  const midpoint = (supplierProfile.priceMultiplierMin + supplierProfile.priceMultiplierMax) / 2;
+  return numericReferenceUnitPrice * midpoint;
+}
+
+function calculatePackageDraftMetrics(batch, packageForm) {
+  if (!batch) {
+    return null;
+  }
+
+  const packagedQty = toNumber(packageForm.packagedQty, 0);
+  const packagedWeight = toNumber(packageForm.packagedWeight, 0);
+  const salePrice = toNumber(packageForm.salePrice, 0);
+  const packagingMaterialCost = toNumber(packageForm.packagingMaterialCost, 0);
+  const packagingLaborCost = toNumber(packageForm.packagingLaborCost, 0);
+  const otherPackagingCost = toNumber(packageForm.otherPackagingCost, 0);
+  const sellableQty = toNumber(batch.sellableQty, 0);
+  const remainingQty = toNumber(batch.remainingQty ?? batch.sellableQty, 0);
+  const totalPurchaseCost = toNumber(batch.totalPurchaseCost || batch.purchasePrice, 0);
+  const totalPackagingCost =
+    packagingMaterialCost + packagingLaborCost + otherPackagingCost;
+  const finalTotalCost = totalPurchaseCost + totalPackagingCost;
+  const finalCostPerKg = sellableQty > 0 ? finalTotalCost / sellableQty : 0;
+  const finalCostPerPackage = packagedWeight > 0 ? finalCostPerKg * packagedWeight : 0;
+  const expectedProfitPerUnit = salePrice - finalCostPerPackage;
+  const expectedTotalProfit = expectedProfitPerUnit * packagedQty;
+  const requiredSellableQty = packagedQty * packagedWeight;
+
+  return {
+    totalPackagingCost,
+    finalTotalCost,
+    finalCostPerKg,
+    finalCostPerPackage,
+    expectedProfitPerUnit,
+    expectedTotalProfit,
+    requiredSellableQty,
+    remainingQty,
+    exceedsSellableQty: requiredSellableQty > remainingQty,
+  };
 }
 
 function containsAnyTextKeyword(value, keywordArray) {
@@ -1161,7 +1293,28 @@ function validatePurchaseBatchForm(purchaseForm, categories, imageCount) {
 
   const purchasePrice = Number(purchaseForm.purchasePrice);
   if (!Number.isFinite(purchasePrice) || purchasePrice < 0) {
-    return '\uCD1D \uB9E4\uC785\uAC00\uB294 0 \uC774\uC0C1 \uC22B\uC790\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
+    return '\uCC38\uACE0 \uCD1D \uB9E4\uC785\uAC00\uB294 0 \uC774\uC0C1 \uC22B\uC790\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
+  }
+
+  const actualUnitPrice = Number(purchaseForm.actualUnitPrice);
+  if (!Number.isFinite(actualUnitPrice) || actualUnitPrice < 0) {
+    return '\uC2E4\uC81C \uB9E4\uC785 \uB2E8\uAC00\uB294 0 \uC774\uC0C1 \uC22B\uC790\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
+  }
+
+  const logisticsCost = Number(purchaseForm.logisticsCost);
+  const commissionRate = Number(purchaseForm.commissionRate);
+  const otherPurchaseCost = Number(purchaseForm.otherPurchaseCost);
+  const discardRate = Number(purchaseForm.discardRate);
+
+  if (!Number.isFinite(logisticsCost) || logisticsCost < 0
+    || !Number.isFinite(commissionRate) || commissionRate < 0
+    || !Number.isFinite(otherPurchaseCost) || otherPurchaseCost < 0
+    || !Number.isFinite(discardRate) || discardRate < 0) {
+    return '\uC2E4\uC81C \uBE44\uC6A9\uACFC \uD3D0\uAE30 \uAC12\uC740 0 \uC774\uC0C1 \uC22B\uC790\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
+  }
+
+  if (discardRate > 100 || commissionRate > 100) {
+    return '\uD3D0\uAE30\uC728\uACFC \uC218\uC218\uB8CC\uC728\uC740 100% \uC774\uD558\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
   }
 
   if (!String(purchaseForm.purchaseDate || '').trim()) {
@@ -1197,6 +1350,20 @@ function validatePackageForm(selectedBatch, packageForm) {
   const salePrice = Number(packageForm.salePrice);
   if (!Number.isFinite(salePrice) || salePrice < 0) {
     return '\uD310\uB9E4\uAC00\uB294 0 \uC774\uC0C1 \uC22B\uC790\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
+  }
+
+  const packagingMaterialCost = Number(packageForm.packagingMaterialCost);
+  const packagingLaborCost = Number(packageForm.packagingLaborCost);
+  const otherPackagingCost = Number(packageForm.otherPackagingCost);
+  if (!Number.isFinite(packagingMaterialCost) || packagingMaterialCost < 0
+    || !Number.isFinite(packagingLaborCost) || packagingLaborCost < 0
+    || !Number.isFinite(otherPackagingCost) || otherPackagingCost < 0) {
+    return '\uC18C\uBD84 \uBE44\uC6A9\uC740 0 \uC774\uC0C1 \uC22B\uC790\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
+  }
+
+  const packageMetrics = calculatePackageDraftMetrics(selectedBatch, packageForm);
+  if (packageMetrics?.exceedsSellableQty) {
+    return '\uC794\uC5EC \uC7AC\uACE0\uB97C \uCD08\uACFC\uD558\uC5EC \uC18C\uBD84\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.';
   }
 
   if (!String(packageForm.saleStatus || '').trim()) {
@@ -2220,6 +2387,8 @@ function PurchasePage({
   const filteredPurchaseReferenceItems = selectedPurchaseCategoryName
     ? purchaseReferenceItems.filter((item) => item.categoryName === selectedPurchaseCategoryName)
     : [];
+  const purchaseMetrics = calculatePurchaseDraftMetrics(purchaseForm);
+  const packageMetrics = calculatePackageDraftMetrics(selectedBatch, packageForm);
 
   return (
     <>
@@ -2268,17 +2437,26 @@ function PurchasePage({
                 placeholder={'\uC2DC\uC138 \uD488\uBAA9\uC744 \uC120\uD0DD\uD558\uBA74 \uC790\uB3D9 \uC785\uB825\uB429\uB2C8\uB2E4.'}
               />
             </label>
-            <label><span>{'\uACF5\uAE09\uCC98'}</span><input name="supplierName" value={purchaseForm.supplierName} onChange={onPurchaseFormChange} /></label>
+            <label>
+              <span>{'\uACF5\uAE09\uCC98'}</span>
+              <select name="supplierProfileKey" value={purchaseForm.supplierProfileKey} onChange={onPurchaseFormChange}>
+                {PURCHASE_SUPPLIER_PROFILES.map((profile) => (
+                  <option key={profile.key} value={profile.key}>
+                    {profile.supplierName}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label><span>{'\uB9E4\uC785 \uC218\uB7C9'}</span><input name="purchaseQty" value={purchaseForm.purchaseQty} onChange={onPurchaseFormChange} /></label>
+            <label><span>{'\uC2E4\uC81C \uB9E4\uC785 \uB2E8\uAC00'}</span><input name="actualUnitPrice" value={purchaseForm.actualUnitPrice} onChange={onPurchaseFormChange} /></label>
             <label><span>{'\uB2E8\uC704'}</span><input name="purchaseUnit" value={purchaseForm.purchaseUnit} onChange={onPurchaseFormChange} /></label>
-            <label><span>{'\uCD1D \uB9E4\uC785\uAC00'}</span><input name="purchasePrice" value={purchaseForm.purchasePrice} onChange={onPurchaseFormChange} /></label>
+            <label><span>{'\uBB3C\uB958\uBE44'}</span><input name="logisticsCost" value={purchaseForm.logisticsCost} onChange={onPurchaseFormChange} /></label>
+            <label><span>{'\uC218\uC218\uB8CC\uC728(%)'}</span><input name="commissionRate" value={purchaseForm.commissionRate} onChange={onPurchaseFormChange} /></label>
+            <label><span>{'\uD3D0\uAE30\uC728(%)'}</span><input name="discardRate" value={purchaseForm.discardRate} onChange={onPurchaseFormChange} /></label>
+            <label><span>{'\uAE30\uD0C0 \uBE44\uC6A9'}</span><input name="otherPurchaseCost" value={purchaseForm.otherPurchaseCost} onChange={onPurchaseFormChange} /></label>
             <label><span>{'\uB9E4\uC785\uC77C'}</span><input type="date" name="purchaseDate" value={purchaseForm.purchaseDate} onChange={onPurchaseFormChange} /></label>
-            <label><span>{'\uC6D0\uC0B0\uC9C0'}</span><input name="origin" value={purchaseForm.origin} onChange={onPurchaseFormChange} /></label>
           </div>
-          <div className="admin-page-actions admin-page-actions--spaced">
-            <span className="admin-muted">
-              {'\uCD5C\uC2E0 \uB3C4\uB9E4 \uC2DC\uC138 \uAE30\uC900\uC73C\uB85C \uB9E4\uC785 \uB2E8\uC704, \uB9E4\uC785 \uC218\uB7C9, \uCD1D \uB9E4\uC785\uAC00\uB97C \uC790\uB3D9 \uCC44\uC6C1\uB2C8\uB2E4.'}
-            </span>
+          <div className="admin-page-actions admin-page-actions--end admin-page-actions--compact">
             <button
               type="button"
               className="admin-action admin-action--line"
@@ -2289,46 +2467,69 @@ function PurchasePage({
                 || !String(purchaseForm.referenceItemCode || '').trim()
               }
             >
-              {quotingPurchase ? '\uC2DC\uC138 \uC870\uD68C \uC911...' : '\uC2DC\uC138\uB85C \uC790\uB3D9 \uCC44\uC6C0'}
+              {quotingPurchase ? '\uC2DC\uC138 \uC870\uD68C \uC911...' : '\uC2DC\uC138 \uC790\uB3D9 \uCC44\uC6C0'}
             </button>
           </div>
-          {purchaseQuote ? (
-            <div className="admin-summary-box admin-summary-box--note">
-              <strong>{'\uC2DC\uC138 \uC790\uB3D9 \uCC44\uC6C0 \uAE30\uC900'}</strong>
-              <div className="admin-muted">
-                {purchaseQuote.matchedItemName} {'\u00B7 \uAE30\uC900\uC77C '} {purchaseQuote.snapshotDate} {'\u00B7 \uACC4\uC0B0 \uAE30\uC900 '} {purchaseQuote.priceBasisUnit || '1kg'}
-                
+          <div className="admin-kpi-grid">
+            <div className="admin-kpi-card admin-kpi-card--primary">
+              <div className="admin-kpi-card__label">{'\uCD1D \uB9E4\uC785 \uC6D0\uAC00'}</div>
+              <div className="admin-kpi-card__value">{formatAdminCurrency(purchaseMetrics.totalPurchaseCost)}</div>
+            </div>
+            <div className="admin-kpi-card">
+              <div className="admin-kpi-card__label">{'\uC2E4\uD310\uB9E4 \uAC00\uB2A5\uB7C9'}</div>
+              <div className="admin-kpi-card__value">{formatDecimalInput(purchaseMetrics.sellableQty, 2)}{purchaseForm.purchaseUnit}</div>
+            </div>
+            <div className="admin-kpi-card">
+              <div className="admin-kpi-card__label">{'\uC2E4\uC81C \uC6D0\uAC00/kg'}</div>
+              <div className="admin-kpi-card__value">{formatAdminCurrency(purchaseMetrics.actualCostPerKg)}</div>
+            </div>
+          </div>
+          <details className="admin-disclosure">
+            <summary>{'\uC0C1\uC138 \uACC4\uC0B0 \uBCF4\uAE30'}</summary>
+            <div className="admin-disclosure__content">
+              <div className="admin-summary-grid">
+                <div className="admin-summary-box">
+                  <strong>{'\uD3D0\uAE30\uB7C9'}</strong>
+                  <div className="admin-summary-box__kpi">{formatDecimalInput(purchaseMetrics.discardQty, 2)}{purchaseForm.purchaseUnit}</div>
+                </div>
+                <div className="admin-summary-box">
+                  <strong>{'\uC218\uC218\uB8CC \uAE08\uC561'}</strong>
+                  <div className="admin-summary-box__kpi">{formatAdminCurrency(purchaseMetrics.commissionCost)}</div>
+                </div>
+                <div className="admin-summary-box">
+                  <strong>{'\uC2E4\uC81C \uC6D0\uBB3C \uB9E4\uC785\uC561'}</strong>
+                  <div className="admin-summary-box__kpi">{formatAdminCurrency(purchaseMetrics.actualPurchaseAmount)}</div>
+                </div>
+                <div className="admin-summary-box">
+                  <strong>{'\uCC38\uACE0 \uB9E4\uC785 \uB2E8\uAC00'}</strong>
+                  <div className="admin-summary-box__kpi">{formatAdminCurrency(purchaseForm.referenceUnitPrice)}</div>
+                </div>
+                <div className="admin-summary-box">
+                  <strong>{'\uCC38\uACE0 \uCD1D \uB9E4\uC785\uAC00'}</strong>
+                  <div className="admin-summary-box__kpi">{formatAdminCurrency(purchaseMetrics.referenceTotalPrice)}</div>
+                </div>
+                <div className="admin-summary-box">
+                  <strong>{'\uACF5\uAE09\uCC98'}</strong>
+                  <div className="admin-muted">{purchaseForm.supplierName}</div>
+                  <div className="admin-muted">{'\uB4F1\uAE09 '}{purchaseForm.grade || '-'}</div>
+                  <div className="admin-muted">{'\uC6D0\uC0B0\uC9C0 '}{purchaseForm.origin || '-'}</div>
+                </div>
               </div>
-              {hasAdminValue(purchaseQuote.wholesaleSourcePrice) ? (
-                <div className="admin-muted">
-                  {'\uB3C4\uB9E4 \uC6D0\uC2DC\uC138 '}{formatAdminCurrency(purchaseQuote.wholesaleSourcePrice)}{' ('}{purchaseQuote.wholesaleSourceUnit || purchaseQuote.snapshotUnit}{' \uAE30\uC900)'}
-                  {hasAdminValue(purchaseQuote.wholesaleAvgPrice) ? (
-                    <> {'\u00B7 '}{purchaseQuote.wholesalePriceBasisUnit || purchaseQuote.priceBasisUnit || '1kg'}{' \uD658\uC0B0 '}{formatAdminCurrency(purchaseQuote.wholesaleAvgPrice)}</>
-                  ) : null}
+              {purchaseQuote ? (
+                <div className="admin-summary-box admin-summary-box--note">
+                  <strong>{'\uC2DC\uC138 \uCC38\uACE0 \uC815\uBCF4'}</strong>
+                  <div className="admin-muted">
+                    {purchaseQuote.matchedItemName} {'\u00B7 '} {purchaseQuote.snapshotDate || '-'} {'\u00B7 '} {purchaseQuote.priceBasisUnit || '1kg'}
+                  </div>
+                  <div className="admin-muted">
+                    {hasAdminValue(purchaseQuote.wholesaleSourcePrice)
+                      ? `${formatAdminCurrency(purchaseQuote.wholesaleSourcePrice)} / ${purchaseQuote.wholesaleSourceUnit || purchaseQuote.snapshotUnit || '-'}`
+                      : '-'}
+                  </div>
                 </div>
               ) : null}
-              <div className="admin-muted">
-                {'\uAE30\uC900 \uB2E8\uC704 '}{purchaseQuote.snapshotUnit}{' \u00B7 \uC790\uB3D9 \uC785\uB825 '}{purchaseQuote.purchaseQty}
-                {purchaseQuote.purchaseUnit}
-                {hasAdminValue(purchaseQuote.retailSourcePrice) ? (
-                  <>
-                    {' '}
-                    {'\u00B7 '}{purchaseQuote.quoteSource === 'RETAIL_FALLBACK' ? '\uAE30\uC900 \uC18C\uB9E4 \uC2DC\uC138' : '\uC18C\uB9E4 \uC6D0\uC2DC\uC138'}{' '}{formatAdminCurrency(purchaseQuote.retailSourcePrice)}
-                    {purchaseQuote.retailSnapshotUnit ? ' (' + purchaseQuote.retailSnapshotUnit + ' \uAE30\uC900)' : ''}
-                  </>
-                ) : null}
-                {hasAdminValue(purchaseQuote.retailComparablePrice) ? (
-                  <> {'\u00B7 '}{purchaseQuote.retailPriceBasisUnit || purchaseQuote.priceBasisUnit || '1kg'}{' \uD658\uC0B0 '}{formatAdminCurrency(purchaseQuote.retailComparablePrice)}</>
-                ) : null}
-                {hasAdminValue(purchaseQuote.recommendedSalePrice) ? (
-                  <> {'\u00B7 \uAD8C\uC7A5 \uD310\uB9E4\uAC00 '}{formatAdminCurrency(purchaseQuote.recommendedSalePrice)}{' ('}{purchaseQuote.recommendedPriceBasisUnit || purchaseQuote.priceBasisUnit || '1kg'}{' \uAE30\uC900)'}</>
-                ) : null}
-              </div>
-              {purchaseQuote.pricingNote ? (
-                <div className="admin-muted">{purchaseQuote.pricingNote}</div>
-              ) : null}
             </div>
-          ) : null}
+          </details>
           <div className="admin-form-field admin-form-field--full">
             <span>{'\uB9E4\uC785 \uC774\uBBF8\uC9C0'}</span>
             <label className="admin-file-upload">
@@ -2380,6 +2581,12 @@ function PurchasePage({
                 ? `${selectedBatch.batchNo} / ${selectedBatch.productName} / ${selectedBatch.purchaseQty}${selectedBatch.purchaseUnit}`
                 : '\uC544\uB798 \uB9E4\uC785 / \uC18C\uBD84 \uC774\uB825 \uD14C\uC774\uBE14\uC5D0\uC11C \uBC30\uCE58\uB97C \uC120\uD0DD\uD574\uC8FC\uC138\uC694.'}
             </div>
+            {selectedBatch ? (
+              <div className="admin-muted">
+                {'\uC794\uC5EC \uC7AC\uACE0 '}{formatDecimalInput(selectedBatch.remainingQty ?? selectedBatch.sellableQty ?? 0, 2)}
+                {selectedBatch.purchaseUnit}
+              </div>
+            ) : null}
           </div>
           {selectedBatchProduct ? (
             <div className="admin-summary-box admin-summary-box--note">
@@ -2421,6 +2628,9 @@ function PurchasePage({
             <label><span>{'\uC0DD\uC131 \uC218\uB7C9'}</span><input name="packagedQty" value={packageForm.packagedQty} onChange={onPackageFormChange} /></label>
             <label><span>{'1\uAC1C\uB2F9 \uC911\uB7C9'}</span><input name="packagedWeight" value={packageForm.packagedWeight} onChange={onPackageFormChange} /></label>
             <label><span>{'\uD310\uB9E4\uAC00'}</span><input name="salePrice" value={packageForm.salePrice} onChange={onPackageFormChange} /></label>
+            <label><span>{'\uD3EC\uC7A5\uC7AC\uBE44'}</span><input name="packagingMaterialCost" value={packageForm.packagingMaterialCost} onChange={onPackageFormChange} /></label>
+            <label><span>{'\uC18C\uBD84 \uC778\uAC74\uBE44'}</span><input name="packagingLaborCost" value={packageForm.packagingLaborCost} onChange={onPackageFormChange} /></label>
+            <label><span>{'\uAE30\uD0C0 \uC18C\uBD84\uBE44'}</span><input name="otherPackagingCost" value={packageForm.otherPackagingCost} onChange={onPackageFormChange} /></label>
             <label>
               <span>{'\uD310\uB9E4 \uC0C1\uD0DC'}</span>
               <select name="saleStatus" value={packageForm.saleStatus} onChange={onPackageFormChange}>
@@ -2432,6 +2642,33 @@ function PurchasePage({
             </label>
             <label className="admin-form-field admin-form-field--full"><span>{'\uBA54\uBAA8'}</span><textarea name="note" value={packageForm.note} onChange={onPackageFormChange} /></label>
           </div>
+          {packageMetrics ? (
+            <div className="admin-summary-grid">
+              <div className="admin-summary-box">
+                <strong>{'\uC18C\uBD84 \uCD1D\uBE44\uC6A9'}</strong>
+                <div className="admin-summary-box__kpi">{formatAdminCurrency(packageMetrics.totalPackagingCost)}</div>
+              </div>
+              <div className="admin-summary-box">
+                <strong>{'\uC794\uC5EC \uAE30\uC900 \uC7AC\uACE0'}</strong>
+                <div className="admin-summary-box__kpi">{formatDecimalInput(packageMetrics.remainingQty, 2)}{selectedBatch?.purchaseUnit || ''}</div>
+              </div>
+              <div className="admin-summary-box">
+                <strong>{'\uCD5C\uC885 \uC6D0\uAC00/kg'}</strong>
+                <div className="admin-summary-box__kpi">{formatAdminCurrency(packageMetrics.finalCostPerKg)}</div>
+              </div>
+              <div className="admin-summary-box">
+                <strong>{'\uAC1C\uB2F9 \uC608\uC0C1 \uC6D0\uAC00'}</strong>
+                <div className="admin-summary-box__kpi">{formatAdminCurrency(packageMetrics.finalCostPerPackage)}</div>
+              </div>
+              <div className="admin-summary-box">
+                <strong>{'\uAC1C\uB2F9 \uC608\uC0C1 \uC774\uC775'}</strong>
+                <div className="admin-summary-box__kpi">{formatAdminCurrency(packageMetrics.expectedProfitPerUnit)}</div>
+                {packageMetrics.exceedsSellableQty ? (
+                  <div className="admin-summary-box__alert">{'\uC18C\uBD84 \uC218\uB7C9\uC774 \uC2E4\uD310\uB9E4 \uAC00\uB2A5\uB7C9\uC744 \uCD08\uACFC\uD588\uC2B5\uB2C8\uB2E4.'}</div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
           <div className="admin-page-actions admin-page-actions--end">
             <button type="button" className="admin-action admin-action--primary" onClick={onCreatePackageHistory} disabled={!selectedBatch || submittingPackage}>
               {submittingPackage ? '\uCC98\uB9AC \uC911...' : '\uC18C\uBD84 \uC2E4\uD589'}
@@ -2448,7 +2685,9 @@ function PurchasePage({
               <th>{'\uBC30\uCE58\uBC88\uD638'}</th>
               <th>{'\uD488\uBAA9'}</th>
               <th>{'\uB9E4\uC785\uC218\uB7C9'}</th>
-              <th>{'\uB9E4\uC785\uAC00'}</th>
+              <th>{'\uCD1D \uB9E4\uC785\uC6D0\uAC00'}</th>
+              <th>{'\uC2E4\uD310\uB9E4 \uAC00\uB2A5\uB7C9'}</th>
+              <th>{'\uC794\uC5EC \uC7AC\uACE0'}</th>
               <th>{'\uC0C1\uD0DC'}</th>
               <th>{'\uCD5C\uADFC \uC18C\uBD84'}</th>
             </tr>
@@ -2465,7 +2704,9 @@ function PurchasePage({
                   <td>{purchase.batchNo}</td>
                   <td>{purchase.productName}</td>
                   <td>{purchase.purchaseQty}{purchase.purchaseUnit}</td>
-                  <td>{formatAdminCurrency(purchase.purchasePrice)}</td>
+                  <td>{formatAdminCurrency(purchase.totalPurchaseCost || purchase.purchasePrice)}</td>
+                  <td>{formatDecimalInput(purchase.sellableQty || 0, 2)}{purchase.purchaseUnit}</td>
+                  <td>{formatDecimalInput(purchase.remainingQty ?? purchase.sellableQty ?? 0, 2)}{purchase.purchaseUnit}</td>
                   <td><AdminStatusBadge status={purchase.status} /></td>
                   <td>{latestPackage ? formatAdminDate(latestPackage.packagedAt) : '-'}</td>
                   <td className="admin-table__actions">
@@ -2857,8 +3098,56 @@ function AdminApp() {
           nextForm.purchaseUnit
         );
         if (nextPurchasePrice != null) {
+          nextForm.referenceUnitPrice = formatDecimalInput(
+            Number(purchaseQuote.pricingBasePrice || purchaseQuote.purchasePrice || 0)
+            / Math.max(Number(purchaseQuote.pricingBaseQty || purchaseQuote.purchaseQty || 1), 1),
+            2
+          );
+          nextForm.referenceTotalPrice = formatDecimalInput(nextPurchasePrice, 2);
           nextForm.purchasePrice = formatDecimalInput(nextPurchasePrice, 2);
         }
+      }
+
+      if (name === 'supplierProfileKey') {
+        const selectedSupplierProfile = findPurchaseSupplierProfile(value);
+        const suggestedActualUnitPrice = calculateSupplierSuggestedUnitPrice(
+          nextForm.referenceUnitPrice,
+          selectedSupplierProfile
+        );
+        nextForm.supplierName = selectedSupplierProfile.supplierName;
+        nextForm.supplierType = selectedSupplierProfile.supplierType;
+        nextForm.logisticsCost = formatDecimalInput(selectedSupplierProfile.defaultLogisticsCost, 0);
+        nextForm.commissionRate = formatDecimalInput(selectedSupplierProfile.defaultCommissionRate, 2);
+        nextForm.discardRate = formatDecimalInput(selectedSupplierProfile.defaultDiscardRate, 2);
+        if (suggestedActualUnitPrice > 0) {
+          nextForm.actualUnitPrice = formatDecimalInput(suggestedActualUnitPrice, 2);
+          nextForm.actualPurchaseAmount = formatDecimalInput(
+            suggestedActualUnitPrice * toNumber(nextForm.purchaseQty, 0),
+            2
+          );
+        }
+      }
+
+      if (name === 'referenceUnitPrice' || name === 'purchaseQty') {
+        const selectedSupplierProfile = findPurchaseSupplierProfile(nextForm.supplierProfileKey);
+        const suggestedActualUnitPrice = calculateSupplierSuggestedUnitPrice(
+          nextForm.referenceUnitPrice,
+          selectedSupplierProfile
+        );
+        if (suggestedActualUnitPrice > 0) {
+          nextForm.actualUnitPrice = formatDecimalInput(suggestedActualUnitPrice, 2);
+          nextForm.actualPurchaseAmount = formatDecimalInput(
+            suggestedActualUnitPrice * toNumber(nextForm.purchaseQty, 0),
+            2
+          );
+        }
+      }
+
+      if (name === 'actualUnitPrice') {
+        nextForm.actualPurchaseAmount = formatDecimalInput(
+          toNumber(nextForm.actualUnitPrice, 0) * toNumber(nextForm.purchaseQty, 0),
+          2
+        );
       }
 
       return nextForm;
@@ -2965,14 +3254,39 @@ function AdminApp() {
       }
 
       setPurchaseQuote(quote);
-      setPurchaseForm((current) => ({
-        ...current,
-        purchaseUnit: quote.purchaseUnit || current.purchaseUnit,
-        purchaseQty:
-          quote.purchaseQty == null ? current.purchaseQty : formatDecimalInput(quote.purchaseQty, 2),
-        purchasePrice:
-          quote.purchasePrice == null ? current.purchasePrice : formatDecimalInput(quote.purchasePrice, 2),
-      }));
+      setPurchaseForm((current) => {
+        const nextPurchaseQty =
+          quote.purchaseQty == null ? current.purchaseQty : formatDecimalInput(quote.purchaseQty, 2);
+        const nextReferenceUnitPrice =
+          quote.purchaseQty && quote.purchasePrice != null
+            ? Number(quote.purchasePrice) / Math.max(Number(quote.purchaseQty), 1)
+            : toNumber(current.referenceUnitPrice, 0);
+        const selectedSupplierProfile = findPurchaseSupplierProfile(current.supplierProfileKey);
+        const suggestedActualUnitPrice = calculateSupplierSuggestedUnitPrice(
+          nextReferenceUnitPrice,
+          selectedSupplierProfile
+        );
+
+        return {
+          ...current,
+          purchaseUnit: quote.purchaseUnit || current.purchaseUnit,
+          purchaseQty: nextPurchaseQty,
+          referenceUnitPrice: formatDecimalInput(nextReferenceUnitPrice, 2),
+          referenceTotalPrice:
+            quote.purchasePrice == null ? current.referenceTotalPrice : formatDecimalInput(quote.purchasePrice, 2),
+          referenceSnapshotDate: quote.snapshotDate || current.referenceSnapshotDate,
+          actualUnitPrice:
+            suggestedActualUnitPrice > 0
+              ? formatDecimalInput(suggestedActualUnitPrice, 2)
+              : current.actualUnitPrice,
+          actualPurchaseAmount:
+            suggestedActualUnitPrice > 0
+              ? formatDecimalInput(suggestedActualUnitPrice * toNumber(nextPurchaseQty, 0), 2)
+              : current.actualPurchaseAmount,
+          purchasePrice:
+            quote.purchasePrice == null ? current.purchasePrice : formatDecimalInput(quote.purchasePrice, 2),
+        };
+      });
       setActionSuccess(
         quote.quoteSource === 'RETAIL_FALLBACK'
           ? `${quote.matchedItemName || productName} \uC18C\uB9E4 \uC2DC\uC138\uB97C \uAE30\uC900\uC73C\uB85C \uB9E4\uC785 \uC815\uBCF4\uB97C \uC790\uB3D9 \uC785\uB825\uD588\uC2B5\uB2C8\uB2E4.`
@@ -3246,11 +3560,24 @@ function AdminApp() {
     setActionSuccess('');
 
     try {
-      const { referenceItemCode, ...purchasePayload } = purchaseForm;
+      const { referenceItemCode, supplierProfileKey, ...purchasePayload } = purchaseForm;
+      const purchaseMetrics = calculatePurchaseDraftMetrics(purchaseForm);
       const savedBatch = await createAdminPurchaseBatch({
         ...purchasePayload,
         categoryNo: Number(purchaseForm.categoryNo),
         purchaseQty: Number(purchaseForm.purchaseQty),
+        referenceUnitPrice: Number(purchaseForm.referenceUnitPrice),
+        referenceTotalPrice: Number(purchaseForm.referenceTotalPrice || purchaseMetrics.referenceTotalPrice),
+        actualUnitPrice: Number(purchaseForm.actualUnitPrice),
+        actualPurchaseAmount: Number(
+          purchaseForm.actualPurchaseAmount || purchaseMetrics.actualPurchaseAmount
+        ),
+        logisticsCost: Number(purchaseForm.logisticsCost),
+        commissionRate: Number(purchaseForm.commissionRate),
+        commissionCost: Number(purchaseMetrics.commissionCost),
+        otherPurchaseCost: Number(purchaseForm.otherPurchaseCost),
+        discardRate: Number(purchaseForm.discardRate),
+        discardQty: Number(purchaseMetrics.discardQty),
         purchasePrice: Number(purchaseForm.purchasePrice),
       });
       if (savedBatch?.productNo && purchaseImageFiles.length) {
@@ -3300,6 +3627,9 @@ function AdminApp() {
         packagedQty: Number(packageForm.packagedQty),
         packagedWeight: Number(packageForm.packagedWeight),
         salePrice: Number(packageForm.salePrice),
+        packagingMaterialCost: Number(packageForm.packagingMaterialCost),
+        packagingLaborCost: Number(packageForm.packagingLaborCost),
+        otherPackagingCost: Number(packageForm.otherPackagingCost),
         saleStatus: packageForm.saleStatus,
         note: packageForm.note,
       });

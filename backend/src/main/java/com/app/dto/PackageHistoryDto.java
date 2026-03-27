@@ -15,7 +15,15 @@ public class PackageHistoryDto {
     private Long productNo;
     private Integer packagedQty;
     private BigDecimal packagedWeight;
+    private BigDecimal totalUsed;
     private BigDecimal salePrice;
+    private BigDecimal packagingMaterialCost;
+    private BigDecimal packagingLaborCost;
+    private BigDecimal otherPackagingCost;
+    private BigDecimal finalCostPerKg;
+    private BigDecimal finalCostPerPackage;
+    private BigDecimal expectedProfitPerUnit;
+    private BigDecimal expectedTotalProfit;
     private String saleStatus;
     private LocalDateTime packagedAt;
     private String note;

@@ -135,6 +135,8 @@ public interface AdminDao {
 
     int updatePurchaseBatchStatus(Long batchNo, String status);
 
+    int updatePurchaseBatchInventory(Long batchNo, java.math.BigDecimal remainingQty, String status);
+
     int increaseProductStock(Long productNo, Integer quantity);
 
     List<MainBannerDto> findMainBanners();

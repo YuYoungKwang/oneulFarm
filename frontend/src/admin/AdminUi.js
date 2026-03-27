@@ -82,16 +82,16 @@ export function formatAdminDateTime(value) {
 
 export function getStatusTone(status) {
   if (
-    ['SELLING', 'PAID', 'ACTIVE', 'PACKAGED', 'SUCCESS', 'SHIPPING', 'DELIVERED', 'Y'].includes(status)
+    ['SELLING', 'PAID', 'ACTIVE', 'SUCCESS', 'SHIPPING', 'DELIVERED', 'Y', 'ON_SALE'].includes(status)
   ) {
     return 'green';
   }
 
-  if (['READY', 'PURCHASED', 'WITHDRAWN', 'SOLD_OUT', 'FAIL'].includes(status)) {
+  if (['READY', 'PURCHASED', 'WITHDRAWN', 'SOLD_OUT', 'FAIL', 'PROCESSING', 'COMPLETED'].includes(status)) {
     return 'yellow';
   }
 
-  if (['STOP', 'BLOCKED', 'CANCELED', 'N'].includes(status)) {
+  if (['STOP', 'BLOCKED', 'CANCELED', 'N', 'ENDED'].includes(status)) {
     return 'red';
   }
 
@@ -103,21 +103,23 @@ export function getStatusLabel(status) {
     ACTIVE: '활성',
     BLOCKED: '차단',
     WITHDRAWN: '탈퇴',
-    READY: '준비',
+    READY: '준비중',
     SELLING: '판매중',
     SOLD_OUT: '품절',
     STOP: '판매중지',
     PURCHASED: '매입완료',
-    PACKAGED: '소분완료',
+    PROCESSING: '소분중',
+    COMPLETED: '소분완료',
+    ON_SALE: '판매중',
+    ENDED: '종료',
     PAID: '결제완료',
     CREATED: '주문생성',
     SHIPPING: '배송중',
-    COMPLETED: '주문완료',
     DELIVERED: '배송완료',
     SUCCESS: '결제성공',
     FAIL: '결제실패',
     Y: '노출',
-    N: '숨김',
+    N: '비노출',
   };
 
   return statusMap[status] || status || '-';

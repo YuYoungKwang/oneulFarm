@@ -1,6 +1,7 @@
 package com.app.service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,7 +30,6 @@ import com.app.dto.PurchaseBatchDto;
 import com.app.dto.PriceSnapshotDTO;
 import com.app.dto.UserDto;
 import com.app.dto.UserProfileDto;
-import com.app.dto.UserDto;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -404,12 +404,20 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public List<PurchaseBatchDto> getPurchaseBatches() {
-        return adminDao.findPurchaseBatches();
+        List<PurchaseBatchDto> purchaseBatches = adminDao.findPurchaseBatches();
+        for (PurchaseBatchDto purchaseBatch : purchaseBatches) {
+            hydratePurchaseBatchDefaults(purchaseBatch);
+        }
+        return purchaseBatches;
     }
 
     @Override
     public List<PackageHistoryDto> getPackageHistories() {
-        return adminDao.findPackageHistories();
+        List<PackageHistoryDto> packageHistories = adminDao.findPackageHistories();
+        for (PackageHistoryDto packageHistory : packageHistories) {
+            hydratePackageHistoryDefaults(packageHistory);
+        }
+        return packageHistories;
     }
 
     @Override
@@ -432,6 +440,7 @@ public class AdminServiceImpl implements AdminService {
         if (purchaseBatch == null) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to create purchase batch.");
         }
+        hydratePurchaseBatchDefaults(purchaseBatch);
         return purchaseBatch;
     }
 
@@ -471,10 +480,11 @@ public class AdminServiceImpl implements AdminService {
         if (purchaseBatch.getProductNo() == null) {
             adminDao.updatePurchaseBatchProduct(batchNo, productNo);
         }
-        adminDao.updatePurchaseBatchStatus(batchNo, "PACKAGED");
+        adminDao.updatePurchaseBatchInventory(batchNo, purchaseBatch.getRemainingQty(), purchaseBatch.getStatus());
         if ("SELLING".equalsIgnoreCase(product.getSaleStatus())) {
             productPriceMatchService.refreshProductPriceMatch();
         }
+        hydratePackageHistoryDefaults(request);
         return request;
     }
 
@@ -543,7 +553,7 @@ public class AdminServiceImpl implements AdminService {
             || isBlank(request.getProductName())
             || isBlank(request.getPurchaseUnit())
             || request.getPurchaseQty() == null
-            || request.getPurchasePrice() == null
+            || request.getActualUnitPrice() == null
             || request.getPurchaseDate() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Required purchase fields are missing.");
         }
@@ -553,8 +563,18 @@ public class AdminServiceImpl implements AdminService {
         }
 
         if (request.getPurchaseQty().compareTo(BigDecimal.ZERO) < 0
-            || request.getPurchasePrice().compareTo(BigDecimal.ZERO) < 0) {
+            || request.getActualUnitPrice().compareTo(BigDecimal.ZERO) < 0
+            || defaultAmount(request.getLogisticsCost()).compareTo(BigDecimal.ZERO) < 0
+            || defaultAmount(request.getCommissionRate()).compareTo(BigDecimal.ZERO) < 0
+            || defaultAmount(request.getCommissionCost()).compareTo(BigDecimal.ZERO) < 0
+            || defaultAmount(request.getOtherPurchaseCost()).compareTo(BigDecimal.ZERO) < 0
+            || defaultAmount(request.getDiscardRate()).compareTo(BigDecimal.ZERO) < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Purchase values cannot be negative.");
+        }
+
+        if (defaultAmount(request.getDiscardRate()).compareTo(new BigDecimal("100")) > 0
+            || defaultAmount(request.getCommissionRate()).compareTo(new BigDecimal("100")) > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Discard rate cannot exceed 100 percent.");
         }
     }
 
@@ -568,7 +588,10 @@ public class AdminServiceImpl implements AdminService {
         }
 
         if (request.getPackagedWeight().compareTo(BigDecimal.ZERO) <= 0
-            || request.getSalePrice().compareTo(BigDecimal.ZERO) < 0) {
+            || request.getSalePrice().compareTo(BigDecimal.ZERO) < 0
+            || defaultAmount(request.getPackagingMaterialCost()).compareTo(BigDecimal.ZERO) < 0
+            || defaultAmount(request.getPackagingLaborCost()).compareTo(BigDecimal.ZERO) < 0
+            || defaultAmount(request.getOtherPackagingCost()).compareTo(BigDecimal.ZERO) < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Package values cannot be negative.");
         }
 
@@ -598,6 +621,38 @@ public class AdminServiceImpl implements AdminService {
         product.setImages(productImages == null ? Collections.emptyList() : productImages);
         product.setRecipes(Collections.emptyList());
         product.setReviews(Collections.emptyList());
+    }
+
+    private void hydratePurchaseBatchDefaults(PurchaseBatchDto purchaseBatch) {
+        purchaseBatch.setPurchaseQty(defaultAmount(purchaseBatch.getPurchaseQty()));
+        purchaseBatch.setPurchasePrice(defaultAmount(purchaseBatch.getPurchasePrice()));
+        purchaseBatch.setReferenceUnitPrice(defaultAmount(purchaseBatch.getReferenceUnitPrice()));
+        purchaseBatch.setReferenceTotalPrice(defaultAmount(purchaseBatch.getReferenceTotalPrice()));
+        purchaseBatch.setActualUnitPrice(defaultAmount(purchaseBatch.getActualUnitPrice()));
+        purchaseBatch.setActualPurchaseAmount(defaultAmount(purchaseBatch.getActualPurchaseAmount()));
+        purchaseBatch.setLogisticsCost(defaultAmount(purchaseBatch.getLogisticsCost()));
+        purchaseBatch.setCommissionRate(defaultAmount(purchaseBatch.getCommissionRate()));
+        purchaseBatch.setCommissionCost(defaultAmount(purchaseBatch.getCommissionCost()));
+        purchaseBatch.setOtherPurchaseCost(defaultAmount(purchaseBatch.getOtherPurchaseCost()));
+        purchaseBatch.setDiscardRate(defaultAmount(purchaseBatch.getDiscardRate()));
+        purchaseBatch.setDiscardQty(defaultAmount(purchaseBatch.getDiscardQty()));
+        purchaseBatch.setSellableQty(defaultAmount(purchaseBatch.getSellableQty()));
+        purchaseBatch.setRemainingQty(defaultAmount(purchaseBatch.getRemainingQty()));
+        purchaseBatch.setTotalPurchaseCost(defaultAmount(purchaseBatch.getTotalPurchaseCost()));
+        purchaseBatch.setActualCostPerKg(defaultAmount(purchaseBatch.getActualCostPerKg()));
+    }
+
+    private void hydratePackageHistoryDefaults(PackageHistoryDto packageHistory) {
+        packageHistory.setTotalUsed(defaultAmount(packageHistory.getTotalUsed()));
+        packageHistory.setPackagedWeight(defaultAmount(packageHistory.getPackagedWeight()));
+        packageHistory.setSalePrice(defaultAmount(packageHistory.getSalePrice()));
+        packageHistory.setPackagingMaterialCost(defaultAmount(packageHistory.getPackagingMaterialCost()));
+        packageHistory.setPackagingLaborCost(defaultAmount(packageHistory.getPackagingLaborCost()));
+        packageHistory.setOtherPackagingCost(defaultAmount(packageHistory.getOtherPackagingCost()));
+        packageHistory.setFinalCostPerKg(defaultAmount(packageHistory.getFinalCostPerKg()));
+        packageHistory.setFinalCostPerPackage(defaultAmount(packageHistory.getFinalCostPerPackage()));
+        packageHistory.setExpectedProfitPerUnit(defaultAmount(packageHistory.getExpectedProfitPerUnit()));
+        packageHistory.setExpectedTotalProfit(defaultAmount(packageHistory.getExpectedTotalProfit()));
     }
 
     private void hydrateOrderSummary(OrderDto order) {
@@ -652,14 +707,29 @@ public class AdminServiceImpl implements AdminService {
         request.setProductName(request.getProductName().trim());
         request.setOrigin(trimToNull(request.getOrigin()));
         request.setPurchaseUnit(request.getPurchaseUnit().trim());
+        request.setGrade(trimToNull(request.getGrade()));
+        request.setSupplierType(trimToNull(request.getSupplierType()));
         request.setSupplierName(trimToNull(request.getSupplierName()));
         request.setStatus(request.getStatus().trim());
+        request.setReferenceUnitPrice(defaultAmount(request.getReferenceUnitPrice()));
+        request.setReferenceTotalPrice(defaultAmount(request.getReferenceTotalPrice()));
+        request.setActualUnitPrice(defaultAmount(request.getActualUnitPrice()));
+        request.setActualPurchaseAmount(defaultAmount(request.getActualPurchaseAmount()));
+        request.setLogisticsCost(defaultAmount(request.getLogisticsCost()));
+        request.setCommissionRate(defaultAmount(request.getCommissionRate()));
+        request.setCommissionCost(defaultAmount(request.getCommissionCost()));
+        request.setOtherPurchaseCost(defaultAmount(request.getOtherPurchaseCost()));
+        request.setDiscardRate(defaultAmount(request.getDiscardRate()));
+        applyPurchaseBatchDerivedAmounts(request);
     }
 
     private void normalizePackageHistoryRequest(PackageHistoryDto request) {
         request.setNote(trimToNull(request.getNote()));
         String saleStatus = trimToNull(request.getSaleStatus());
         request.setSaleStatus(saleStatus == null ? "SELLING" : saleStatus);
+        request.setPackagingMaterialCost(defaultAmount(request.getPackagingMaterialCost()));
+        request.setPackagingLaborCost(defaultAmount(request.getPackagingLaborCost()));
+        request.setOtherPackagingCost(defaultAmount(request.getOtherPackagingCost()));
     }
 
     private ProductDto createDraftProductFromPurchase(PurchaseBatchDto request) {
@@ -696,6 +766,7 @@ public class AdminServiceImpl implements AdminService {
         PurchaseBatchDto purchaseBatch,
         PackageHistoryDto request
     ) {
+        applyPackageHistoryDerivedAmounts(purchaseBatch, request);
         if (purchaseBatch.getCategoryNo() != null) {
             product.setCategoryNo(purchaseBatch.getCategoryNo());
         }
@@ -713,6 +784,206 @@ public class AdminServiceImpl implements AdminService {
         if (!"Y".equals(product.getIsSeasonal()) && !"N".equals(product.getIsSeasonal())) {
             product.setIsSeasonal("N");
         }
+    }
+
+    private void applyPurchaseBatchDerivedAmounts(PurchaseBatchDto request) {
+        BigDecimal purchaseQty = defaultAmount(request.getPurchaseQty());
+        BigDecimal actualUnitPrice = defaultAmount(request.getActualUnitPrice());
+        BigDecimal actualPurchaseAmount = defaultAmount(request.getActualPurchaseAmount());
+        if (actualPurchaseAmount.compareTo(BigDecimal.ZERO) <= 0
+            && purchaseQty.compareTo(BigDecimal.ZERO) > 0
+            && actualUnitPrice.compareTo(BigDecimal.ZERO) >= 0) {
+            actualPurchaseAmount = scaleAmount(actualUnitPrice.multiply(purchaseQty));
+        }
+
+        BigDecimal referenceUnitPrice = defaultAmount(request.getReferenceUnitPrice());
+        BigDecimal referenceTotalPrice = defaultAmount(request.getReferenceTotalPrice());
+        if (referenceTotalPrice.compareTo(BigDecimal.ZERO) <= 0
+            && purchaseQty.compareTo(BigDecimal.ZERO) > 0
+            && referenceUnitPrice.compareTo(BigDecimal.ZERO) >= 0) {
+            referenceTotalPrice = scaleAmount(referenceUnitPrice.multiply(purchaseQty));
+        }
+
+        BigDecimal discardRate = defaultAmount(request.getDiscardRate());
+        BigDecimal discardQty = scaleAmount(
+            purchaseQty.multiply(discardRate).divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP)
+        );
+
+        if (discardQty.compareTo(purchaseQty) > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Discard quantity cannot exceed purchase quantity.");
+        }
+
+        BigDecimal commissionRate = defaultAmount(request.getCommissionRate());
+        BigDecimal commissionCost = scaleAmount(
+            actualPurchaseAmount.multiply(commissionRate).divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP)
+        );
+        BigDecimal sellableQty = scaleAmount(purchaseQty.subtract(discardQty));
+        BigDecimal totalPurchaseCost = scaleAmount(
+            actualPurchaseAmount
+                .add(defaultAmount(request.getLogisticsCost()))
+                .add(commissionCost)
+                .add(defaultAmount(request.getOtherPurchaseCost()))
+        );
+
+        request.setPurchasePrice(totalPurchaseCost);
+        request.setReferenceUnitPrice(referenceUnitPrice);
+        request.setReferenceTotalPrice(referenceTotalPrice);
+        request.setActualPurchaseAmount(actualPurchaseAmount);
+        request.setCommissionCost(commissionCost);
+        request.setDiscardQty(discardQty);
+        request.setSellableQty(sellableQty.max(BigDecimal.ZERO));
+        request.setRemainingQty(sellableQty.max(BigDecimal.ZERO));
+        request.setTotalPurchaseCost(totalPurchaseCost);
+        request.setActualCostPerKg(calculateCostPerStandardUnit(request.getPurchaseUnit(), sellableQty, totalPurchaseCost));
+    }
+
+    private void applyPackageHistoryDerivedAmounts(PurchaseBatchDto purchaseBatch, PackageHistoryDto request) {
+        BigDecimal totalUsed = calculatePackageTotalUsed(purchaseBatch.getPurchaseUnit(), request);
+        BigDecimal remainingQty = defaultAmount(purchaseBatch.getRemainingQty());
+        if (remainingQty.compareTo(BigDecimal.ZERO) <= 0) {
+            remainingQty = defaultAmount(purchaseBatch.getSellableQty());
+        }
+        if (totalUsed.compareTo(remainingQty) > 0) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Packaged quantity exceeds remaining inventory."
+            );
+        }
+
+        BigDecimal totalPackagingCost = scaleAmount(
+            defaultAmount(request.getPackagingMaterialCost())
+                .add(defaultAmount(request.getPackagingLaborCost()))
+                .add(defaultAmount(request.getOtherPackagingCost()))
+        );
+        BigDecimal totalPurchaseCost = defaultAmount(purchaseBatch.getTotalPurchaseCost());
+        BigDecimal finalCostPerKg = calculateCostPerStandardUnit(
+            purchaseBatch.getPurchaseUnit(),
+            defaultAmount(purchaseBatch.getSellableQty()),
+            totalPurchaseCost.add(totalPackagingCost)
+        );
+
+        BigDecimal finalCostPerPackage = calculatePackageUnitCost(
+            purchaseBatch.getPurchaseUnit(),
+            request.getPackagedWeight(),
+            request.getPackagedQty(),
+            finalCostPerKg,
+            totalPurchaseCost.add(totalPackagingCost)
+        );
+
+        request.setTotalUsed(totalUsed);
+        request.setFinalCostPerKg(finalCostPerKg);
+        request.setFinalCostPerPackage(finalCostPerPackage);
+        request.setExpectedProfitPerUnit(scaleAmount(defaultAmount(request.getSalePrice()).subtract(finalCostPerPackage)));
+        request.setExpectedTotalProfit(
+            scaleAmount(request.getExpectedProfitPerUnit().multiply(BigDecimal.valueOf(request.getPackagedQty().longValue())))
+        );
+
+        BigDecimal nextRemainingQty = scaleAmount(remainingQty.subtract(totalUsed)).max(BigDecimal.ZERO);
+        purchaseBatch.setRemainingQty(nextRemainingQty);
+        purchaseBatch.setStatus(resolveBatchStatusAfterPackage(nextRemainingQty, request.getSaleStatus()));
+    }
+
+    private BigDecimal calculatePackageTotalUsed(String unit, PackageHistoryDto request) {
+        return scaleAmount(
+            BigDecimal.valueOf(request.getPackagedQty().longValue()).multiply(defaultAmount(request.getPackagedWeight()))
+        );
+    }
+
+    private String resolveBatchStatusAfterPackage(BigDecimal remainingQty, String saleStatus) {
+        if (remainingQty.compareTo(BigDecimal.ZERO) <= 0) {
+            if ("SELLING".equalsIgnoreCase(saleStatus)) {
+                return "ON_SALE";
+            }
+            if ("SOLD_OUT".equalsIgnoreCase(saleStatus) || "STOP".equalsIgnoreCase(saleStatus)) {
+                return "ENDED";
+            }
+            return "COMPLETED";
+        }
+
+        if ("SELLING".equalsIgnoreCase(saleStatus)) {
+            return "ON_SALE";
+        }
+
+        return "PROCESSING";
+    }
+
+    private BigDecimal calculatePackageUnitCost(
+        String unit,
+        BigDecimal packagedWeight,
+        Integer packagedQty,
+        BigDecimal finalCostPerKg,
+        BigDecimal totalCost
+    ) {
+        if (packagedQty == null || packagedQty < 1) {
+            return BigDecimal.ZERO;
+        }
+
+        NormalizedQuantity normalizedPackageWeight = normalizeQuantity(packagedWeight, unit);
+        if (normalizedPackageWeight == null) {
+            return scaleAmount(totalCost.divide(BigDecimal.valueOf(packagedQty.longValue()), 2, RoundingMode.HALF_UP));
+        }
+
+        if ("WEIGHT".equals(normalizedPackageWeight.type)) {
+            return scaleAmount(
+                finalCostPerKg.multiply(
+                    normalizedPackageWeight.amount.divide(new BigDecimal("1000"), 6, RoundingMode.HALF_UP)
+                )
+            );
+        }
+
+        if ("VOLUME".equals(normalizedPackageWeight.type)) {
+            return scaleAmount(
+                finalCostPerKg.multiply(
+                    normalizedPackageWeight.amount.divide(new BigDecimal("1000"), 6, RoundingMode.HALF_UP)
+                )
+            );
+        }
+
+        return scaleAmount(finalCostPerKg.multiply(normalizedPackageWeight.amount));
+    }
+
+    private BigDecimal calculateCostPerStandardUnit(String unit, BigDecimal quantity, BigDecimal totalCost) {
+        NormalizedQuantity normalizedQuantity = normalizeQuantity(quantity, unit);
+        if (normalizedQuantity == null || normalizedQuantity.amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal divisor = normalizedQuantity.amount;
+        if ("WEIGHT".equals(normalizedQuantity.type) || "VOLUME".equals(normalizedQuantity.type)) {
+            divisor = normalizedQuantity.amount.divide(new BigDecimal("1000"), 6, RoundingMode.HALF_UP);
+        }
+
+        if (divisor.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        return scaleAmount(totalCost.divide(divisor, 2, RoundingMode.HALF_UP));
+    }
+
+    private NormalizedQuantity normalizeQuantity(BigDecimal quantity, String unit) {
+        BigDecimal safeQuantity = defaultAmount(quantity);
+        String normalizedUnit = uppercase(trimToNull(unit));
+        if (normalizedUnit == null) {
+            return null;
+        }
+
+        if ("KG".equals(normalizedUnit)) {
+            return new NormalizedQuantity("WEIGHT", safeQuantity.multiply(new BigDecimal("1000")));
+        }
+        if ("G".equals(normalizedUnit)) {
+            return new NormalizedQuantity("WEIGHT", safeQuantity);
+        }
+        if ("L".equals(normalizedUnit) || "LITER".equals(normalizedUnit) || "LITRE".equals(normalizedUnit) || "리터".equals(unit)) {
+            return new NormalizedQuantity("VOLUME", safeQuantity.multiply(new BigDecimal("1000")));
+        }
+        if ("ML".equals(normalizedUnit)) {
+            return new NormalizedQuantity("VOLUME", safeQuantity);
+        }
+        return new NormalizedQuantity("COUNT", safeQuantity);
+    }
+
+    private BigDecimal scaleAmount(BigDecimal amount) {
+        return defaultAmount(amount).setScale(2, RoundingMode.HALF_UP);
     }
 
     private Long resolvePackageActorUserNo(Long requestedUserNo) {
@@ -907,6 +1178,16 @@ public class AdminServiceImpl implements AdminService {
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "Failed to read image file."
             );
+        }
+    }
+
+    private static final class NormalizedQuantity {
+        private final String type;
+        private final BigDecimal amount;
+
+        private NormalizedQuantity(String type, BigDecimal amount) {
+            this.type = type;
+            this.amount = amount;
         }
     }
 }
