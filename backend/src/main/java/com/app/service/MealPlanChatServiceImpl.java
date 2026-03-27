@@ -36,7 +36,7 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
             + "Always answer in Korean. Keep answers practical, friendly, and concise. "
             + "Focus on meal planning, recipe direction, grocery suggestions, and budget-conscious choices. "
             + "When possible, structure the answer with these sections: "
-            + "1) 오늘 추천, 2) 필요한 재료, 3) 장보기 팁. "
+            + "1) \uC624\uB298 \uCD94\uCC9C, 2) \uD544\uC694\uD55C \uC7AC\uB8CC, 3) \uC7A5\uBCF4\uAE30 \uD301. "
             + "If the user gives too little context, ask at most two short follow-up questions.";
 
     @Value("${openai.api.baseUrl:https://api.openai.com/v1/responses}")
@@ -78,15 +78,24 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
         try {
             return requestOpenAiChat(userMessage, previousResponseId);
         } catch (Exception exception) {
-            logger.warn("Failed to call OpenAI meal-plan chat. Falling back to local template.", exception);
+            logger.warn(
+                "Failed to call OpenAI meal-plan chat. Falling back to local template.",
+                exception
+            );
             return buildFallbackResponse(userMessage);
         }
     }
 
-    private MealPlanChatResponseDto requestOpenAiChat(String userMessage, String previousResponseId) {
+    private MealPlanChatResponseDto requestOpenAiChat(
+        String userMessage,
+        String previousResponseId
+    ) {
         try {
             Map<String, Object> requestBodyMap = new LinkedHashMap<String, Object>();
-            requestBodyMap.put("model", trimToNull(openAiModel) == null ? DEFAULT_MODEL : openAiModel.trim());
+            requestBodyMap.put(
+                "model",
+                trimToNull(openAiModel) == null ? DEFAULT_MODEL : openAiModel.trim()
+            );
             requestBodyMap.put("instructions", SYSTEM_PROMPT);
             requestBodyMap.put("input", buildInputList(userMessage));
             requestBodyMap.put("max_output_tokens", Integer.valueOf(resolveMaxOutputTokens()));
@@ -140,9 +149,9 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
 
     private MealPlanChatResponseDto parseOpenAiResponse(String responseBody) throws IOException {
         JsonNode rootNode = objectMapper.readTree(responseBody);
-        String reply = trimToNull(rootNode.path("output_text").asText(null));
+        String reply = extractReplyFromOutputNode(rootNode.path("output"));
         if (reply == null) {
-            reply = extractReplyFromOutputNode(rootNode.path("output"));
+            reply = trimToNull(rootNode.path("output_text").asText(null));
         }
 
         if (reply == null) {
@@ -171,7 +180,14 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
             for (JsonNode contentItemNode : contentNode) {
                 String type = trimToNull(contentItemNode.path("type").asText(null));
                 if ("output_text".equals(type) || "text".equals(type)) {
-                    String text = trimToNull(contentItemNode.path("text").asText(null));
+                    JsonNode textNode = contentItemNode.path("text");
+                    String text = null;
+                    if (textNode.isTextual()) {
+                        text = trimToNull(textNode.asText(null));
+                    } else {
+                        text = trimToNull(textNode.path("value").asText(null));
+                    }
+
                     if (text != null) {
                         return text;
                     }
@@ -196,71 +212,87 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
         String mealTypeHint = resolveMealTypeHint(userMessage);
         String budgetHint = resolveBudgetHint(userMessage);
 
-        return "오늘 추천\n"
-            + "- " + ingredientHint + "를 중심으로 " + mealTypeHint + " 2가지 정도부터 시작해보세요.\n"
-            + "- 한 끼는 재료 겹침이 있는 메뉴로 잡으면 장보기 부담이 줄어듭니다.\n\n"
-            + "필요한 재료\n"
-            + "- 기본 채소: 양파, 대파, 마늘\n"
-            + "- 단백질: 달걀, 두부, 닭가슴살 중 한 가지\n"
-            + "- 메인 재료: " + ingredientHint + "\n\n"
-            + "장보기 팁\n"
-            + "- 예산 기준은 " + budgetHint + " 정도로 시작하면 무난합니다.\n"
-            + "- 먼저 주재료 1개, 단백질 1개, 곁들임 채소 2개만 정하면 식단 구성이 쉬워집니다.\n\n"
-            + "원하면 다음 메시지에 인원 수, 예산, 냉장고 재료를 보내주세요. 더 구체적으로 식단을 짜드릴게요.";
+        return "\uC624\uB298 \uCD94\uCC9C\n"
+            + "- " + ingredientHint + "\uB97C \uC911\uC2EC\uC73C\uB85C " + mealTypeHint
+            + " 2\uAC00\uC9C0 \uC815\uB3C4\uBD80\uD130 \uC2DC\uC791\uD574\uBCF4\uC138\uC694.\n"
+            + "- \uD55C \uB07C\uB294 \uC7AC\uB8CC \uACB9\uCE68\uC774 \uC788\uB294 \uBA54\uB274\uB85C \uC7A1\uC73C\uBA74 "
+            + "\uC7A5\uBCF4\uAE30 \uBD80\uB2F4\uC774 \uC904\uC5B4\uB4ED\uB2C8\uB2E4.\n\n"
+            + "\uD544\uC694\uD55C \uC7AC\uB8CC\n"
+            + "- \uAE30\uBCF8 \uCC44\uC18C: \uC591\uD30C, \uB300\uD30C, \uB9C8\uB298\n"
+            + "- \uB2E8\uBC31\uC9C8: \uB2EC\uAC40, \uB450\uBD80, \uB2ED\uAC00\uC2B4\uC0B4 \uC911 \uD55C \uAC00\uC9C0\n"
+            + "- \uBA54\uC778 \uC7AC\uB8CC: " + ingredientHint + "\n\n"
+            + "\uC7A5\uBCF4\uAE30 \uD301\n"
+            + "- \uC608\uC0B0 \uAE30\uC900\uC740 " + budgetHint
+            + " \uC815\uB3C4\uB85C \uC2DC\uC791\uD558\uBA74 \uBB34\uB09C\uD569\uB2C8\uB2E4.\n"
+            + "- \uBA3C\uC800 \uC8FC\uC7AC\uB8CC 1\uAC1C, \uB2E8\uBC31\uC9C8 1\uAC1C, "
+            + "\uACF0\uB4E4\uC784 \uCC44\uC18C 2\uAC1C\uB9CC \uC815\uD558\uBA74 \uC2DD\uB2E8 \uAD6C\uC131\uC774 "
+            + "\uC26C\uC6CC\uC9D1\uB2C8\uB2E4.\n\n"
+            + "\uC6D0\uD558\uBA74 \uB2E4\uC74C \uBA54\uC2DC\uC9C0\uC5D0 \uC778\uC6D0 \uC218, \uC608\uC0B0, "
+            + "\uB0C9\uC7A5\uACE0 \uC7AC\uB8CC\uB97C \uBCF4\uB0B4\uC8FC\uC138\uC694. "
+            + "\uB354 \uAD6C\uCCB4\uC801\uC73C\uB85C \uC2DD\uB2E8\uC744 \uC9DC\uB4DC\uB9B4\uAC8C\uC694.";
     }
 
     private String resolveIngredientHint(String userMessage) {
         String normalizedMessage = userMessage.toLowerCase(Locale.ROOT);
-        if (normalizedMessage.contains("감자")) {
-            return "감자";
+        if (normalizedMessage.contains("\uAC10\uC790")) {
+            return "\uAC10\uC790";
         }
-        if (normalizedMessage.contains("버섯")) {
-            return "버섯";
+        if (normalizedMessage.contains("\uBC84\uC12F")) {
+            return "\uBC84\uC12F";
         }
-        if (normalizedMessage.contains("고추")) {
-            return "고추";
+        if (normalizedMessage.contains("\uACE0\uCD94")) {
+            return "\uACE0\uCD94";
         }
-        if (normalizedMessage.contains("두부")) {
-            return "두부";
+        if (normalizedMessage.contains("\uB450\uBD80")) {
+            return "\uB450\uBD80";
         }
-        if (normalizedMessage.contains("계란") || normalizedMessage.contains("달걀")) {
-            return "달걀";
+        if (
+            normalizedMessage.contains("\uACC4\uB780")
+                || normalizedMessage.contains("\uB2EC\uAC40")
+        ) {
+            return "\uB2EC\uAC40";
         }
-        if (normalizedMessage.contains("고기") || normalizedMessage.contains("닭")) {
-            return "단백질 재료";
+        if (
+            normalizedMessage.contains("\uACE0\uAE30")
+                || normalizedMessage.contains("\uB2ED")
+        ) {
+            return "\uB2E8\uBC31\uC9C8 \uC7AC\uB8CC";
         }
-        return "냉장고에 있는 주재료";
+        return "\uB0C9\uC7A5\uACE0\uC5D0 \uC788\uB294 \uC8FC\uC7AC\uB8CC";
     }
 
     private String resolveMealTypeHint(String userMessage) {
         String normalizedMessage = userMessage.toLowerCase(Locale.ROOT);
-        if (normalizedMessage.contains("아침")) {
-            return "간단한 아침 메뉴";
+        if (normalizedMessage.contains("\uC544\uCE68")) {
+            return "\uAC04\uB2E8\uD55C \uC544\uCE68 \uBA54\uB274";
         }
-        if (normalizedMessage.contains("점심")) {
-            return "든든한 점심 메뉴";
+        if (normalizedMessage.contains("\uC810\uC2EC")) {
+            return "\uB4E0\uB4E0\uD55C \uC810\uC2EC \uBA54\uB274";
         }
-        if (normalizedMessage.contains("저녁")) {
-            return "부담 없는 저녁 메뉴";
+        if (normalizedMessage.contains("\uC800\uB141")) {
+            return "\uBD80\uB2F4 \uC5C6\uB294 \uC800\uB141 \uBA54\uB274";
         }
-        if (normalizedMessage.contains("도시락")) {
-            return "도시락용 메뉴";
+        if (normalizedMessage.contains("\uB3C4\uC2DC\uB77D")) {
+            return "\uB3C4\uC2DC\uB77D\uC6A9 \uBA54\uB274";
         }
-        return "한 끼 식단";
+        return "\uD55C \uB07C \uC2DD\uB2E8";
     }
 
     private String resolveBudgetHint(String userMessage) {
         String normalizedMessage = userMessage.toLowerCase(Locale.ROOT);
-        if (normalizedMessage.contains("1인")) {
-            return "1만 원 안팎";
+        if (normalizedMessage.contains("1\uC778")) {
+            return "1\uB9CC \uC6D0 \uC548\uD31D";
         }
-        if (normalizedMessage.contains("2인")) {
-            return "1만 5천 원 안팎";
+        if (normalizedMessage.contains("2\uC778")) {
+            return "1\uB9CC 5\uCC9C \uC6D0 \uC548\uD31D";
         }
-        if (normalizedMessage.contains("가성비") || normalizedMessage.contains("절약")) {
-            return "1만 원 이하";
+        if (
+            normalizedMessage.contains("\uAC00\uC131\uBE44")
+                || normalizedMessage.contains("\uC808\uC57D")
+        ) {
+            return "1\uB9CC \uC6D0 \uC774\uD558";
         }
-        return "1만~2만 원";
+        return "1\uB9CC~2\uB9CC \uC6D0";
     }
 
     private int resolveMaxOutputTokens() {

@@ -37,7 +37,7 @@ public class MealPlanChatController {
             data.put("responseId", responseDto.getResponseId());
             data.put("model", responseDto.getModel());
             data.put("fallbackMode", Boolean.valueOf(responseDto.isFallbackMode()));
-            return ResponseEntity.ok(ApiResponse.success(data, "meal plan chat response created"));
+            return ResponseEntity.ok(ApiResponse.success(data, "\uB9DE\uCDA4 \uC2DD\uB2E8 \uC751\uB2F5 \uC0DD\uC131 \uC644\uB8CC"));
         } catch (IllegalArgumentException exception) {
             return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -45,7 +45,7 @@ public class MealPlanChatController {
         } catch (Exception exception) {
             return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.failure("Failed to create meal plan chat response."));
+                .body(ApiResponse.failure("\uB9DE\uCDA4 \uC2DD\uB2E8 \uC751\uB2F5\uC744 \uC0DD\uC131\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4."));
         }
     }
 }
