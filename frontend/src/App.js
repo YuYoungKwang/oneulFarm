@@ -136,7 +136,19 @@ function readCartCount(authUser) {
 
   try {
     const storedCart = JSON.parse(window.localStorage.getItem('oneulFarmCart') || '{}');
-    return Object.values(storedCart).reduce(
+
+    if (storedCart && typeof storedCart.totalQuantity === 'number') {
+      return Number(storedCart.totalQuantity || 0);
+    }
+
+    if (storedCart && typeof storedCart === 'object' && storedCart.productQuantities) {
+      return Object.values(storedCart.productQuantities).reduce(
+        (sum, quantity) => sum + Number(quantity || 0),
+        0
+      );
+    }
+
+    return Object.values(storedCart || {}).reduce(
       (sum, quantity) => sum + Number(quantity || 0),
       0
     );

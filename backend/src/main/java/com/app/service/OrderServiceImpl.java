@@ -4,8 +4,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -122,7 +124,9 @@ public class OrderServiceImpl implements OrderService {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to create order.");
         }
 
-        for (CartItemDto cartItem : cartItems) {
+        List<CartItemDto> mergedCartItems = mergeCartItemsByProduct(cartItems);
+
+        for (CartItemDto cartItem : mergedCartItems) {
             OrderItemDto item = new OrderItemDto();
             item.setOrderNo(orderNo);
             item.setProductNo(cartItem.getProductNo());
@@ -158,9 +162,47 @@ public class OrderServiceImpl implements OrderService {
         Long cartNo = cartDao.findCartNoByUser(userNo);
         if (cartNo != null) {
             cartDao.deleteAllCartItems(cartNo);
+            cartDao.deleteAllCartGroups(cartNo);
         }
 
         return getMyOrderDetail(userNo, orderNo);
+    }
+
+    private List<CartItemDto> mergeCartItemsByProduct(List<CartItemDto> cartItems) {
+        Map<Long, CartItemDto> merged = new LinkedHashMap<>();
+
+        for (CartItemDto cartItem : cartItems) {
+            Long productNo = cartItem.getProductNo();
+            if (productNo == null) {
+                continue;
+            }
+
+            CartItemDto existing = merged.get(productNo);
+            if (existing == null) {
+                CartItemDto copy = new CartItemDto();
+                copy.setProductNo(cartItem.getProductNo());
+                copy.setProductName(cartItem.getProductName());
+                copy.setSalePrice(defaultAmount(cartItem.getSalePrice()));
+                copy.setAvgPrice(defaultAmount(cartItem.getAvgPrice()));
+                copy.setSavingRate(defaultAmount(cartItem.getSavingRate()));
+                copy.setSavedAmount(defaultAmount(cartItem.getSavedAmount()));
+                copy.setQuantity(cartItem.getQuantity() == null ? 0 : cartItem.getQuantity());
+                copy.setStockQty(cartItem.getStockQty());
+                copy.setSaleStatus(cartItem.getSaleStatus());
+                merged.put(productNo, copy);
+                continue;
+            }
+
+            existing.setQuantity(
+                (existing.getQuantity() == null ? 0 : existing.getQuantity())
+                    + (cartItem.getQuantity() == null ? 0 : cartItem.getQuantity())
+            );
+            existing.setSavedAmount(
+                defaultAmount(existing.getSavedAmount()).add(defaultAmount(cartItem.getSavedAmount()))
+            );
+        }
+
+        return new ArrayList<>(merged.values());
     }
 
     @Override

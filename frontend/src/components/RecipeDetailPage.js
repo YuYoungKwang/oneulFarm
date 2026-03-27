@@ -364,7 +364,21 @@ export default function RecipeDetailPage({
     }
 
     const primaryProduct = productList[0];
-    const addedCount = await onAddMatchedProductsToCart(primaryProduct ? [primaryProduct] : []);
+    const addedCount = await onAddMatchedProductsToCart(
+      primaryProduct
+        ? [
+            {
+              productNo: primaryProduct.productNo,
+              quantity: 1,
+            },
+          ]
+        : [],
+      {
+        source: 'RECIPE',
+        recipeNo: recipe?.recipeNo,
+        recipeName: recipe?.recipeName,
+      }
+    );
     setActionMessage(
       addedCount > 0
         ? `${primaryProduct?.productName || '상품'}을(를) 장바구니에 담았어요.`
@@ -465,7 +479,11 @@ export default function RecipeDetailPage({
       return sum + Math.max(averagePrice - salePrice, 0) * item.quantity;
     }, 0);
 
-    const addedCount = await onAddMatchedProductsToCart(payload);
+    const addedCount = await onAddMatchedProductsToCart(payload, {
+      source: 'RECIPE',
+      recipeNo: recipe?.recipeNo,
+      recipeName: recipe?.recipeName,
+    });
     closeRecipeCartModal();
     setActionMessage(
       addedCount > 0
