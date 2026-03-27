@@ -18,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.app.common.OrderCompatibilityUtils;
-import com.app.common.OrderWorkflowRuntimeStore;
 import com.app.dao.CartDao;
 import com.app.dao.OrderDao;
 import com.app.dto.CartItemDto;
@@ -35,9 +34,6 @@ public class OrderServiceImpl implements OrderService {
 
     @Autowired
     private CartDao cartDao;
-
-    @Autowired
-    private OrderWorkflowRuntimeStore orderWorkflowRuntimeStore;
 
     @Override
     public List<OrderDto> getMyOrders(Long userNo) {
@@ -296,7 +292,6 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private void hydrateOrderRuntimeState(OrderDto order) {
-        orderWorkflowRuntimeStore.apply(order);
         OrderCompatibilityUtils.hydrateOrderCompatibility(order);
     }
 
