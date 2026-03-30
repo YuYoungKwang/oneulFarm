@@ -345,6 +345,17 @@ export async function createAdminPackageHistory(batchNo, payload) {
   );
 }
 
+export async function cancelAdminPackageHistory(packageNo) {
+  return requestApi(
+    `${ADMIN_API_BASE}/package-histories/${packageNo}`,
+    {
+      method: 'DELETE',
+      headers: apiHeaders(),
+    },
+    '소분 취소에 실패했습니다.'
+  );
+}
+
 export async function fetchAdminBanners() {
   return (
     (await requestApi(

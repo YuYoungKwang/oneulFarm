@@ -127,7 +127,13 @@ public interface AdminDao {
 
     List<PackageHistoryDto> findPackageHistories();
 
+    List<PackageHistoryDto> findPackageHistoriesByBatch(Long batchNo);
+
+    PackageHistoryDto findPackageHistory(Long packageNo);
+
     int insertPackageHistory(PackageHistoryDto packageHistory);
+
+    int deletePackageHistory(Long packageNo);
 
     int deletePackageHistoriesByBatch(Long batchNo);
 
@@ -135,7 +141,11 @@ public interface AdminDao {
 
     int updatePurchaseBatchStatus(Long batchNo, String status);
 
+    int updatePurchaseBatchInventory(Long batchNo, java.math.BigDecimal remainingQty, String status);
+
     int increaseProductStock(Long productNo, Integer quantity);
+
+    int decreaseProductStock(Long productNo, Integer quantity);
 
     List<MainBannerDto> findMainBanners();
 

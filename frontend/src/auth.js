@@ -28,18 +28,24 @@ export function getAuthUser() {
       return null;
     }
 
-    const parsedValue = JSON.parse(storedValue);
-    if (!parsedValue || typeof parsedValue !== 'object') {
+    let parsedValue = storedValue;
+    try {
+      parsedValue = JSON.parse(storedValue);
+    } catch (error) {
+      parsedValue = storedValue;
+    }
+
+    const storedAccessToken = sanitizeStoredAuthToken(parsedValue);
+    if (!storedAccessToken) {
       window.localStorage.removeItem(AUTH_STORAGE_KEY);
       return null;
     }
 
-    if (!parsedValue.accessToken && !parsedValue.token) {
-      window.localStorage.removeItem(AUTH_STORAGE_KEY);
-      return null;
+    if (storedValue !== storedAccessToken) {
+      window.localStorage.setItem(AUTH_STORAGE_KEY, storedAccessToken);
     }
 
-    return parsedValue;
+    return hydrateAuthUser(storedAccessToken);
   } catch (error) {
     return null;
   }
@@ -47,10 +53,11 @@ export function getAuthUser() {
 
 export function setAuthUser(user) {
   try {
-    if (!user || typeof user !== 'object') {
+    const storedAccessToken = sanitizeStoredAuthToken(user);
+    if (!storedAccessToken) {
       window.localStorage.removeItem(AUTH_STORAGE_KEY);
     } else {
-      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+      window.localStorage.setItem(AUTH_STORAGE_KEY, storedAccessToken);
     }
     window.dispatchEvent(
       new CustomEvent('oneulFarm:storage-change', {
@@ -60,6 +67,63 @@ export function setAuthUser(user) {
   } catch (error) {
     // Ignore storage failures in local preview.
   }
+}
+
+function sanitizeStoredAuthToken(value) {
+  if (typeof value === 'string') {
+    const trimmedValue = value.trim();
+    return trimmedValue || null;
+  }
+
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const accessToken = value.accessToken || value.token || null;
+  if (!accessToken) {
+    return null;
+  }
+
+  return String(accessToken).trim() || null;
+}
+
+function hydrateAuthUser(accessToken) {
+  if (!accessToken) {
+    return null;
+  }
+
+  const claims = parseJwtClaims(accessToken);
+  return {
+    accessToken,
+    userNo: normalizeNumericClaim(claims?.userNo ?? claims?.sub),
+    role: String(claims?.role || ''),
+    status: String(claims?.status || ''),
+    passwordChangeRequired: Boolean(claims?.passwordChangeRequired),
+  };
+}
+
+function parseJwtClaims(token) {
+  try {
+    const tokenParts = String(token || '').split('.');
+    if (tokenParts.length < 2) {
+      return null;
+    }
+
+    const normalizedPayload = tokenParts[1]
+      .replace(/-/g, '+')
+      .replace(/_/g, '/')
+      .padEnd(Math.ceil(tokenParts[1].length / 4) * 4, '=');
+
+    const decodedPayload = window.atob(normalizedPayload);
+    return JSON.parse(decodedPayload);
+  } catch (error) {
+    return null;
+  }
+}
+
+function normalizeNumericClaim(value) {
+  const parsedValue = Number(value);
+  return Number.isFinite(parsedValue) ? parsedValue : null;
 }
 
 export function clearAuthUser() {
@@ -80,11 +144,16 @@ export function getAccessToken(user = getAuthUser()) {
 }
 
 export function isAuthenticated(user = getAuthUser()) {
-  return Boolean(user?.userNo && getAccessToken(user));
+  return Boolean(getAccessToken(user));
 }
 
 export function isAdminUser(user = getAuthUser()) {
-  return String(user?.role || '').toUpperCase() === 'ADMIN';
+  const normalizedRole = String(user?.role || '').toUpperCase();
+  return normalizedRole === 'ADMIN' || normalizedRole === 'SUPER_ADMIN';
+}
+
+export function isSuperAdminUser(user = getAuthUser()) {
+  return String(user?.role || '').toUpperCase() === 'SUPER_ADMIN';
 }
 
 export function requiresPasswordChange(user = getAuthUser()) {

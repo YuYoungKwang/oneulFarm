@@ -1,0 +1,15 @@
+/* =========================================================
+   SUPER_ADMIN ROLE MIGRATION (ORACLE)
+   ========================================================= */
+
+ALTER TABLE OFT_USERS DROP CONSTRAINT CK_OFT_USERS_ROLE;
+
+ALTER TABLE OFT_USERS
+ADD CONSTRAINT CK_OFT_USERS_ROLE
+CHECK (ROLE IN ('USER', 'ADMIN', 'SUPER_ADMIN'));
+
+UPDATE OFT_USERS
+SET ROLE = 'SUPER_ADMIN'
+WHERE UPPER(TRIM(USER_ID)) = 'ADMIN123';
+
+COMMIT;
