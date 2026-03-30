@@ -16,10 +16,10 @@ import com.app.dto.OrderDto;
 @Service
 public class OrderFulfillmentSimulationService {
 
-    private static final long WAYBILL_DELAY_SECONDS = 5L;
-    private static final long PICKUP_DELAY_SECONDS = 10L;
-    private static final long TRANSIT_DELAY_SECONDS = 15L;
-    private static final long DELIVER_DELAY_SECONDS = 20L;
+    private static final long WAYBILL_DELAY_SECONDS = 10L;
+    private static final long PICKUP_DELAY_SECONDS = 20L;
+    private static final long TRANSIT_DELAY_SECONDS = 30L;
+    private static final long DELIVER_DELAY_SECONDS = 40L;
 
     @Autowired
     private OrderDao orderDao;

@@ -3192,7 +3192,7 @@ function AdminApp() {
 
   async function handleShipOrder() {
     if (selectedOrderDetail?.acceptAvailable) {
-      setActionError('주문 접수 후 5초마다 배송 단계가 자동으로 진행됩니다.');
+      setActionError('주문 접수 후 10초마다 배송 단계가 자동으로 진행됩니다.');
       return;
     }
 
