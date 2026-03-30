@@ -27,5 +27,9 @@ public interface PriceSnapshotService {
 
     List<PriceSnapshotDTO> getPriceSnapshotList(String itemName, String marketType, String snapshotDate, Integer limit);
 
+    List<PriceSnapshotDTO> getLatestPriceSnapshotListByItemName(String itemName, String marketType, Integer limit);
+
+    PriceSnapshotDTO getLatestPriceSnapshotByItemCode(String itemCode, String marketType);
+
     List<PriceSnapshotDTO> getPriceSnapshotTrend(String itemCode, String marketType, Integer limit);
 }

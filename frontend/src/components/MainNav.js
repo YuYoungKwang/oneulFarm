@@ -165,7 +165,7 @@ export default function MainNav({
                 type="button"
                 onClick={() => navigateTo("#/mypage")}
               >
-                {authUser.nickname || authUser.userId}
+                {"\ub0b4 \uacc4\uc815"}
               </button>
               <button className="main-nav__btn" type="button" onClick={onLogout}>
                 {"\ub85c\uadf8\uc544\uc6c3"}

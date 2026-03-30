@@ -337,8 +337,23 @@ public class AdminDaoImpl implements AdminDao {
     }
 
     @Override
+    public List<PackageHistoryDto> findPackageHistoriesByBatch(Long batchNo) {
+        return sqlSessionTemplate.selectList(NAMESPACE + "selectPackageHistoriesByBatch", batchNo);
+    }
+
+    @Override
+    public PackageHistoryDto findPackageHistory(Long packageNo) {
+        return sqlSessionTemplate.selectOne(NAMESPACE + "selectPackageHistory", packageNo);
+    }
+
+    @Override
     public int insertPackageHistory(PackageHistoryDto packageHistory) {
         return sqlSessionTemplate.insert(NAMESPACE + "insertPackageHistory", packageHistory);
+    }
+
+    @Override
+    public int deletePackageHistory(Long packageNo) {
+        return sqlSessionTemplate.delete(NAMESPACE + "deletePackageHistory", packageNo);
     }
 
     @Override
@@ -360,11 +375,28 @@ public class AdminDaoImpl implements AdminDao {
     }
 
     @Override
+    public int updatePurchaseBatchInventory(Long batchNo, java.math.BigDecimal remainingQty, String status) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("batchNo", batchNo);
+        params.put("remainingQty", remainingQty);
+        params.put("status", status);
+        return sqlSessionTemplate.update(NAMESPACE + "updatePurchaseBatchInventory", params);
+    }
+
+    @Override
     public int increaseProductStock(Long productNo, Integer quantity) {
         Map<String, Object> params = new HashMap<>();
         params.put("productNo", productNo);
         params.put("quantity", quantity);
         return sqlSessionTemplate.update(NAMESPACE + "increaseProductStock", params);
+    }
+
+    @Override
+    public int decreaseProductStock(Long productNo, Integer quantity) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("productNo", productNo);
+        params.put("quantity", quantity);
+        return sqlSessionTemplate.update(NAMESPACE + "decreaseProductStock", params);
     }
 
     @Override

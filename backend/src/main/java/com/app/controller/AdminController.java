@@ -70,6 +70,7 @@ public class AdminController {
     private static final String PRICE_REFERENCE_RESOURCE_PATH = "kamis-price-backfill-items.csv";
     private static final String PROCESS_REFERENCE_RESOURCE_PATH = "kamis-process-reference-items.csv";
     private static final String REFERENCE_SOURCE_WHOLESALE = "WHOLESALE";
+    private static final String REFERENCE_SOURCE_RETAIL = "RETAIL";
     private static final String REFERENCE_SOURCE_CATALOG = "CATALOG";
 
     @Autowired
@@ -284,6 +285,14 @@ public class AdminController {
         return ApiResponse.success(adminService.packageBatch(userNo, batchNo, request), "Package history created.");
     }
 
+    @DeleteMapping("/package-histories/{packageNo}")
+    public ApiResponse<Void> cancelPackageHistory(
+        @PathVariable Long packageNo
+    ) {
+        adminService.cancelPackageHistory(packageNo);
+        return ApiResponse.success(null, "Package history canceled.");
+    }
+
     @GetMapping("/content/banners")
     public ApiResponse<List<MainBannerDto>> getBanners() {
         return ApiResponse.success(adminService.getMainBanners(), "Admin banners loaded.");
@@ -296,33 +305,168 @@ public class AdminController {
 
     private List<Map<String, Object>> buildPurchaseReferenceItems() {
         List<PriceSnapshotDTO> wholesaleCandidates =
-            priceSnapshotService.getPriceSnapshotList(null, "WHOLESALE", null, 400);
+            priceSnapshotService.getLatestPriceSnapshotListByItemName(null, "WHOLESALE", 1000);
+        List<PriceSnapshotDTO> retailCandidates =
+            priceSnapshotService.getLatestPriceSnapshotListByItemName(null, "RETAIL", 1000);
         Map<String, Map<String, Object>> uniqueItems = new LinkedHashMap<String, Map<String, Object>>();
 
         for (PriceSnapshotDTO snapshot : wholesaleCandidates) {
-            String storedItemCode = trimToNull(snapshot.getItemCode());
-            String itemName = trimToNull(snapshot.getItemName());
-            if (storedItemCode == null || itemName == null || uniqueItems.containsKey(storedItemCode)) {
-                continue;
-            }
-
-            String categoryName = resolvePurchaseReferenceCategory(snapshot);
-            String snapshotUnit = trimToNull(snapshot.getUnit());
-            mergePurchaseReferenceItem(
-                uniqueItems,
-                storedItemCode,
-                normalizeReferenceProductName(itemName),
-                categoryName,
-                snapshotUnit,
-                snapshot.getSnapshotDate(),
-                itemName,
-                true,
-                REFERENCE_SOURCE_WHOLESALE
-            );
+            mergeSnapshotPurchaseReferenceItem(uniqueItems, snapshot, REFERENCE_SOURCE_WHOLESALE);
         }
 
-        mergeCatalogPurchaseReferenceItems(uniqueItems);
+        for (PriceSnapshotDTO snapshot : retailCandidates) {
+            mergeSnapshotPurchaseReferenceItem(uniqueItems, snapshot, REFERENCE_SOURCE_RETAIL);
+        }
+
         return new ArrayList<Map<String, Object>>(uniqueItems.values());
+    }
+
+    private void mergeSnapshotPurchaseReferenceItem(
+        Map<String, Map<String, Object>> uniqueItems,
+        PriceSnapshotDTO snapshot,
+        String referenceSource
+    ) {
+        if (snapshot == null) {
+            return;
+        }
+
+        String itemName = trimToNull(snapshot.getItemName());
+        String productName = normalizeReferenceProductName(itemName);
+        String categoryName = resolvePurchaseReferenceCategory(snapshot);
+        String mergeKey = normalizeReferenceOptionKey(productName);
+        if (mergeKey.isEmpty() || categoryName == null) {
+            return;
+        }
+
+        String itemCode = REFERENCE_SOURCE_WHOLESALE.equals(referenceSource)
+            ? trimToNull(snapshot.getItemCode())
+            : buildRetailReferenceItemCode(snapshot.getItemCode(), itemName);
+        if (itemCode == null) {
+            return;
+        }
+
+        Map<String, Object> nextItem = buildPurchaseReferenceItemData(
+            itemCode,
+            productName,
+            categoryName,
+            trimToNull(snapshot.getUnit()),
+            snapshot.getSnapshotDate(),
+            itemName,
+            true,
+            referenceSource
+        );
+        if (nextItem == null) {
+            return;
+        }
+
+        Map<String, Object> existingItem = uniqueItems.get(mergeKey);
+        if (existingItem == null || shouldReplacePurchaseReferenceItem(existingItem, nextItem)) {
+            uniqueItems.put(mergeKey, nextItem);
+        }
+    }
+
+    private boolean shouldReplacePurchaseReferenceItem(
+        Map<String, Object> existingItem,
+        Map<String, Object> nextItem
+    ) {
+        int existingRank = resolvePurchaseReferenceSourceRank(existingItem.get("referenceSource"));
+        int nextRank = resolvePurchaseReferenceSourceRank(nextItem.get("referenceSource"));
+        if (existingRank != nextRank) {
+            return nextRank > existingRank;
+        }
+
+        Object existingSnapshotDateValue = existingItem.get("snapshotDate");
+        Object nextSnapshotDateValue = nextItem.get("snapshotDate");
+        String existingSnapshotDate = trimToNull(
+            existingSnapshotDateValue == null ? null : String.valueOf(existingSnapshotDateValue)
+        );
+        String nextSnapshotDate = trimToNull(
+            nextSnapshotDateValue == null ? null : String.valueOf(nextSnapshotDateValue)
+        );
+        if (existingSnapshotDate == null) {
+            return nextSnapshotDate != null;
+        }
+        if (nextSnapshotDate == null) {
+            return false;
+        }
+        return nextSnapshotDate.compareTo(existingSnapshotDate) > 0;
+    }
+
+    private int resolvePurchaseReferenceSourceRank(Object referenceSource) {
+        String normalizedReferenceSource = trimToNull(
+            referenceSource == null ? null : String.valueOf(referenceSource)
+        );
+        if (REFERENCE_SOURCE_WHOLESALE.equals(normalizedReferenceSource)) {
+            return 2;
+        }
+        if (REFERENCE_SOURCE_RETAIL.equals(normalizedReferenceSource)) {
+            return 1;
+        }
+        return 0;
+    }
+
+    private Map<String, Object> buildPurchaseReferenceItemData(
+        String itemCode,
+        String productName,
+        String categoryName,
+        String snapshotUnit,
+        Object snapshotDate,
+        String displayName,
+        boolean supportsAutoQuote,
+        String referenceSource
+    ) {
+        String normalizedItemCode = trimToNull(itemCode);
+        String normalizedProductName = trimToNull(productName);
+        String normalizedCategoryName = trimToNull(categoryName);
+        if (normalizedItemCode == null || normalizedProductName == null || normalizedCategoryName == null) {
+            return null;
+        }
+
+        String normalizedDisplayName = trimToNull(displayName);
+        if (normalizedDisplayName == null) {
+            normalizedDisplayName = normalizedProductName;
+        }
+
+        Map<String, Object> itemData = new LinkedHashMap<String, Object>();
+        itemData.put("itemCode", normalizedItemCode);
+        itemData.put("productName", normalizedProductName);
+        itemData.put("categoryName", normalizedCategoryName);
+        itemData.put("snapshotUnit", trimToNull(snapshotUnit));
+        itemData.put("snapshotDate", snapshotDate);
+        itemData.put(
+            "displayLabel",
+            buildPurchaseReferenceLabel(
+                normalizedCategoryName,
+                buildReferenceDisplayName(normalizedDisplayName),
+                trimToNull(snapshotUnit)
+            )
+        );
+        itemData.put("supportsAutoQuote", supportsAutoQuote);
+        itemData.put("referenceSource", referenceSource);
+        return itemData;
+    }
+
+    private String buildRetailReferenceItemCode(String storedItemCode, String itemName) {
+        String normalizedStoredItemCode = trimToNull(storedItemCode);
+        String normalizedItemName = normalizeReferenceProductName(itemName);
+        if (normalizedStoredItemCode == null) {
+            return null;
+        }
+        if (normalizedItemName == null) {
+            return "retail:" + normalizedStoredItemCode;
+        }
+        return "retail:" + normalizedStoredItemCode + ":" + normalizeReferenceOptionKey(normalizedItemName);
+    }
+
+    private String normalizeReferenceOptionKey(String value) {
+        String normalizedValue = trimToNull(value);
+        if (normalizedValue == null) {
+            return "";
+        }
+        return normalizedValue
+            .toLowerCase(Locale.ROOT)
+            .replaceAll("\\s+", "-")
+            .replaceAll("[^0-9a-z\\uAC00-\\uD7A3_-]", "");
     }
 
     private void mergePurchaseReferenceItem(
@@ -586,11 +730,24 @@ public class AdminController {
         List<PriceSnapshotDTO> wholesaleCandidates;
         PriceSnapshotDTO wholesaleSnapshot;
         if (normalizedItemCode != null) {
-            wholesaleCandidates = priceSnapshotService.getPriceSnapshotList(null, "WHOLESALE", null, 400);
-            wholesaleSnapshot = findSnapshotByItemCode(normalizedItemCode, wholesaleCandidates);
+            wholesaleCandidates = priceSnapshotService.getLatestPriceSnapshotListByItemName(null, "WHOLESALE", 1000);
+            wholesaleSnapshot = priceSnapshotService.getLatestPriceSnapshotByItemCode(normalizedItemCode, "WHOLESALE");
+            if (wholesaleSnapshot == null) {
+                wholesaleSnapshot = findSnapshotByItemCode(normalizedItemCode, wholesaleCandidates);
+            }
         } else {
-            wholesaleCandidates = priceSnapshotService.getPriceSnapshotList(normalizedProductName, "WHOLESALE", null, 40);
+            wholesaleCandidates = priceSnapshotService.getLatestPriceSnapshotListByItemName(
+                normalizedProductName,
+                "WHOLESALE",
+                40
+            );
             wholesaleSnapshot = findBestSnapshot(normalizedProductName, wholesaleCandidates);
+        }
+        List<PriceSnapshotDTO> fallbackRetailCandidates =
+            priceSnapshotService.getLatestPriceSnapshotListByItemName(normalizedProductName, "RETAIL", 40);
+        PriceSnapshotDTO fallbackRetailSnapshot = findBestSnapshot(normalizedProductName, fallbackRetailCandidates);
+        if (wholesaleSnapshot == null && fallbackRetailSnapshot != null) {
+            return buildRetailFallbackPurchaseQuote(normalizedProductName, normalizedItemCode, fallbackRetailSnapshot);
         }
         if (wholesaleSnapshot == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "해당 품목의 최신 도매 시세를 찾지 못했습니다.");
@@ -600,7 +757,11 @@ public class AdminController {
         }
 
         List<PriceSnapshotDTO> retailCandidates =
-            priceSnapshotService.getPriceSnapshotList(normalizedProductName, "RETAIL", null, 40);
+            priceSnapshotService.getLatestPriceSnapshotListByItemName(normalizedProductName, "RETAIL", 40);
+        PriceSnapshotDTO retailFallbackSnapshot = findBestSnapshot(normalizedProductName, retailCandidates);
+        if (wholesaleSnapshot == null && retailFallbackSnapshot != null) {
+            return buildRetailFallbackPurchaseQuote(normalizedProductName, normalizedItemCode, retailFallbackSnapshot);
+        }
         PriceSnapshotDTO retailSnapshot = findRelatedRetailSnapshot(
             normalizedProductName,
             wholesaleSnapshot,
@@ -668,6 +829,67 @@ public class AdminController {
         return data;
     }
 
+    private Map<String, Object> buildRetailFallbackPurchaseQuote(
+        String productName,
+        String itemCode,
+        PriceSnapshotDTO retailSnapshot
+    ) {
+        String normalizedProductName = trimToNull(productName);
+        String normalizedSnapshotUnit = PriceSnapshotUnitSupport.normalizeConvertedRetailWeightUnit(
+            retailSnapshot.getItemCode(),
+            retailSnapshot.getUnit()
+        );
+        ParsedUnit parsedSnapshotUnit = parseSnapshotUnit(normalizedSnapshotUnit);
+        PricingBasis pricingBasis = resolvePricingBasis(parsedSnapshotUnit);
+        BigDecimal retailSourcePrice = scaleMoney(retailSnapshot.getAvgPrice());
+        BigDecimal retailComparablePrice = calculateComparablePriceForBasis(retailSnapshot, pricingBasis);
+        BigDecimal purchaseQty = parsedSnapshotUnit == null ? BigDecimal.ONE : parsedSnapshotUnit.getQuantity();
+        String purchaseUnit = parsedSnapshotUnit == null
+            ? (normalizedSnapshotUnit == null ? "ea" : normalizedSnapshotUnit)
+            : parsedSnapshotUnit.getDisplayUnit();
+        String priceBasisUnit = pricingBasis == null ? normalizedSnapshotUnit : pricingBasis.getLabel();
+
+        Map<String, Object> data = new LinkedHashMap<String, Object>();
+        data.put("quoteSource", "RETAIL_FALLBACK");
+        data.put("queryName", normalizedProductName == null ? trimToNull(retailSnapshot.getItemName()) : normalizedProductName);
+        data.put("requestedItemCode", itemCode);
+        data.put("matchedItemName", retailSnapshot.getItemName());
+        data.put("matchedItemCode", trimToNull(retailSnapshot.getItemCode()));
+        data.put("snapshotDate", retailSnapshot.getSnapshotDate());
+        data.put("wholesaleSnapshotDate", null);
+        data.put("retailSnapshotDate", retailSnapshot.getSnapshotDate());
+        data.put("snapshotUnit", normalizedSnapshotUnit);
+        data.put("wholesaleSourceUnit", null);
+        data.put("purchaseUnit", purchaseUnit);
+        data.put("purchaseQty", purchaseQty);
+        data.put("purchasePrice", retailSourcePrice);
+        data.put("pricingBaseUnit", purchaseUnit);
+        data.put("pricingBaseQty", purchaseQty);
+        data.put("pricingBasePrice", retailSourcePrice);
+        data.put("priceBasisUnit", priceBasisUnit);
+        data.put("wholesalePriceBasisUnit", null);
+        data.put("retailPriceBasisUnit", priceBasisUnit);
+        data.put("recommendedPriceBasisUnit", priceBasisUnit);
+        data.put("wholesaleSourcePrice", null);
+        data.put("retailSourcePrice", retailSourcePrice);
+        data.put("wholesaleAvgPrice", null);
+        data.put("wholesaleComparablePrice", null);
+        data.put("retailAvgPrice", retailComparablePrice);
+        data.put("retailSnapshotUnit", normalizedSnapshotUnit);
+        data.put("retailComparablePrice", retailComparablePrice);
+        data.put(
+            "recommendedSalePrice",
+            retailComparablePrice == null ? null : retailComparablePrice.setScale(0, RoundingMode.HALF_UP)
+        );
+        data.put(
+            "pricingNote",
+            "\uB3C4\uB9E4 \uC2DC\uC138\uAC00 \uC5C6\uC5B4 \uD488\uBAA9\uBCC4 \uAC00\uC7A5 \uCD5C\uADFC \uC18C\uB9E4 \uC2DC\uC138\uB97C \uAE30\uC900\uC73C\uB85C \uB9E4\uC785 \uC815\uBCF4\uB97C \uC790\uB3D9 \uC785\uB825\uD588\uC2B5\uB2C8\uB2E4."
+        );
+        data.put("wholesaleItemCode", null);
+        data.put("retailItemCode", trimToNull(retailSnapshot.getItemCode()));
+        return data;
+    }
+
     private String buildPurchaseReferenceLabel(String categoryName, String itemName, String snapshotUnit) {
         StringBuilder labelBuilder = new StringBuilder();
         if (categoryName != null) {
@@ -695,6 +917,9 @@ public class AdminController {
             if (looksLikeEggItem(normalizedItemName)) {
                 return "\uB2EC\uAC40";
             }
+            if (looksLikeProcessedItem(normalizedItemName)) {
+                return "\uAC00\uACF5\uC2DD\uD488";
+            }
             if (looksLikeMeatItem(normalizedItemName)) {
                 return "\uC721\uB958";
             }
@@ -706,6 +931,9 @@ public class AdminController {
             }
         }
 
+        if ("800".equals(itemCategoryCode)) {
+            return "\uAC00\uACF5\uC2DD\uD488";
+        }
         if ("400".equals(itemCategoryCode)) {
             return "\uACFC\uC77C";
         }
@@ -765,6 +993,14 @@ public class AdminController {
             itemName,
             "\uC6B0\uC720", "\uCE58\uC988", "\uC694\uAC70\uD2B8", "\uC694\uAD6C\uB974\uD2B8",
             "\uBC84\uD130", "\uBD84\uC720", "\uC5F0\uC720"
+        );
+    }
+
+    private boolean looksLikeProcessedItem(String itemName) {
+        return containsAnyKeyword(
+            itemName,
+            "\uAE40\uCE58", "\uACE0\uCD94\uC7A5", "\uB41C\uC7A5", "\uAC04\uC7A5", "\uB450\uBD80",
+            "\uC21C\uB450\uBD80", "\uC5F0\uB450\uBD80", "\uC989\uC11D\uBC25", "\uB9DB\uAE40", "\uCF69\uB098\uBB3C"
         );
     }
 
