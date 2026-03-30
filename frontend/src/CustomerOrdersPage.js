@@ -171,6 +171,14 @@ function buildSummary(orders) {
   };
 }
 
+function formatSavedAmount(value) {
+  return formatPrice(Math.floor(Number(value || 0)));
+}
+
+function getSavedAmountInfoContent(value) {
+  return `표시값은 소수점 이하는 버림 처리됩니다. 실제 금액: ${formatPrice(Number(value || 0))}`;
+}
+
 function CustomerOrdersPage({
   orders,
   ordersLoading,
@@ -252,8 +260,11 @@ function CustomerOrdersPage({
           <strong className="customer-orders__summary-value">{summary.purchaseConfirmedCount}건</strong>
         </article>
         <article className="customer-orders__summary-card customer-orders__summary-card--saving">
-          <span className="customer-orders__summary-label">총 절약 금액</span>
-          <strong className="customer-orders__summary-value">{formatPrice(summary.totalSavedAmount)}</strong>
+          <span className="customer-orders__summary-label">
+            총 절약 금액
+            <InlineInfoTip content={getSavedAmountInfoContent(summary.totalSavedAmount)} />
+          </span>
+          <strong className="customer-orders__summary-value">{formatSavedAmount(summary.totalSavedAmount)}</strong>
         </article>
       </section>
 
@@ -398,8 +409,11 @@ function CustomerOrdersPage({
                         <strong>{formatPrice(order.finalAmount)}</strong>
                       </div>
                       <div className="customer-orders__meta-block">
-                        <span className="customer-orders__meta-label">절약 금액</span>
-                        <strong className="is-saving">{formatPrice(order.totalSavedAmount)}</strong>
+                        <span className="customer-orders__meta-label">
+                          절약 금액
+                          <InlineInfoTip content={getSavedAmountInfoContent(order.totalSavedAmount)} />
+                        </span>
+                        <strong className="is-saving">{formatSavedAmount(order.totalSavedAmount)}</strong>
                       </div>
                     </div>
 

@@ -1,4 +1,5 @@
 import { formatDate, formatDateTime, formatPrice } from './appUtils';
+import InlineInfoTip from './components/InlineInfoTip';
 
 function getOrderItemImageSrc(imageNo) {
   return imageNo ? `/backend/api/image/product/${imageNo}` : '';
@@ -404,6 +405,14 @@ function buildUnifiedFlowEvents(detail) {
   });
 }
 
+function formatSavedAmount(value) {
+  return formatPrice(Math.floor(Number(value || 0)));
+}
+
+function getSavedAmountInfoContent(value) {
+  return `표시값은 소수점 이하는 버림 처리됩니다. 실제 금액: ${formatPrice(Number(value || 0))}`;
+}
+
 function CustomerOrderDetailPanel({
   detail,
   loading,
@@ -683,8 +692,11 @@ function CustomerOrderDetailPanel({
               <span>{formatPrice(detail.finalAmount)}</span>
             </div>
             <div className="customer-order-detail__row customer-order-detail__row--saving">
-              <strong>총 절약 금액</strong>
-              <span>{formatPrice(detail.totalSavedAmount)}</span>
+              <strong>
+                총 절약 금액
+                <InlineInfoTip content={getSavedAmountInfoContent(detail.totalSavedAmount)} />
+              </strong>
+              <span>{formatSavedAmount(detail.totalSavedAmount)}</span>
             </div>
           </div>
         </section>
@@ -780,8 +792,11 @@ function CustomerOrderDetailPanel({
                     <span>{formatPrice(item.marketAvgPrice)}</span>
                   </div>
                   <div className="customer-order-detail__row customer-order-detail__row--saving">
-                    <strong>절약 금액</strong>
-                    <span>{formatPrice(item.savedAmount)}</span>
+                    <strong>
+                      절약 금액
+                      <InlineInfoTip content={getSavedAmountInfoContent(item.savedAmount)} />
+                    </strong>
+                    <span>{formatSavedAmount(item.savedAmount)}</span>
                   </div>
                 </div>
                 <div className="customer-order-detail__item-actions">

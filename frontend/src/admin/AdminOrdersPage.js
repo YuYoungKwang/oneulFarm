@@ -1,4 +1,5 @@
 import { AdminEmptyState, AdminPageHeader, formatAdminCurrency, formatAdminDate, formatAdminDateParts } from './AdminUi';
+import InlineInfoTip from '../components/InlineInfoTip';
 import '../styles/adminOrders.css';
 
 const ADMIN_ORDER_FILTERS = [
@@ -394,6 +395,14 @@ function getTrackingStepDetails(detail, step, latestTrackingLocation) {
   }
 }
 
+function formatSavedAmount(value) {
+  return formatAdminCurrency(Math.floor(Number(value || 0)));
+}
+
+function getSavedAmountInfoContent(value) {
+  return `표시값은 소수점 이하는 버림 처리됩니다. 실제 금액: ${formatAdminCurrency(Number(value || 0))}`;
+}
+
 function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFilter, trackingNo, onOrderFilterChange, onSelectOrder, onTrackingChange, onDeleteOrder, onAcceptOrder, onRejectOrder, onAcceptOrderCancel, onRejectOrderCancel, onShipOrder, updating }) {
   const filteredOrders = orders.filter((order) => orderFilter === 'ALL' || resolveFilterStatus(order) === orderFilter);
   const summary = buildSummary(orders);
@@ -497,7 +506,13 @@ function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFi
                   <div className="admin-orders-v2__row"><strong>구매 확정</strong><span>{purchaseConfirmLabel || '-'}</span></div>
                   <div className="admin-orders-v2__row"><strong>구매 확정일</strong><span>{selectedOrderDetail.purchaseConfirmedAt ? formatAdminDate(selectedOrderDetail.purchaseConfirmedAt) : '-'}</span></div>
                   <div className="admin-orders-v2__row"><strong>결제 금액</strong><span>{formatAdminCurrency(selectedOrderDetail.finalAmount)}</span></div>
-                  <div className="admin-orders-v2__row"><strong>절약 금액</strong><span>{formatAdminCurrency(selectedOrderDetail.totalSavedAmount)}</span></div>
+                  <div className="admin-orders-v2__row">
+                    <strong>
+                      절약 금액
+                      <InlineInfoTip content={getSavedAmountInfoContent(selectedOrderDetail.totalSavedAmount)} />
+                    </strong>
+                    <span>{formatSavedAmount(selectedOrderDetail.totalSavedAmount)}</span>
+                  </div>
                 </section>
               </div>
 
