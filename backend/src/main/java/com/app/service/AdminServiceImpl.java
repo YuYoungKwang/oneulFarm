@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Locale;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -741,7 +742,14 @@ public class AdminServiceImpl implements AdminService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order cannot be accepted in the current state.");
         }
 
-        orderDao.startFulfillmentSimulation(orderNo, LocalDateTime.now());
+        try {
+            orderDao.startFulfillmentSimulation(orderNo, LocalDateTime.now());
+        } catch (DataAccessException exception) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "DB에 FULFILLMENT_STARTED_AT 컬럼이 없어 주문 접수를 시작할 수 없습니다. ALTER TABLE OFT_ORDERS ADD (FULFILLMENT_STARTED_AT TIMESTAMP)를 먼저 실행해 주세요."
+            );
+        }
         orderDao.insertOrderStatusHistory(
             orderNo,
             currentOrder.getOrderStatus(),

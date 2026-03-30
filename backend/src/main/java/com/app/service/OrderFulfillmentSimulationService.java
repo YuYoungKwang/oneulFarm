@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
 import com.app.common.OrderCompatibilityUtils;
@@ -27,7 +28,12 @@ public class OrderFulfillmentSimulationService {
     private AdminDao adminDao;
 
     public void advanceEligibleOrders() {
-        List<OrderDto> targets = orderDao.findFulfillmentSimulationTargets();
+        List<OrderDto> targets;
+        try {
+            targets = orderDao.findFulfillmentSimulationTargets();
+        } catch (DataAccessException exception) {
+            return;
+        }
         LocalDateTime now = LocalDateTime.now();
 
         for (OrderDto target : targets) {
