@@ -53,6 +53,9 @@ export default function ProductApp({ authUser }) {
     readStoredValue('oneulFarmWishlist', [])
   );
   const [cart, setCart] = useState(() => readStoredValue('oneulFarmCart', {}));
+  const [cartDetails, setCartDetails] = useState(() =>
+    readStoredValue('oneulFarmCartDetails', [])
+  );
   const [orders, setOrders] = useState(() =>
     readStoredValue('oneulFarmOrders', [])
   );
@@ -101,6 +104,10 @@ export default function ProductApp({ authUser }) {
   useEffect(() => {
     persistValue('oneulFarmCart', cart);
   }, [cart]);
+
+  useEffect(() => {
+    persistValue('oneulFarmCartDetails', cartDetails);
+  }, [cartDetails]);
 
   useEffect(() => {
     persistValue('oneulFarmOrders', orders);
@@ -163,6 +170,7 @@ export default function ProductApp({ authUser }) {
 
     if (!isLoggedIn) {
       setCart({});
+      setCartDetails([]);
       setOrders([]);
       return;
     }
@@ -174,7 +182,7 @@ export default function ProductApp({ authUser }) {
       try {
         const nextCart = await fetchCartFromApi();
         if (!cancelled) {
-          setCart(nextCart);
+          applyCartPayload(nextCart);
         }
       } catch (error) {
         // Keep local cart as fallback.
@@ -415,12 +423,38 @@ export default function ProductApp({ authUser }) {
   const categories = Array.from(
     new Set(products.map((product) => product.categoryName).filter(Boolean))
   );
-  const cartItems = Object.entries(cart)
-    .map(([productNo, quantity]) => ({
-      product: findProduct(products, productDetails, Number(productNo)),
-      quantity,
-    }))
-    .filter((item) => item.product);
+  const cartItems =
+    Array.isArray(cartDetails) && cartDetails.length
+      ? cartDetails
+          .map((item) => {
+            const product = findProduct(products, productDetails, Number(item.productNo));
+            if (!product) {
+              return null;
+            }
+            return {
+              cartItemNo: item.cartItemNo,
+              cartGroupNo: item.cartGroupNo,
+              groupKey: item.groupKey,
+              groupType: item.groupType,
+              groupName: item.groupName,
+              recipeNo: item.recipeNo,
+              product,
+              quantity: item.quantity,
+            };
+          })
+          .filter(Boolean)
+      : Object.entries(cart)
+          .map(([productNo, quantity]) => ({
+            cartItemNo: null,
+            cartGroupNo: null,
+            groupKey: '',
+            groupType: 'PRODUCT',
+            groupName: '',
+            recipeNo: null,
+            product: findProduct(products, productDetails, Number(productNo)),
+            quantity,
+          }))
+          .filter((item) => item.product);
   const currentProduct =
     route.page === 'product-detail'
       ? findProduct(products, productDetails, route.productNo)
@@ -559,6 +593,155 @@ export default function ProductApp({ authUser }) {
     }, 1800);
   }
 
+  function applyCartPayload(payload) {
+    const nextQuantityMap = payload?.quantityMap || {};
+    setCart(nextQuantityMap);
+    setCartDetails(Array.isArray(payload?.items) ? payload.items : []);
+  }
+
+  function buildQuantityMapFromCartDetails(details) {
+    return (Array.isArray(details) ? details : []).reduce((map, item) => {
+      const productNo = Number(item?.productNo);
+      const quantity = Number(item?.quantity || 0);
+
+      if (!Number.isFinite(productNo) || productNo <= 0 || quantity <= 0) {
+        return map;
+      }
+
+      return {
+        ...map,
+        [productNo]: Number(map[productNo] || 0) + quantity,
+      };
+    }, {});
+  }
+
+  function getLocalCartDetailBase() {
+    if (Array.isArray(cartDetails) && cartDetails.length) {
+      return cartDetails.map((item) => ({ ...item }));
+    }
+
+    return Object.entries(cart).map(([productNo, quantity]) => ({
+      cartItemNo: null,
+      cartGroupNo: null,
+      productNo: Number(productNo),
+      quantity: Number(quantity || 0),
+      groupKey: `PRODUCT:${productNo}`,
+      groupType: 'PRODUCT',
+      groupName: '',
+      recipeNo: null,
+    }));
+  }
+
+  function applyLocalCartDetails(nextDetails) {
+    const normalizedDetails = (Array.isArray(nextDetails) ? nextDetails : []).filter(
+      (item) => Number(item?.quantity || 0) > 0
+    );
+    setCartDetails(normalizedDetails);
+    setCart(buildQuantityMapFromCartDetails(normalizedDetails));
+  }
+
+  function resolveLocalGroupOptions(productNo, groupOptions = {}) {
+    const groupType = groupOptions?.groupType === 'RECIPE' ? 'RECIPE' : 'PRODUCT';
+    const recipeNo =
+      groupType === 'RECIPE' && Number.isFinite(Number(groupOptions?.recipeNo))
+        ? Number(groupOptions.recipeNo)
+        : null;
+    const groupKey =
+      groupOptions?.groupKey ||
+      (groupType === 'RECIPE'
+        ? recipeNo != null
+          ? `RECIPE:${recipeNo}`
+          : `RECIPE:${productNo}`
+        : `PRODUCT:${productNo}`);
+    const groupName =
+      groupOptions?.groupName ||
+      (groupType === 'RECIPE' ? '레시피 담기' : '');
+
+    return {
+      groupKey,
+      groupType,
+      groupName,
+      recipeNo,
+    };
+  }
+
+  function isSameLocalCartItem(leftItem, rightItem) {
+    const leftCartItemNo = Number(leftItem?.cartItemNo);
+    const rightCartItemNo = Number(rightItem?.cartItemNo);
+
+    if (Number.isFinite(leftCartItemNo) && Number.isFinite(rightCartItemNo)) {
+      return leftCartItemNo === rightCartItemNo;
+    }
+
+    return (
+      Number(leftItem?.productNo) === Number(rightItem?.productNo) &&
+      (leftItem?.groupType || 'PRODUCT') === (rightItem?.groupType || 'PRODUCT') &&
+      (leftItem?.groupKey || '') === (rightItem?.groupKey || '') &&
+      Number(leftItem?.recipeNo || 0) === Number(rightItem?.recipeNo || 0)
+    );
+  }
+
+  function appendLocalCartItem(productNo, quantity, groupOptions = {}) {
+    const safeProductNo = Number(productNo);
+    const safeQuantity = Number(quantity || 0);
+    if (!Number.isFinite(safeProductNo) || safeProductNo <= 0 || safeQuantity <= 0) {
+      return;
+    }
+
+    const nextGroupOptions = resolveLocalGroupOptions(safeProductNo, groupOptions);
+    const nextDetails = getLocalCartDetailBase();
+    const matchedIndex = nextDetails.findIndex(
+      (item) =>
+        Number(item?.productNo) === safeProductNo &&
+        (item?.groupType || 'PRODUCT') === nextGroupOptions.groupType &&
+        (item?.groupKey || '') === nextGroupOptions.groupKey
+    );
+
+    if (matchedIndex >= 0) {
+      nextDetails[matchedIndex] = {
+        ...nextDetails[matchedIndex],
+        quantity: Number(nextDetails[matchedIndex].quantity || 0) + safeQuantity,
+      };
+    } else {
+      nextDetails.push({
+        cartItemNo: null,
+        cartGroupNo: null,
+        productNo: safeProductNo,
+        quantity: safeQuantity,
+        groupKey: nextGroupOptions.groupKey,
+        groupType: nextGroupOptions.groupType,
+        groupName: nextGroupOptions.groupName,
+        recipeNo: nextGroupOptions.recipeNo,
+      });
+    }
+
+    applyLocalCartDetails(nextDetails);
+  }
+
+  function updateLocalCartItemQuantity(targetItem, nextQuantity) {
+    const nextDetails = getLocalCartDetailBase()
+      .map((item) => {
+        if (!isSameLocalCartItem(item, targetItem)) {
+          return item;
+        }
+
+        return {
+          ...item,
+          quantity: nextQuantity,
+        };
+      })
+      .filter((item) => Number(item?.quantity || 0) > 0);
+
+    applyLocalCartDetails(nextDetails);
+  }
+
+  function removeLocalCartItem(targetItem) {
+    const nextDetails = getLocalCartDetailBase().filter(
+      (item) => !isSameLocalCartItem(item, targetItem)
+    );
+    applyLocalCartDetails(nextDetails);
+  }
+
   async function addToCart(productNo, quantity = 1) {
     if (!isLoggedIn) {
       navigateToHash('#/login');
@@ -581,7 +764,7 @@ export default function ProductApp({ authUser }) {
     if (process.env.NODE_ENV !== 'test') {
       try {
         const nextCart = await addCartItemToApi(productNo, safeQuantity);
-        setCart(nextCart);
+        applyCartPayload(nextCart);
         showCartToast(cartToastMessage);
         return;
       } catch (error) {
@@ -589,17 +772,11 @@ export default function ProductApp({ authUser }) {
       }
     }
 
-    setCart((previousCart) => ({
-      ...previousCart,
-      [productNo]: Math.min(
-        stockLimit,
-        (previousCart[productNo] || 0) + safeQuantity
-      ),
-    }));
+    appendLocalCartItem(productNo, safeQuantity);
     showCartToast(cartToastMessage);
   }
 
-  async function addMatchedProductsToCart(productList) {
+  async function addMatchedProductsToCart(productList, groupOptions = {}) {
     if (!isLoggedIn) {
       navigateToHash('#/login');
       return 0;
@@ -625,61 +802,74 @@ export default function ProductApp({ authUser }) {
     let addedCount = 0;
     for (const [productNo, quantity] of quantityMap.entries()) {
       const stockLimit = getProductStockLimit(productNo);
-      if (stockLimit < 1) {
+      const currentQuantity = Number(cart[productNo] || 0);
+      const remainingStock = Math.max(stockLimit - currentQuantity, 0);
+      if (remainingStock < 1) {
         continue;
       }
 
-      await addToCart(productNo, Math.min(quantity, stockLimit));
+      const safeQuantity = Math.min(quantity, remainingStock);
+      if (process.env.NODE_ENV !== 'test') {
+        try {
+          const nextCart = await addCartItemToApi(productNo, safeQuantity, groupOptions);
+          applyCartPayload(nextCart);
+          addedCount += 1;
+          continue;
+        } catch (error) {
+          // Fall back to default addToCart below.
+        }
+      }
+
+      appendLocalCartItem(productNo, safeQuantity, groupOptions);
       addedCount += 1;
     }
 
     return addedCount;
   }
 
-  async function updateCartQuantity(productNo, nextQuantity) {
+  async function updateCartQuantity(cartItem, nextQuantity) {
+    const productNo = Number(cartItem?.product?.productNo ?? cartItem?.productNo);
     const stockLimit = getProductStockLimit(productNo);
     const normalizedQuantity =
       nextQuantity <= 0 ? 0 : Math.min(Math.max(nextQuantity, 1), stockLimit);
+    const safeCartItemNo = Number(cartItem?.cartItemNo);
 
-    if (process.env.NODE_ENV !== 'test') {
+    if (process.env.NODE_ENV !== 'test' && Number.isFinite(safeCartItemNo) && safeCartItemNo > 0) {
       try {
-        const nextCart = await updateCartItemOnApi(productNo, normalizedQuantity);
-        setCart(nextCart);
+        const nextCart = await updateCartItemOnApi(safeCartItemNo, normalizedQuantity);
+        applyCartPayload(nextCart);
         return;
       } catch (error) {
         // Fall back to local cart state.
       }
     }
 
-    setCart((previousCart) => {
-      if (normalizedQuantity <= 0) {
-        const nextCart = { ...previousCart };
-        delete nextCart[productNo];
-        return nextCart;
-      }
-
-      return {
-        ...previousCart,
-        [productNo]: normalizedQuantity,
-      };
-    });
+    updateLocalCartItemQuantity(
+      {
+        ...cartItem,
+        productNo,
+      },
+      normalizedQuantity
+    );
   }
 
-  async function removeFromCart(productNo) {
-    if (process.env.NODE_ENV !== 'test') {
+  async function removeFromCart(cartItem) {
+    const safeCartItemNo = Number(cartItem?.cartItemNo);
+    const productNo = Number(cartItem?.product?.productNo ?? cartItem?.productNo);
+
+    if (process.env.NODE_ENV !== 'test' && Number.isFinite(safeCartItemNo) && safeCartItemNo > 0) {
       try {
-        const nextCart = await removeCartItemFromApi(productNo);
-        setCart(nextCart);
+        const nextCart = await removeCartItemFromApi(safeCartItemNo);
+        applyCartPayload(nextCart);
         return;
       } catch (error) {
         // Fall back to local cart state.
       }
     }
 
-    setCart((previousCart) => {
-      const nextCart = { ...previousCart };
-      delete nextCart[productNo];
-      return nextCart;
+    removeLocalCartItem({
+      ...cartItem,
+      productNo,
     });
   }
 
@@ -687,7 +877,7 @@ export default function ProductApp({ authUser }) {
     if (process.env.NODE_ENV !== 'test') {
       try {
         const nextCart = await clearCartOnApi();
-        setCart(nextCart);
+        applyCartPayload(nextCart);
         return;
       } catch (error) {
         // Fall back to local cart state.
@@ -695,6 +885,7 @@ export default function ProductApp({ authUser }) {
     }
 
     setCart({});
+    setCartDetails([]);
   }
 
   async function submitOrder(checkoutForm) {
@@ -749,6 +940,7 @@ export default function ProductApp({ authUser }) {
     const newOrder = createOrderFromCart(cartItems, checkoutForm, orders);
     setOrders((previousOrders) => [newOrder, ...previousOrders]);
     setCart({});
+    setCartDetails([]);
     navigateToHash(`#/order-complete/${encodeURIComponent(newOrder.orderId)}`);
   }
 
@@ -758,6 +950,7 @@ export default function ProductApp({ authUser }) {
       ...previousOrders.filter((order) => order.orderNo !== newOrder.orderNo),
     ]);
     setCart({});
+    setCartDetails([]);
     setProducts((previousProducts) =>
       updateProductsAfterOrder(previousProducts, newOrder)
     );
@@ -790,17 +983,14 @@ export default function ProductApp({ authUser }) {
             <CartPage
               cartItems={cartItems}
               onClearCart={clearCart}
-              onDecreaseQuantity={(productNo) =>
-                updateCartQuantity(productNo, (cart[productNo] || 1) - 1)
+              onDecreaseQuantity={(item) =>
+                updateCartQuantity(item, Math.max((item.quantity || 1) - 1, 0))
               }
-              onIncreaseQuantity={(productNo) => {
-                const product = findProduct(products, productDetails, productNo);
-                const nextQuantity = (cart[productNo] || 0) + 1;
+              onIncreaseQuantity={(item) => {
+                const product = item.product;
+                const nextQuantity = (item.quantity || 0) + 1;
 
-                updateCartQuantity(
-                  productNo,
-                  Math.min(product?.stockQty || nextQuantity, nextQuantity)
-                );
+                updateCartQuantity(item, Math.min(product?.stockQty || nextQuantity, nextQuantity));
               }}
               onOpenProduct={openProduct}
               onProceedToCheckout={openCheckout}

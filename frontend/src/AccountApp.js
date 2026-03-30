@@ -5,8 +5,18 @@ import DashboardView from './DashboardView';
 import MyPageView from './MyPageView';
 import ActivityView from './ActivityView';
 import OrdersView from './OrdersView';
+import MealScheduleView from './MealScheduleView';
 import AddressModal from './AddressModal';
 import { addCartItemToApi, fetchProductsFromApi } from './api/productApi';
+import {
+  createMealPlanEntry,
+  createRecipeMealPlanEntry,
+  deleteMealPlanBatch,
+  deleteMealPlanEntry,
+  fetchMealPlanCalendar,
+  getMealScheduleStorageEventName,
+  updateMealPlanEntry,
+} from './api/accountMealPlanApi';
 import { persistValue, readStoredValue } from './components/productUiUtils';
 
 const ORDER_API_PATH = '/api/orders';
@@ -16,6 +26,7 @@ const ADDRESS_API_PATH = '/api/users/me/addresses';
 const REVIEW_API_PATH = '/api/reviews';
 const WISHLIST_STORAGE_KEY = 'oneulFarmWishlist';
 const CART_STORAGE_KEY = 'oneulFarmCart';
+const CART_DETAILS_STORAGE_KEY = 'oneulFarmCartDetails';
 
 const EMPTY_PROFILE = {
   userId: '',
@@ -113,9 +124,28 @@ function notifyReviewChange(productNo) {
 const ACCOUNT_ROUTES = {
   dashboard: '#/dashboard',
   mypage: '#/mypage',
+  mealPlans: '#/mypage/meal-plans',
   activity: '#/mypage/activity',
   orders: '#/mypage/orders',
 };
+
+function padMonthPart(value) {
+  return String(value).padStart(2, '0');
+}
+
+function createMonthKey(date = new Date()) {
+  return `${date.getFullYear()}-${padMonthPart(date.getMonth() + 1)}`;
+}
+
+function createTodayKey(date = new Date()) {
+  return `${date.getFullYear()}-${padMonthPart(date.getMonth() + 1)}-${padMonthPart(
+    date.getDate()
+  )}`;
+}
+
+function toMonthKey(value) {
+  return String(value || '').slice(0, 7);
+}
 
 function accountHeaders(authUser, includeJson = false) {
   return buildAuthHeaders({
@@ -127,6 +157,10 @@ function accountHeaders(authUser, includeJson = false) {
 function getAccountPageFromHash(hash) {
   if (hash.startsWith(ACCOUNT_ROUTES.dashboard)) {
     return 'dashboard';
+  }
+
+  if (hash.startsWith(ACCOUNT_ROUTES.mealPlans)) {
+    return 'mealPlans';
   }
 
   if (hash.startsWith(ACCOUNT_ROUTES.activity)) {
@@ -151,27 +185,27 @@ function validateAddressForm(form) {
   const address1 = String(form.address1 || '').trim();
 
   if (!recipientName) {
-    return '?占쎈졊?占쎌쓣 ?占쎈젰??二쇱꽭??';
+    return '수령인 이름을 입력해 주세요.';
   }
 
   if (!recipientPhone) {
-    return '?占쎈씫泥섓옙? ?占쎈젰??二쇱꽭??';
+    return '수령인 연락처를 입력해 주세요.';
   }
 
   if (!/^01[0-9]-?\d{3,4}-?\d{4}$/.test(recipientPhone)) {
-    return '?占쎈씫占??占쎌떇???占쎈컮瑜댐옙? ?占쎌뒿?占쎈떎. ?? 010-1234-5678';
+    return '수령인 연락처 형식이 올바르지 않습니다. 예: 010-1234-5678';
   }
 
   if (!zipCode) {
-    return '?占쏀렪踰덊샇占??占쎈젰??二쇱꽭??';
+    return '우편번호를 입력해 주세요.';
   }
 
   if (!/^\d{5}$/.test(zipCode)) {
-    return '?占쏀렪踰덊샇??5?占쎈━ ?占쎌옄占??占쎈젰??二쇱꽭??';
+    return '우편번호는 5자리 숫자로 입력해 주세요.';
   }
 
   if (!address1) {
-    return '湲곕낯 二쇱냼占??占쎈젰??二쇱꽭??';
+    return '기본 주소를 입력해 주세요.';
   }
 
   return '';
@@ -187,18 +221,18 @@ function toProfileForm(profile) {
 
 function buildWishlistBadge(product) {
   if (product?.badgeType === 'UNDER_AVG') {
-    return '?占쎄퇏媛 ?占쏀븯';
+    return '평균가 이하';
   }
 
   if (product?.isSeasonal === 'Y') {
-    return '?占쎌쿋 異붿쿇';
+    return '제철 추천';
   }
 
   if (product?.isSingleFriendly) {
-    return '1??異붿쿇';
+    return '1인 추천';
   }
 
-  return '愿???占쏀뭹';
+  return '관심 상품';
 }
 
 function buildWishlistSummary(product) {
@@ -207,18 +241,18 @@ function buildWishlistSummary(product) {
   const averageRating = Number(product?.averageRating || 0);
 
   if (savingRate > 0) {
-    return `?占쎄퇏媛蹂대떎 ${Math.round(savingRate)}% ?占쎌빟`;
+    return `평균가보다 ${Math.round(savingRate)}% 절약`;
   }
 
   if (reviewCount > 0) {
-    return `占쏙옙占쏙옙 ${averageRating.toFixed(1)} 占쏙옙 占쏙옙占쏙옙 ${reviewCount}占쏙옙`;
+    return `평점 ${averageRating.toFixed(1)} · 리뷰 ${reviewCount}개`;
   }
 
   if (product?.origin) {
-    return `${product.origin}${product.unit ? ` 쨌 ${product.unit}` : ''}`;
+    return `${product.origin}${product.unit ? ` · ${product.unit}` : ''}`;
   }
 
-  return '?占쏀뭹 ?占쎌꽭?占쎌꽌 媛寃⑷낵 由щ럭占??占쎌씤??蹂댁꽭??';
+  return '상품 상세에서 가격과 리뷰를 확인해 보세요.';
 }
 
 function buildWishlistSavingRate(product) {
@@ -300,6 +334,12 @@ function AccountApp({ authUser: initialAuthUser }) {
   const [reviewFormError, setReviewFormError] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [deletingReviewNo, setDeletingReviewNo] = useState(null);
+  const [mealScheduleMonth, setMealScheduleMonth] = useState(() => createMonthKey());
+  const [mealScheduleSelectedDate, setMealScheduleSelectedDate] = useState(() => createTodayKey());
+  const [mealScheduleEntries, setMealScheduleEntries] = useState([]);
+  const [mealSchedulePlans, setMealSchedulePlans] = useState([]);
+  const [mealScheduleLoading, setMealScheduleLoading] = useState(false);
+  const [mealScheduleError, setMealScheduleError] = useState('');
 
   useEffect(() => {
     setAuthUser(initialAuthUser || getAuthUser());
@@ -324,14 +364,14 @@ function AccountApp({ authUser: initialAuthUser }) {
           {
             headers: accountHeaders(authUser),
           },
-          '?占쎌꽦 媛?占쏀븳 由щ럭 紐⑸줉??遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??'
+          '작성 가능한 리뷰 목록을 불러오지 못했습니다.'
         ),
         requestAuthApi(
           `${REVIEW_API_PATH}/me`,
           {
             headers: accountHeaders(authUser),
           },
-          '??由щ럭 紐⑸줉??遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??'
+          '내 리뷰 목록을 불러오지 못했습니다.'
         ),
       ]);
 
@@ -340,11 +380,37 @@ function AccountApp({ authUser: initialAuthUser }) {
     } catch (error) {
       setWritableReviews([]);
       setMyReviews([]);
-      setReviewsError(error.message || '由щ럭 紐⑸줉??遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??');
+      setReviewsError(error.message || '리뷰 목록을 불러오지 못했습니다.');
     } finally {
       setReviewsLoading(false);
     }
   }, [authUser]);
+
+  const loadMealScheduleData = useCallback(
+    async (targetMonth = mealScheduleMonth) => {
+      setMealScheduleLoading(true);
+      setMealScheduleError('');
+
+      try {
+        const payload = await fetchMealPlanCalendar({
+          user: authUser,
+          month: targetMonth,
+        });
+
+        setMealScheduleEntries(Array.isArray(payload?.entries) ? payload.entries : []);
+        setMealSchedulePlans(Array.isArray(payload?.plans) ? payload.plans : []);
+      } catch (error) {
+        setMealScheduleEntries([]);
+        setMealSchedulePlans([]);
+        setMealScheduleError(
+          error.message || '\uC2DD\uB2E8 \uCE98\uB9B0\uB354\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.'
+        );
+      } finally {
+        setMealScheduleLoading(false);
+      }
+    },
+    [authUser, mealScheduleMonth]
+  );
 
   useEffect(() => {
     const syncPage = () => {
@@ -409,14 +475,14 @@ function AccountApp({ authUser: initialAuthUser }) {
             savingRate: buildWishlistSavingRate(product),
             badge: buildWishlistBadge(product),
             imageUrl: product.mainImage?.imageUrl || '',
-            emoji: product.display?.symbol || '?占쏙옙',
+            emoji: product.display?.symbol || '🥕',
           }));
 
         setWishlistItems(nextItems);
       } catch (error) {
         if (!cancelled) {
           setWishlistItems([]);
-          setWishlistError(error.message || '李쒗븳 ?占쏀뭹??遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??');
+          setWishlistError(error.message || '찜한 상품을 불러오지 못했습니다.');
         }
       } finally {
         if (!cancelled) {
@@ -434,6 +500,30 @@ function AccountApp({ authUser: initialAuthUser }) {
   useEffect(() => {
     loadReviewsData();
   }, [loadReviewsData]);
+
+  useEffect(() => {
+    if (toMonthKey(mealScheduleSelectedDate) !== mealScheduleMonth) {
+      setMealScheduleSelectedDate(`${mealScheduleMonth}-01`);
+    }
+  }, [mealScheduleMonth, mealScheduleSelectedDate]);
+
+  useEffect(() => {
+    if (currentPage !== 'mealPlans') {
+      return undefined;
+    }
+
+    loadMealScheduleData(mealScheduleMonth);
+
+    const handleMealScheduleChange = () => {
+      loadMealScheduleData(mealScheduleMonth);
+    };
+
+    window.addEventListener(getMealScheduleStorageEventName(), handleMealScheduleChange);
+
+    return () => {
+      window.removeEventListener(getMealScheduleStorageEventName(), handleMealScheduleChange);
+    };
+  }, [currentPage, loadMealScheduleData, mealScheduleMonth]);
 
   useEffect(() => {
     if (!isAuthenticated(authUser)) {
@@ -467,12 +557,12 @@ function AccountApp({ authUser: initialAuthUser }) {
             headers: accountHeaders(authUser),
             signal: controller.signal,
           },
-          '二쇰Ц 紐⑸줉??遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??'
+          '주문 목록을 불러오지 못했습니다.'
         );
         setOrders(Array.isArray(payload.data) ? payload.data : []);
       } catch (error) {
         if (error.name !== 'AbortError') {
-          setOrdersError(error.message || '二쇰Ц 紐⑸줉??遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??');
+          setOrdersError(error.message || '주문 목록을 불러오지 못했습니다.');
         }
       } finally {
         setOrdersLoading(false);
@@ -502,7 +592,7 @@ function AccountApp({ authUser: initialAuthUser }) {
             headers: accountHeaders(authUser),
             signal: controller.signal,
           },
-          '?占?占쎈낫???占쎌빟??遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??'
+          '대시보드 요약을 불러오지 못했습니다.'
         );
         setSummary(payload.data ? { ...EMPTY_SUMMARY, ...payload.data } : EMPTY_SUMMARY);
       } catch (error) {
@@ -542,7 +632,7 @@ function AccountApp({ authUser: initialAuthUser }) {
               headers: accountHeaders(authUser),
               signal: controller.signal,
             },
-            '?占?占쎈낫??李⑦듃 ?占쎌씠?占쏙옙? 遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??'
+            '이번 달 절약 차트를 불러오지 못했습니다.'
           ),
           Promise.resolve({ data: [] }),
           requestAuthApi(
@@ -551,7 +641,7 @@ function AccountApp({ authUser: initialAuthUser }) {
               headers: accountHeaders(authUser),
               signal: controller.signal,
             },
-            '?占?占쎈낫???占쎈퉬 ?占쏀꽩 ?占쎌씠?占쏙옙? 遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??'
+            '이번 달 절약 패턴을 불러오지 못했습니다.'
           ),
         ]);
 
@@ -567,7 +657,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           setMonthlySavings([]);
           setProductSavings([]);
           setDashboardPatterns(EMPTY_DASHBOARD_PATTERNS);
-          setDashboardError(error.message || '?占?占쎈낫???占쎌꽭 ?占쎌씠?占쏙옙? 遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??');
+          setDashboardError(error.message || '대시보드 정보를 불러오지 못했습니다.');
         }
       } finally {
         setDashboardLoading(false);
@@ -600,14 +690,14 @@ function AccountApp({ authUser: initialAuthUser }) {
             headers: accountHeaders(authUser),
             signal: controller.signal,
           },
-          '?占쎌썝?占쎈낫占?遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??'
+          '회원정보를 불러오지 못했습니다.'
         );
         const nextProfile = payload.data ? { ...EMPTY_PROFILE, ...payload.data } : EMPTY_PROFILE;
         setProfile(nextProfile);
         setProfileForm(toProfileForm(nextProfile));
       } catch (error) {
         if (error.name !== 'AbortError') {
-          setProfileError(error.message || '?占쎌썝?占쎈낫占?遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??');
+          setProfileError(error.message || '회원정보를 불러오지 못했습니다.');
         }
       } finally {
         setProfileLoading(false);
@@ -638,13 +728,13 @@ function AccountApp({ authUser: initialAuthUser }) {
             headers: accountHeaders(authUser),
             signal: controller.signal,
           },
-          '二쇰Ц ?占쎌꽭占?遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??'
+          '주문 상세를 불러오지 못했습니다.'
         );
         setOrderDetail(payload.data || null);
       } catch (error) {
         if (error.name !== 'AbortError') {
           setOrderDetail(null);
-          setDetailError(error.message || '二쇰Ц ?占쎌꽭占?遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??');
+          setDetailError(error.message || '주문 상세를 불러오지 못했습니다.');
         }
       } finally {
         setDetailLoading(false);
@@ -662,6 +752,94 @@ function AccountApp({ authUser: initialAuthUser }) {
       setDetailError('');
     }
   }, [orders, selectedOrderNo]);
+
+  async function handleMealScheduleCreateEntry(entryForm) {
+    const savedEntry = await createMealPlanEntry({
+      user: authUser,
+      payload: {
+        mealDate: entryForm.mealDate,
+        mealType: entryForm.mealType,
+        entryTitle: entryForm.entryTitle,
+        entryDescription: entryForm.entryDescription,
+        servings: entryForm.servings,
+        sourceType: 'MANUAL',
+      },
+    });
+
+    setMealScheduleSelectedDate(savedEntry.mealDate || mealScheduleSelectedDate);
+    await loadMealScheduleData(toMonthKey(savedEntry.mealDate) || mealScheduleMonth);
+  }
+
+  async function handleMealScheduleUpdateEntry(entryNo, entryForm) {
+    const savedEntry = await updateMealPlanEntry({
+      user: authUser,
+      entryNo,
+      payload: {
+        mealDate: entryForm.mealDate,
+        mealType: entryForm.mealType,
+        entryTitle: entryForm.entryTitle,
+        entryDescription: entryForm.entryDescription,
+        servings: entryForm.servings,
+      },
+    });
+
+    setMealScheduleSelectedDate(savedEntry.mealDate || mealScheduleSelectedDate);
+    await loadMealScheduleData(toMonthKey(savedEntry.mealDate) || mealScheduleMonth);
+  }
+
+  async function handleMealScheduleDeleteEntry(entryNo) {
+    await deleteMealPlanEntry({
+      user: authUser,
+      entryNo,
+    });
+    await loadMealScheduleData(mealScheduleMonth);
+  }
+
+  async function handleMealScheduleDeletePlan(planNo) {
+    await deleteMealPlanBatch({
+      user: authUser,
+      planNo,
+    });
+    await loadMealScheduleData(mealScheduleMonth);
+  }
+
+  async function handleMealScheduleCreateRecipeEntry(payload) {
+    const savedEntry = await createRecipeMealPlanEntry({
+      user: authUser,
+      recipeNo: payload.recipeNo,
+      mealDate: payload.mealDate,
+      mealType: payload.mealType,
+      servings: payload.servings,
+    });
+
+    setMealScheduleSelectedDate(savedEntry.mealDate || mealScheduleSelectedDate);
+    await loadMealScheduleData(toMonthKey(savedEntry.mealDate) || mealScheduleMonth);
+  }
+
+  function handleMealScheduleChangeMonth(nextMonth) {
+    const safeMonth = toMonthKey(nextMonth) || createMonthKey();
+    setMealScheduleMonth(safeMonth);
+    setMealScheduleSelectedDate((currentDate) => {
+      if (toMonthKey(currentDate) === safeMonth) {
+        return currentDate;
+      }
+      return `${safeMonth}-01`;
+    });
+  }
+
+  function handleMealScheduleSelectDate(nextDate) {
+    if (!nextDate) {
+      return;
+    }
+    setMealScheduleSelectedDate(nextDate);
+    if (toMonthKey(nextDate) !== mealScheduleMonth) {
+      setMealScheduleMonth(toMonthKey(nextDate));
+    }
+  }
+
+  function handleOpenMealPlanAi() {
+    window.location.hash = '#/meal-plan';
+  }
 
   function moveToPage(page) {
     window.location.hash = ACCOUNT_ROUTES[page] || ACCOUNT_ROUTES.mypage;
@@ -713,13 +891,13 @@ function AccountApp({ authUser: initialAuthUser }) {
           headers: accountHeaders(authUser),
           body: formData,
         },
-        '?占쎈줈???占쎌쭊 蹂寃쎌뿉 ?占쏀뙣?占쎌뒿?占쎈떎.'
+        '프로필 이미지 변경에 실패했습니다.'
       );
 
       await refreshProfile();
       return true;
     } catch (error) {
-      setProfileImageError(error.message || '?占쎈줈???占쎌쭊 蹂寃쎌뿉 ?占쏀뙣?占쎌뒿?占쎈떎.');
+      setProfileImageError(error.message || '프로필 이미지 변경에 실패했습니다.');
       return false;
     } finally {
       setProfileImageUploading(false);
@@ -736,7 +914,7 @@ function AccountApp({ authUser: initialAuthUser }) {
         [fieldKey]: {
           checking: false,
           available: false,
-          message: fieldKey === 'email' ? '?占쎈찓?占쎌쓣 ?占쎈젰??二쇱꽭??' : '?占쎈꽕?占쎌쓣 ?占쎈젰??二쇱꽭??',
+          message: fieldKey === 'email' ? '이메일을 입력해 주세요.' : '닉네임을 입력해 주세요.',
           checkedValue: '',
         },
       }));
@@ -749,7 +927,7 @@ function AccountApp({ authUser: initialAuthUser }) {
         email: {
           checking: false,
           available: false,
-          message: '?占쎈컮占??占쎈찓???占쎌떇?占쎈줈 ?占쎈젰??二쇱꽭??',
+          message: '올바른 이메일 형식으로 입력해 주세요.',
           checkedValue: '',
         },
       }));
@@ -762,7 +940,7 @@ function AccountApp({ authUser: initialAuthUser }) {
         [fieldKey]: {
           checking: false,
           available: true,
-          message: fieldKey === 'email' ? '?占쎌옱 ?占쎌슜 以묒씤 ?占쎈찓?占쎌엯?占쎈떎.' : '?占쎌옱 ?占쎌슜 以묒씤 ?占쎈꽕?占쎌엯?占쎈떎.',
+          message: fieldKey === 'email' ? '현재 사용 중인 이메일입니다.' : '현재 사용 중인 닉네임입니다.',
           checkedValue: rawValue,
         },
       }));
@@ -785,7 +963,7 @@ function AccountApp({ authUser: initialAuthUser }) {
         {
           headers: accountHeaders(authUser),
         },
-        fieldKey === 'email' ? '?占쎈찓??以묐났 ?占쎌씤???占쏀뙣?占쎌뒿?占쎈떎.' : '?占쎈꽕??以묐났 ?占쎌씤???占쏀뙣?占쎌뒿?占쎈떎.'
+        fieldKey === 'email' ? '이메일 중복 확인에 실패했습니다.' : '닉네임 중복 확인에 실패했습니다.'
       );
       const available = Boolean(payload.data?.available);
 
@@ -796,11 +974,11 @@ function AccountApp({ authUser: initialAuthUser }) {
           available,
           message: available
             ? fieldKey === 'email'
-              ? '?占쎌슜 媛?占쏀븳 ?占쎈찓?占쎌엯?占쎈떎.'
-              : '?占쎌슜 媛?占쏀븳 ?占쎈꽕?占쎌엯?占쎈떎.'
+              ? '사용 가능한 이메일입니다.'
+              : '사용 가능한 닉네임입니다.'
             : fieldKey === 'email'
-              ? '?占쏙옙? ?占쎌슜 以묒씤 ?占쎈찓?占쎌엯?占쎈떎.'
-              : '?占쏙옙? ?占쎌슜 以묒씤 ?占쎈꽕?占쎌엯?占쎈떎.',
+              ? '이미 사용 중인 이메일입니다.'
+              : '이미 사용 중인 닉네임입니다.',
           checkedValue: rawValue,
         },
       }));
@@ -811,8 +989,8 @@ function AccountApp({ authUser: initialAuthUser }) {
           checking: false,
           available: false,
           message: error.message || (fieldKey === 'email'
-            ? '?占쎈찓??以묐났 ?占쎌씤???占쏀뙣?占쎌뒿?占쎈떎.'
-            : '?占쎈꽕??以묐났 ?占쎌씤???占쏀뙣?占쎌뒿?占쎈떎.'),
+            ? '이메일 중복 확인에 실패했습니다.'
+            : '닉네임 중복 확인에 실패했습니다.'),
           checkedValue: '',
         },
       }));
@@ -831,7 +1009,7 @@ function AccountApp({ authUser: initialAuthUser }) {
 
         if (nextValue !== currentValue && (!state.available || state.checkedValue !== nextValue)) {
           setProfileSubmitError(
-          '?占?占쎌뿉 ?占쏀뙣?占쎌뒿?占쎈떎. ?占쎈꽕??以묐났 ?占쎌씤???占쎈즺??二쇱꽭??'
+          '이미 사용 중인 닉네임입니다. 닉네임 중복 확인을 완료해 주세요.'
           );
           setProfileSubmitting(false);
           return false;
@@ -846,7 +1024,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           headers: accountHeaders(authUser, true),
           body: JSON.stringify(profileForm),
         },
-        '?占쎌썝?占쎈낫占??占?占쏀븯吏 紐삵뻽?占쎈땲??'
+        '회원정보를 수정하지 못했습니다.'
       );
 
       if (payload.data) {
@@ -861,7 +1039,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           [fieldKey]: {
             checking: false,
             available: true,
-            message: fieldKey === 'email' ? '?占쎈찓?占쎌씠 ?占?占쎈릺?占쎌뒿?占쎈떎.' : '?占쎈꽕?占쎌씠 ?占?占쎈릺?占쎌뒿?占쎈떎.',
+            message: fieldKey === 'email' ? '이메일이 변경되었습니다.' : '닉네임이 변경되었습니다.',
             checkedValue: String(profileForm[fieldKey] || '').trim(),
           },
         }));
@@ -869,7 +1047,7 @@ function AccountApp({ authUser: initialAuthUser }) {
 
       return true;
     } catch (error) {
-      setProfileSubmitError(error.message || '?占쎌썝?占쎈낫占??占?占쏀븯吏 紐삵뻽?占쎈땲??');
+      setProfileSubmitError(error.message || '회원정보를 수정하지 못했습니다.');
       return false;
     } finally {
       setProfileSubmitting(false);
@@ -910,12 +1088,12 @@ function AccountApp({ authUser: initialAuthUser }) {
           headers: accountHeaders(authUser, true),
           body: JSON.stringify(passwordForm),
         },
-        '鍮꾬옙?踰덊샇占?蹂寃쏀븯吏 紐삵뻽?占쎈땲??'
+        '비밀번호를 변경하지 못했습니다.'
       );
       setPasswordForm(EMPTY_PASSWORD_FORM);
       return true;
     } catch (error) {
-      setPasswordError(error.message || '鍮꾬옙?踰덊샇占?蹂寃쏀븯吏 紐삵뻽?占쎈땲??');
+      setPasswordError(error.message || '비밀번호를 변경하지 못했습니다.');
       return false;
     } finally {
       setPasswordSubmitting(false);
@@ -928,7 +1106,7 @@ function AccountApp({ authUser: initialAuthUser }) {
     setWithdrawError('');
 
     const confirmed = window.confirm(
-      '?占쎈쭚 ?占쎌썝 ?占쏀눜占?吏꾪뻾?占쎌떆寃좎뒿?占쎄퉴? ?占쏀눜 ?占쏀썑?占쎈뒗 ?占쎌옱 怨꾩젙?占쎈줈 留덉씠?占쎌씠吏 湲곕뒫??怨꾩냽 ?占쎌슜?????占쎌뒿?占쎈떎.'
+      '정말 회원을 탈퇴하시겠어요? 탈퇴 후에는 현재 계정으로 마이페이지 기능을 계속 사용할 수 없습니다.'
     );
     if (!confirmed) {
       setWithdrawing(false);
@@ -943,13 +1121,13 @@ function AccountApp({ authUser: initialAuthUser }) {
           headers: accountHeaders(authUser, true),
           body: JSON.stringify(withdrawForm),
         },
-        '?占쎌썝 ?占쏀눜 泥섎━???占쏀뙣?占쎌뒿?占쎈떎.'
+        '회원 탈퇴 처리에 실패했습니다.'
       );
-      window.alert('?占쎌썝 ?占쏀눜媛 ?占쎈즺?占쎌뿀?占쎈땲??');
+      window.alert('회원 탈퇴가 완료되었습니다.');
       window.location.hash = '#/products';
       return true;
     } catch (error) {
-      setWithdrawError(error.message || '?占쎌썝 ?占쏀눜 泥섎━???占쏀뙣?占쎌뒿?占쎈떎.');
+      setWithdrawError(error.message || '회원 탈퇴 처리에 실패했습니다.');
       return false;
     } finally {
       setWithdrawing(false);
@@ -962,7 +1140,7 @@ function AccountApp({ authUser: initialAuthUser }) {
       {
         headers: accountHeaders(authUser),
       },
-      '?占쎌썝?占쎈낫占?遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??'
+      '회원정보를 불러오지 못했습니다.'
     );
     if (payload.data) {
       const nextProfile = { ...EMPTY_PROFILE, ...payload.data };
@@ -981,11 +1159,11 @@ function AccountApp({ authUser: initialAuthUser }) {
         {
           headers: accountHeaders(authUser),
         },
-        '諛곗넚吏 紐⑸줉??遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??'
+        '배송지 목록을 불러오지 못했습니다.'
       );
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
     } catch (error) {
-      setAddressesError(error.message || '諛곗넚吏 紐⑸줉??遺덈윭?占쏙옙? 紐삵뻽?占쎈땲??');
+      setAddressesError(error.message || '배송지 목록을 불러오지 못했습니다.');
     } finally {
       setAddressesLoading(false);
     }
@@ -1103,7 +1281,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           headers: accountHeaders(authUser, true),
           body: JSON.stringify(addressForm),
         },
-        isEditMode ? '諛곗넚吏 ?占쎌젙???占쏀뙣?占쎌뒿?占쎈떎.' : '諛곗넚吏 ?占쎈줉???占쏀뙣?占쎌뒿?占쎈떎.'
+        isEditMode ? '배송지 수정에 실패했습니다.' : '배송지 등록에 실패했습니다.'
       );
 
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
@@ -1115,7 +1293,7 @@ function AccountApp({ authUser: initialAuthUser }) {
     } catch (error) {
       setAddressFormError(
         error.message ||
-        (isEditMode ? '諛곗넚吏 ?占쎌젙???占쏀뙣?占쎌뒿?占쎈떎.' : '諛곗넚吏 ?占쎈줉???占쏀뙣?占쎌뒿?占쎈떎.')
+        (isEditMode ? '배송지 수정에 실패했습니다.' : '배송지 등록에 실패했습니다.')
       );
     } finally {
       setAddressSubmitting(false);
@@ -1133,12 +1311,12 @@ function AccountApp({ authUser: initialAuthUser }) {
           method: 'PATCH',
           headers: accountHeaders(authUser),
         },
-        '湲곕낯 諛곗넚吏 蹂寃쎌뿉 ?占쏀뙣?占쎌뒿?占쎈떎.'
+        '기본 배송지 변경에 실패했습니다.'
       );
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
       await refreshProfile();
     } catch (error) {
-      setAddressesError(error.message || '湲곕낯 諛곗넚吏 蹂寃쎌뿉 ?占쏀뙣?占쎌뒿?占쎈떎.');
+      setAddressesError(error.message || '기본 배송지 변경에 실패했습니다.');
     } finally {
       setChangingAddressNo(null);
     }
@@ -1146,13 +1324,13 @@ function AccountApp({ authUser: initialAuthUser }) {
 
   async function handleDeleteAddress(address) {
     const addressNo = address?.addressNo;
-    const addressLabel = address?.addressName || address?.recipientName || '?占쏀깮??諛곗넚吏';
+    const addressLabel = address?.addressName || address?.recipientName || '새 배송지';
 
     if (!addressNo) {
       return;
     }
 
-    const confirmed = window.confirm(`'${addressLabel}' 諛곗넚吏占???占쏙옙?占쎌떆寃좎뒿?占쎄퉴?`);
+    const confirmed = window.confirm(`'${addressLabel}' 배송지를 삭제하시겠어요?`);
     if (!confirmed) {
       return;
     }
@@ -1167,12 +1345,12 @@ function AccountApp({ authUser: initialAuthUser }) {
           method: 'DELETE',
           headers: accountHeaders(authUser),
         },
-        '諛곗넚吏 ??占쏙옙???占쏀뙣?占쎌뒿?占쎈떎.'
+        '배송지 삭제에 실패했습니다.'
       );
       setAddresses(Array.isArray(payload.data) ? payload.data : []);
       await refreshProfile();
     } catch (error) {
-      setAddressesError(error.message || '諛곗넚吏 ??占쏙옙???占쏀뙣?占쎌뒿?占쎈떎.');
+      setAddressesError(error.message || '배송지 삭제에 실패했습니다.');
     } finally {
       setDeletingAddressNo(null);
     }
@@ -1206,16 +1384,20 @@ function AccountApp({ authUser: initialAuthUser }) {
 
     try {
       const nextCart = await addCartItemToApi(productNo, 1);
-      persistValue(CART_STORAGE_KEY, nextCart);
+      persistValue(CART_STORAGE_KEY, nextCart?.quantityMap || {});
+      persistValue(
+        CART_DETAILS_STORAGE_KEY,
+        Array.isArray(nextCart?.items) ? nextCart.items : []
+      );
     } catch (error) {
-      setWishlistError(error.message || '?占쎈컮援щ땲 ?占쎄린???占쏀뙣?占쎌뒿?占쎈떎.');
+      setWishlistError(error.message || '장바구니 담기에 실패했습니다.');
     } finally {
       setWishlistActionProductNo(null);
     }
   }
 
   function handleRemoveWishlistItem(productNo) {
-    const confirmed = window.confirm('李쒗븳 ?占쏀뭹?占쎌꽌 ?占쎄굅?占쎌떆寃좎뒿?占쎄퉴?');
+    const confirmed = window.confirm('찜한 상품에서 제거하시겠어요?');
     if (!confirmed) {
       return;
     }
@@ -1308,7 +1490,7 @@ function AccountApp({ authUser: initialAuthUser }) {
     const nextImageFiles = [...(reviewForm.imageFiles || []), ...files];
 
     if (activeExistingCount + nextImageFiles.length > 3) {
-      setReviewFormError('由щ럭 ?占쎌쭊?占?理쒙옙? 3?占쎄퉴吏 ?占쎈줉?????占쎌뒿?占쎈떎.');
+      setReviewFormError('리뷰 이미지는 최대 3장까지 등록할 수 있습니다.');
       event.target.value = '';
       return;
     }
@@ -1340,7 +1522,7 @@ function AccountApp({ authUser: initialAuthUser }) {
     setReviewFormError('');
 
     if (!String(reviewForm.content || '').trim()) {
-      setReviewFormError('由щ럭 ?占쎌슜???占쎈젰??二쇱꽭??');
+      setReviewFormError('리뷰 내용을 입력해 주세요.');
       setReviewSubmitting(false);
       return false;
     }
@@ -1368,7 +1550,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           headers: accountHeaders(authUser),
           body: formData,
         },
-        isEditMode ? '由щ럭 ?占쎌젙???占쏀뙣?占쎌뒿?占쎈떎.' : '由щ럭 ?占쎌꽦???占쏀뙣?占쎌뒿?占쎈떎.'
+        isEditMode ? '리뷰 수정에 실패했습니다.' : '리뷰 등록에 실패했습니다.'
       );
 
       await loadReviewsData();
@@ -1378,8 +1560,8 @@ function AccountApp({ authUser: initialAuthUser }) {
     } catch (error) {
       setReviewFormError(
         error.message || (reviewEditor?.mode === 'edit'
-          ? '由щ럭 ?占쎌젙???占쏀뙣?占쎌뒿?占쎈떎.'
-          : '由щ럭 ?占쎌꽦???占쏀뙣?占쎌뒿?占쎈떎.')
+          ? '리뷰 수정에 실패했습니다.'
+          : '리뷰 등록에 실패했습니다.')
       );
       return false;
     } finally {
@@ -1388,7 +1570,7 @@ function AccountApp({ authUser: initialAuthUser }) {
   }
 
   async function handleDeleteReview(reviewNo) {
-    const confirmed = window.confirm('??由щ럭占???占쏙옙?占쎌떆寃좎뒿?占쎄퉴?');
+    const confirmed = window.confirm('정말 리뷰를 삭제하시겠어요?');
     if (!confirmed) {
       return;
     }
@@ -1412,7 +1594,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           method: 'DELETE',
           headers: accountHeaders(authUser),
         },
-        '由щ럭 ??占쏙옙???占쏀뙣?占쎌뒿?占쎈떎.'
+        '리뷰 삭제에 실패했습니다.'
       );
       await loadReviewsData();
       notifyReviewChange(targetProductNo);
@@ -1421,7 +1603,7 @@ function AccountApp({ authUser: initialAuthUser }) {
         handleCancelReviewEditor();
       }
     } catch (error) {
-      setReviewsError(error.message || '由щ럭 ??占쏙옙???占쏀뙣?占쎌뒿?占쎈떎.');
+      setReviewsError(error.message || '리뷰 삭제에 실패했습니다.');
     } finally {
       setDeletingReviewNo(null);
     }
@@ -1486,6 +1668,13 @@ function AccountApp({ authUser: initialAuthUser }) {
           </button>
           <button
             type="button"
+            className={`account-local-nav__link ${currentPage === 'mealPlans' ? 'is-active' : ''}`}
+            onClick={() => moveToPage('mealPlans')}
+          >
+            {'\uB0B4 \uC2DD\uB2E8 \uAD00\uB9AC'}
+          </button>
+          <button
+            type="button"
             className={`account-local-nav__link ${currentPage === 'activity' ? 'is-active' : ''}`}
             onClick={() => moveToPage('activity')}
           >
@@ -1536,6 +1725,23 @@ function AccountApp({ authUser: initialAuthUser }) {
             onWithdrawFormChange={handleWithdrawFormChange}
             onWithdrawSubmit={handleWithdrawSubmit}
             onOpenAddressModal={openAddressModal}
+          />
+        ) : currentPage === 'mealPlans' ? (
+          <MealScheduleView
+            month={mealScheduleMonth}
+            entries={mealScheduleEntries}
+            plans={mealSchedulePlans}
+            loading={mealScheduleLoading}
+            error={mealScheduleError}
+            selectedDate={mealScheduleSelectedDate}
+            onSelectDate={handleMealScheduleSelectDate}
+            onChangeMonth={handleMealScheduleChangeMonth}
+            onCreateEntry={handleMealScheduleCreateEntry}
+            onUpdateEntry={handleMealScheduleUpdateEntry}
+            onDeleteEntry={handleMealScheduleDeleteEntry}
+            onDeletePlan={handleMealScheduleDeletePlan}
+            onCreateRecipeEntry={handleMealScheduleCreateRecipeEntry}
+            onOpenMealPlanAi={handleOpenMealPlanAi}
           />
         ) : currentPage === 'activity' ? (
           <ActivityView
@@ -1619,11 +1825,11 @@ function AccountApp({ authUser: initialAuthUser }) {
 
       <footer className="site-footer">
         <div className="footer-links">
-          <a href="#/products">媛쒖씤?占쎈낫泥섎━諛⑹묠</a>
-          <a href="#/products">?占쎌슜?占쏙옙?</a>
-          <a href="#/products">怨좉컼?占쏀꽣</a>
+          <a href="#/products">개인정보처리방침</a>
+          <a href="#/products">이용약관</a>
+          <a href="#/products">고객센터</a>
         </div>
-        <div>짤 2026 oneulFarm. All rights reserved.</div>
+        <div>© 2026 oneulFarm. All rights reserved.</div>
       </footer>
     </div>
   );

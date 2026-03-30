@@ -37,6 +37,12 @@ public class MealPlanChatController {
             data.put("responseId", responseDto.getResponseId());
             data.put("model", responseDto.getModel());
             data.put("fallbackMode", Boolean.valueOf(responseDto.isFallbackMode()));
+            data.put("plan", responseDto.getPlan());
+            data.put("aggregatedIngredients", responseDto.getAggregatedIngredients());
+            data.put("sellableIngredients", responseDto.getSellableIngredients());
+            data.put("unsellableIngredients", responseDto.getUnsellableIngredients());
+            data.put("cartPromptMessage", responseDto.getCartPromptMessage());
+            data.put("cartPreview", responseDto.getCartPreview());
             return ResponseEntity.ok(ApiResponse.success(data, "\uB9DE\uCDA4 \uC2DD\uB2E8 \uC751\uB2F5 \uC0DD\uC131 \uC644\uB8CC"));
         } catch (IllegalArgumentException exception) {
             return ResponseEntity

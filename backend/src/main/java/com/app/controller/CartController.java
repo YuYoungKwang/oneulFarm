@@ -37,29 +37,29 @@ public class CartController {
         @RequestBody CartItemDto request
     ) {
         return ApiResponse.success(
-            cartService.addCartItem(userNo, request.getProductNo(), request.getQuantity()),
+            cartService.addCartItem(userNo, request),
             "Cart item added."
         );
     }
 
-    @PatchMapping(value = "/me/items/{productNo}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PatchMapping(value = "/me/items/{cartItemNo}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ApiResponse<CartDto> updateCartItem(
         @RequestHeader("X-USER-NO") Long userNo,
-        @PathVariable Long productNo,
+        @PathVariable Long cartItemNo,
         @RequestBody CartItemDto request
     ) {
         return ApiResponse.success(
-            cartService.updateCartItem(userNo, productNo, request.getQuantity()),
+            cartService.updateCartItem(userNo, cartItemNo, request.getQuantity()),
             "Cart updated."
         );
     }
 
-    @DeleteMapping("/me/items/{productNo}")
+    @DeleteMapping("/me/items/{cartItemNo}")
     public ApiResponse<CartDto> removeCartItem(
         @RequestHeader("X-USER-NO") Long userNo,
-        @PathVariable Long productNo
+        @PathVariable Long cartItemNo
     ) {
-        return ApiResponse.success(cartService.removeCartItem(userNo, productNo), "Cart item removed.");
+        return ApiResponse.success(cartService.removeCartItem(userNo, cartItemNo), "Cart item removed.");
     }
 
     @DeleteMapping("/me/items")

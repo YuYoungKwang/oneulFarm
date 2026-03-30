@@ -1,29 +1,458 @@
-import { requestAuthApi } from '../auth';
+import { getAuthUser, requestAuthApi } from '../auth';
 
-function buildLocalDemoReply(message) {
-  const normalizedMessage = String(message || '').trim();
-  const ingredientHint = normalizedMessage.includes('감자')
-    ? '감자'
-    : normalizedMessage.includes('버섯')
-      ? '버섯'
-      : normalizedMessage.includes('고추')
-        ? '고추'
-        : '냉장고 재료';
+function normalizeIngredient(item = {}) {
+  return {
+    ingredientName: item.ingredientName || '',
+    amountValue: item.amountValue ?? null,
+    unit: item.unit || '',
+    amountText: item.amountText || '',
+    note: item.note || '',
+  };
+}
 
-  return [
-    '오늘 추천',
-    `- ${ingredientHint}를 중심으로 한 끼 식단부터 가볍게 시작해보세요.`,
-    '- 메인 메뉴 1개와 곁들임 메뉴 1개로 묶으면 장보기가 단순해집니다.',
-    '',
-    '필요한 재료',
-    '- 기본 채소: 양파, 대파, 마늘',
-    '- 단백질: 달걀 또는 두부',
-    `- 메인 재료: ${ingredientHint}`,
-    '',
-    '장보기 팁',
-    '- 오늘은 데모 응답 모드라 간단한 가이드만 보여드리고 있어요.',
-    '- 백엔드와 OpenAI 키가 연결되면 더 구체적인 식단 상담으로 확장됩니다.',
-  ].join('\n');
+function normalizeMeal(item = {}) {
+  return {
+    mealType: item.mealType || '',
+    menuName: item.menuName || '',
+    description: item.description || '',
+    ingredients: Array.isArray(item.ingredients) ? item.ingredients.map(normalizeIngredient) : [],
+  };
+}
+
+function normalizeDay(item = {}) {
+  return {
+    dayLabel: item.dayLabel || '',
+    meals: Array.isArray(item.meals) ? item.meals.map(normalizeMeal) : [],
+  };
+}
+
+function normalizeCartCandidate(item = {}) {
+  return {
+    productNo: item.productNo ?? null,
+    productName: item.productName || '',
+    salePrice: item.salePrice ?? null,
+    unit: item.unit || '',
+    packageWeight: item.packageWeight ?? null,
+    displayPackageText: item.displayPackageText || '',
+    requiredAmountValue: item.requiredAmountValue ?? null,
+    requiredUnit: item.requiredUnit || '',
+    requiredAmountText: item.requiredAmountText || '',
+    recommendedQuantity: item.recommendedQuantity ?? null,
+    coveredAmountText: item.coveredAmountText || '',
+  };
+}
+
+function normalizeSellable(item = {}) {
+  return {
+    ingredientName: item.ingredientName || '',
+    requiredAmountText: item.requiredAmountText || '',
+    matchSummary: item.matchSummary || '',
+    cartCandidate: item.cartCandidate ? normalizeCartCandidate(item.cartCandidate) : null,
+  };
+}
+
+function normalizeUnsellable(item = {}) {
+  return {
+    ingredientName: item.ingredientName || '',
+    requiredAmountText: item.requiredAmountText || '',
+    reason: item.reason || '',
+  };
+}
+
+function normalizeCartPreview(item = {}) {
+  return {
+    totalProductKinds: item.totalProductKinds ?? null,
+    totalQuantity: item.totalQuantity ?? null,
+    estimatedTotalPrice: item.estimatedTotalPrice ?? null,
+  };
+}
+
+function normalizePlan(plan = null) {
+  if (!plan || typeof plan !== 'object') {
+    return null;
+  }
+
+  return {
+    goalSummary: plan.goalSummary || '',
+    servings: plan.servings ?? null,
+    days: plan.days ?? null,
+    daysList: Array.isArray(plan.daysList) ? plan.daysList.map(normalizeDay) : [],
+    removalNotes: Array.isArray(plan.removalNotes) ? plan.removalNotes.map((item) => String(item || '')) : [],
+  };
+}
+
+function normalizeResponse(data = {}) {
+  return {
+    reply: data.reply || '',
+    responseId: data.responseId || null,
+    model: data.model || null,
+    fallbackMode: Boolean(data.fallbackMode),
+    plan: normalizePlan(data.plan),
+    aggregatedIngredients: Array.isArray(data.aggregatedIngredients)
+      ? data.aggregatedIngredients.map(normalizeIngredient)
+      : [],
+    sellableIngredients: Array.isArray(data.sellableIngredients)
+      ? data.sellableIngredients.map(normalizeSellable)
+      : [],
+    unsellableIngredients: Array.isArray(data.unsellableIngredients)
+      ? data.unsellableIngredients.map(normalizeUnsellable)
+      : [],
+    cartPromptMessage: data.cartPromptMessage || '',
+    cartPreview: data.cartPreview ? normalizeCartPreview(data.cartPreview) : null,
+  };
+}
+
+function normalizeImportIngredient(item = {}) {
+  return {
+    ingredientName: item.ingredientName || '',
+    amountValue: item.amountValue ?? null,
+    unit: item.unit || '',
+    amountText: item.amountText || '',
+    note: item.note || '',
+  };
+}
+
+function normalizeImportMeal(item = {}) {
+  return {
+    mealType: item.mealType || '',
+    menuName: item.menuName || '',
+    description: item.description || '',
+    ingredients: Array.isArray(item.ingredients)
+      ? item.ingredients.map(normalizeImportIngredient)
+      : [],
+  };
+}
+
+function normalizeImportDay(item = {}) {
+  return {
+    dayLabel: item.dayLabel || '',
+    meals: Array.isArray(item.meals) ? item.meals.map(normalizeImportMeal) : [],
+  };
+}
+
+function buildImportPlan(plan = null) {
+  if (!plan || typeof plan !== 'object') {
+    return null;
+  }
+
+  return {
+    goalSummary: plan.goalSummary || '',
+    servings: plan.servings ?? null,
+    days: plan.days ?? null,
+    daysList: Array.isArray(plan.daysList) ? plan.daysList.map(normalizeImportDay) : [],
+    removalNotes: Array.isArray(plan.removalNotes)
+      ? plan.removalNotes.map((item) => String(item || ''))
+      : [],
+  };
+}
+
+function buildImportSellableIngredient(item = {}) {
+  return {
+    ingredientName: item.ingredientName || '',
+    requiredAmountText: item.requiredAmountText || '',
+    matchSummary: item.matchSummary || '',
+    cartCandidate: item.cartCandidate
+      ? {
+          productNo: item.cartCandidate.productNo ?? null,
+          productName: item.cartCandidate.productName || '',
+          salePrice: item.cartCandidate.salePrice ?? null,
+          unit: item.cartCandidate.unit || '',
+          packageWeight: item.cartCandidate.packageWeight ?? null,
+          displayPackageText: item.cartCandidate.displayPackageText || '',
+          requiredAmountValue: item.cartCandidate.requiredAmountValue ?? null,
+          requiredUnit: item.cartCandidate.requiredUnit || '',
+          requiredAmountText: item.cartCandidate.requiredAmountText || '',
+          recommendedQuantity: item.cartCandidate.recommendedQuantity ?? null,
+          coveredAmountText: item.cartCandidate.coveredAmountText || '',
+        }
+      : null,
+  };
+}
+
+function buildLocalDemoResponse() {
+  return normalizeResponse({
+    reply:
+      '\uC9C0\uAE08\uC740 \uAC80\uC99D\uB41C \uC2DD\uB2E8 \uACB0\uACFC\uB97C \uB9CC\uB4E4 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uBC31\uC5D4\uB4DC \uC5F0\uACB0 \uC0C1\uD0DC\uB97C \uD655\uC778\uD55C \uB4A4 \uB2E4\uC2DC \uC2DC\uB3C4\uD574 \uC8FC\uC138\uC694.',
+    responseId: null,
+    model: 'local-demo',
+    fallbackMode: true,
+    plan: null,
+    aggregatedIngredients: [],
+    sellableIngredients: [],
+    unsellableIngredients: [],
+    cartPromptMessage: '',
+    cartPreview: null,
+  });
+}
+
+const MEAL_SCHEDULE_STORAGE_PREFIX = 'oneulFarmAccountMealPlans:v1';
+const MEAL_SCHEDULE_CHANGE_EVENT = 'oneulFarm:meal-schedule-change';
+
+function getMealScheduleStorageKey(userNo) {
+  return `${MEAL_SCHEDULE_STORAGE_PREFIX}:${userNo || 'guest'}`;
+}
+
+function readMealScheduleStore(userNo) {
+  if (typeof window === 'undefined') {
+    return { nextEntryNo: 1, nextPlanNo: 1, entries: [], plans: [] };
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(getMealScheduleStorageKey(userNo));
+    if (!rawValue) {
+      return { nextEntryNo: 1, nextPlanNo: 1, entries: [], plans: [] };
+    }
+
+    const parsedValue = JSON.parse(rawValue);
+    return {
+      nextEntryNo: Number(parsedValue?.nextEntryNo || 1),
+      nextPlanNo: Number(parsedValue?.nextPlanNo || 1),
+      entries: Array.isArray(parsedValue?.entries) ? parsedValue.entries : [],
+      plans: Array.isArray(parsedValue?.plans) ? parsedValue.plans : [],
+    };
+  } catch (error) {
+    return { nextEntryNo: 1, nextPlanNo: 1, entries: [], plans: [] };
+  }
+}
+
+function writeMealScheduleStore(userNo, store) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.setItem(getMealScheduleStorageKey(userNo), JSON.stringify(store));
+}
+
+function dispatchMealScheduleChange(detail) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.dispatchEvent(
+      new CustomEvent(MEAL_SCHEDULE_CHANGE_EVENT, {
+        detail,
+      })
+    );
+  } catch (error) {
+    // Ignore dispatch failures in local preview.
+  }
+}
+
+function toDateKey(value) {
+  return String(value || '').slice(0, 10);
+}
+
+function formatLocalDateKey(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+    date.getDate()
+  ).padStart(2, '0')}`;
+}
+
+function addDays(dateKey, offset) {
+  const normalizedDate = toDateKey(dateKey);
+  if (!normalizedDate) {
+    return '';
+  }
+
+  const date = new Date(`${normalizedDate}T00:00:00`);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  date.setDate(date.getDate() + Number(offset || 0));
+  return formatLocalDateKey(date);
+}
+
+function normalizeMealType(value) {
+  const nextValue = String(value || 'CUSTOM').toUpperCase();
+  if (['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK', 'CUSTOM'].includes(nextValue)) {
+    return nextValue;
+  }
+
+  return 'CUSTOM';
+}
+
+function buildMealEntryTitle(meal, dayLabel, mealIndex) {
+  const menuName = String(meal?.menuName || '').trim();
+  if (menuName) {
+    return menuName;
+  }
+
+  const description = String(meal?.description || '').trim();
+  if (description) {
+    return description;
+  }
+
+  const nextDayLabel = String(dayLabel || '').trim();
+  if (nextDayLabel) {
+    return `${nextDayLabel} \uC2DD\uB2E8 ${Number(mealIndex || 0) + 1}`;
+  }
+
+  return `\uC2DD\uB2E8 ${Number(mealIndex || 0) + 1}`;
+}
+
+function buildMealEntryNotes({ meal, requestText, mealIngredients }) {
+  const noteParts = [];
+  const description = String(meal?.description || '').trim();
+  if (description) {
+    noteParts.push(description);
+  }
+
+  const ingredientText = Array.isArray(mealIngredients) && mealIngredients.length
+    ? mealIngredients
+        .map((ingredient) => {
+          const ingredientName = String(ingredient?.ingredientName || '').trim();
+          const amountText = String(ingredient?.amountText || '').trim();
+          if (!ingredientName) {
+            return '';
+          }
+          return amountText ? `${ingredientName} ${amountText}` : ingredientName;
+        })
+        .filter(Boolean)
+        .join(', ')
+    : '';
+
+  if (ingredientText) {
+    noteParts.push(ingredientText);
+  }
+
+  const nextRequestText = String(requestText || '').trim();
+  if (nextRequestText) {
+    noteParts.push(nextRequestText);
+  }
+
+  return noteParts.join('\n');
+}
+
+function normalizeSellableIngredientList(sellableIngredients) {
+  return Array.isArray(sellableIngredients)
+    ? sellableIngredients
+        .map((item) => ({
+          ingredientName: String(item?.ingredientName || '').trim(),
+          cartCandidate: item?.cartCandidate || null,
+        }))
+        .filter((item) => item.ingredientName)
+    : [];
+}
+
+function createLocalMealPlanImport({
+  user,
+  startDate,
+  endDate,
+  title,
+  requestText,
+  aiResponseId,
+  plan,
+  sellableIngredients,
+}) {
+  const authUser = user || getAuthUser();
+  const userNo = authUser?.userNo;
+  if (!userNo) {
+    throw new Error('\uB85C\uADF8\uC778\uC774 \uD544\uC694\uD569\uB2C8\uB2E4. \uC2DD\uB2E8\uC744 \uC800\uC7A5\uD558\uB824\uBA74 \uBA3C\uC800 \uB85C\uADF8\uC778\uD574 \uC8FC\uC138\uC694.');
+  }
+
+  const store = readMealScheduleStore(userNo);
+  const normalizedPlanDays = Array.isArray(plan?.daysList) ? plan.daysList : [];
+  const normalizedSellableIngredients = normalizeSellableIngredientList(sellableIngredients);
+  const nextPlanNo = Number(store.nextPlanNo || 1);
+  const baseStartDate = toDateKey(startDate);
+  const resolvedTitle =
+    String(title || '').trim() ||
+    String(plan?.goalSummary || '').trim() ||
+    '\uC2DD\uB2E8 \uAC00\uC838\uC624\uAE30';
+
+  let nextEntryNo = Number(store.nextEntryNo || 1);
+  const nextEntries = [];
+
+  if (normalizedPlanDays.length) {
+    normalizedPlanDays.forEach((day, dayIndex) => {
+      const mealDate = addDays(baseStartDate, dayIndex);
+      const meals = Array.isArray(day?.meals) ? day.meals : [];
+
+      meals.forEach((meal, mealIndex) => {
+        const mealIngredients = Array.isArray(meal?.ingredients) ? meal.ingredients : [];
+        nextEntries.push({
+          entryNo: nextEntryNo,
+          planNo: nextPlanNo,
+          date: mealDate,
+          mealType: normalizeMealType(meal?.mealType),
+          title: buildMealEntryTitle(meal, day?.dayLabel, mealIndex),
+          notes: buildMealEntryNotes({
+            meal,
+            requestText,
+            mealIngredients,
+          }),
+          servings: Number(plan?.servings || 1) || 1,
+          sourceType: 'AI',
+          recipeNo: null,
+          recipeTitle: '',
+          importedFromAiResponseId: aiResponseId || null,
+        });
+        nextEntryNo += 1;
+      });
+    });
+  }
+
+  if (!nextEntries.length && baseStartDate) {
+    nextEntries.push({
+      entryNo: nextEntryNo,
+      planNo: nextPlanNo,
+      date: baseStartDate,
+      mealType: 'CUSTOM',
+      title: resolvedTitle,
+      notes: String(requestText || '').trim(),
+      servings: Number(plan?.servings || 1) || 1,
+      sourceType: 'AI',
+      recipeNo: null,
+      recipeTitle: '',
+      importedFromAiResponseId: aiResponseId || null,
+    });
+    nextEntryNo += 1;
+  }
+
+  const importedEntryCount = nextEntries.length;
+  const nextPlans = [
+    {
+      planNo: nextPlanNo,
+      planTitle: resolvedTitle,
+      planSummary: String(plan?.goalSummary || '').trim(),
+      startDate: toDateKey(startDate),
+      endDate: toDateKey(endDate),
+      requestText: String(requestText || '').trim(),
+      aiResponseId: aiResponseId || null,
+      importedEntryCount,
+      createdAt: new Date().toISOString(),
+      sellableIngredients: normalizedSellableIngredients,
+    },
+    ...store.plans,
+  ];
+
+  const nextStore = {
+    nextEntryNo,
+    nextPlanNo: nextPlanNo + 1,
+    entries: [...nextEntries, ...store.entries],
+    plans: nextPlans,
+  };
+
+  writeMealScheduleStore(userNo, nextStore);
+  dispatchMealScheduleChange({
+    userNo,
+    planNo: nextPlanNo,
+    importedEntryCount,
+  });
+
+  return {
+    planNo: nextPlanNo,
+    title: resolvedTitle,
+    startDate: toDateKey(startDate),
+    endDate: toDateKey(endDate),
+    importedEntryCount,
+  };
 }
 
 export async function requestMealPlanChat({ message, previousResponseId } = {}) {
@@ -40,17 +469,56 @@ export async function requestMealPlanChat({ message, previousResponseId } = {}) 
           previousResponseId: previousResponseId || null,
         }),
       },
-      '맞춤 식단 AI 응답을 불러오지 못했습니다.'
+      '\uC2DD\uB2E8 AI \uC751\uB2F5\uC744 \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.'
     );
 
-    return payload?.data || {};
+    const normalized = normalizeResponse(payload?.data || {});
+    const hasStructuredPlan =
+      normalized.plan ||
+      normalized.aggregatedIngredients.length ||
+      normalized.sellableIngredients.length ||
+      normalized.unsellableIngredients.length ||
+      normalized.cartPromptMessage ||
+      normalized.cartPreview;
+
+    if (!hasStructuredPlan) {
+      const error = new Error(
+        '\uC2DD\uB2E8 AI \uBC31\uC5D4\uB4DC\uAC00 \uCD5C\uC2E0 \uAD6C\uC870\uB85C \uBC18\uC601\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4. Tomcat\uC744 \uB2E4\uC2DC \uC2DC\uC791\uD574 \uC8FC\uC138\uC694.'
+      );
+      error.disableMealPlanFallback = true;
+      throw error;
+    }
+
+    return normalized;
   } catch (error) {
+    if (error?.disableMealPlanFallback) {
+      throw error;
+    }
     console.warn('meal-plan chat fallback', error);
-    return {
-      reply: buildLocalDemoReply(message),
-      responseId: null,
-      model: 'local-demo',
-      fallbackMode: true,
-    };
+    return buildLocalDemoResponse(message);
   }
+}
+
+export async function importMealPlanToCalendar({
+  user,
+  startDate,
+  endDate,
+  title,
+  requestText,
+  aiResponseId,
+  plan,
+  sellableIngredients,
+} = {}) {
+  return createLocalMealPlanImport({
+    user,
+    startDate,
+    endDate,
+    title,
+    requestText,
+    aiResponseId,
+    plan: buildImportPlan(plan),
+    sellableIngredients: Array.isArray(sellableIngredients)
+      ? sellableIngredients.map(buildImportSellableIngredient)
+      : [],
+  });
 }

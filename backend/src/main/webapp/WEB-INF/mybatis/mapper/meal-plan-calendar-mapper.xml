@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mealPlanCalendarMapper">
+
+    <resultMap id="MealPlanCalendarEntryMap" type="com.app.dto.MealPlanEntryDto">
+        <id property="entryNo" column="entryNo" />
+        <result property="planNo" column="planNo" />
+        <result property="planTitle" column="planTitle" />
+        <result property="userNo" column="userNo" />
+        <result property="mealDate" column="mealDate" />
+        <result property="mealType" column="mealType" />
+        <result property="entryTitle" column="entryTitle" />
+        <result property="entryDescription" column="entryDescription" />
+        <result property="sourceType" column="sourceType" />
+        <result property="recipeNo" column="recipeNo" />
+        <result property="recipeName" column="recipeName" />
+        <result property="servings" column="servings" />
+        <result property="displayOrder" column="displayOrder" />
+        <result property="imageUrl" column="imageUrl" />
+    </resultMap>
+
+    <resultMap id="MealPlanEntryIngredientMap" type="com.app.dto.MealPlanEntryIngredientDto">
+        <id property="entryIngredientNo" column="entryIngredientNo" />
+        <result property="entryNo" column="entryNo" />
+        <result property="ingredientName" column="ingredientName" />
+        <result property="amountValue" column="amountValue" />
+        <result property="unit" column="unit" />
+        <result property="amountText" column="amountText" />
+        <result property="productNo" column="productNo" />
+        <result property="productName" column="productName" />
+    </resultMap>
+
+    <select id="selectCalendarEntries" parameterType="map" resultMap="MealPlanCalendarEntryMap">
+        SELECT
+            e.ENTRY_NO AS entryNo,
+            e.PLAN_NO AS planNo,
+            p.PLAN_TITLE AS planTitle,
+            e.USER_NO AS userNo,
+            TO_CHAR(e.MEAL_DATE, 'YYYY-MM-DD') AS mealDate,
+            e.MEAL_TYPE AS mealType,
+            e.ENTRY_TITLE AS entryTitle,
+            e.ENTRY_DESCRIPTION AS entryDescription,
+            e.SOURCE_TYPE AS sourceType,
+            e.RECIPE_NO AS recipeNo,
+            r.RECIPE_NAME AS recipeName,
+            e.SERVINGS AS servings,
+            e.DISPLAY_ORDER AS displayOrder,
+            COALESCE(e.IMAGE_URL, r.IMAGE_URL) AS imageUrl
+        FROM OFT_MEAL_PLAN_ENTRY e
+        LEFT JOIN OFT_MEAL_PLAN p
+            ON p.PLAN_NO = e.PLAN_NO
+        LEFT JOIN OFT_RECIPE r
+            ON r.RECIPE_NO = e.RECIPE_NO
+        WHERE e.USER_NO = #{userNo}
+          AND e.MEAL_DATE BETWEEN TO_DATE(#{startDate}, 'YYYY-MM-DD') AND TO_DATE(#{endDate}, 'YYYY-MM-DD')
+        ORDER BY
+            e.MEAL_DATE ASC,
+            CASE e.MEAL_TYPE
+                WHEN 'BREAKFAST' THEN 1
+                WHEN 'LUNCH' THEN 2
+                WHEN 'DINNER' THEN 3
+                WHEN 'SNACK' THEN 4
+                ELSE 5
+            END ASC,
+            e.DISPLAY_ORDER ASC,
+            e.ENTRY_NO ASC
+    </select>
+
+    <select id="selectCalendarEntryIngredients" parameterType="map" resultMap="MealPlanEntryIngredientMap">
+        SELECT
+            i.ENTRY_INGREDIENT_NO AS entryIngredientNo,
+            i.ENTRY_NO AS entryNo,
+            i.INGREDIENT_NAME AS ingredientName,
+            i.AMOUNT_VALUE AS amountValue,
+            i.UNIT AS unit,
+            i.AMOUNT_TEXT AS amountText,
+            i.PRODUCT_NO AS productNo,
+            p.PRODUCT_NAME AS productName
+        FROM OFT_MEAL_PLAN_ENTRY_INGREDIENT i
+        JOIN OFT_MEAL_PLAN_ENTRY e
+            ON e.ENTRY_NO = i.ENTRY_NO
+        LEFT JOIN OFT_PRODUCT p
+            ON p.PRODUCT_NO = i.PRODUCT_NO
+        WHERE e.USER_NO = #{userNo}
+          AND e.MEAL_DATE BETWEEN TO_DATE(#{startDate}, 'YYYY-MM-DD') AND TO_DATE(#{endDate}, 'YYYY-MM-DD')
+        ORDER BY i.ENTRY_NO ASC, i.ENTRY_INGREDIENT_NO ASC
+    </select>
+
+    <select id="selectEntry" parameterType="map" resultMap="MealPlanCalendarEntryMap">
+        SELECT
+            e.ENTRY_NO AS entryNo,
+            e.PLAN_NO AS planNo,
+            p.PLAN_TITLE AS planTitle,
+            e.USER_NO AS userNo,
+            TO_CHAR(e.MEAL_DATE, 'YYYY-MM-DD') AS mealDate,
+            e.MEAL_TYPE AS mealType,
+            e.ENTRY_TITLE AS entryTitle,
+            e.ENTRY_DESCRIPTION AS entryDescription,
+            e.SOURCE_TYPE AS sourceType,
+            e.RECIPE_NO AS recipeNo,
+            r.RECIPE_NAME AS recipeName,
+            e.SERVINGS AS servings,
+            e.DISPLAY_ORDER AS displayOrder,
+            COALESCE(e.IMAGE_URL, r.IMAGE_URL) AS imageUrl
+        FROM OFT_MEAL_PLAN_ENTRY e
+        LEFT JOIN OFT_MEAL_PLAN p
+            ON p.PLAN_NO = e.PLAN_NO
+        LEFT JOIN OFT_RECIPE r
+            ON r.RECIPE_NO = e.RECIPE_NO
+        WHERE e.USER_NO = #{userNo}
+          AND e.ENTRY_NO = #{entryNo}
+    </select>
+
+    <select id="selectEntryIngredients" parameterType="long" resultMap="MealPlanEntryIngredientMap">
+        SELECT
+            i.ENTRY_INGREDIENT_NO AS entryIngredientNo,
+            i.ENTRY_NO AS entryNo,
+            i.INGREDIENT_NAME AS ingredientName,
+            i.AMOUNT_VALUE AS amountValue,
+            i.UNIT AS unit,
+            i.AMOUNT_TEXT AS amountText,
+            i.PRODUCT_NO AS productNo,
+            p.PRODUCT_NAME AS productName
+        FROM OFT_MEAL_PLAN_ENTRY_INGREDIENT i
+        LEFT JOIN OFT_PRODUCT p
+            ON p.PRODUCT_NO = i.PRODUCT_NO
+        WHERE i.ENTRY_NO = #{_parameter}
+        ORDER BY i.ENTRY_INGREDIENT_NO ASC
+    </select>
+
+    <insert id="insertMealPlan" parameterType="com.app.dto.MealPlanDto">
+        INSERT INTO OFT_MEAL_PLAN (
+            USER_NO,
+            PLAN_TITLE,
+            SOURCE_TYPE,
+            REQUEST_TEXT,
+            PLAN_SUMMARY,
+            START_DATE,
+            END_DATE,
+            AI_RESPONSE_ID
+        ) VALUES (
+            #{userNo},
+            #{planTitle},
+            #{sourceType},
+            #{requestText},
+            #{planSummary},
+            TO_DATE(#{startDate}, 'YYYY-MM-DD'),
+            TO_DATE(#{endDate}, 'YYYY-MM-DD'),
+            #{aiResponseId}
+        )
+        <selectKey keyProperty="planNo" resultType="long" order="AFTER">
+            SELECT PLAN_NO
+            FROM OFT_MEAL_PLAN
+            WHERE USER_NO = #{userNo}
+              AND PLAN_TITLE = #{planTitle}
+              AND SOURCE_TYPE = #{sourceType}
+              AND START_DATE = TO_DATE(#{startDate}, 'YYYY-MM-DD')
+              AND END_DATE = TO_DATE(#{endDate}, 'YYYY-MM-DD')
+              AND (
+                  (#{aiResponseId} IS NULL AND AI_RESPONSE_ID IS NULL)
+                  OR AI_RESPONSE_ID = #{aiResponseId}
+              )
+            ORDER BY PLAN_NO DESC
+            FETCH FIRST 1 ROW ONLY
+        </selectKey>
+    </insert>
+
+    <insert id="insertEntry" parameterType="com.app.dto.MealPlanEntryDto">
+        INSERT INTO OFT_MEAL_PLAN_ENTRY (
+            PLAN_NO,
+            USER_NO,
+            MEAL_DATE,
+            MEAL_TYPE,
+            ENTRY_TITLE,
+            ENTRY_DESCRIPTION,
+            SOURCE_TYPE,
+            RECIPE_NO,
+            SERVINGS,
+            DISPLAY_ORDER,
+            IMAGE_URL
+        ) VALUES (
+            #{planNo},
+            #{userNo},
+            TO_DATE(#{mealDate}, 'YYYY-MM-DD'),
+            #{mealType},
+            #{entryTitle},
+            #{entryDescription},
+            #{sourceType},
+            #{recipeNo},
+            #{servings},
+            #{displayOrder},
+            #{imageUrl}
+        )
+        <selectKey keyProperty="entryNo" resultType="long" order="AFTER">
+            SELECT ENTRY_NO
+            FROM OFT_MEAL_PLAN_ENTRY
+            WHERE USER_NO = #{userNo}
+              AND MEAL_DATE = TO_DATE(#{mealDate}, 'YYYY-MM-DD')
+              AND MEAL_TYPE = #{mealType}
+              AND ENTRY_TITLE = #{entryTitle}
+              AND DISPLAY_ORDER = #{displayOrder}
+              AND (
+                  (#{planNo} IS NULL AND PLAN_NO IS NULL)
+                  OR PLAN_NO = #{planNo}
+              )
+            ORDER BY ENTRY_NO DESC
+            FETCH FIRST 1 ROW ONLY
+        </selectKey>
+    </insert>
+
+    <insert id="insertEntryIngredient" parameterType="com.app.dto.MealPlanEntryIngredientDto">
+        INSERT INTO OFT_MEAL_PLAN_ENTRY_INGREDIENT (
+            ENTRY_NO,
+            INGREDIENT_NAME,
+            AMOUNT_VALUE,
+            UNIT,
+            AMOUNT_TEXT,
+            PRODUCT_NO
+        ) VALUES (
+            #{entryNo},
+            #{ingredientName},
+            #{amountValue},
+            #{unit},
+            #{amountText},
+            #{productNo}
+        )
+    </insert>
+
+    <update id="updateEntry" parameterType="com.app.dto.MealPlanEntryDto">
+        UPDATE OFT_MEAL_PLAN_ENTRY
+        SET
+            MEAL_DATE = TO_DATE(#{mealDate}, 'YYYY-MM-DD'),
+            MEAL_TYPE = #{mealType},
+            ENTRY_TITLE = #{entryTitle},
+            ENTRY_DESCRIPTION = #{entryDescription},
+            SOURCE_TYPE = #{sourceType},
+            RECIPE_NO = #{recipeNo},
+            SERVINGS = #{servings},
+            DISPLAY_ORDER = #{displayOrder},
+            IMAGE_URL = #{imageUrl}
+        WHERE USER_NO = #{userNo}
+          AND ENTRY_NO = #{entryNo}
+    </update>
+
+    <delete id="deleteEntryIngredients" parameterType="long">
+        DELETE FROM OFT_MEAL_PLAN_ENTRY_INGREDIENT
+        WHERE ENTRY_NO = #{_parameter}
+    </delete>
+
+    <delete id="deleteEntry" parameterType="map">
+        DELETE FROM OFT_MEAL_PLAN_ENTRY
+        WHERE USER_NO = #{userNo}
+          AND ENTRY_NO = #{entryNo}
+    </delete>
+
+    <delete id="deletePlanEntryIngredients" parameterType="map">
+        DELETE FROM OFT_MEAL_PLAN_ENTRY_INGREDIENT
+        WHERE ENTRY_NO IN (
+            SELECT ENTRY_NO
+            FROM OFT_MEAL_PLAN_ENTRY
+            WHERE USER_NO = #{userNo}
+              AND PLAN_NO = #{planNo}
+        )
+    </delete>
+
+    <delete id="deletePlanEntries" parameterType="map">
+        DELETE FROM OFT_MEAL_PLAN_ENTRY
+        WHERE USER_NO = #{userNo}
+          AND PLAN_NO = #{planNo}
+    </delete>
+
+    <delete id="deletePlan" parameterType="map">
+        DELETE FROM OFT_MEAL_PLAN
+        WHERE USER_NO = #{userNo}
+          AND PLAN_NO = #{planNo}
+    </delete>
+
+    <select id="countEntriesByPlan" parameterType="map" resultType="int">
+        SELECT COUNT(*)
+        FROM OFT_MEAL_PLAN_ENTRY
+        WHERE USER_NO = #{userNo}
+          AND PLAN_NO = #{planNo}
+    </select>
+
+</mapper>

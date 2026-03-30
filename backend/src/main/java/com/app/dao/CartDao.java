@@ -12,13 +12,19 @@ public interface CartDao {
 
     List<CartItemDto> findCartItems(Long userNo);
 
-    CartItemDto findCartItem(Long userNo, Long productNo);
+    CartItemDto findCartItem(Long cartNo, Long cartGroupNo, Long productNo);
 
-    int insertCartItem(Long cartNo, Long productNo, Integer quantity);
+    Long findCartGroupNo(Long cartNo, String groupKey);
 
-    int updateCartItemQuantity(Long cartNo, Long productNo, Integer quantity);
+    int insertCartGroup(Long cartNo, String groupKey, String groupType, Long recipeNo, String groupName);
 
-    int deleteCartItem(Long cartNo, Long productNo);
+    int insertCartItem(Long cartNo, Long cartGroupNo, Long productNo, Integer quantity);
+
+    int updateCartItemQuantity(Long cartNo, Long cartItemNo, Integer quantity);
+
+    int deleteCartItem(Long cartNo, Long cartItemNo);
 
     int deleteAllCartItems(Long cartNo);
+
+    int deleteEmptyCartGroups(Long cartNo);
 }

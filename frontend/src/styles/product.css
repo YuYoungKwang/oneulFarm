@@ -822,6 +822,19 @@
   grid-auto-rows: max-content;
 }
 
+.product-app .cart-group-block{
+  display: grid;
+  gap: 12px;
+}
+
+.product-app .cart-group-block + .cart-group-block{
+  margin-top: 4px;
+}
+
+.product-app .cart-group-head{
+  margin-bottom: 0;
+}
+
 .product-app .cart-card,
 .product-app .cart-summary{
   background: var(--surface);
@@ -887,6 +900,10 @@
   background: transparent;
   color: var(--green-dark);
   font-weight: 800;
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
 }
 
 .product-app .text-action.danger{

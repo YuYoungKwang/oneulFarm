@@ -1,5 +1,6 @@
 ﻿import { useEffect, useState } from 'react';
 import { getAuthUser, isAuthenticated } from '../auth';
+import { createRecipeMealPlanEntry } from '../api/accountMealPlanApi';
 import { fetchPriceTrendFromApi } from '../api/priceAnalysisApi';
 import SafeImage from './SafeImage';
 import '../styles/recipe.css';
@@ -16,12 +17,34 @@ const SCALE_OPTIONS = [
   { value: 1, label: '1인분' },
   { value: 2, label: '2인분' },
 ];
+const MEAL_PLAN_TYPE_OPTIONS = [
+  { value: 'BREAKFAST', label: '아침' },
+  { value: 'LUNCH', label: '점심' },
+  { value: 'DINNER', label: '저녁' },
+  { value: 'SNACK', label: '간식' },
+];
 const EMPTY_REVIEW_FORM = {
   rating: 5,
   content: '',
   imageFileList: [],
 };
 const formatStepLabel = (stepSeq) => `STEP ${stepSeq}`;
+
+function getTodayDateInputValue() {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function buildRecipeMealPlanDraft(servings = 1) {
+  return {
+    mealDate: getTodayDateInputValue(),
+    mealType: 'DINNER',
+    servings: Math.max(1, Math.round(Number(servings) || 1)),
+  };
+}
 
 export default function RecipeDetailPage({
   authUser: authUserProp,
@@ -40,6 +63,11 @@ export default function RecipeDetailPage({
   const [servingScale, setServingScale] = useState(1);
   const [actionMessage, setActionMessage] = useState('');
   const [selectedStep, setSelectedStep] = useState(null);
+  const [recipeMealPlanOpen, setRecipeMealPlanOpen] = useState(false);
+  const [recipeMealPlanDraft, setRecipeMealPlanDraft] = useState(() =>
+    buildRecipeMealPlanDraft()
+  );
+  const [recipeMealPlanSubmitting, setRecipeMealPlanSubmitting] = useState(false);
   const [reviewEditorMode, setReviewEditorMode] = useState('');
   const [reviewForm, setReviewForm] = useState(EMPTY_REVIEW_FORM);
   const [reviewImagePreviewList, setReviewImagePreviewList] = useState([]);
@@ -307,9 +335,61 @@ export default function RecipeDetailPage({
     openRecipeCartModal();
   }
 
+  function handleToggleRecipeMealPlan() {
+    setActionMessage('');
+
+    if (!isLoggedIn) {
+      window.location.hash = '#/login';
+      return;
+    }
+
+    setRecipeMealPlanDraft(buildRecipeMealPlanDraft(servingScale));
+    setRecipeMealPlanOpen((previous) => !previous);
+  }
+
+  function handleRecipeMealPlanFieldChange(event) {
+    const { name, value } = event.target;
+    setRecipeMealPlanDraft((previous) => ({
+      ...previous,
+      [name]: name === 'servings' ? value : value,
+    }));
+  }
+
+  async function handleSaveRecipeToMealPlan() {
+    if (!recipe?.recipeNo) {
+      return;
+    }
+
+    if (!recipeMealPlanDraft.mealDate) {
+      setActionMessage('식단에 추가할 날짜를 먼저 선택해 주세요.');
+      return;
+    }
+
+    setRecipeMealPlanSubmitting(true);
+    setActionMessage('');
+
+    try {
+      await createRecipeMealPlanEntry({
+        user: authUser,
+        recipeNo: recipe.recipeNo,
+        mealDate: recipeMealPlanDraft.mealDate,
+        mealType: recipeMealPlanDraft.mealType,
+        servings: Math.max(1, Math.round(Number(recipeMealPlanDraft.servings) || 1)),
+      });
+
+      setRecipeMealPlanOpen(false);
+      setActionMessage('레시피를 내 식단 관리에 추가했어요.');
+    } catch (error) {
+      setActionMessage(error?.message || '식단에 추가하지 못했어요.');
+    } finally {
+      setRecipeMealPlanSubmitting(false);
+    }
+  }
+
   function openRecipeCartModal() {
     setActionMessage('');
     setSelectedStep(null);
+    setRecipeMealPlanOpen(false);
 
     if (!recommendedProductList.length) {
       setActionMessage('지금 판매 중인 재료 상품이 없어요.');
@@ -465,7 +545,12 @@ export default function RecipeDetailPage({
       return sum + Math.max(averagePrice - salePrice, 0) * item.quantity;
     }, 0);
 
-    const addedCount = await onAddMatchedProductsToCart(payload);
+    const addedCount = await onAddMatchedProductsToCart(payload, {
+      groupType: 'RECIPE',
+      groupKey: recipe?.recipeNo ? `RECIPE:${recipe.recipeNo}` : '',
+      recipeNo: recipe?.recipeNo || null,
+      groupName: recipe?.recipeName || '레시피 담기',
+    });
     closeRecipeCartModal();
     setActionMessage(
       addedCount > 0
@@ -684,7 +769,98 @@ export default function RecipeDetailPage({
             <button className="btn-outline recipe-action-ghost" type="button" onClick={handleShare}>
               공유
             </button>
+            <button
+              className={`btn-outline recipe-action-ghost ${recipeMealPlanOpen ? 'is-active' : ''}`}
+              type="button"
+              aria-expanded={recipeMealPlanOpen}
+              onClick={handleToggleRecipeMealPlan}
+            >
+              식단에 추가
+            </button>
           </div>
+
+          {recipeMealPlanOpen ? (
+            <div className="recipe-meal-plan-card">
+              <div className="recipe-meal-plan-card__head">
+                <div>
+                  <span className="recipe-kicker">MEAL SCHEDULE</span>
+                  <strong>내 식단 관리에 저장</strong>
+                </div>
+                <button
+                  className="btn-outline recipe-meal-plan-card__link"
+                  type="button"
+                  onClick={() => {
+                    window.location.hash = '#/mypage/meal-plans';
+                  }}
+                >
+                  내 식단 보기
+                </button>
+              </div>
+
+              <p className="recipe-meal-plan-card__description">
+                이 레시피를 원하는 날짜와 식사 시간에 한 끼 식단으로 저장할 수 있어요.
+              </p>
+
+              <div className="recipe-meal-plan-card__fields">
+                <label className="recipe-meal-plan-card__field">
+                  <span>날짜</span>
+                  <input
+                    type="date"
+                    name="mealDate"
+                    value={recipeMealPlanDraft.mealDate}
+                    onChange={handleRecipeMealPlanFieldChange}
+                  />
+                </label>
+
+                <label className="recipe-meal-plan-card__field">
+                  <span>식사 시간</span>
+                  <select
+                    name="mealType"
+                    value={recipeMealPlanDraft.mealType}
+                    onChange={handleRecipeMealPlanFieldChange}
+                  >
+                    {MEAL_PLAN_TYPE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="recipe-meal-plan-card__field">
+                  <span>인분</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="9"
+                    step="1"
+                    name="servings"
+                    value={recipeMealPlanDraft.servings}
+                    onChange={handleRecipeMealPlanFieldChange}
+                  />
+                </label>
+              </div>
+
+              <div className="recipe-meal-plan-card__actions">
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={handleSaveRecipeToMealPlan}
+                  disabled={recipeMealPlanSubmitting}
+                >
+                  {recipeMealPlanSubmitting ? '식단에 저장하는 중...' : '추가하기'}
+                </button>
+                <button
+                  className="btn-outline"
+                  type="button"
+                  onClick={() => setRecipeMealPlanOpen(false)}
+                  disabled={recipeMealPlanSubmitting}
+                >
+                  닫기
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           <div className="recipe-scale-row">
             <div className="recipe-scale-copy">
