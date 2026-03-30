@@ -338,6 +338,72 @@ function resolveUserOrderHistoryEvent(history) {
   }
 }
 
+function getTrackingStepDetails(detail, step, latestTrackingLocation) {
+  const deliveryAddress = [detail?.address1, detail?.address2].filter(Boolean).join(' ') || '-';
+
+  switch (step.key) {
+    case 'ordered':
+      return {
+        status: '주문이 접수되어 확인을 기다리고 있습니다.',
+        location: '오늘팜 주문 시스템',
+      };
+    case 'waybill':
+      return {
+        status: '송장 등록과 출고 준비가 진행된 상태입니다.',
+        location: '오늘팜 성남 물류센터',
+      };
+    case 'pickup':
+      return {
+        status: '상품이 집하되어 배송사로 전달되었습니다.',
+        location: '오늘팜 성남 물류센터',
+      };
+    case 'transit':
+      return {
+        status: '상품이 배송지로 이동하고 있습니다.',
+        location: latestTrackingLocation || '택배사 허브 터미널',
+      };
+    case 'delivered':
+      return {
+        status: '상품 전달이 완료되었습니다.',
+        location: deliveryAddress || latestTrackingLocation,
+      };
+    default:
+      return {
+        status: '-',
+        location: latestTrackingLocation || '-',
+      };
+  }
+}
+
+function buildUnifiedFlowEvents(detail) {
+  const orderEvents = (detail?.orderStatusHistories || []).map((history) => {
+    const event = resolveUserOrderHistoryEvent(history);
+    return {
+      key: `order-${history.orderStatusHistoryNo || history.changedAt || 'unknown'}`,
+      category: '주문',
+      title: event.title,
+      copy: event.copy,
+      time: history.changedAt,
+      location: '',
+    };
+  });
+
+  const trackingEvents = (detail?.trackingHistories || []).map((history) => ({
+    key: `tracking-${history.trackingHistoryNo || history.recordedAt || 'unknown'}`,
+    category: '배송',
+    title: resolveTrackingHistoryTitle(history),
+    copy: resolveTrackingHistoryCopy(history),
+    time: history.recordedAt,
+    location: [history.locationName, history.locationAddress].filter(Boolean).join(' 쨌 '),
+  }));
+
+  return [...orderEvents, ...trackingEvents].sort((left, right) => {
+    const leftTime = left.time ? new Date(left.time).getTime() : 0;
+    const rightTime = right.time ? new Date(right.time).getTime() : 0;
+    return rightTime - leftTime;
+  });
+}
+
 function CustomerOrderDetailPanel({
   detail,
   loading,
@@ -370,6 +436,7 @@ function CustomerOrderDetailPanel({
 
   const trackingSteps = buildTrackingSteps(detail);
   const latestTrackingLocation = findLatestTrackingLocation(detail);
+  const unifiedFlowEvents = buildUnifiedFlowEvents(detail);
   const cancelStatusLabel = resolveCancelStatusLabel(detail);
   const deliveryStatusLabel = resolveDeliveryStatusLabel(detail);
   const purchaseConfirmMessage = resolvePurchaseConfirmMessage(detail);
@@ -428,14 +495,40 @@ function CustomerOrderDetailPanel({
               <span className="customer-order-detail__timeline-dot" />
               <div className="customer-order-detail__timeline-body">
                 <strong>{step.label}</strong>
+                <small className="customer-order-detail__timeline-copy">
+                  {`처리시간: ${step.value ? formatDateTime(step.value) : '-'}`}
+                </small>
+                <small className="customer-order-detail__timeline-copy">
+                  {`상품상태: ${getTrackingStepDetails(detail, step, latestTrackingLocation).status}`}
+                </small>
+                <small className="customer-order-detail__timeline-copy">
+                  {`담당장소: ${getTrackingStepDetails(detail, step, latestTrackingLocation).location}`}
+                </small>
                 <span>{step.value ? formatDateTime(step.value) : '아직 업데이트되지 않았습니다.'}</span>
               </div>
             </div>
           ))}
         </div>
+        {false ? (
+        <div className="customer-order-detail__history-list">
+          {trackingSteps.map((step) => {
+            const stepDetails = getTrackingStepDetails(detail, step, latestTrackingLocation);
+            return (
+              <article key={`${step.key}-detail`} className="customer-order-detail__history-card">
+                <div className="customer-order-detail__history-meta">
+                  <strong>{`단계: ${step.label}`}</strong>
+                  <span>{`처리시간: ${step.value ? formatDateTime(step.value) : '-'}`}</span>
+                </div>
+                <p className="customer-order-detail__history-copy">{`상품상태: ${stepDetails.status}`}</p>
+                <p className="customer-order-detail__history-copy">{`담당장소: ${stepDetails.location}`}</p>
+              </article>
+            );
+          })}
+        </div>
+        ) : null}
       </section>
 
-      {(detail.trackingHistories || []).length ? (
+      {false ? (
         <section className="customer-order-detail__history">
           <div className="customer-order-detail__section-head">
             <h3>배송 추적 이력</h3>
@@ -458,6 +551,32 @@ function CustomerOrderDetailPanel({
             ))}
           </div>
         </section>
+      ) : null}
+
+      {false ? (
+      <section className="customer-order-detail__history">
+        <div className="customer-order-detail__section-head">
+          <h3>주문/배송 흐름</h3>
+          <span className="customer-order-detail__section-copy">{Number(unifiedFlowEvents.length || 0)}건</span>
+        </div>
+        <div className="customer-order-detail__history-list">
+          {unifiedFlowEvents.map((event) => (
+            <article key={event.key} className="customer-order-detail__history-card">
+              <div className="customer-order-detail__history-meta">
+                <strong>{`${event.category} · ${event.title}`}</strong>
+                <span>{event.time ? formatDateTime(event.time) : '-'}</span>
+              </div>
+              <p className="customer-order-detail__history-copy">{event.copy}</p>
+              {event.location ? (
+                <p className="customer-order-detail__history-copy">{event.location}</p>
+              ) : null}
+            </article>
+          ))}
+          {!unifiedFlowEvents.length ? (
+            <p className="customer-order-detail__history-copy">아직 기록된 주문/배송 흐름이 없습니다.</p>
+          ) : null}
+        </div>
+      </section>
       ) : null}
 
       {showActionSection ? (
@@ -571,6 +690,7 @@ function CustomerOrderDetailPanel({
         </section>
       </div>
 
+      {false ? (
       <section className="customer-order-detail__history">
         <div className="customer-order-detail__section-head">
           <h3>주문 처리 이력</h3>
@@ -591,6 +711,7 @@ function CustomerOrderDetailPanel({
           ) : null}
         </div>
       </section>
+      ) : null}
 
       {(detail.cancelRequestHistories || []).length ? (
         <section className="customer-order-detail__history">

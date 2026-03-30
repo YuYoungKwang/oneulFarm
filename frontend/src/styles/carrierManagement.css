@@ -310,6 +310,10 @@
   gap: 12px;
   align-items: start;
   opacity: 0.52;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #f8fafc;
 }
 
 .carrier-management__timeline-step.is-active{
@@ -334,6 +338,48 @@
   color: #0f172a;
   font-size: 14px;
   margin-bottom: 4px;
+}
+
+.carrier-management__timeline--events{
+  margin-top: 16px;
+}
+
+.carrier-management__timeline-body{
+  display: grid;
+  gap: 4px;
+}
+
+.carrier-management__timeline-body span{
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.carrier-management__timeline-copy{
+  display: block;
+  grid-column: 2;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: #eef4f7;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.carrier-management__timeline-step > :not(.carrier-management__timeline-dot){
+  grid-column: 2;
+}
+
+.carrier-management__timeline-step > div:last-child{
+  order: 1;
+}
+
+.carrier-management__timeline-step > .carrier-management__timeline-copy{
+  order: 2;
+}
+
+.carrier-management__timeline-step > div:last-child span::before{
+  content: '처리시간: ';
 }
 
 .carrier-management__action-row{

@@ -346,6 +346,54 @@ function getUserFacingOrderHistoryEvent(history) {
   }
 }
 
+function buildUnifiedFlowEvents(detail) {
+  const orderEvents = (detail?.orderStatusHistories || []).map((history) => {
+    const event = getUserFacingOrderHistoryEvent(history);
+    return {
+      key: `order-${history.orderStatusHistoryNo || history.changedAt || 'unknown'}`,
+      category: '주문',
+      title: event.title,
+      copy: event.copy,
+      time: history.changedAt,
+      location: '',
+    };
+  });
+
+  const trackingEvents = (detail?.trackingHistories || []).map((history) => ({
+    key: `tracking-${history.trackingHistoryNo || history.recordedAt || 'unknown'}`,
+    category: '배송',
+    title: getTrackingHistoryTitle(history),
+    copy: getTrackingHistoryCopy(history),
+    time: history.recordedAt,
+    location: [history.locationName, history.locationAddress].filter(Boolean).join(' 쨌 '),
+  }));
+
+  return [...orderEvents, ...trackingEvents].sort((left, right) => {
+    const leftTime = left.time ? new Date(left.time).getTime() : 0;
+    const rightTime = right.time ? new Date(right.time).getTime() : 0;
+    return rightTime - leftTime;
+  });
+}
+
+function getTrackingStepDetails(detail, step, latestTrackingLocation) {
+  const deliveryAddress = [detail?.address1, detail?.address2].filter(Boolean).join(' ') || '-';
+
+  switch (step.key) {
+    case 'ordered':
+      return { status: '주문이 접수되어 확인을 기다리고 있습니다.', location: '오늘팜 주문 시스템' };
+    case 'waybill':
+      return { status: '송장 등록과 출고 준비가 진행된 상태입니다.', location: '오늘팜 성남 물류센터' };
+    case 'pickup':
+      return { status: '상품이 집하되어 배송사로 전달되었습니다.', location: '오늘팜 성남 물류센터' };
+    case 'transit':
+      return { status: '상품이 배송지로 이동하고 있습니다.', location: latestTrackingLocation || '택배사 허브 터미널' };
+    case 'delivered':
+      return { status: '상품 전달이 완료되었습니다.', location: deliveryAddress || latestTrackingLocation };
+    default:
+      return { status: '-', location: latestTrackingLocation || '-' };
+  }
+}
+
 function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFilter, trackingNo, onOrderFilterChange, onSelectOrder, onTrackingChange, onDeleteOrder, onAcceptOrder, onRejectOrder, onAcceptOrderCancel, onRejectOrderCancel, onShipOrder, updating }) {
   const filteredOrders = orders.filter((order) => orderFilter === 'ALL' || resolveFilterStatus(order) === orderFilter);
   const summary = buildSummary(orders);
@@ -353,6 +401,7 @@ function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFi
   const purchaseConfirmLabel = getPurchaseConfirmLabel(selectedOrderDetail);
   const timeline = buildTimeline(selectedOrderDetail);
   const latestTrackingLocation = findLatestTrackingLocation(selectedOrderDetail);
+  const unifiedFlowEvents = buildUnifiedFlowEvents(selectedOrderDetail);
   const canDeleteOrder = Boolean(
     selectedOrderDetail &&
     (selectedOrderDetail.normalizedDeliveryStatus || selectedOrderDetail.deliveryStatus) === 'DELIVERED' &&
@@ -479,13 +528,59 @@ function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFi
                   {timeline.map((step) => (
                     <div key={step.key} className={`admin-orders-v2__timeline-step ${step.active ? 'is-active' : ''}`}>
                       <span className="admin-orders-v2__timeline-dot" />
+                      <div className="admin-orders-v2__timeline-copy">
+                        {`상품상태: ${getTrackingStepDetails(selectedOrderDetail, step, latestTrackingLocation).status}`}
+                      </div>
+                      <div className="admin-orders-v2__timeline-copy">
+                        {`담당장소: ${getTrackingStepDetails(selectedOrderDetail, step, latestTrackingLocation).location}`}
+                      </div>
                       <div><strong>{step.label}</strong><span>{step.value ? formatAdminDate(step.value) : '대기 중'}</span></div>
                     </div>
                   ))}
                 </div>
+                {false ? (
+                <div className="admin-orders-v2__history-list">
+                  {timeline.map((step) => {
+                    const stepDetails = getTrackingStepDetails(selectedOrderDetail, step, latestTrackingLocation);
+                    return (
+                      <div key={`${step.key}-detail`} className="admin-orders-v2__history-card">
+                        <div className="admin-orders-v2__history-head">
+                          <strong>{`단계: ${step.label}`}</strong>
+                          <span>{`처리시간: ${step.value ? formatAdminDate(step.value) : '-'}`}</span>
+                        </div>
+                        <div className="admin-orders-v2__history-copy">{`상품상태: ${stepDetails.status}`}</div>
+                        <div className="admin-orders-v2__history-copy">{`담당장소: ${stepDetails.location}`}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+                ) : null}
               </section>
 
-              {(selectedOrderDetail.trackingHistories || []).length ? (
+              {false ? (
+              <section className="admin-orders-v2__box">
+                <div className="admin-orders-v2__box-head"><h3>주문/배송 흐름</h3><span>{unifiedFlowEvents.length || 0}건</span></div>
+                <div className="admin-orders-v2__history-list">
+                  {unifiedFlowEvents.map((event) => (
+                    <div key={event.key} className="admin-orders-v2__history-card">
+                      <div className="admin-orders-v2__history-head">
+                        <strong>{`${event.category} · ${event.title}`}</strong>
+                        <span>{event.time ? formatAdminDate(event.time) : '-'}</span>
+                      </div>
+                      <div className="admin-orders-v2__history-copy">{event.copy}</div>
+                      {event.location ? (
+                        <div className="admin-orders-v2__history-copy">{event.location}</div>
+                      ) : null}
+                    </div>
+                  ))}
+                  {!unifiedFlowEvents.length ? (
+                    <div className="admin-orders-v2__history-copy">아직 기록된 주문/배송 흐름이 없습니다.</div>
+                  ) : null}
+                </div>
+              </section>
+              ) : null}
+
+              {false ? (
                 <section className="admin-orders-v2__box">
                   <div className="admin-orders-v2__box-head"><h3>배송 추적 이력</h3><span>{selectedOrderDetail.trackingHistories?.length || 0}건</span></div>
                   <div className="admin-orders-v2__history-list">
@@ -529,6 +624,7 @@ function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFi
                 </div>
               </section>
 
+              {false ? (
               <section className="admin-orders-v2__box">
                 <div className="admin-orders-v2__box-head"><h3>주문 처리 이력</h3><span>{selectedOrderDetail.orderStatusHistories?.length || 0}건</span></div>
                 <div className="admin-orders-v2__history-list">
@@ -546,6 +642,7 @@ function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFi
                   ) : null}
                 </div>
               </section>
+              ) : null}
 
               {(selectedOrderDetail.cancelRequestHistories || []).length ? (
                 <section className="admin-orders-v2__box">
