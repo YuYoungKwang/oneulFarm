@@ -776,9 +776,18 @@ function MyPageView({
                   key={item.key}
                   className={`profile-inline-row ${item.key === 'totalSavedAmount' ? 'profile-inline-row--saving' : ''}`}
                 >
-                  <div className="profile-inline-row__label">{item.label}</div>
+                  <div className="profile-inline-row__label">
+                    {item.key === 'totalSavedAmount' ? '누적 절약 금액' : item.label}
+                    {item.key === 'totalSavedAmount' ? (
+                      <InlineInfoTip content="소수점 이하는 버림 처리됩니다." />
+                    ) : null}
+                  </div>
                   <div className="profile-inline-row__value">
-                    {profileLoading ? '불러오는 중..' : item.value}
+                    {profileLoading
+                      ? '불러오는 중..'
+                      : item.key === 'totalSavedAmount'
+                        ? formatPrice(Math.floor(Number(profile.totalSavedAmount || 0)))
+                        : item.value}
                   </div>
                   <div className="profile-inline-row__actions">
                     {item.onAction && (

@@ -71,8 +71,15 @@ function getPurchaseConfirmLabel(order) {
 
 function getOrderHistoryStatusLabel(status) {
   switch (status) {
+    case 'CREATED':
+      return '주문 생성';
     case 'PAID':
+    case 'PAYMENT_COMPLETED':
       return '결제 완료';
+    case 'ORDER_ACCEPTED':
+      return '주문 접수';
+    case 'ORDER_REJECTED':
+      return '주문 거절';
     case 'SHIPPING':
       return '배송 중';
     case 'COMPLETED':
@@ -97,6 +104,7 @@ function getOrderHistoryActorLabel(actor) {
   }
 }
 
+// eslint-disable-next-line no-unused-vars
 function getOrderHistoryTitle(history) {
   const reason = history?.changeReason || '';
   if (reason.includes('송장번호')) return '송장 등록';
@@ -108,6 +116,7 @@ function getOrderHistoryTitle(history) {
   return getOrderHistoryStatusLabel(history?.nextOrderStatus);
 }
 
+// eslint-disable-next-line no-unused-vars
 function getOrderHistoryCopy(history) {
   const actorLabel = getOrderHistoryActorLabel(history?.changedByType);
   const reason = history?.changeReason;
@@ -273,6 +282,68 @@ function buildTimeline(detail) {
       active: status === 'DELIVERED',
     },
   ];
+}
+
+function getUserFacingOrderHistoryEvent(history) {
+  const reason = history?.changeReason || '';
+  const nextStatus = history?.nextOrderStatus;
+
+  if (reason.includes('송장')) {
+    return {
+      title: '송장 등록',
+      copy: '송장번호가 등록되어 배송 준비가 진행되고 있습니다.',
+    };
+  }
+  if (reason.includes('집하')) {
+    return {
+      title: '집하 완료',
+      copy: '상품이 집하되어 배송이 이어지고 있습니다.',
+    };
+  }
+  if (reason.includes('배송사') || reason.includes('인계')) {
+    return {
+      title: '배송 인계',
+      copy: '주문이 배송 담당자에게 전달되었습니다.',
+    };
+  }
+  if (reason.includes('취소 요청') && reason.includes('수락')) {
+    return {
+      title: '취소 요청 승인',
+      copy: '취소 요청이 승인되어 주문이 취소 처리되었습니다.',
+    };
+  }
+  if (reason.includes('취소 요청') && (reason.includes('거절') || reason.includes('반려'))) {
+    return {
+      title: '취소 요청 반려',
+      copy: '취소 요청이 반려되어 주문이 계속 진행됩니다.',
+    };
+  }
+  if (reason.includes('주문') && reason.includes('거절')) {
+    return {
+      title: '주문 거절',
+      copy: '주문이 접수 단계에서 거절되었습니다.',
+    };
+  }
+
+  switch (nextStatus) {
+    case 'CREATED':
+      return { title: '주문 생성', copy: '주문이 생성되었습니다.' };
+    case 'PAID':
+    case 'PAYMENT_COMPLETED':
+      return { title: '결제 완료', copy: '결제가 완료되어 주문 확인을 기다리고 있습니다.' };
+    case 'ORDER_ACCEPTED':
+      return { title: '주문 확인', copy: '주문이 확인되어 배송 준비가 시작되었습니다.' };
+    case 'ORDER_REJECTED':
+      return { title: '주문 거절', copy: '주문이 처리 불가 상태로 거절되었습니다.' };
+    case 'SHIPPING':
+      return { title: '배송 중', copy: '상품이 배송 중입니다.' };
+    case 'COMPLETED':
+      return { title: '배송 완료', copy: '배송이 완료되었습니다.' };
+    case 'CANCELED':
+      return { title: '주문 취소', copy: '주문이 취소되었습니다.' };
+    default:
+      return { title: '상태 변경', copy: '주문 처리 상태가 변경되었습니다.' };
+  }
 }
 
 function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFilter, trackingNo, onOrderFilterChange, onSelectOrder, onTrackingChange, onDeleteOrder, onAcceptOrder, onRejectOrder, onAcceptOrderCancel, onRejectOrderCancel, onShipOrder, updating }) {
@@ -464,10 +535,10 @@ function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFi
                   {(selectedOrderDetail.orderStatusHistories || []).map((history) => (
                     <div key={history.orderStatusHistoryNo} className="admin-orders-v2__history-card">
                       <div className="admin-orders-v2__history-head">
-                        <strong>{getOrderHistoryTitle(history)}</strong>
+                        <strong>{getUserFacingOrderHistoryEvent(history).title}</strong>
                         <span>{formatAdminDate(history.changedAt)}</span>
                       </div>
-                      <div className="admin-orders-v2__history-copy">{getOrderHistoryCopy(history)}</div>
+                      <div className="admin-orders-v2__history-copy">{getUserFacingOrderHistoryEvent(history).copy}</div>
                     </div>
                   ))}
                   {!(selectedOrderDetail.orderStatusHistories || []).length ? (
