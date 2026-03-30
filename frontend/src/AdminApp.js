@@ -122,7 +122,7 @@ const COUNT_UNIT_SET = new Set(['ea', 'each', '\uAC1C', '\uAC1C\uC785', '\uAD6C'
 const VOLUME_UNIT_SET = new Set(['ml', 'milliliter', 'milliliters', 'millilitre', 'millilitres', 'l', 'liter', 'liters', 'litre', 'litres', '\u2113', '\uB9AC\uD130']);
 
 const ADMIN_SUPPORTED_CATEGORY_NAMES = ['\uCC44\uC18C', '\uACFC\uC77C', '\uBC84\uC12F', '\uC721\uB958', '\uC720\uC81C\uD488', '\uB2EC\uAC40', '\uAC00\uACF5\uC2DD\uD488'];
-const ADMIN_DISABLED_PURCHASE_CATEGORY_NAMES = new Set(['\uAC00\uACF5\uC2DD\uD488', '\uC720\uC81C\uD488']);
+const ADMIN_DISABLED_PURCHASE_CATEGORY_NAMES = new Set(['\uC720\uC81C\uD488']);
 const ADMIN_FRUIT_KEYWORDS = ['\uC0AC\uACFC', '\uBC30', '\uBCF5\uC22D\uC544', '\uD3EC\uB3C4', '\uAC10\uADE4', '\uB2E8\uAC10', '\uBC14\uB098\uB098', '\uCC38\uB2E4\uB798', '\uCC38\uC678', '\uB538\uAE30', '\uBA5C\uB860', '\uC624\uB80C\uC9C0', '\uB9DD\uACE0', '\uC790\uB450', '\uD30C\uC778\uC560\uD50C', '\uCCB4\uB9AC', '\uD0A4\uC704', '\uC218\uBC15'];
 const ADMIN_FRUIT_EXACT_NAMES = new Set(ADMIN_FRUIT_KEYWORDS);
 const ADMIN_MUSHROOM_KEYWORDS = ['\uBC84\uC12F', '\uC1A1\uC774'];
@@ -824,6 +824,51 @@ function findAdminRetailFallbackSnapshot(referenceItem, retailPriceList) {
   return bestScore > 0 ? bestSnapshot : null;
 }
 
+function findAdminRetailSnapshotByName(searchName, retailPriceList) {
+  const normalizedSearchName = normalizeAdminSearchKey(
+    normalizeAdminReferenceProductName(searchName)
+  );
+  if (!normalizedSearchName) {
+    return null;
+  }
+
+  let bestSnapshot = null;
+  let bestScore = Number.NEGATIVE_INFINITY;
+
+  (retailPriceList || []).forEach((snapshot) => {
+    const snapshotName = normalizeAdminSearchKey(
+      normalizeAdminReferenceProductName(snapshot?.itemName)
+    );
+    if (!snapshotName) {
+      return;
+    }
+
+    let score = 0;
+    if (snapshotName === normalizedSearchName) {
+      score += 3000;
+    } else if (
+      snapshotName.includes(normalizedSearchName)
+      || normalizedSearchName.includes(snapshotName)
+    ) {
+      score += 1800;
+    }
+
+    if (String(snapshot?.sourceName || '').includes('KAMIS_PROCESS_RETAIL_ITEM_PAGE')) {
+      score += 300;
+    }
+    if (String(snapshot?.sourceName || '').includes('KAMIS_PERIOD_RETAIL_PRODUCT_LIST')) {
+      score += 200;
+    }
+
+    if (score > bestScore) {
+      bestSnapshot = snapshot;
+      bestScore = score;
+    }
+  });
+
+  return bestScore > 0 ? bestSnapshot : null;
+}
+
 function buildAdminRetailFallbackQuote(referenceItem, retailSnapshot) {
   const snapshotUnit = String(retailSnapshot?.unit || referenceItem?.snapshotUnit || '').trim();
   const parsedSnapshotUnit = parseAdminSnapshotUnit(snapshotUnit);
@@ -1067,6 +1112,7 @@ function normalizeAdminPurchaseReferenceItems(referenceItems, categories) {
     .filter((item) => item.categoryName && availableCategoryNameSet.has(item.categoryName));
 
   return mergeAdminPurchaseReferenceOptions(normalizedReferenceItemList)
+    .filter((item) => item?.supportsAutoQuote)
     .sort((leftItem, rightItem) => {
       const leftAutoQuoteRank = leftItem.supportsAutoQuote ? 0 : 1;
       const rightAutoQuoteRank = rightItem.supportsAutoQuote ? 0 : 1;
@@ -3666,6 +3712,7 @@ function AdminApp() {
 
     try {
       let quote = null;
+      let wholesaleErrorMessage = '';
       const retailLookupName =
         selectedReferenceItem?.quoteName
         || selectedReferenceItem?.rawProductName
@@ -3675,21 +3722,38 @@ function AdminApp() {
       try {
         quote = await fetchAdminPurchaseQuote(productName, itemCode);
       } catch (quoteError) {
-        if (!selectedReferenceItem || !isAdminCatalogReferenceItem(selectedReferenceItem.itemCode)) {
-          throw quoteError;
-        }
-
+        wholesaleErrorMessage = quoteError?.message || '도매 시세 조회에 실패했습니다.';
         const retailPriceList = await fetchAdminRecentRetailPriceList(
           retailLookupName,
           200,
           7
         );
-        const retailSnapshot = findAdminRetailFallbackSnapshot(selectedReferenceItem, retailPriceList);
+        if (!Array.isArray(retailPriceList) || !retailPriceList.length) {
+          throw new Error(
+            `도매 시세 조회 실패: ${wholesaleErrorMessage} / 소매 시세 조회 실패: 최근 소매 시세 데이터가 없습니다.`
+          );
+        }
+        const retailSnapshot = selectedReferenceItem
+          ? (
+            findAdminRetailFallbackSnapshot(selectedReferenceItem, retailPriceList)
+            || findAdminRetailSnapshotByName(retailLookupName, retailPriceList)
+          )
+          : findAdminRetailSnapshotByName(retailLookupName, retailPriceList);
         if (!retailSnapshot) {
-          throw quoteError;
+          throw new Error(
+            `도매 시세 조회 실패: ${wholesaleErrorMessage} / 소매 시세 매칭 실패: '${retailLookupName}' 기준으로 연결 가능한 소매 품목을 찾지 못했습니다.`
+          );
         }
 
-        quote = buildAdminRetailFallbackQuote(selectedReferenceItem, retailSnapshot);
+        quote = buildAdminRetailFallbackQuote(
+          selectedReferenceItem || {
+            itemCode,
+            productName,
+            quoteName: retailLookupName,
+            snapshotUnit: retailSnapshot?.unit,
+          },
+          retailSnapshot
+        );
       }
 
       if (quote && !hasAdminValue(quote.retailComparablePrice) && selectedReferenceItem) {

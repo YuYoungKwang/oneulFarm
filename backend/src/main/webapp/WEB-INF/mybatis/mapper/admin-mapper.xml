@@ -1027,7 +1027,7 @@
 
     <update id="decreaseProductStock" parameterType="map">
         UPDATE OFT_PRODUCT
-        SET STOCK_QTY = CASE WHEN STOCK_QTY - #{quantity} < 0 THEN 0 ELSE STOCK_QTY - #{quantity} END
+        SET STOCK_QTY = CASE WHEN STOCK_QTY - #{quantity} &lt; 0 THEN 0 ELSE STOCK_QTY - #{quantity} END
         WHERE PRODUCT_NO = #{productNo}
     </update>
 

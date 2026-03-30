@@ -441,7 +441,7 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
     public List<PriceSnapshotDTO> getPriceSnapshotList(String itemName, String marketType, String snapshotDate, Integer limit) {
         String resolvedSnapshotDate = normalizeSnapshotDate(snapshotDate);
         String resolvedMarketType = normalizeOptionalMarketType(marketType);
-        int resolvedLimit = resolveLimit(limit, 100, 300);
+        int resolvedLimit = resolveLimit(limit, 100, 1000);
 
         if (resolvedSnapshotDate == null) {
             resolvedSnapshotDate = resolveLatestSnapshotDate(resolvedMarketType);
@@ -455,6 +455,31 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
             priceSnapshotDAO.selectPriceSnapshotList(itemName, resolvedMarketType, resolvedSnapshotDate, resolvedLimit);
         sanitizePriceSnapshotList(priceSnapshotList);
         return priceSnapshotList;
+    }
+
+    @Override
+    public List<PriceSnapshotDTO> getLatestPriceSnapshotListByItemName(String itemName, String marketType, Integer limit) {
+        String resolvedMarketType = normalizeOptionalMarketType(marketType);
+        int resolvedLimit = resolveLimit(limit, 100, 1000);
+
+        List<PriceSnapshotDTO> priceSnapshotList =
+            priceSnapshotDAO.selectLatestPriceSnapshotListByItemName(itemName, resolvedMarketType, resolvedLimit);
+        sanitizePriceSnapshotList(priceSnapshotList);
+        return priceSnapshotList;
+    }
+
+    @Override
+    public PriceSnapshotDTO getLatestPriceSnapshotByItemCode(String itemCode, String marketType) {
+        String resolvedItemCode = trimToNull(itemCode);
+        String resolvedMarketType = normalizeOptionalMarketType(marketType);
+        if (resolvedItemCode == null) {
+            return null;
+        }
+
+        PriceSnapshotDTO priceSnapshotDTO =
+            priceSnapshotDAO.selectLatestPriceSnapshotByItemCode(resolvedItemCode, resolvedMarketType);
+        sanitizePriceSnapshot(priceSnapshotDTO);
+        return priceSnapshotDTO;
     }
 
     private String resolveLatestSnapshotDate(String marketType) {
