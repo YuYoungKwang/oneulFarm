@@ -15,6 +15,7 @@ import {
   formatAdminDateParts,
 } from './admin/AdminUi';
 import {
+  acceptAdminOrder,
   acceptAdminOrderCancel,
   createAdminPackageHistory,
   assignCarrierWaybill,
@@ -3126,6 +3127,27 @@ function AdminApp() {
     await handleUpdateOrder({ orderStatus: 'CANCELED' });
   }
 
+  async function handleAcceptOrder() {
+    if (!selectedOrderNo) {
+      return;
+    }
+
+    setUpdatingOrder(true);
+    setActionError('');
+
+    try {
+      const detail = await acceptAdminOrder(selectedOrderNo);
+      const nextOrders = await fetchAdminOrders();
+      setOrders(nextOrders);
+      setSelectedOrderDetail(detail);
+      setTrackingNo(detail?.trackingNo || trackingNo);
+    } catch (error) {
+      setActionError(error.message || '주문 접수에 실패했습니다.');
+    } finally {
+      setUpdatingOrder(false);
+    }
+  }
+
   async function handleAcceptOrderCancel() {
     if (!selectedOrderNo) {
       return;
@@ -3169,6 +3191,11 @@ function AdminApp() {
   }
 
   async function handleShipOrder() {
+    if (selectedOrderDetail?.acceptAvailable) {
+      setActionError('주문 접수 후 5초마다 배송 단계가 자동으로 진행됩니다.');
+      return;
+    }
+
     const confirmed = window.confirm(
       '배송 인계 진행 상태는 배송 담당자가 관리합니다. 정말 인계하시겠습니까?'
     );
@@ -3662,6 +3689,7 @@ function AdminApp() {
               onSelectOrder={setSelectedOrderNo}
               onTrackingChange={(event) => setTrackingNo(event.target.value)}
               onDeleteOrder={handleDeleteOrder}
+              onAcceptOrder={handleAcceptOrder}
               onRejectOrder={handleRejectOrder}
               onAcceptOrderCancel={handleAcceptOrderCancel}
               onRejectOrderCancel={handleRejectOrderCancel}

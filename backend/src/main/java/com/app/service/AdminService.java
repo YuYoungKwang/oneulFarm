@@ -29,6 +29,8 @@ public interface AdminService {
 
     OrderDto getOrderDetail(Long orderNo);
 
+    OrderDto acceptOrder(Long orderNo, Long actorUserNo);
+
     OrderDto rejectOrder(Long orderNo);
 
     OrderDto acceptCancelRequest(Long orderNo, Long actorUserNo);

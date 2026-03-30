@@ -43,6 +43,7 @@ public class OrderDto {
     private String cancelStatus;
     private String purchaseConfirmStatus;
     private LocalDateTime purchaseConfirmedAt;
+    private LocalDateTime fulfillmentStartedAt;
 
     private String deliveryStatus;
     private String normalizedDeliveryStatus;
@@ -61,6 +62,7 @@ public class OrderDto {
     private Boolean purchaseConfirmAvailable;
     private Boolean trackingAvailable;
     private Boolean rejectAvailable;
+    private Boolean acceptAvailable;
     private Boolean cancelAcceptAvailable;
     private Boolean cancelRejectAvailable;
     private Boolean shipAvailable;

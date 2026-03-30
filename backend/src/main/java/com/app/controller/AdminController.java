@@ -150,6 +150,14 @@ public class AdminController {
         return ApiResponse.success(adminService.rejectOrder(orderNo), "Admin order rejected.");
     }
 
+    @PatchMapping("/orders/{orderNo}/accept")
+    public ApiResponse<OrderDto> acceptOrder(
+        @RequestHeader(value = "X-USER-NO", required = false) Long actorUserNo,
+        @PathVariable Long orderNo
+    ) {
+        return ApiResponse.success(adminService.acceptOrder(orderNo, actorUserNo), "Admin order accepted.");
+    }
+
     @PatchMapping("/orders/{orderNo}/cancel/accept")
     public ApiResponse<OrderDto> acceptCancelRequest(
         @RequestHeader(value = "X-USER-NO", required = false) Long actorUserNo,

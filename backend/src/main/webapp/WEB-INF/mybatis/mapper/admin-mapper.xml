@@ -29,6 +29,7 @@
         <result property="cancelStatus" column="cancelStatus" />
         <result property="purchaseConfirmStatus" column="purchaseConfirmStatus" />
         <result property="purchaseConfirmedAt" column="purchaseConfirmedAt" />
+        <result property="fulfillmentStartedAt" column="fulfillmentStartedAt" />
         <result property="recipientName" column="recipientName" />
         <result property="recipientPhone" column="recipientPhone" />
         <result property="deliveryStatus" column="deliveryStatus" />
@@ -58,6 +59,7 @@
         <result property="cancelStatus" column="cancelStatus" />
         <result property="purchaseConfirmStatus" column="purchaseConfirmStatus" />
         <result property="purchaseConfirmedAt" column="purchaseConfirmedAt" />
+        <result property="fulfillmentStartedAt" column="fulfillmentStartedAt" />
         <result property="recipientName" column="recipientName" />
         <result property="recipientPhone" column="recipientPhone" />
         <result property="zipCode" column="zipCode" />
@@ -364,6 +366,7 @@
             o.CANCEL_STATUS AS cancelStatus,
             o.PURCHASE_CONFIRM_STATUS AS purchaseConfirmStatus,
             o.PURCHASE_CONFIRMED_AT AS purchaseConfirmedAt,
+            o.FULFILLMENT_STARTED_AT AS fulfillmentStartedAt,
             o.RECIPIENT_NAME AS recipientName,
             o.RECIPIENT_PHONE AS recipientPhone,
             NVL(d.DELIVERY_STATUS, 'READY') AS deliveryStatus,
@@ -422,6 +425,7 @@
             o.CANCEL_STATUS AS cancelStatus,
             o.PURCHASE_CONFIRM_STATUS AS purchaseConfirmStatus,
             o.PURCHASE_CONFIRMED_AT AS purchaseConfirmedAt,
+            o.FULFILLMENT_STARTED_AT AS fulfillmentStartedAt,
             o.RECIPIENT_NAME AS recipientName,
             o.RECIPIENT_PHONE AS recipientPhone,
             o.ZIP_CODE AS zipCode,

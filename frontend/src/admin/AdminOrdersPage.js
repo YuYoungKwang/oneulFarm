@@ -275,7 +275,7 @@ function buildTimeline(detail) {
   ];
 }
 
-function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFilter, trackingNo, onOrderFilterChange, onSelectOrder, onTrackingChange, onDeleteOrder, onRejectOrder, onAcceptOrderCancel, onRejectOrderCancel, onShipOrder, updating }) {
+function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFilter, trackingNo, onOrderFilterChange, onSelectOrder, onTrackingChange, onDeleteOrder, onAcceptOrder, onRejectOrder, onAcceptOrderCancel, onRejectOrderCancel, onShipOrder, updating }) {
   const filteredOrders = orders.filter((order) => orderFilter === 'ALL' || resolveFilterStatus(order) === orderFilter);
   const summary = buildSummary(orders);
   const cancelStatusLabel = getCancelStatusLabel(selectedOrderDetail);
@@ -295,8 +295,9 @@ function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFi
         description="결제 이후 주문 상태와 배송 준비를 관리하는 운영 화면"
         actions={
           <>
+            <button type="button" className="admin-action admin-action--soft admin-orders-v2__toolbar-button" onClick={onAcceptOrder} disabled={!selectedOrderDetail?.acceptAvailable || updating}>주문 접수</button>
             <button type="button" className="admin-action admin-action--line admin-orders-v2__toolbar-button" onClick={onRejectOrder} disabled={!selectedOrderDetail?.rejectAvailable || updating}>주문 거절</button>
-            <button type="button" className="admin-action admin-action--soft admin-orders-v2__toolbar-button" onClick={onShipOrder} disabled={!selectedOrderDetail?.shipAvailable || updating}>배송 인계</button>
+            <button type="button" className="admin-action admin-action--soft admin-orders-v2__toolbar-button" onClick={onShipOrder} disabled={selectedOrderDetail?.acceptAvailable || !selectedOrderDetail?.shipAvailable || updating}>배송 인계</button>
           </>
         }
       />
@@ -399,8 +400,9 @@ function AdminOrdersPage({ orders, selectedOrderNo, selectedOrderDetail, orderFi
                   </div>
                 ) : null}
                 <div className="admin-orders-v2__tracking-form">
+                  <button type="button" className="admin-action admin-action--soft admin-orders-v2__tracking-button" onClick={onAcceptOrder} disabled={!selectedOrderDetail.acceptAvailable || updating}>주문 접수</button>
                   <input value={trackingNo} onChange={onTrackingChange} placeholder="송장번호 입력" />
-                  <button type="button" className="admin-action admin-action--soft admin-orders-v2__tracking-button" onClick={onShipOrder} disabled={!selectedOrderDetail.shipAvailable || updating}>배송 인계</button>
+                  <button type="button" className="admin-action admin-action--soft admin-orders-v2__tracking-button" onClick={onShipOrder} disabled={selectedOrderDetail.acceptAvailable || !selectedOrderDetail.shipAvailable || updating}>배송 인계</button>
                 </div>
                 <div className="admin-orders-v2__timeline">
                   {timeline.map((step) => (

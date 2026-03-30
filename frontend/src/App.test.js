@@ -94,6 +94,7 @@ jest.mock('./api/paymentApi', () => ({
 }));
 
 jest.mock('./admin/adminApi', () => ({
+  acceptAdminOrder: jest.fn(),
   acceptAdminOrderCancel: jest.fn(),
   assignCarrierWaybill: jest.fn(),
   createAdminPackageHistory: jest.fn(),

@@ -177,6 +177,17 @@ export async function acceptAdminOrderCancel(orderNo) {
   );
 }
 
+export async function acceptAdminOrder(orderNo) {
+  return requestApi(
+    `${ADMIN_API_BASE}/orders/${orderNo}/accept`,
+    {
+      method: 'PATCH',
+      headers: apiHeaders(),
+    },
+    '주문 접수에 실패했습니다.'
+  );
+}
+
 export async function rejectAdminOrderCancel(orderNo) {
   return requestApi(
     `${ADMIN_API_BASE}/orders/${orderNo}/cancel/reject`,

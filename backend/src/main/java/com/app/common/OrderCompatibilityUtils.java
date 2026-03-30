@@ -46,6 +46,7 @@ public final class OrderCompatibilityUtils {
         order.setCancelRequestAvailable(isCancelRequestAvailable(order.getNormalizedOrderStatus(), normalizedDeliveryStatus, order.getCancelStatus()));
         order.setPurchaseConfirmAvailable(isPurchaseConfirmAvailable(normalizedDeliveryStatus, order.getPurchaseConfirmStatus(), order.getCancelStatus()));
         order.setRejectAvailable(isRejectAvailable(legacyOrderStatus, normalizedDeliveryStatus, order.getTrackingNo(), order.getCancelStatus()));
+        order.setAcceptAvailable(isAcceptAvailable(order.getNormalizedOrderStatus(), normalizedDeliveryStatus, order.getCancelStatus()));
         order.setCancelAcceptAvailable(isCancelAcceptAvailable(order.getCancelStatus(), normalizedDeliveryStatus));
         order.setCancelRejectAvailable(isCancelRejectAvailable(order.getCancelStatus(), normalizedDeliveryStatus));
         order.setShipAvailable(isShipAvailable(legacyOrderStatus, normalizedDeliveryStatus, order.getCancelStatus()));
@@ -178,6 +179,16 @@ public final class OrderCompatibilityUtils {
             return false;
         }
         if (trackingNo != null) {
+            return false;
+        }
+        return normalizedDeliveryStatus == null || "NOT_STARTED".equals(normalizedDeliveryStatus);
+    }
+
+    public static boolean isAcceptAvailable(String normalizedOrderStatus, String normalizedDeliveryStatus, String cancelStatus) {
+        if ("CANCEL_REQUESTED".equals(cancelStatus) || "CANCEL_ACCEPTED".equals(cancelStatus)) {
+            return false;
+        }
+        if (!"PAYMENT_COMPLETED".equals(normalizedOrderStatus)) {
             return false;
         }
         return normalizedDeliveryStatus == null || "NOT_STARTED".equals(normalizedDeliveryStatus);

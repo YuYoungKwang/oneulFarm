@@ -11,6 +11,7 @@
         <result property="cancelStatus" column="cancelStatus" />
         <result property="purchaseConfirmStatus" column="purchaseConfirmStatus" />
         <result property="purchaseConfirmedAt" column="purchaseConfirmedAt" />
+        <result property="fulfillmentStartedAt" column="fulfillmentStartedAt" />
         <result property="deliveryStatus" column="deliveryStatus" />
         <result property="carrierCode" column="carrierCode" />
         <result property="courierName" column="courierName" />
@@ -34,6 +35,7 @@
         <result property="cancelStatus" column="cancelStatus" />
         <result property="purchaseConfirmStatus" column="purchaseConfirmStatus" />
         <result property="purchaseConfirmedAt" column="purchaseConfirmedAt" />
+        <result property="fulfillmentStartedAt" column="fulfillmentStartedAt" />
         <result property="recipientName" column="recipientName" />
         <result property="recipientPhone" column="recipientPhone" />
         <result property="zipCode" column="zipCode" />
@@ -118,6 +120,7 @@
             o.CANCEL_STATUS AS cancelStatus,
             o.PURCHASE_CONFIRM_STATUS AS purchaseConfirmStatus,
             o.PURCHASE_CONFIRMED_AT AS purchaseConfirmedAt,
+            o.FULFILLMENT_STARTED_AT AS fulfillmentStartedAt,
             NVL(d.DELIVERY_STATUS, 'READY') AS deliveryStatus,
             d.CARRIER_CODE AS carrierCode,
             d.COURIER_NAME AS courierName,
@@ -178,6 +181,7 @@
             o.CANCEL_STATUS AS cancelStatus,
             o.PURCHASE_CONFIRM_STATUS AS purchaseConfirmStatus,
             o.PURCHASE_CONFIRMED_AT AS purchaseConfirmedAt,
+            o.FULFILLMENT_STARTED_AT AS fulfillmentStartedAt,
             o.RECIPIENT_NAME AS recipientName,
             o.RECIPIENT_PHONE AS recipientPhone,
             o.ZIP_CODE AS zipCode,
@@ -267,6 +271,36 @@
             ORDER BY oi.ORDER_ITEM_NO ASC
         )
         WHERE ROWNUM &lt;= 3
+    </select>
+
+    <select id="selectFulfillmentSimulationTargets" resultType="com.app.dto.OrderDto">
+        SELECT
+            o.ORDER_NO AS orderNo,
+            o.ORDER_ID AS orderId,
+            o.ORDER_STATUS AS orderStatus,
+            o.CANCEL_STATUS AS cancelStatus,
+            o.FULFILLMENT_STARTED_AT AS fulfillmentStartedAt,
+            o.RECIPIENT_NAME AS recipientName,
+            o.ADDRESS1 AS address1,
+            o.ADDRESS2 AS address2,
+            NVL(d.DELIVERY_STATUS, 'READY') AS deliveryStatus,
+            d.CARRIER_CODE AS carrierCode,
+            d.COURIER_NAME AS courierName,
+            d.TRACKING_NO AS trackingNo,
+            d.WAYBILL_STATUS AS waybillStatus,
+            d.WAYBILL_ASSIGNED_AT AS waybillAssignedAt,
+            d.PICKED_UP_AT AS pickedUpAt,
+            d.IN_TRANSIT_AT AS inTransitAt,
+            d.SHIPPED_AT AS shippedAt,
+            d.DELIVERED_AT AS deliveredAt
+        FROM OFT_ORDERS o
+        JOIN OFT_DELIVERY d
+            ON d.ORDER_NO = o.ORDER_NO
+        WHERE o.FULFILLMENT_STARTED_AT IS NOT NULL
+          AND NVL(o.CANCEL_STATUS, 'NONE') NOT IN ('CANCEL_REQUESTED', 'CANCEL_ACCEPTED')
+          AND NVL(d.DELIVERY_STATUS, 'READY') != 'DELIVERED'
+          AND o.ORDER_STATUS NOT IN ('ORDER_REJECTED', 'CANCELED')
+        ORDER BY o.FULFILLMENT_STARTED_AT ASC, o.ORDER_NO ASC
     </select>
 
     <select id="selectDeliveryTrackingHistories" parameterType="long" resultMap="DeliveryTrackingHistoryResultMap">
@@ -438,6 +472,14 @@
         UPDATE OFT_ORDERS
         SET PURCHASE_CONFIRM_STATUS = #{purchaseConfirmStatus},
             PURCHASE_CONFIRMED_AT = #{purchaseConfirmedAt},
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE ORDER_NO = #{orderNo}
+    </update>
+
+    <update id="startFulfillmentSimulation" parameterType="map">
+        UPDATE OFT_ORDERS
+        SET ORDER_STATUS = 'ORDER_ACCEPTED',
+            FULFILLMENT_STARTED_AT = #{fulfillmentStartedAt},
             UPDATED_AT = SYSTIMESTAMP
         WHERE ORDER_NO = #{orderNo}
     </update>

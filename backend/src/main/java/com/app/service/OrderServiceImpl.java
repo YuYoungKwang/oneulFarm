@@ -35,6 +35,9 @@ public class OrderServiceImpl implements OrderService {
     @Autowired
     private CartDao cartDao;
 
+    @Autowired
+    private OrderFulfillmentSimulationService orderFulfillmentSimulationService;
+
     @Override
     public List<OrderDto> getMyOrders(Long userNo) {
         return getMyOrders(userNo, null, null, null);
@@ -42,6 +45,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public List<OrderDto> getMyOrders(Long userNo, String deliveryStatus, String dateFrom, String dateTo) {
+        orderFulfillmentSimulationService.advanceEligibleOrders();
         orderDao.autoConfirmEligiblePurchasesByUser(userNo);
         Map<String, Object> params = buildOrderFilterParams(userNo, deliveryStatus, dateFrom, dateTo);
         List<OrderDto> responses = orderDao.findMyOrders(params);
@@ -58,6 +62,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public OrderDto getMyOrderDetail(Long userNo, Long orderNo) {
+        orderFulfillmentSimulationService.advanceEligibleOrders();
         orderDao.autoConfirmEligiblePurchasesByUser(userNo);
         OrderDto response = orderDao.findOrderDetail(userNo, orderNo);
         if (response == null) {

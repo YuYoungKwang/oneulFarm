@@ -44,6 +44,11 @@ public class OrderDaoImpl implements OrderDao {
     }
 
     @Override
+    public List<OrderDto> findFulfillmentSimulationTargets() {
+        return sqlSessionTemplate.selectList(NAMESPACE + "selectFulfillmentSimulationTargets");
+    }
+
+    @Override
     public List<OrderItemDto> findOrderItems(Long orderNo) {
         return sqlSessionTemplate.selectList(NAMESPACE + "selectOrderItems", orderNo);
     }
@@ -122,6 +127,14 @@ public class OrderDaoImpl implements OrderDao {
         params.put("purchaseConfirmStatus", purchaseConfirmStatus);
         params.put("purchaseConfirmedAt", purchaseConfirmedAt);
         return sqlSessionTemplate.update(NAMESPACE + "updateOrderPurchaseConfirm", params);
+    }
+
+    @Override
+    public int startFulfillmentSimulation(Long orderNo, LocalDateTime fulfillmentStartedAt) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("orderNo", orderNo);
+        params.put("fulfillmentStartedAt", fulfillmentStartedAt);
+        return sqlSessionTemplate.update(NAMESPACE + "startFulfillmentSimulation", params);
     }
 
     @Override

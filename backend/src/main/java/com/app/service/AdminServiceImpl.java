@@ -2,6 +2,7 @@ package com.app.service;
 
 import java.math.BigDecimal;
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -43,6 +44,9 @@ public class AdminServiceImpl implements AdminService {
 
     @Autowired
     private UserDao userDao;
+
+    @Autowired
+    private OrderFulfillmentSimulationService orderFulfillmentSimulationService;
 
     @Autowired
     private PriceSnapshotService priceSnapshotService;
@@ -174,6 +178,7 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public List<OrderDto> getOrders() {
+        orderFulfillmentSimulationService.advanceEligibleOrders();
         orderDao.autoConfirmEligiblePurchases();
         List<OrderDto> orders = adminDao.findAdminOrders();
         for (OrderDto order : orders) {
@@ -184,6 +189,7 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public OrderDto getOrderDetail(Long orderNo) {
+        orderFulfillmentSimulationService.advanceEligibleOrders();
         orderDao.autoConfirmEligiblePurchases();
         OrderDto order = adminDao.findAdminOrderDetail(orderNo);
         if (order == null) {
@@ -725,6 +731,26 @@ public class AdminServiceImpl implements AdminService {
 
     private void hydrateOrderRuntimeState(OrderDto order) {
         OrderCompatibilityUtils.hydrateOrderCompatibility(order);
+    }
+
+    @Override
+    @Transactional
+    public OrderDto acceptOrder(Long orderNo, Long actorUserNo) {
+        OrderDto currentOrder = getOrderDetail(orderNo);
+        if (!Boolean.TRUE.equals(currentOrder.getAcceptAvailable())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order cannot be accepted in the current state.");
+        }
+
+        orderDao.startFulfillmentSimulation(orderNo, LocalDateTime.now());
+        orderDao.insertOrderStatusHistory(
+            orderNo,
+            currentOrder.getOrderStatus(),
+            "ORDER_ACCEPTED",
+            "ADMIN",
+            actorUserNo,
+            "운영자가 주문 접수를 완료하고 시연용 자동 배송을 시작했습니다."
+        );
+        return getOrderDetail(orderNo);
     }
 
     private boolean shouldExposeUserInAdmin(UserProfileDto user) {

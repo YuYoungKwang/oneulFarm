@@ -24,8 +24,12 @@ public class CarrierServiceImpl implements CarrierService {
     @Autowired
     private OrderDao orderDao;
 
+    @Autowired
+    private OrderFulfillmentSimulationService orderFulfillmentSimulationService;
+
     @Override
     public List<OrderDto> getOrders() {
+        orderFulfillmentSimulationService.advanceEligibleOrders();
         orderDao.autoConfirmEligiblePurchases();
         List<OrderDto> orders = adminDao.findAdminOrders();
         for (OrderDto order : orders) {
@@ -36,6 +40,7 @@ public class CarrierServiceImpl implements CarrierService {
 
     @Override
     public OrderDto getOrderDetail(Long orderNo) {
+        orderFulfillmentSimulationService.advanceEligibleOrders();
         orderDao.autoConfirmEligiblePurchases();
         OrderDto order = adminDao.findAdminOrderDetail(orderNo);
         if (order == null) {

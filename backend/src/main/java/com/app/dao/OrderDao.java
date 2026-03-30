@@ -20,6 +20,8 @@ public interface OrderDao {
 
     OrderDto findOrderDetail(Long userNo, Long orderNo);
 
+    List<OrderDto> findFulfillmentSimulationTargets();
+
     List<OrderItemDto> findOrderItems(Long orderNo);
 
     List<DeliveryTrackingHistoryDto> findDeliveryTrackingHistories(Long orderNo);
@@ -47,6 +49,8 @@ public interface OrderDao {
     int updateOrderCancelStatus(Long orderNo, String cancelStatus);
 
     int updateOrderPurchaseConfirm(Long orderNo, String purchaseConfirmStatus, LocalDateTime purchaseConfirmedAt);
+
+    int startFulfillmentSimulation(Long orderNo, LocalDateTime fulfillmentStartedAt);
 
     int autoConfirmEligiblePurchasesByUser(Long userNo);
 
