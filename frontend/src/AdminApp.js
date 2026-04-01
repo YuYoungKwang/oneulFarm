@@ -1,7 +1,9 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { clearAuthUser, getAuthUser, isSuperAdminUser } from './auth';
 import './styles/admin.css';
 import AdminLayout from './admin/AdminLayout';
+import AdminOrdersPage from './admin/AdminOrdersPage';
+import CarrierManagementPage from './admin/CarrierManagementPage';
 import {
   AdminEmptyState,
   AdminMetricCard,
@@ -13,10 +15,14 @@ import {
   formatAdminDateParts,
 } from './admin/AdminUi';
 import {
+  acceptAdminOrder,
+  acceptAdminOrderCancel,
   cancelAdminPackageHistory,
   createAdminPackageHistory,
+  assignCarrierWaybill,
   createAdminPurchaseBatch,
   deleteAdminPurchaseBatch,
+  deliverCarrierOrder,
   deleteAdminOrder,
   deleteAdminProduct,
   deleteAdminUser,
@@ -32,9 +38,13 @@ import {
   fetchAdminPurchaseReferenceItems,
   fetchAdminRecipeMappings,
   fetchAdminUsers,
+  fetchCarrierOrderDetail,
   getAdminBannerImageUrl,
   getAdminProductImageUrl,
+  pickupCarrierOrder,
+  rejectAdminOrderCancel,
   saveAdminProduct,
+  transitCarrierOrder,
   triggerAdminRecipeSync,
   uploadAdminProductImages,
   updateAdminOrder,
@@ -104,7 +114,7 @@ function parseAdminPage(hash) {
   }
 
   const page = segments[1] || 'dashboard';
-  return ['dashboard', 'products', 'purchase', 'orders', 'users', 'content'].includes(page)
+  return ['dashboard', 'products', 'purchase', 'orders', 'carrier', 'users', 'content'].includes(page)
     ? page
     : 'dashboard';
 }
@@ -157,7 +167,7 @@ const PURCHASE_SUPPLIER_PROFILES = [
     defaultDiscardRate: 3,
     priceMultiplierMin: 0.9,
     priceMultiplierMax: 0.95,
-    note: '시세보다 약간 저렴한 단가를 기본 제안합니다.',
+    note: '시세보다 약간 낮은 단가를 기본 제안합니다.',
   },
   {
     key: 'wholesale-daejeon',
@@ -172,7 +182,7 @@ const PURCHASE_SUPPLIER_PROFILES = [
   },
   {
     key: 'distributor-seoul',
-    supplierName: '서울 식자재 유통',
+    supplierName: '서울 산지 유통',
     supplierType: '유통',
     defaultLogisticsCost: 0,
     defaultCommissionRate: 0,
@@ -186,7 +196,7 @@ const PURCHASE_SUPPLIER_PROFILES = [
 const PACKAGE_COST_PROFILES = [
   {
     key: 'small',
-    label: '소포장 기본값',
+    label: '소포장 기본가',
     maxWeightKg: 0.5,
     packagingMaterialPerUnit: 20,
     packagingLaborPerUnit: 90,
@@ -194,7 +204,7 @@ const PACKAGE_COST_PROFILES = [
   },
   {
     key: 'medium',
-    label: '중포장 기본값',
+    label: '중포장 기본가',
     maxWeightKg: 1,
     packagingMaterialPerUnit: 40,
     packagingLaborPerUnit: 120,
@@ -202,7 +212,7 @@ const PACKAGE_COST_PROFILES = [
   },
   {
     key: 'large',
-    label: '대포장 기본값',
+    label: '대포장 기본가',
     maxWeightKg: 3,
     packagingMaterialPerUnit: 80,
     packagingLaborPerUnit: 170,
@@ -210,7 +220,7 @@ const PACKAGE_COST_PROFILES = [
   },
   {
     key: 'bulk',
-    label: '대량포장 기본값',
+    label: '대량포장 기본가',
     maxWeightKg: Number.POSITIVE_INFINITY,
     packagingMaterialPerUnit: 120,
     packagingLaborPerUnit: 220,
@@ -1759,235 +1769,6 @@ function DashboardPage({
 }
 
 // eslint-disable-next-line no-unused-vars
-function LegacyProductsPage({
-  categories,
-  products,
-  selectedProductNo,
-  productFilter,
-  productForm,
-  productImagePreviews,
-  onSelectProduct,
-  onProductFilterChange,
-  onProductFormChange,
-  onProductImagesChange,
-  onClearProductImages,
-  onResetProductForm,
-  onRetireProduct,
-  onSaveProduct,
-  submitting,
-}) {
-  const filteredProducts = products.filter((product) => {
-    if (productFilter === 'ALL') {
-      return true;
-    }
-    if (productFilter === 'LOW_STOCK') {
-      return toNumber(product.stockQty, 0) <= 10;
-    }
-    if (productFilter === 'SEASONAL') {
-      return product.isSeasonal === 'Y';
-    }
-    return product.saleStatus === productFilter;
-  });
-
-  return (
-    <>
-      <AdminPageHeader
-        title="상품 관리"
-        description="상품 등록, 수정, 재고 현황을 관리하는 화면"
-        actions={
-          <>
-            <button type="button" className="admin-action admin-action--line" onClick={onClearProductImages}>
-              엑셀 업로드
-            </button>
-            <button type="button" className="admin-action admin-action--primary" onClick={onResetProductForm}>
-              상품 등록
-            </button>
-          </>
-        }
-      />
-
-      <div className="admin-filter-row">
-        {[
-          ['ALL', '전체'],
-          ['SELLING', '판매중'],
-          ['STOP', '판매중지'],
-          ['LOW_STOCK', '재고부족'],
-          ['SEASONAL', '제철상품'],
-        ].map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            className={`admin-filter-chip ${productFilter === value ? 'is-active' : ''}`}
-            onClick={() => onProductFilterChange(value)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <section className="admin-grid admin-grid--2">
-        <article className="admin-card admin-card--panel">
-          <h2>상품 목록</h2>
-          <table className="admin-table admin-table--clickable">
-            <thead>
-              <tr>
-                <th>상품</th>
-                <th>카테고리</th>
-                <th>판매가</th>
-                <th>재고</th>
-                <th>상태</th>
-                <th>관리</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredProducts.map((product) => (
-                <tr
-                  key={product.productNo}
-                  className={product.productNo === selectedProductNo ? 'is-selected' : ''}
-                  onClick={() => onSelectProduct(product)}
-                >
-                  <td>{product.productName}</td>
-                  <td>{product.categoryName}</td>
-                  <td>{formatAdminCurrency(product.salePrice)}</td>
-                  <td>{formatAdminCount(product.stockQty, '개')}</td>
-                  <td><AdminStatusBadge status={product.saleStatus} /></td>
-                  <td className="admin-table__actions">
-                    <button
-                      type="button"
-                      className="admin-action admin-action--danger"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onRetireProduct(product);
-                      }}
-                      disabled={submitting}
-                    >
-                      영구삭제
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </article>
-
-        <article className="admin-card admin-card--panel">
-          <h2>상품 등록 / 수정</h2>
-          <div className="admin-form-grid">
-            <label>
-              <span>상품명</span>
-              <input name="productName" value={productForm.productName} onChange={onProductFormChange} />
-            </label>
-            <label>
-              <span>카테고리</span>
-              <select name="categoryNo" value={productForm.categoryNo} onChange={onProductFormChange}>
-                <option value="">선택</option>
-                {categories.map((category) => (
-                  <option key={category.categoryNo} value={category.categoryNo}>
-                    {category.categoryName}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>판매가</span>
-              <input name="salePrice" value={productForm.salePrice} onChange={onProductFormChange} />
-            </label>
-            <label>
-              <span>재고 수량</span>
-              <input name="stockQty" value={productForm.stockQty} onChange={onProductFormChange} />
-            </label>
-            <label>
-              <span>원산지</span>
-              <input name="origin" value={productForm.origin} onChange={onProductFormChange} />
-            </label>
-            <label>
-              <span>단위</span>
-              <input name="unit" value={productForm.unit} onChange={onProductFormChange} />
-            </label>
-            <label>
-              <span>포장 중량</span>
-              <input name="packageWeight" value={productForm.packageWeight} onChange={onProductFormChange} />
-            </label>
-            <label>
-              <span>판매 상태</span>
-              <select name="saleStatus" value={productForm.saleStatus} onChange={onProductFormChange}>
-                <option value="READY">준비</option>
-                <option value="SELLING">판매중</option>
-                <option value="SOLD_OUT">품절</option>
-                <option value="STOP">판매중지</option>
-              </select>
-            </label>
-            <label>
-              <span>제철 상품</span>
-              <select name="isSeasonal" value={productForm.isSeasonal} onChange={onProductFormChange}>
-                <option value="N">일반</option>
-                <option value="Y">제철</option>
-              </select>
-            </label>
-          </div>
-          <label className="admin-form-field admin-form-field--full">
-            <span>상품 설명</span>
-            <textarea name="description" value={productForm.description} onChange={onProductFormChange} />
-          </label>
-          <div className="admin-form-field admin-form-field--full">
-            <span>상품 이미지</span>
-            <label className="admin-file-upload">
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={onProductImagesChange}
-              />
-              <strong>이미지 선택</strong>
-              <small>최소 1장 필수 · 여러 장 업로드 가능</small>
-            </label>
-            <div className="admin-file-upload__hint">
-              권장 사이즈: 1200 x 1200px 이상 / 정사각형 비율 / JPG, PNG, WEBP
-            </div>
-            <div className="admin-page-actions">
-              <button type="button" className="admin-action admin-action--line" onClick={onClearProductImages}>
-                선택 이미지 초기화
-              </button>
-            </div>
-            {productImagePreviews.length ? (
-              <div className="admin-image-preview-grid">
-                {productImagePreviews.map((image, index) => (
-                  <article className="admin-image-preview" key={image.key || image.imageNo || index}>
-                    <div className="admin-image-preview__thumb">
-                      <img
-                        src={image.previewUrl}
-                        alt={image.name || `상품 이미지 ${index + 1}`}
-                      />
-                    </div>
-                    <div className="admin-image-preview__meta">
-                      <strong>{image.name || `상품 이미지 ${index + 1}`}</strong>
-                      <span>{image.isMain ? '대표 이미지' : `추가 이미지 ${index + 1}`}</span>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="admin-image-empty">
-                등록된 이미지가 없습니다. 상품 이미지는 최소 1장 이상 필요합니다.
-              </div>
-            )}
-          </div>
-          <div className="admin-page-actions admin-page-actions--end">
-            <button type="button" className="admin-action admin-action--line" disabled>
-              이미지 업로드
-            </button>
-            <button type="button" className="admin-action admin-action--soft" onClick={onResetProductForm}>
-              초기화
-            </button>
-            <button type="button" className="admin-action admin-action--primary" onClick={onSaveProduct} disabled={submitting}>
-              {submitting ? '저장 중...' : '저장'}
-            </button>
-          </div>
-        </article>
-      </section>
-    </>
-  );
-}
-
 function OrdersPage({
   orders,
   selectedOrderNo,
@@ -3048,16 +2829,16 @@ function PurchasePage({
             {packageCostDefaults ? (
               <div className="admin-muted">
                 {packageCostDefaults.profileLabel}
-                {' · 포장재비 '}
+                {' 쨌 ?ъ옣?щ퉬 '}
                 {formatAdminCurrency(packageCostDefaults.packagingMaterialCost)}
-                {' · 인건비 '}
+                {' 쨌 ?멸굔鍮?'}
                 {formatAdminCurrency(packageCostDefaults.packagingLaborCost)}
-                {' · 기타비 '}
+                {' 쨌 湲고?鍮?'}
                 {formatAdminCurrency(packageCostDefaults.otherPackagingCost)}
               </div>
             ) : (
               <div className="admin-muted">
-                {'생성 수량과 1개당 중량을 입력하면 포장재비, 인건비, 기타 소분비 기본값이 자동 계산됩니다.'}
+                {'?앹꽦 ?섎웾怨?1媛쒕떦 以묐웾???낅젰?섎㈃ ?ъ옣?щ퉬, ?멸굔鍮? 湲고? ?뚮텇鍮?湲곕낯媛믪씠 ?먮룞 怨꾩궛?⑸땲??'}
               </div>
             )}
             <div className="admin-form-field admin-form-field--full admin-form-field--memo">
@@ -3354,7 +3135,11 @@ function AdminApp() {
   }, [adminMode]);
 
   useEffect(() => {
-    if (!adminMode || !selectedOrderNo) {
+    if (
+      !adminMode ||
+      !selectedOrderNo ||
+      (currentPage !== 'orders' && currentPage !== 'carrier')
+    ) {
       setSelectedOrderDetail(null);
       setTrackingNo('');
       return;
@@ -3364,7 +3149,9 @@ function AdminApp() {
 
     async function loadOrderDetail() {
       try {
-        const detail = await fetchAdminOrderDetail(selectedOrderNo);
+        const detail = currentPage === 'carrier'
+          ? await fetchCarrierOrderDetail(selectedOrderNo)
+          : await fetchAdminOrderDetail(selectedOrderNo);
         if (ignore) {
           return;
         }
@@ -3381,7 +3168,7 @@ function AdminApp() {
     return () => {
       ignore = true;
     };
-  }, [adminMode, selectedOrderNo]);
+  }, [adminMode, currentPage, selectedOrderNo]);
 
   const currentProduct = useMemo(
     () => products.find((product) => product.productNo === selectedProductNo) || null,
@@ -3722,7 +3509,7 @@ function AdminApp() {
       try {
         quote = await fetchAdminPurchaseQuote(productName, itemCode);
       } catch (quoteError) {
-        wholesaleErrorMessage = quoteError?.message || '도매 시세 조회에 실패했습니다.';
+        wholesaleErrorMessage = quoteError?.message || '?꾨ℓ ?쒖꽭 議고쉶???ㅽ뙣?덉뒿?덈떎.';
         const retailPriceList = await fetchAdminRecentRetailPriceList(
           retailLookupName,
           200,
@@ -3730,7 +3517,7 @@ function AdminApp() {
         );
         if (!Array.isArray(retailPriceList) || !retailPriceList.length) {
           throw new Error(
-            `도매 시세 조회 실패: ${wholesaleErrorMessage} / 소매 시세 조회 실패: 최근 소매 시세 데이터가 없습니다.`
+            `?꾨ℓ ?쒖꽭 議고쉶 ?ㅽ뙣: ${wholesaleErrorMessage} / ?뚮ℓ ?쒖꽭 議고쉶 ?ㅽ뙣: 理쒓렐 ?뚮ℓ ?쒖꽭 ?곗씠?곌? ?놁뒿?덈떎.`
           );
         }
         const retailSnapshot = selectedReferenceItem
@@ -3741,7 +3528,7 @@ function AdminApp() {
           : findAdminRetailSnapshotByName(retailLookupName, retailPriceList);
         if (!retailSnapshot) {
           throw new Error(
-            `도매 시세 조회 실패: ${wholesaleErrorMessage} / 소매 시세 매칭 실패: '${retailLookupName}' 기준으로 연결 가능한 소매 품목을 찾지 못했습니다.`
+            `?꾨ℓ ?쒖꽭 議고쉶 ?ㅽ뙣: ${wholesaleErrorMessage} / ?뚮ℓ ?쒖꽭 留ㅼ묶 ?ㅽ뙣: '${retailLookupName}' 湲곗??쇰줈 ?곌껐 媛?ν븳 ?뚮ℓ ?덈ぉ??李얠? 紐삵뻽?듬땲??`
           );
         }
 
@@ -3942,6 +3729,209 @@ function AdminApp() {
       setTrackingNo(detail?.trackingNo || trackingNo);
     } catch (error) {
       setActionError(error.message || '\uC8FC\uBB38 \uC0C1\uD0DC \uBCC0\uACBD\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
+    } finally {
+      setUpdatingOrder(false);
+    }
+  }
+
+  async function handleRejectOrder() {
+    await handleUpdateOrder({ orderStatus: 'CANCELED' });
+  }
+
+  async function handleAcceptOrder() {
+    if (!selectedOrderNo) {
+      return;
+    }
+
+    setUpdatingOrder(true);
+    setActionError('');
+
+    try {
+      const detail = await acceptAdminOrder(selectedOrderNo);
+      const nextOrders = await fetchAdminOrders();
+      setOrders(nextOrders);
+      setSelectedOrderDetail(detail);
+      setTrackingNo(detail?.trackingNo || trackingNo);
+    } catch (error) {
+      setActionError(error.message || '二쇰Ц ?묒닔???ㅽ뙣?덉뒿?덈떎.');
+    } finally {
+      setUpdatingOrder(false);
+    }
+  }
+
+  async function handleAcceptOrderCancel() {
+    if (!selectedOrderNo) {
+      return;
+    }
+
+    setUpdatingOrder(true);
+    setActionError('');
+
+    try {
+      const detail = await acceptAdminOrderCancel(selectedOrderNo);
+      const nextOrders = await fetchAdminOrders();
+      setOrders(nextOrders);
+      setSelectedOrderDetail(detail);
+      setTrackingNo(detail?.trackingNo || trackingNo);
+    } catch (error) {
+      setActionError(error.message || '痍⑥냼 ?붿껌 ?섎씫???ㅽ뙣?덉뒿?덈떎.');
+    } finally {
+      setUpdatingOrder(false);
+    }
+  }
+
+  async function handleRejectOrderCancel() {
+    if (!selectedOrderNo) {
+      return;
+    }
+
+    setUpdatingOrder(true);
+    setActionError('');
+
+    try {
+      const detail = await rejectAdminOrderCancel(selectedOrderNo);
+      const nextOrders = await fetchAdminOrders();
+      setOrders(nextOrders);
+      setSelectedOrderDetail(detail);
+      setTrackingNo(detail?.trackingNo || trackingNo);
+    } catch (error) {
+      setActionError(error.message || '痍⑥냼 ?붿껌 嫄곗젅???ㅽ뙣?덉뒿?덈떎.');
+    } finally {
+      setUpdatingOrder(false);
+    }
+  }
+
+  async function handleShipOrder() {
+    if (selectedOrderDetail?.acceptAvailable) {
+      setActionError('二쇰Ц ?묒닔 ??10珥덈쭏??諛곗넚 ?④퀎媛 ?먮룞?쇰줈 吏꾪뻾?⑸땲??');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      '諛곗넚 ?멸퀎 吏꾪뻾 ?곹깭??諛곗넚 ?대떦?먭? 愿由ы빀?덈떎. ?뺣쭚 ?멸퀎?섏떆寃좎뒿?덇퉴?'
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    await handleUpdateOrder({
+      orderStatus: 'SHIPPING',
+      trackingNo: String(trackingNo || '').trim(),
+    });
+  }
+
+  function buildGeneratedTrackingNo(order) {
+    const safeOrderId = String(order?.orderId || order?.orderNo || 'ORDER')
+      .replace(/[^A-Z0-9]/gi, '')
+      .slice(-10)
+      .toUpperCase();
+    const timestamp = Date.now().toString().slice(-6);
+    return `OFT-${safeOrderId || 'ORDER'}-${timestamp}`;
+  }
+
+  async function handleAssignWaybill() {
+    if (!selectedOrderDetail) {
+      return;
+    }
+
+    const nextTrackingNo = String(trackingNo || '').trim() || buildGeneratedTrackingNo(selectedOrderDetail);
+    setTrackingNo(nextTrackingNo);
+
+    if (currentPage === 'carrier') {
+      setUpdatingOrder(true);
+      setActionError('');
+
+      try {
+        const detail = await assignCarrierWaybill(selectedOrderNo, {
+          trackingNo: nextTrackingNo,
+          courierName: 'oneulFarm',
+        });
+        const nextOrders = await fetchAdminOrders();
+        setOrders(nextOrders);
+        setSelectedOrderDetail(detail);
+        setTrackingNo(detail?.trackingNo || nextTrackingNo);
+      } catch (error) {
+        setActionError(error.message || '?≪옣 ?깅줉???ㅽ뙣?덉뒿?덈떎.');
+      } finally {
+        setUpdatingOrder(false);
+      }
+      return;
+    }
+
+    await handleUpdateOrder({ trackingNo: nextTrackingNo });
+  }
+
+  async function handlePickupOrder() {
+    if (!selectedOrderNo) {
+      return;
+    }
+
+    const nextTrackingNo = String(trackingNo || '').trim();
+
+    if (currentPage === 'carrier') {
+      setUpdatingOrder(true);
+      setActionError('');
+
+      try {
+        const detail = await pickupCarrierOrder(selectedOrderNo, {
+          trackingNo: nextTrackingNo || undefined,
+          courierName: 'oneulFarm',
+        });
+        const nextOrders = await fetchAdminOrders();
+        setOrders(nextOrders);
+        setSelectedOrderDetail(detail);
+        setTrackingNo(detail?.trackingNo || nextTrackingNo);
+      } catch (error) {
+        setActionError(error.message || '吏묓븯 泥섎━???ㅽ뙣?덉뒿?덈떎.');
+      } finally {
+        setUpdatingOrder(false);
+      }
+      return;
+    }
+
+    await handleUpdateOrder({
+      orderStatus: 'SHIPPING',
+      trackingNo: nextTrackingNo || undefined,
+    });
+  }
+
+  async function handleCarrierDeliverOrder() {
+    if (!selectedOrderNo) {
+      return;
+    }
+
+    setUpdatingOrder(true);
+    setActionError('');
+
+    try {
+      const detail = await deliverCarrierOrder(selectedOrderNo);
+      const nextOrders = await fetchAdminOrders();
+      setOrders(nextOrders);
+      setSelectedOrderDetail(detail);
+      setTrackingNo(detail?.trackingNo || trackingNo);
+    } catch (error) {
+      setActionError(error.message || '諛곗넚 ?꾨즺 泥섎━???ㅽ뙣?덉뒿?덈떎.');
+    } finally {
+      setUpdatingOrder(false);
+    }
+  }
+
+  async function handleCarrierTransitOrder() {
+    if (!selectedOrderNo) {
+      return;
+    }
+
+    setUpdatingOrder(true);
+    setActionError('');
+
+    try {
+      const detail = await transitCarrierOrder(selectedOrderNo);
+      const nextOrders = await fetchAdminOrders();
+      setOrders(nextOrders);
+      setSelectedOrderDetail(detail);
+      setTrackingNo(detail?.trackingNo || trackingNo);
+    } catch (error) {
+      setActionError(error.message || '諛곗넚 以?泥섎━???ㅽ뙣?덉뒿?덈떎.');
     } finally {
       setUpdatingOrder(false);
     }
@@ -4234,9 +4224,9 @@ function AdminApp() {
       setPurchases(nextPurchases);
       setPackageHistories(nextPackageHistories);
       setProducts(nextProducts);
-      setActionSuccess('소분 이력을 취소하고 재고를 복구했습니다.');
+      setActionSuccess('?뚮텇 ?대젰??痍⑥냼?섍퀬 ?ш퀬瑜?蹂듦뎄?덉뒿?덈떎.');
     } catch (error) {
-      setActionError(error.message || '소분 취소에 실패했습니다.');
+      setActionError(error.message || '?뚮텇 痍⑥냼???ㅽ뙣?덉뒿?덈떎.');
     } finally {
       setPendingCancelPackageHistory(null);
       setSavingPackage(false);
@@ -4351,7 +4341,7 @@ function AdminApp() {
             />
           ) : null}
           {currentPage === 'orders' ? (
-            <OrdersPage
+            <AdminOrdersPage
               orders={orders}
               selectedOrderNo={selectedOrderNo}
               selectedOrderDetail={selectedOrderDetail}
@@ -4361,7 +4351,28 @@ function AdminApp() {
               onSelectOrder={setSelectedOrderNo}
               onTrackingChange={(event) => setTrackingNo(event.target.value)}
               onDeleteOrder={handleDeleteOrder}
-              onUpdateOrder={handleUpdateOrder}
+              onAcceptOrder={handleAcceptOrder}
+              onRejectOrder={handleRejectOrder}
+              onAcceptOrderCancel={handleAcceptOrderCancel}
+              onRejectOrderCancel={handleRejectOrderCancel}
+              onShipOrder={handleShipOrder}
+              updating={updatingOrder}
+            />
+          ) : null}
+          {currentPage === 'carrier' ? (
+            <CarrierManagementPage
+              orders={orders}
+              selectedOrderNo={selectedOrderNo}
+              selectedOrderDetail={selectedOrderDetail}
+              orderFilter={orderFilter}
+              trackingNo={trackingNo}
+              onOrderFilterChange={setOrderFilter}
+              onSelectOrder={setSelectedOrderNo}
+              onTrackingChange={(event) => setTrackingNo(event.target.value)}
+              onAssignWaybill={handleAssignWaybill}
+              onPickupOrder={handlePickupOrder}
+              onTransitOrder={handleCarrierTransitOrder}
+              onDeliverOrder={handleCarrierDeliverOrder}
               updating={updatingOrder}
             />
           ) : null}
@@ -4431,21 +4442,21 @@ function AdminApp() {
               >
                 <div className="admin-modal__body">
                   <h3 id="cancel-package-history-title">{'재고 복구 확인'}</h3>
-                  <p>{'이 소분 이력을 취소하면 배치 재고와 상품 재고가 함께 복구됩니다.'}</p>
+                  <p>{'소분 이력을 취소하면 배치 재고와 상품 재고가 함께 복구됩니다.'}</p>
                   <div className="admin-modal__summary">
                     <div className="admin-modal__summary-item">
-                      <span>{'생성'}</span>
+                      <span>{'수량'}</span>
                       <strong>{pendingCancelPackageHistory.packagedQty}{'개'}</strong>
                     </div>
                     <div className="admin-modal__summary-item">
-                      <span>{'개당'}</span>
+                      <span>{'중량'}</span>
                       <strong>
                         {formatDecimalInput(pendingCancelPackageHistory.packagedWeight, 2)}
                         {currentBatch?.purchaseUnit || ''}
                       </strong>
                     </div>
                     <div className="admin-modal__summary-item">
-                      <span>{'판매가'}</span>
+                      <span>{'?먮ℓ媛'}</span>
                       <strong>{formatAdminCurrency(pendingCancelPackageHistory.salePrice)}</strong>
                     </div>
                   </div>
@@ -4457,7 +4468,7 @@ function AdminApp() {
                     onClick={() => setPendingCancelPackageHistory(null)}
                     disabled={savingPackage}
                   >
-                    {'닫기'}
+                    {'?リ린'}
                   </button>
                   <button
                     type="button"
@@ -4465,7 +4476,7 @@ function AdminApp() {
                     onClick={handleConfirmCancelPackageHistory}
                     disabled={savingPackage}
                   >
-                    {savingPackage ? '처리 중...' : '재고 복구'}
+                    {savingPackage ? '泥섎━ 以?..' : '?ш퀬 蹂듦뎄'}
                   </button>
                 </div>
               </div>

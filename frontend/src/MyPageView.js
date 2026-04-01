@@ -78,6 +78,9 @@ function MyPageView({
   onWithdrawSubmit,
   onOpenAddressModal,
 }) {
+  const getSavedAmountInfoContent = (value) =>
+    `표시값은 소수점 이하는 버림 처리됩니다. 실제 금액: ${formatPrice(Number(value || 0))}`;
+
   const [activeEditor, setActiveEditor] = useState(null);
   const [emailAuth, setEmailAuth] = useState(EMPTY_EMAIL_AUTH);
   const [phoneAuth, setPhoneAuth] = useState(EMPTY_PHONE_AUTH);
@@ -776,9 +779,18 @@ function MyPageView({
                   key={item.key}
                   className={`profile-inline-row ${item.key === 'totalSavedAmount' ? 'profile-inline-row--saving' : ''}`}
                 >
-                  <div className="profile-inline-row__label">{item.label}</div>
+                  <div className="profile-inline-row__label">
+                    {item.key === 'totalSavedAmount' ? '누적 절약 금액' : item.label}
+                    {item.key === 'totalSavedAmount' ? (
+                      <InlineInfoTip content={getSavedAmountInfoContent(profile.totalSavedAmount)} />
+                    ) : null}
+                  </div>
                   <div className="profile-inline-row__value">
-                    {profileLoading ? '불러오는 중..' : item.value}
+                    {profileLoading
+                      ? '불러오는 중..'
+                      : item.key === 'totalSavedAmount'
+                        ? formatPrice(Math.floor(Number(profile.totalSavedAmount || 0)))
+                        : item.value}
                   </div>
                   <div className="profile-inline-row__actions">
                     {item.onAction && (

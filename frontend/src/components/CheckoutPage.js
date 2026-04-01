@@ -44,6 +44,7 @@ const TEXT = {
     '\uBC84\uD2BC\uC744 \uB204\uB974\uBA74 \uD3EC\uD2B8\uC6D0 \uACB0\uC81C\uCC3D\uC73C\uB85C \uC774\uB3D9\uD55C \uB4A4 \uC2B9\uC778 \uD655\uC778 \uD6C4 \uC8FC\uBB38\uC774 \uC644\uB8CC\uB429\uB2C8\uB2E4.',
   paymentPendingDescription:
     '\uD3EC\uD2B8\uC6D0 \uD14C\uC2A4\uD2B8 \uD0A4\uB97C \uC124\uC815\uD558\uBA74 \uACB0\uC81C\uCC3D\uC744 \uD1B5\uD574 \uC8FC\uBB38\uC744 \uC9C4\uD589\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.',
+  testPaymentNow: '\uACB0\uC81C\uC644\uB8CC (\uD14C\uC2A4\uD2B8)',
   submitWhileLoading: '\uCC98\uB9AC \uC911...',
   submitPay: '\uACB0\uC81C\uD558\uAE30',
   submitOrder: '\uC8FC\uBB38 \uC644\uB8CC\uD558\uAE30',
@@ -121,6 +122,7 @@ export default function CheckoutPage({
   cartItems,
   onBackToCart,
   onOpenAddressSetup,
+  onSubmitInstantPayment,
   onSubmitOrder,
   paymentConfig,
 }) {
@@ -241,13 +243,11 @@ export default function CheckoutPage({
     }));
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault();
-
+  function validateCheckoutForm() {
     if (addressStatus !== 'ready' || !defaultAddress) {
       setError(TEXT.defaultAddressFirst);
       onOpenAddressSetup?.();
-      return;
+      return false;
     }
 
     if (
@@ -257,14 +257,38 @@ export default function CheckoutPage({
       !checkoutForm.address1.trim()
     ) {
       setError(TEXT.requiredFields);
-      return;
+      return false;
     }
 
     setError('');
+    return true;
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+
+    if (!validateCheckoutForm()) {
+      return;
+    }
 
     try {
       setIsSubmitting(true);
       await onSubmitOrder(checkoutForm);
+    } catch (submitError) {
+      setError(submitError?.message || TEXT.orderSubmitError);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleInstantPayment() {
+    if (!validateCheckoutForm()) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await onSubmitInstantPayment?.(checkoutForm);
     } catch (submitError) {
       setError(submitError?.message || TEXT.orderSubmitError);
     } finally {
@@ -416,6 +440,14 @@ export default function CheckoutPage({
                 {option.label}
               </button>
             ))}
+            <button
+              className="payment-chip payment-chip--test-submit"
+              type="button"
+              onClick={handleInstantPayment}
+              disabled={isSubmitting || addressStatus !== 'ready'}
+            >
+              {TEXT.testPaymentNow}
+            </button>
           </div>
 
           <div

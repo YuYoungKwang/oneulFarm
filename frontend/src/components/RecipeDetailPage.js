@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getAuthUser, isAuthenticated } from '../auth';
 import { createRecipeMealPlanEntry } from '../api/accountMealPlanApi';
 import { fetchPriceTrendFromApi } from '../api/priceAnalysisApi';

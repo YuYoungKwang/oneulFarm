@@ -1,19 +1,22 @@
-package com.app.service;
+﻿package com.app.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.app.common.OrderCompatibilityUtils;
 import com.app.dao.AdminDao;
 import com.app.dao.OrderDao;
 import com.app.dao.UserDao;
@@ -43,6 +46,9 @@ public class AdminServiceImpl implements AdminService {
 
     @Autowired
     private UserDao userDao;
+
+    @Autowired
+    private OrderFulfillmentSimulationService orderFulfillmentSimulationService;
 
     @Autowired
     private PriceSnapshotService priceSnapshotService;
@@ -174,6 +180,8 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public List<OrderDto> getOrders() {
+        orderFulfillmentSimulationService.advanceEligibleOrders();
+        orderDao.autoConfirmEligiblePurchases();
         List<OrderDto> orders = adminDao.findAdminOrders();
         for (OrderDto order : orders) {
             hydrateOrderSummary(order);
@@ -183,6 +191,8 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public OrderDto getOrderDetail(Long orderNo) {
+        orderFulfillmentSimulationService.advanceEligibleOrders();
+        orderDao.autoConfirmEligiblePurchases();
         OrderDto order = adminDao.findAdminOrderDetail(orderNo);
         if (order == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found.");
@@ -206,6 +216,10 @@ public class AdminServiceImpl implements AdminService {
         order.setFinalAmount(defaultAmount(order.getFinalAmount()));
         order.setPaidAmount(defaultAmount(order.getPaidAmount()));
         order.setTotalSavedAmount(totalSavedAmount);
+        hydrateOrderRuntimeState(order);
+        order.setTrackingHistories(orderDao.findDeliveryTrackingHistories(orderNo));
+        order.setOrderStatusHistories(orderDao.findOrderStatusHistories(orderNo));
+        order.setCancelRequestHistories(orderDao.findCancelRequestHistories(orderNo));
         return order;
     }
 
@@ -226,14 +240,11 @@ public class AdminServiceImpl implements AdminService {
         String nextStatus = trimToNull(request == null ? null : request.getOrderStatus());
         if (nextStatus != null && !nextStatus.equals(currentOrder.getOrderStatus())) {
             if ("SHIPPING".equals(nextStatus)) {
-                String resolvedTrackingNo = trackingNo == null
-                    ? "TRK-" + currentOrder.getOrderId()
-                    : trackingNo;
-                adminDao.updateAdminOrderStatus(orderNo, "SHIPPING");
-                adminDao.updateAdminDeliveryForShipping(orderNo, resolvedTrackingNo, courierName);
+                return shipOrder(orderNo, request);
             } else if ("COMPLETED".equals(nextStatus)) {
-                adminDao.updateAdminOrderStatus(orderNo, "COMPLETED");
-                adminDao.updateAdminDeliveryForDelivered(orderNo);
+                return deliverOrder(orderNo);
+            } else if ("CANCELED".equals(nextStatus)) {
+                return rejectOrder(orderNo);
             } else if ("PAID".equals(nextStatus) || "CREATED".equals(nextStatus)) {
                 adminDao.updateAdminOrderStatus(orderNo, nextStatus);
             } else {
@@ -241,6 +252,119 @@ public class AdminServiceImpl implements AdminService {
             }
         }
 
+        return getOrderDetail(orderNo);
+    }
+
+    @Override
+    @Transactional
+    public OrderDto rejectOrder(Long orderNo) {
+        OrderDto currentOrder = getOrderDetail(orderNo);
+        if (!Boolean.TRUE.equals(currentOrder.getRejectAvailable())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order cannot be rejected in the current state.");
+        }
+
+        adminDao.updateAdminOrderStatus(orderNo, "CANCELED");
+        orderDao.insertOrderStatusHistory(orderNo, currentOrder.getOrderStatus(), "CANCELED", "ADMIN", null, "?댁쁺?먭? 二쇰Ц??嫄곗젅?덉뒿?덈떎.");
+        return getOrderDetail(orderNo);
+    }
+
+    @Override
+    @Transactional
+    public OrderDto acceptCancelRequest(Long orderNo, Long actorUserNo) {
+        OrderDto currentOrder = getOrderDetail(orderNo);
+        if (!Boolean.TRUE.equals(currentOrder.getCancelAcceptAvailable())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cancel request cannot be accepted in the current state.");
+        }
+
+        List<OrderItemDto> orderItems = orderDao.findOrderItems(orderNo);
+        for (OrderItemDto orderItem : orderItems) {
+            if (orderItem.getProductNo() != null && orderItem.getQuantity() != null && orderItem.getQuantity() > 0) {
+                orderDao.increaseProductStock(orderItem.getProductNo(), orderItem.getQuantity());
+            }
+        }
+
+        orderDao.updateOrderStatus(orderNo, "CANCELED");
+        orderDao.updateOrderCancelStatus(orderNo, "CANCEL_ACCEPTED");
+        orderDao.updateLatestOrderCancelRequest(orderNo, "CANCEL_ACCEPTED", actorUserNo, null);
+        orderDao.insertOrderStatusHistory(orderNo, currentOrder.getOrderStatus(), "CANCELED", "ADMIN", actorUserNo, "?댁쁺?먭? 痍⑥냼 ?붿껌???섎씫?덉뒿?덈떎.");
+        return getOrderDetail(orderNo);
+    }
+
+    @Override
+    @Transactional
+    public OrderDto rejectCancelRequest(Long orderNo, Long actorUserNo) {
+        OrderDto currentOrder = getOrderDetail(orderNo);
+        if (!Boolean.TRUE.equals(currentOrder.getCancelRejectAvailable())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cancel request cannot be rejected in the current state.");
+        }
+
+        orderDao.updateOrderCancelStatus(orderNo, "CANCEL_REJECTED");
+        orderDao.updateLatestOrderCancelRequest(orderNo, "CANCEL_REJECTED", actorUserNo, null);
+        orderDao.insertOrderStatusHistory(
+            orderNo,
+            currentOrder.getOrderStatus(),
+            currentOrder.getOrderStatus(),
+            "ADMIN",
+            actorUserNo,
+            "?댁쁺?먭? 痍⑥냼 ?붿껌??嫄곗젅?덉뒿?덈떎."
+        );
+        return getOrderDetail(orderNo);
+    }
+
+    @Override
+    @Transactional
+    public OrderDto shipOrder(Long orderNo, OrderDto request) {
+        OrderDto currentOrder = getOrderDetail(orderNo);
+        if (!Boolean.TRUE.equals(currentOrder.getShipAvailable())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order cannot be moved to shipping in the current state.");
+        }
+
+        String trackingNo = trimToNull(request == null ? null : request.getTrackingNo());
+        String courierName = trimToNull(request == null ? null : request.getCourierName());
+        if (courierName == null) {
+            courierName = "oneulFarm";
+        }
+
+        String resolvedTrackingNo = trackingNo == null
+            ? "TRK-" + currentOrder.getOrderId()
+            : trackingNo;
+        adminDao.updateAdminOrderStatus(orderNo, "SHIPPING");
+        adminDao.updateAdminDeliveryForShipping(orderNo, resolvedTrackingNo, courierName);
+        orderDao.insertOrderStatusHistory(orderNo, currentOrder.getOrderStatus(), "SHIPPING", "ADMIN", null, "?댁쁺?먭? 二쇰Ц??諛곗넚?щ줈 ?멸퀎?덉뒿?덈떎.");
+        orderDao.insertDeliveryTrackingHistory(
+            orderNo,
+            OrderCompatibilityUtils.resolveCarrierCode(courierName),
+            resolvedTrackingNo,
+            "IN_TRANSIT",
+            "愿由ъ옄媛 二쇰Ц??諛곗넚???덈툕濡??멸퀎?덉뒿?덈떎.",
+            getHubLocationName(courierName),
+            getHubLocationAddress(courierName),
+            null
+        );
+        return getOrderDetail(orderNo);
+    }
+
+    @Override
+    @Transactional
+    public OrderDto deliverOrder(Long orderNo) {
+        OrderDto currentOrder = getOrderDetail(orderNo);
+        if (!Boolean.TRUE.equals(currentOrder.getDeliverAvailable())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order cannot be marked delivered in the current state.");
+        }
+
+        adminDao.updateAdminOrderStatus(orderNo, "COMPLETED");
+        adminDao.updateAdminDeliveryForDelivered(orderNo);
+        orderDao.insertOrderStatusHistory(orderNo, currentOrder.getOrderStatus(), "COMPLETED", "ADMIN", null, "?댁쁺?먭? 諛곗넚 ?꾨즺 泥섎━?덉뒿?덈떎.");
+        orderDao.insertDeliveryTrackingHistory(
+            orderNo,
+            currentOrder.getCarrierCode(),
+            currentOrder.getTrackingNo(),
+            "DELIVERED",
+            "愿由ъ옄媛 諛곗넚 ?꾨즺 泥섎━?덉뒿?덈떎.",
+            getDestinationLocationName(currentOrder),
+            getDestinationLocationAddress(currentOrder),
+            null
+        );
         return getOrderDetail(orderNo);
     }
 
@@ -701,6 +825,38 @@ public class AdminServiceImpl implements AdminService {
         order.setFinalAmount(defaultAmount(order.getFinalAmount()));
         order.setTotalSavedAmount(defaultAmount(order.getTotalSavedAmount()));
         order.setPaidAmount(defaultAmount(order.getPaidAmount()));
+        hydrateOrderRuntimeState(order);
+    }
+
+    private void hydrateOrderRuntimeState(OrderDto order) {
+        OrderCompatibilityUtils.hydrateOrderCompatibility(order);
+    }
+
+    @Override
+    @Transactional
+    public OrderDto acceptOrder(Long orderNo, Long actorUserNo) {
+        OrderDto currentOrder = getOrderDetail(orderNo);
+        if (!Boolean.TRUE.equals(currentOrder.getAcceptAvailable())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order cannot be accepted in the current state.");
+        }
+
+        try {
+            orderDao.startFulfillmentSimulation(orderNo, LocalDateTime.now());
+        } catch (DataAccessException exception) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "DB??FULFILLMENT_STARTED_AT 而щ읆???놁뼱 二쇰Ц ?묒닔瑜??쒖옉?????놁뒿?덈떎. ALTER TABLE OFT_ORDERS ADD (FULFILLMENT_STARTED_AT TIMESTAMP)瑜?癒쇱? ?ㅽ뻾??二쇱꽭??"
+            );
+        }
+        orderDao.insertOrderStatusHistory(
+            orderNo,
+            currentOrder.getOrderStatus(),
+            "ORDER_ACCEPTED",
+            "ADMIN",
+            actorUserNo,
+            "?댁쁺?먭? 二쇰Ц ?묒닔瑜??꾨즺?섍퀬 ?쒖뿰???먮룞 諛곗넚???쒖옉?덉뒿?덈떎."
+        );
+        return getOrderDetail(orderNo);
     }
 
     private boolean shouldExposeUserInAdmin(UserProfileDto user) {
@@ -1035,7 +1191,7 @@ public class AdminServiceImpl implements AdminService {
         if ("G".equals(normalizedUnit)) {
             return new NormalizedQuantity("WEIGHT", safeQuantity);
         }
-        if ("L".equals(normalizedUnit) || "LITER".equals(normalizedUnit) || "LITRE".equals(normalizedUnit) || "리터".equals(unit)) {
+        if ("L".equals(normalizedUnit) || "LITER".equals(normalizedUnit) || "LITRE".equals(normalizedUnit) || "由ы꽣".equals(unit)) {
             return new NormalizedQuantity("VOLUME", safeQuantity.multiply(new BigDecimal("1000")));
         }
         if ("ML".equals(normalizedUnit)) {
@@ -1241,6 +1397,62 @@ public class AdminServiceImpl implements AdminService {
                 "Failed to read image file."
             );
         }
+    }
+
+    private String getHubLocationName(String courierName) {
+        String carrierCode = OrderCompatibilityUtils.resolveCarrierCode(courierName);
+        if ("CJ".equalsIgnoreCase(carrierCode)) {
+            return "CJ 동남권 허브터미널";
+        }
+        if ("LOGEN".equalsIgnoreCase(carrierCode)) {
+            return "로젠 중부권 허브터미널";
+        }
+        if ("HANJIN".equalsIgnoreCase(carrierCode)) {
+            return "한진 수도권 허브터미널";
+        }
+        return "택배사 중간 허브터미널";
+    }
+
+    private String getHubLocationAddress(String courierName) {
+        String carrierCode = OrderCompatibilityUtils.resolveCarrierCode(courierName);
+        if ("CJ".equalsIgnoreCase(carrierCode)) {
+            return "경기도 용인시 처인구 백암면 중앙대로 798 CJ 동남권 허브터미널";
+        }
+        if ("LOGEN".equalsIgnoreCase(carrierCode)) {
+            return "충청북도 청주시 흥덕구 강내면 서성목연로 320 로젠 중부권 허브터미널";
+        }
+        if ("HANJIN".equalsIgnoreCase(carrierCode)) {
+            return "경기도 군포시 번영로 82 한진 수도권 허브터미널";
+        }
+        return "경기도 용인시 처인구 백암면 중앙대로 798 택배사 중간 허브터미널";
+    }
+
+    private String getDestinationLocationName(OrderDto order) {
+        String recipientName = trimToNull(order == null ? null : order.getRecipientName());
+        return recipientName == null ? "고객 배송지" : recipientName + "님 배송지";
+    }
+
+    private String getDestinationLocationAddress(OrderDto order) {
+        if (order == null) {
+            return null;
+        }
+
+        StringBuilder builder = new StringBuilder();
+        appendLocationPart(builder, order.getZipCode());
+        appendLocationPart(builder, order.getAddress1());
+        appendLocationPart(builder, order.getAddress2());
+        return builder.length() == 0 ? null : builder.toString();
+    }
+
+    private void appendLocationPart(StringBuilder builder, String value) {
+        String trimmed = trimToNull(value);
+        if (trimmed == null) {
+            return;
+        }
+        if (builder.length() > 0) {
+            builder.append(' ');
+        }
+        builder.append(trimmed);
     }
 
     private static final class NormalizedQuantity {

@@ -12,8 +12,15 @@ public class DeliveryDto {
     private Long deliveryNo;
     private Long orderNo;
     private String courierName;
+    private String carrierCode;
+    private String carrierName;
     private String trackingNo;
     private String deliveryStatus;
+    private String waybillStatus;
+    private LocalDateTime waybillAssignedAt;
+    private LocalDateTime pickedUpAt;
+    private LocalDateTime inTransitAt;
     private LocalDateTime shippedAt;
     private LocalDateTime deliveredAt;
+    private LocalDateTime updatedAt;
 }

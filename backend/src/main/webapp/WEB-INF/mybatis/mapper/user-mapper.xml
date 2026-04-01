@@ -175,6 +175,7 @@
                 JOIN OFT_ORDER_ITEM oi
                   ON oi.ORDER_NO = o.ORDER_NO
                 WHERE o.USER_NO = u.USER_NO
+                  AND o.ORDER_STATUS != 'CANCELED'
             ), 0) AS totalSavedAmount
         FROM OFT_USERS u
         WHERE u.USER_NO = #{userNo}

@@ -7,6 +7,7 @@
         WITH latest_match AS (
             SELECT
                 ppm.PRODUCT_NO,
+                ppm.COMPARED_PRICE,
                 ps.AVG_PRICE,
                 ppm.SAVING_RATE,
                 ROW_NUMBER() OVER (
@@ -46,10 +47,13 @@
             p.SALE_PRICE AS salePrice,
             p.STOCK_QTY AS stockQty,
             p.SALE_STATUS AS saleStatus,
-            lm.AVG_PRICE AS avgPrice,
+            NVL(lm.COMPARED_PRICE, lm.AVG_PRICE) AS avgPrice,
             lm.SAVING_RATE AS savingRate,
-            GREATEST(NVL(lm.AVG_PRICE, 0) - p.SALE_PRICE, 0) * ci.QUANTITY AS savedAmount,
-            ci.QUANTITY AS quantity
+            GREATEST(NVL(lm.COMPARED_PRICE, NVL(lm.AVG_PRICE, 0)) - p.SALE_PRICE, 0) * ci.QUANTITY AS savedAmount,
+            img.IMAGE_NO AS imageNo,
+            ci.QUANTITY AS quantity,
+            ci.CREATED_AT AS createdAt,
+            ci.UPDATED_AT AS updatedAt
         FROM OFT_CART c
         JOIN OFT_CART_ITEM ci
             ON ci.CART_NO = c.CART_NO
@@ -57,6 +61,19 @@
             ON cg.CART_GROUP_NO = ci.CART_GROUP_NO
         JOIN OFT_PRODUCT p
             ON p.PRODUCT_NO = ci.PRODUCT_NO
+        LEFT JOIN (
+            SELECT
+                PRODUCT_NO,
+                MIN(IMAGE_NO) KEEP (
+                    DENSE_RANK FIRST ORDER BY
+                        CASE WHEN IS_MAIN = 'Y' THEN 0 ELSE 1 END,
+                        NVL(SORT_ORDER, 99999),
+                        IMAGE_NO
+                ) AS IMAGE_NO
+            FROM OFT_PRODUCT_IMAGE
+            GROUP BY PRODUCT_NO
+        ) img
+            ON img.PRODUCT_NO = p.PRODUCT_NO
         LEFT JOIN latest_match lm
             ON lm.PRODUCT_NO = p.PRODUCT_NO
            AND lm.rn = 1

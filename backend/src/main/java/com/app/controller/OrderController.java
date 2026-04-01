@@ -54,6 +54,17 @@ public class OrderController {
         return ResponseEntity.ok(OBJECT_MAPPER.writeValueAsString(response));
     }
 
+    @GetMapping("/me/{orderNo}/tracking")
+    public ApiResponse<OrderDto> getMyOrderTracking(
+        @RequestHeader("X-USER-NO") Long userNo,
+        @PathVariable("orderNo") Long orderNo
+    ) {
+        return ApiResponse.success(
+            orderService.getMyOrderTracking(userNo, orderNo),
+            "Order tracking loaded."
+        );
+    }
+
     @PostMapping(value = "/me", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ApiResponse<OrderDto> createMyOrder(
         @RequestHeader("X-USER-NO") Long userNo,
@@ -68,5 +79,27 @@ public class OrderController {
         @PathVariable("orderNo") Long orderNo
     ) {
         return ApiResponse.success(orderService.advanceOrderStatus(userNo, orderNo), "Order status advanced.");
+    }
+
+    @PatchMapping("/me/{orderNo}/cancel-request")
+    public ApiResponse<OrderDto> requestMyOrderCancel(
+        @RequestHeader("X-USER-NO") Long userNo,
+        @PathVariable("orderNo") Long orderNo
+    ) {
+        return ApiResponse.success(
+            orderService.requestCancel(userNo, orderNo),
+            "Cancel request submitted."
+        );
+    }
+
+    @PatchMapping("/me/{orderNo}/purchase-confirm")
+    public ApiResponse<OrderDto> confirmMyOrderPurchase(
+        @RequestHeader("X-USER-NO") Long userNo,
+        @PathVariable("orderNo") Long orderNo
+    ) {
+        return ApiResponse.success(
+            orderService.confirmPurchase(userNo, orderNo),
+            "Purchase confirmed."
+        );
     }
 }

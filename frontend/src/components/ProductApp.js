@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useRef, useState } from 'react';
+import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import '../styles/product.css';
 import {
   DEFAULT_PORTONE_CONFIG,
@@ -547,14 +547,14 @@ export default function ProductApp({ authUser }) {
     navigateToHash('#/mypage/orders');
   }
 
-  function openAddressSetup() {
+  const openAddressSetup = useCallback(() => {
     if (!isLoggedIn) {
       navigateToHash('#/login');
       return;
     }
 
     navigateToHash('#/mypage?address=manage');
-  }
+  }, [isLoggedIn]);
 
   function openOrderPreview(orderId) {
     if (!isLoggedIn) {
@@ -888,7 +888,7 @@ export default function ProductApp({ authUser }) {
     setCartDetails([]);
   }
 
-  async function submitOrder(checkoutForm) {
+  async function submitOrder(checkoutForm, options = {}) {
     if (!isLoggedIn) {
       navigateToHash('#/login');
       return;
@@ -899,7 +899,7 @@ export default function ProductApp({ authUser }) {
       return;
     }
 
-    if (process.env.NODE_ENV !== 'test' && paymentConfig?.ready) {
+    if (process.env.NODE_ENV !== 'test' && paymentConfig?.ready && !options.forceDirectOrder) {
       const paymentDraft = createPortOnePaymentDraft(
         paymentConfig,
         checkoutForm,
@@ -927,17 +927,20 @@ export default function ProductApp({ authUser }) {
       }
     }
 
+    const directCheckoutForm = options.forceDirectOrder
+      ? {
+          ...checkoutForm,
+          paymentKey: checkoutForm.paymentKey || `TEST-${Date.now()}`,
+        }
+      : checkoutForm;
+
     if (process.env.NODE_ENV !== 'test') {
-      try {
-        const newOrder = await createOrderOnApi(checkoutForm);
-        applySuccessfulOrder(newOrder);
-        return;
-      } catch (error) {
-        // Fall back to local order state.
-      }
+      const newOrder = await createOrderOnApi(directCheckoutForm);
+      applySuccessfulOrder(newOrder);
+      return;
     }
 
-    const newOrder = createOrderFromCart(cartItems, checkoutForm, orders);
+    const newOrder = createOrderFromCart(cartItems, directCheckoutForm, orders);
     setOrders((previousOrders) => [newOrder, ...previousOrders]);
     setCart({});
     setCartDetails([]);
@@ -1009,6 +1012,9 @@ export default function ProductApp({ authUser }) {
               cartItems={cartItems}
               onBackToCart={openCart}
               onOpenAddressSetup={openAddressSetup}
+              onSubmitInstantPayment={(checkoutForm) =>
+                submitOrder(checkoutForm, { forceDirectOrder: true })
+              }
               onSubmitOrder={submitOrder}
               paymentConfig={paymentConfig}
             />
