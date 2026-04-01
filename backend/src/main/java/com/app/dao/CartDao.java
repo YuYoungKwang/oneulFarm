@@ -24,7 +24,13 @@ public interface CartDao {
 
     int deleteCartItem(Long cartNo, Long cartItemNo);
 
+    int deleteCartItemsByGroup(Long cartNo, Long cartGroupNo);
+
+    int deleteCartGroup(Long cartNo, Long cartGroupNo);
+
     int deleteAllCartItems(Long cartNo);
+
+    int deleteAllCartGroups(Long cartNo);
 
     int deleteEmptyCartGroups(Long cartNo);
 }

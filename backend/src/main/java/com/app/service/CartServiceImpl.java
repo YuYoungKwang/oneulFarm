@@ -90,10 +90,35 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
+    public CartDto removeCartGroup(Long userNo, Long cartGroupNo) {
+        Long cartNo = getOrCreateCartNo(userNo);
+        if (cartGroupNo == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cart group not found.");
+        }
+
+        boolean hasTargetGroup = false;
+        for (CartItemDto item : cartDao.findCartItems(userNo)) {
+            if (item != null && cartGroupNo.equals(item.getCartGroupNo())) {
+                hasTargetGroup = true;
+                break;
+            }
+        }
+
+        if (!hasTargetGroup) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Cart group not found.");
+        }
+
+        cartDao.deleteCartItemsByGroup(cartNo, cartGroupNo);
+        cartDao.deleteCartGroup(cartNo, cartGroupNo);
+        cartDao.deleteEmptyCartGroups(cartNo);
+        return buildCartResponse(cartNo, userNo);
+    }
+
+    @Override
     public CartDto clearCart(Long userNo) {
         Long cartNo = getOrCreateCartNo(userNo);
         cartDao.deleteAllCartItems(cartNo);
-        cartDao.deleteEmptyCartGroups(cartNo);
+        cartDao.deleteAllCartGroups(cartNo);
         return buildCartResponse(cartNo, userNo);
     }
 

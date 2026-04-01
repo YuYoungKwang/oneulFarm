@@ -62,6 +62,14 @@ public class CartController {
         return ApiResponse.success(cartService.removeCartItem(userNo, cartItemNo), "Cart item removed.");
     }
 
+    @DeleteMapping("/me/groups/{cartGroupNo}")
+    public ApiResponse<CartDto> removeCartGroup(
+        @RequestHeader("X-USER-NO") Long userNo,
+        @PathVariable Long cartGroupNo
+    ) {
+        return ApiResponse.success(cartService.removeCartGroup(userNo, cartGroupNo), "Cart group removed.");
+    }
+
     @DeleteMapping("/me/items")
     public ApiResponse<CartDto> clearCart(
         @RequestHeader("X-USER-NO") Long userNo

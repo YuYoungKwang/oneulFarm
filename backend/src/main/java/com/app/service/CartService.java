@@ -14,5 +14,7 @@ public interface CartService {
 
     CartDto removeCartItem(Long userNo, Long cartItemNo);
 
+    CartDto removeCartGroup(Long userNo, Long cartGroupNo);
+
     CartDto clearCart(Long userNo);
 }
