@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { clearAuthUser, getAuthUser, isSuperAdminUser } from './auth';
 import './styles/admin.css';
 import AdminLayout from './admin/AdminLayout';
@@ -78,8 +78,8 @@ const EMPTY_PURCHASE_FORM = {
   referenceUnitPrice: '0',
   referenceTotalPrice: '0',
   referenceSnapshotDate: '',
-  grade: '상',
-  supplierType: '농가',
+  grade: '',
+  supplierType: '\uB18D\uC7A5',
   actualUnitPrice: '0',
   actualPurchaseAmount: '0',
   logisticsCost: '0',
@@ -89,7 +89,7 @@ const EMPTY_PURCHASE_FORM = {
   discardRate: '3',
   purchasePrice: '0',
   purchaseDate: new Date().toISOString().slice(0, 10),
-  supplierName: '천안 농가',
+  supplierName: '\uCC9C\uC548 \uB18D\uC7A5',
   status: 'PURCHASED',
 };
 
@@ -157,46 +157,48 @@ const ADMIN_REFERENCE_ALIAS_MAP = {
   ],
 };
 
-const PURCHASE_SUPPLIER_PROFILES = [
+// eslint-disable-next-line no-unused-vars
+const LEGACY_PURCHASE_SUPPLIER_PROFILES_UNUSED = [
   {
     key: 'farm-cheonan',
-    supplierName: '천안 농가',
-    supplierType: '농가',
+    supplierName: '泥쒖븞 ?띻?',
+    supplierType: '?띻?',
     defaultLogisticsCost: 8000,
     defaultCommissionRate: 0,
     defaultDiscardRate: 3,
     priceMultiplierMin: 0.9,
     priceMultiplierMax: 0.95,
-    note: '시세보다 약간 낮은 단가를 기본 제안합니다.',
+    note: '?쒖꽭蹂대떎 ?쎄컙 ??? ?④?瑜?湲곕낯 ?쒖븞?⑸땲??',
   },
   {
     key: 'wholesale-daejeon',
-    supplierName: '대전 도매시장',
-    supplierType: '도매',
+    supplierName: '????꾨ℓ?쒖옣',
+    supplierType: '?꾨ℓ',
     defaultLogisticsCost: 5000,
     defaultCommissionRate: 5,
     defaultDiscardRate: 7,
     priceMultiplierMin: 0.97,
     priceMultiplierMax: 1.04,
-    note: '시세와 비슷한 단가를 기본 제안합니다.',
+    note: '?쒖꽭? 鍮꾩듂???④?瑜?湲곕낯 ?쒖븞?⑸땲??',
   },
   {
     key: 'distributor-seoul',
-    supplierName: '서울 산지 유통',
-    supplierType: '유통',
+    supplierName: '?쒖슱 ?곗? ?좏넻',
+    supplierType: '?좏넻',
     defaultLogisticsCost: 0,
     defaultCommissionRate: 0,
     defaultDiscardRate: 2,
     priceMultiplierMin: 1.1,
     priceMultiplierMax: 1.2,
-    note: '단가 포함형이라 물류비는 0원으로 시작합니다.',
+    note: '?④? ?ы븿?뺤씠??臾쇰쪟鍮꾨뒗 0?먯쑝濡??쒖옉?⑸땲??',
   },
 ];
 
-const PACKAGE_COST_PROFILES = [
+// eslint-disable-next-line no-unused-vars
+const LEGACY_PACKAGE_COST_PROFILES_UNUSED = [
   {
     key: 'small',
-    label: '소포장 기본가',
+    label: '?뚰룷??湲곕낯媛',
     maxWeightKg: 0.5,
     packagingMaterialPerUnit: 20,
     packagingLaborPerUnit: 90,
@@ -204,7 +206,7 @@ const PACKAGE_COST_PROFILES = [
   },
   {
     key: 'medium',
-    label: '중포장 기본가',
+    label: '以묓룷??湲곕낯媛',
     maxWeightKg: 1,
     packagingMaterialPerUnit: 40,
     packagingLaborPerUnit: 120,
@@ -212,7 +214,7 @@ const PACKAGE_COST_PROFILES = [
   },
   {
     key: 'large',
-    label: '대포장 기본가',
+    label: '??ъ옣 湲곕낯媛',
     maxWeightKg: 3,
     packagingMaterialPerUnit: 80,
     packagingLaborPerUnit: 170,
@@ -220,7 +222,78 @@ const PACKAGE_COST_PROFILES = [
   },
   {
     key: 'bulk',
-    label: '대량포장 기본가',
+    label: '??됲룷??湲곕낯媛',
+    maxWeightKg: Number.POSITIVE_INFINITY,
+    packagingMaterialPerUnit: 120,
+    packagingLaborPerUnit: 220,
+    otherPackagingPerUnit: 50,
+  },
+];
+
+const PURCHASE_SUPPLIER_PROFILES = [
+  {
+    key: 'farm-cheonan',
+    supplierName: '\uCC9C\uC548 \uB18D\uC7A5',
+    supplierType: '\uB18D\uC7A5',
+    defaultLogisticsCost: 8000,
+    defaultCommissionRate: 0,
+    defaultDiscardRate: 3,
+    priceMultiplierMin: 0.9,
+    priceMultiplierMax: 0.95,
+    note: '\uC2DC\uC138\uBCF4\uB2E4 \uC870\uAE08 \uB0AE\uC740 \uC6D0\uBB3C \uB2E8\uAC00\uB97C \uAE30\uBCF8 \uC81C\uC548\uD569\uB2C8\uB2E4.',
+  },
+  {
+    key: 'wholesale-daejeon',
+    supplierName: '\uB300\uC804 \uB3C4\uB9E4\uC2DC\uC7A5',
+    supplierType: '\uB3C4\uB9E4',
+    defaultLogisticsCost: 5000,
+    defaultCommissionRate: 5,
+    defaultDiscardRate: 7,
+    priceMultiplierMin: 0.97,
+    priceMultiplierMax: 1.04,
+    note: '\uC2DC\uC138\uC640 \uBE44\uC2B7\uD55C \uC6D0\uBB3C \uB2E8\uAC00\uB97C \uAE30\uBCF8 \uC81C\uC548\uD569\uB2C8\uB2E4.',
+  },
+  {
+    key: 'distributor-seoul',
+    supplierName: '\uC11C\uC6B8 \uC678\uBD80 \uC720\uD1B5',
+    supplierType: '\uC720\uD1B5',
+    defaultLogisticsCost: 0,
+    defaultCommissionRate: 0,
+    defaultDiscardRate: 2,
+    priceMultiplierMin: 1.1,
+    priceMultiplierMax: 1.2,
+    note: '\uB2E8\uAC00 \uD3EC\uD568 \uC815\uCC45\uC774\uC9C0\uB9CC \uBB3C\uB958\uBE44\uB294 0\uC6D0\uC73C\uB85C \uC2DC\uC791\uD569\uB2C8\uB2E4.',
+  },
+];
+
+const PACKAGE_COST_PROFILES = [
+  {
+    key: 'small',
+    label: '\uC18C\uD3EC\uC7A5 \uAE30\uBCF8\uAC00',
+    maxWeightKg: 0.5,
+    packagingMaterialPerUnit: 20,
+    packagingLaborPerUnit: 90,
+    otherPackagingPerUnit: 20,
+  },
+  {
+    key: 'medium',
+    label: '\uC911\uD3EC\uC7A5 \uAE30\uBCF8\uAC00',
+    maxWeightKg: 1,
+    packagingMaterialPerUnit: 40,
+    packagingLaborPerUnit: 120,
+    otherPackagingPerUnit: 30,
+  },
+  {
+    key: 'large',
+    label: '\uB300\uD3EC\uC7A5 \uAE30\uBCF8\uAC00',
+    maxWeightKg: 3,
+    packagingMaterialPerUnit: 80,
+    packagingLaborPerUnit: 170,
+    otherPackagingPerUnit: 40,
+  },
+  {
+    key: 'bulk',
+    label: '\uB300\uB7C9\uD3EC\uC7A5 \uAE30\uBCF8\uAC00',
     maxWeightKg: Number.POSITIVE_INFINITY,
     packagingMaterialPerUnit: 120,
     packagingLaborPerUnit: 220,
@@ -2826,21 +2899,11 @@ function PurchasePage({
               </select>
             </label>
             </div>
-            {packageCostDefaults ? (
-              <div className="admin-muted">
-                {packageCostDefaults.profileLabel}
-                {' 쨌 ?ъ옣?щ퉬 '}
-                {formatAdminCurrency(packageCostDefaults.packagingMaterialCost)}
-                {' 쨌 ?멸굔鍮?'}
-                {formatAdminCurrency(packageCostDefaults.packagingLaborCost)}
-                {' 쨌 湲고?鍮?'}
-                {formatAdminCurrency(packageCostDefaults.otherPackagingCost)}
-              </div>
-            ) : (
-              <div className="admin-muted">
-                {'?앹꽦 ?섎웾怨?1媛쒕떦 以묐웾???낅젰?섎㈃ ?ъ옣?щ퉬, ?멸굔鍮? 湲고? ?뚮텇鍮?湲곕낯媛믪씠 ?먮룞 怨꾩궛?⑸땲??'}
-              </div>
-            )}
+            <div className="admin-muted">
+              {packageCostDefaults
+                ? `${packageCostDefaults.profileLabel} \u00B7 \uD3EC\uC7A5\uC7AC\uBE44 ${formatAdminCurrency(packageCostDefaults.packagingMaterialCost)} \u00B7 \uC18C\uBD84 \uC778\uAC74\uBE44 ${formatAdminCurrency(packageCostDefaults.packagingLaborCost)} \u00B7 \uAE30\uD0C0 \uC18C\uBD84\uBE44 ${formatAdminCurrency(packageCostDefaults.otherPackagingCost)}`
+                : '\uC0DD\uC131 \uC218\uB7C9\uACFC 1\uAC1C\uB2F9 \uC911\uB7C9\uC744 \uC785\uB825\uD558\uBA74 \uC18C\uD3EC\uC7A5, \uC911\uD3EC\uC7A5, \uB300\uD3EC\uC7A5 \uAE30\uC900 \uBE44\uC6A9\uC774 \uC790\uB3D9 \uACC4\uC0B0\uB429\uB2C8\uB2E4.'}
+            </div>
             <div className="admin-form-field admin-form-field--full admin-form-field--memo">
               <span>{'\uBA54\uBAA8'}</span>
               <textarea name="note" value={packageForm.note} onChange={onPackageFormChange} />
@@ -3509,7 +3572,7 @@ function AdminApp() {
       try {
         quote = await fetchAdminPurchaseQuote(productName, itemCode);
       } catch (quoteError) {
-        wholesaleErrorMessage = quoteError?.message || '?꾨ℓ ?쒖꽭 議고쉶???ㅽ뙣?덉뒿?덈떎.';
+        wholesaleErrorMessage = quoteError?.message || '?袁ⓥ꼻 ??뽮쉭 鈺곌퀬?????쎈솭??됰뮸??덈뼄.';
         const retailPriceList = await fetchAdminRecentRetailPriceList(
           retailLookupName,
           200,
@@ -3517,7 +3580,7 @@ function AdminApp() {
         );
         if (!Array.isArray(retailPriceList) || !retailPriceList.length) {
           throw new Error(
-            `?꾨ℓ ?쒖꽭 議고쉶 ?ㅽ뙣: ${wholesaleErrorMessage} / ?뚮ℓ ?쒖꽭 議고쉶 ?ㅽ뙣: 理쒓렐 ?뚮ℓ ?쒖꽭 ?곗씠?곌? ?놁뒿?덈떎.`
+            `?袁ⓥ꼻 ??뽮쉭 鈺곌퀬????쎈솭: ${wholesaleErrorMessage} / ???꼻 ??뽮쉭 鈺곌퀬????쎈솭: 筌ㅼ뮄?????꼻 ??뽮쉭 ?怨쀬뵠?怨? ??곷뮸??덈뼄.`
           );
         }
         const retailSnapshot = selectedReferenceItem
@@ -3528,7 +3591,7 @@ function AdminApp() {
           : findAdminRetailSnapshotByName(retailLookupName, retailPriceList);
         if (!retailSnapshot) {
           throw new Error(
-            `?꾨ℓ ?쒖꽭 議고쉶 ?ㅽ뙣: ${wholesaleErrorMessage} / ?뚮ℓ ?쒖꽭 留ㅼ묶 ?ㅽ뙣: '${retailLookupName}' 湲곗??쇰줈 ?곌껐 媛?ν븳 ?뚮ℓ ?덈ぉ??李얠? 紐삵뻽?듬땲??`
+            `?袁ⓥ꼻 ??뽮쉭 鈺곌퀬????쎈솭: ${wholesaleErrorMessage} / ???꼻 ??뽮쉭 筌띲끉臾???쎈솭: '${retailLookupName}' 疫꿸퀣???곗쨮 ?怨뚭퍙 揶쎛?館釉????꼻 ??덀걠??筌≪뼚? 筌륁궢六??щ빍??`
           );
         }
 
@@ -3753,7 +3816,7 @@ function AdminApp() {
       setSelectedOrderDetail(detail);
       setTrackingNo(detail?.trackingNo || trackingNo);
     } catch (error) {
-      setActionError(error.message || '二쇰Ц ?묒닔???ㅽ뙣?덉뒿?덈떎.');
+      setActionError(error.message || '雅뚯눖揆 ?臾믩땾????쎈솭??됰뮸??덈뼄.');
     } finally {
       setUpdatingOrder(false);
     }
@@ -3774,7 +3837,7 @@ function AdminApp() {
       setSelectedOrderDetail(detail);
       setTrackingNo(detail?.trackingNo || trackingNo);
     } catch (error) {
-      setActionError(error.message || '痍⑥냼 ?붿껌 ?섎씫???ㅽ뙣?덉뒿?덈떎.');
+      setActionError(error.message || '?띯뫁???遺욧퍕 ??롮뵭????쎈솭??됰뮸??덈뼄.');
     } finally {
       setUpdatingOrder(false);
     }
@@ -3795,7 +3858,7 @@ function AdminApp() {
       setSelectedOrderDetail(detail);
       setTrackingNo(detail?.trackingNo || trackingNo);
     } catch (error) {
-      setActionError(error.message || '痍⑥냼 ?붿껌 嫄곗젅???ㅽ뙣?덉뒿?덈떎.');
+      setActionError(error.message || '?띯뫁???遺욧퍕 椰꾧퀣?????쎈솭??됰뮸??덈뼄.');
     } finally {
       setUpdatingOrder(false);
     }
@@ -3803,12 +3866,12 @@ function AdminApp() {
 
   async function handleShipOrder() {
     if (selectedOrderDetail?.acceptAvailable) {
-      setActionError('二쇰Ц ?묒닔 ??10珥덈쭏??諛곗넚 ?④퀎媛 ?먮룞?쇰줈 吏꾪뻾?⑸땲??');
+      setActionError('雅뚯눖揆 ?臾믩땾 ??10?λ뜄彛??獄쏄퀣????ｍ롥첎? ?癒?짗??곗쨮 筌욊쑵六??몃빍??');
       return;
     }
 
     const confirmed = window.confirm(
-      '諛곗넚 ?멸퀎 吏꾪뻾 ?곹깭??諛곗넚 ?대떦?먭? 愿由ы빀?덈떎. ?뺣쭚 ?멸퀎?섏떆寃좎뒿?덇퉴?'
+      '獄쏄퀣???硫명?筌욊쑵六??怨밴묶??獄쏄퀣??????癒? ?온?귐뗫???덈뼄. ?類ｌ춾 ?硫명??뤿뻻野껋쥙???뉙돱?'
     );
     if (!confirmed) {
       return;
@@ -3851,7 +3914,7 @@ function AdminApp() {
         setSelectedOrderDetail(detail);
         setTrackingNo(detail?.trackingNo || nextTrackingNo);
       } catch (error) {
-        setActionError(error.message || '?≪옣 ?깅줉???ㅽ뙣?덉뒿?덈떎.');
+        setActionError(error.message || '??れ삢 ?源낆쨯????쎈솭??됰뮸??덈뼄.');
       } finally {
         setUpdatingOrder(false);
       }
@@ -3882,7 +3945,7 @@ function AdminApp() {
         setSelectedOrderDetail(detail);
         setTrackingNo(detail?.trackingNo || nextTrackingNo);
       } catch (error) {
-        setActionError(error.message || '吏묓븯 泥섎━???ㅽ뙣?덉뒿?덈떎.');
+        setActionError(error.message || '筌욌쵑釉?筌ｌ꼶?????쎈솭??됰뮸??덈뼄.');
       } finally {
         setUpdatingOrder(false);
       }
@@ -3910,7 +3973,7 @@ function AdminApp() {
       setSelectedOrderDetail(detail);
       setTrackingNo(detail?.trackingNo || trackingNo);
     } catch (error) {
-      setActionError(error.message || '諛곗넚 ?꾨즺 泥섎━???ㅽ뙣?덉뒿?덈떎.');
+      setActionError(error.message || '獄쏄퀣???袁⑥┷ 筌ｌ꼶?????쎈솭??됰뮸??덈뼄.');
     } finally {
       setUpdatingOrder(false);
     }
@@ -3931,7 +3994,7 @@ function AdminApp() {
       setSelectedOrderDetail(detail);
       setTrackingNo(detail?.trackingNo || trackingNo);
     } catch (error) {
-      setActionError(error.message || '諛곗넚 以?泥섎━???ㅽ뙣?덉뒿?덈떎.');
+      setActionError(error.message || '獄쏄퀣??餓?筌ｌ꼶?????쎈솭??됰뮸??덈뼄.');
     } finally {
       setUpdatingOrder(false);
     }
@@ -4224,9 +4287,9 @@ function AdminApp() {
       setPurchases(nextPurchases);
       setPackageHistories(nextPackageHistories);
       setProducts(nextProducts);
-      setActionSuccess('?뚮텇 ?대젰??痍⑥냼?섍퀬 ?ш퀬瑜?蹂듦뎄?덉뒿?덈떎.');
+      setActionSuccess('???뀋 ??????띯뫁???랁????х몴?癰귣벀???됰뮸??덈뼄.');
     } catch (error) {
-      setActionError(error.message || '?뚮텇 痍⑥냼???ㅽ뙣?덉뒿?덈떎.');
+      setActionError(error.message || '???뀋 ?띯뫁?????쎈솭??됰뮸??덈뼄.');
     } finally {
       setPendingCancelPackageHistory(null);
       setSavingPackage(false);
@@ -4441,22 +4504,22 @@ function AdminApp() {
                 onClick={(event) => event.stopPropagation()}
               >
                 <div className="admin-modal__body">
-                  <h3 id="cancel-package-history-title">{'재고 복구 확인'}</h3>
-                  <p>{'소분 이력을 취소하면 배치 재고와 상품 재고가 함께 복구됩니다.'}</p>
+                  <h3 id="cancel-package-history-title">{'\uC7AC\uACE0 \uBCF5\uAD6C \uD655\uC778'}</h3>
+                  <p>{'\uC18C\uBD84 \uC774\uB825\uC744 \uCDE8\uC18C\uD558\uBA74 \uBC30\uCE58 \uC7AC\uACE0\uC640 \uC0C1\uD488 \uC7AC\uACE0\uAC00 \uD568\uAED8 \uBCF5\uAD6C\uB429\uB2C8\uB2E4.'}</p>
                   <div className="admin-modal__summary">
                     <div className="admin-modal__summary-item">
-                      <span>{'수량'}</span>
-                      <strong>{pendingCancelPackageHistory.packagedQty}{'개'}</strong>
+                      <span>{'\uC218\uB7C9'}</span>
+                      <strong>{pendingCancelPackageHistory.packagedQty}{'\uAC1C'}</strong>
                     </div>
                     <div className="admin-modal__summary-item">
-                      <span>{'중량'}</span>
+                      <span>{'\uC911\uB7C9'}</span>
                       <strong>
                         {formatDecimalInput(pendingCancelPackageHistory.packagedWeight, 2)}
                         {currentBatch?.purchaseUnit || ''}
                       </strong>
                     </div>
                     <div className="admin-modal__summary-item">
-                      <span>{'?먮ℓ媛'}</span>
+                      <span>{'\uD310\uB9E4\uAC00'}</span>
                       <strong>{formatAdminCurrency(pendingCancelPackageHistory.salePrice)}</strong>
                     </div>
                   </div>
@@ -4468,7 +4531,7 @@ function AdminApp() {
                     onClick={() => setPendingCancelPackageHistory(null)}
                     disabled={savingPackage}
                   >
-                    {'?リ린'}
+                    {'\uB2EB\uAE30'}
                   </button>
                   <button
                     type="button"
@@ -4476,7 +4539,7 @@ function AdminApp() {
                     onClick={handleConfirmCancelPackageHistory}
                     disabled={savingPackage}
                   >
-                    {savingPackage ? '泥섎━ 以?..' : '?ш퀬 蹂듦뎄'}
+                    {savingPackage ? '\uCC98\uB9AC \uC911...' : '\uC7AC\uACE0 \uBCF5\uAD6C'}
                   </button>
                 </div>
               </div>
