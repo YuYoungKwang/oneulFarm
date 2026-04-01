@@ -848,7 +848,7 @@ describe.skip('App legacy integration flows', () => {
   });
 
   test('관리자 매입 등록에서 시세 자동 채움으로 단위와 수량, 총 매입가를 채운다', async () => {
-    window.localStorage.setItem('oneulFarmAdminMode', 'true');
+    window.sessionStorage.setItem('oneulFarmAdminMode', 'true');
     window.location.hash = '#/admin/purchase';
 
     render(<App />);
