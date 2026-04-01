@@ -26,9 +26,14 @@
         <result property="orderId" column="orderId" />
         <result property="orderedAt" column="orderedAt" />
         <result property="orderStatus" column="orderStatus" />
+        <result property="cancelStatus" column="cancelStatus" />
+        <result property="purchaseConfirmStatus" column="purchaseConfirmStatus" />
+        <result property="purchaseConfirmedAt" column="purchaseConfirmedAt" />
+        <result property="fulfillmentStartedAt" column="fulfillmentStartedAt" />
         <result property="recipientName" column="recipientName" />
         <result property="recipientPhone" column="recipientPhone" />
         <result property="deliveryStatus" column="deliveryStatus" />
+        <result property="carrierCode" column="carrierCode" />
         <result property="displayProductName" column="displayProductName" />
         <result property="itemCount" column="itemCount" />
         <result property="finalAmount" column="finalAmount" />
@@ -38,6 +43,11 @@
         <result property="paidAmount" column="paidAmount" />
         <result property="trackingNo" column="trackingNo" />
         <result property="courierName" column="courierName" />
+        <result property="waybillStatus" column="waybillStatus" />
+        <result property="waybillAssignedAt" column="waybillAssignedAt" />
+        <result property="pickedUpAt" column="pickedUpAt" />
+        <result property="inTransitAt" column="inTransitAt" />
+        <result property="deliveredAt" column="deliveredAt" />
     </resultMap>
 
     <resultMap id="AdminOrderDetailResultMap" type="com.app.dto.OrderDto">
@@ -46,13 +56,22 @@
         <result property="orderId" column="orderId" />
         <result property="orderedAt" column="orderedAt" />
         <result property="orderStatus" column="orderStatus" />
+        <result property="cancelStatus" column="cancelStatus" />
+        <result property="purchaseConfirmStatus" column="purchaseConfirmStatus" />
+        <result property="purchaseConfirmedAt" column="purchaseConfirmedAt" />
+        <result property="fulfillmentStartedAt" column="fulfillmentStartedAt" />
         <result property="recipientName" column="recipientName" />
         <result property="recipientPhone" column="recipientPhone" />
         <result property="zipCode" column="zipCode" />
         <result property="address1" column="address1" />
         <result property="address2" column="address2" />
         <result property="deliveryStatus" column="deliveryStatus" />
+        <result property="carrierCode" column="carrierCode" />
         <result property="courierName" column="courierName" />
+        <result property="waybillStatus" column="waybillStatus" />
+        <result property="waybillAssignedAt" column="waybillAssignedAt" />
+        <result property="pickedUpAt" column="pickedUpAt" />
+        <result property="inTransitAt" column="inTransitAt" />
         <result property="trackingNo" column="trackingNo" />
         <result property="shippedAt" column="shippedAt" />
         <result property="deliveredAt" column="deliveredAt" />
@@ -344,9 +363,13 @@
             o.ORDER_ID AS orderId,
             o.ORDERED_AT AS orderedAt,
             o.ORDER_STATUS AS orderStatus,
+            o.CANCEL_STATUS AS cancelStatus,
+            o.PURCHASE_CONFIRM_STATUS AS purchaseConfirmStatus,
+            o.PURCHASE_CONFIRMED_AT AS purchaseConfirmedAt,
             o.RECIPIENT_NAME AS recipientName,
             o.RECIPIENT_PHONE AS recipientPhone,
             NVL(d.DELIVERY_STATUS, 'READY') AS deliveryStatus,
+            d.CARRIER_CODE AS carrierCode,
             CASE
                 WHEN oi.ITEM_COUNT &lt;= 1 THEN oi.FIRST_PRODUCT_NAME
                 ELSE oi.FIRST_PRODUCT_NAME || ' 외 ' || TO_CHAR(oi.ITEM_COUNT - 1) || '건'
@@ -358,7 +381,12 @@
             p.PAYMENT_STATUS AS paymentStatus,
             p.PAID_AMOUNT AS paidAmount,
             d.TRACKING_NO AS trackingNo,
-            d.COURIER_NAME AS courierName
+            d.COURIER_NAME AS courierName,
+            d.WAYBILL_STATUS AS waybillStatus,
+            d.WAYBILL_ASSIGNED_AT AS waybillAssignedAt,
+            d.PICKED_UP_AT AS pickedUpAt,
+            d.IN_TRANSIT_AT AS inTransitAt,
+            d.DELIVERED_AT AS deliveredAt
         FROM OFT_ORDERS o
         LEFT JOIN OFT_DELIVERY d
             ON d.ORDER_NO = o.ORDER_NO
@@ -393,14 +421,22 @@
             o.ORDER_ID AS orderId,
             o.ORDERED_AT AS orderedAt,
             o.ORDER_STATUS AS orderStatus,
+            o.CANCEL_STATUS AS cancelStatus,
+            o.PURCHASE_CONFIRM_STATUS AS purchaseConfirmStatus,
+            o.PURCHASE_CONFIRMED_AT AS purchaseConfirmedAt,
             o.RECIPIENT_NAME AS recipientName,
             o.RECIPIENT_PHONE AS recipientPhone,
             o.ZIP_CODE AS zipCode,
             o.ADDRESS1 AS address1,
             o.ADDRESS2 AS address2,
             NVL(d.DELIVERY_STATUS, 'READY') AS deliveryStatus,
+            d.CARRIER_CODE AS carrierCode,
             d.COURIER_NAME AS courierName,
             d.TRACKING_NO AS trackingNo,
+            d.WAYBILL_STATUS AS waybillStatus,
+            d.WAYBILL_ASSIGNED_AT AS waybillAssignedAt,
+            d.PICKED_UP_AT AS pickedUpAt,
+            d.IN_TRANSIT_AT AS inTransitAt,
             d.SHIPPED_AT AS shippedAt,
             d.DELIVERED_AT AS deliveredAt,
             p.PAYMENT_METHOD AS paymentMethod,
@@ -421,30 +457,51 @@
 
     <update id="updateAdminOrderStatus" parameterType="map">
         UPDATE OFT_ORDERS
-        SET ORDER_STATUS = #{orderStatus}
+        SET ORDER_STATUS = #{orderStatus},
+            UPDATED_AT = SYSTIMESTAMP
         WHERE ORDER_NO = #{orderNo}
     </update>
 
     <update id="updateAdminDeliveryTracking" parameterType="map">
         UPDATE OFT_DELIVERY
         SET TRACKING_NO = #{trackingNo},
-            COURIER_NAME = #{courierName}
+            COURIER_NAME = #{courierName},
+            WAYBILL_STATUS = 'ASSIGNED',
+            WAYBILL_ASSIGNED_AT = NVL(WAYBILL_ASSIGNED_AT, SYSTIMESTAMP),
+            UPDATED_AT = SYSTIMESTAMP
         WHERE ORDER_NO = #{orderNo}
     </update>
 
     <update id="updateAdminDeliveryForShipping" parameterType="map">
         UPDATE OFT_DELIVERY
-        SET DELIVERY_STATUS = 'SHIPPING',
+        SET DELIVERY_STATUS = 'IN_TRANSIT',
             TRACKING_NO = #{trackingNo},
             COURIER_NAME = #{courierName},
-            SHIPPED_AT = NVL(SHIPPED_AT, SYSTIMESTAMP)
+            WAYBILL_STATUS = 'ASSIGNED',
+            WAYBILL_ASSIGNED_AT = NVL(WAYBILL_ASSIGNED_AT, SYSTIMESTAMP),
+            IN_TRANSIT_AT = NVL(IN_TRANSIT_AT, SYSTIMESTAMP),
+            SHIPPED_AT = NVL(SHIPPED_AT, SYSTIMESTAMP),
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE ORDER_NO = #{orderNo}
+    </update>
+
+    <update id="updateAdminDeliveryForPickup" parameterType="map">
+        UPDATE OFT_DELIVERY
+        SET DELIVERY_STATUS = 'PICKED_UP',
+            TRACKING_NO = #{trackingNo},
+            COURIER_NAME = #{courierName},
+            WAYBILL_STATUS = 'ASSIGNED',
+            WAYBILL_ASSIGNED_AT = NVL(WAYBILL_ASSIGNED_AT, SYSTIMESTAMP),
+            PICKED_UP_AT = NVL(PICKED_UP_AT, SYSTIMESTAMP),
+            UPDATED_AT = SYSTIMESTAMP
         WHERE ORDER_NO = #{orderNo}
     </update>
 
     <update id="updateAdminDeliveryForDelivered" parameterType="long">
         UPDATE OFT_DELIVERY
         SET DELIVERY_STATUS = 'DELIVERED',
-            DELIVERED_AT = SYSTIMESTAMP
+            DELIVERED_AT = SYSTIMESTAMP,
+            UPDATED_AT = SYSTIMESTAMP
         WHERE ORDER_NO = #{_parameter}
     </update>
 

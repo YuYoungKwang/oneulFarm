@@ -17,6 +17,8 @@ public interface MainDao {
 
     List<SeasonalProductCardDto> findSeasonalRecommendationProducts(Map<String, Object> paramMap);
 
+    List<SeasonalProductCardDto> findRankingRecommendationProducts(Map<String, Object> paramMap);
+
     List<LinkedRecipeDto> findLinkedRecipesByProductName(Map<String, Object> paramMap);
 
     List<PopularRecipeCardDto> findPopularRecipes(Map<String, Object> paramMap);

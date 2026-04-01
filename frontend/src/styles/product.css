@@ -245,7 +245,7 @@
 .product-app .muted-copy{
   margin: 0;
   color: var(--muted);
-  font-size: 18px;
+  font-size: 15px;
 }
 
 .product-app .page-actions{
@@ -259,12 +259,12 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
+  padding: 6px 12px;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: #fff;
   color: var(--green-dark);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -822,6 +822,19 @@
   grid-auto-rows: max-content;
 }
 
+.product-app .cart-group-block{
+  display: grid;
+  gap: 12px;
+}
+
+.product-app .cart-group-block + .cart-group-block{
+  margin-top: 4px;
+}
+
+.product-app .cart-group-head{
+  margin-bottom: 0;
+}
+
 .product-app .cart-card,
 .product-app .cart-summary{
   background: var(--surface);
@@ -932,6 +945,10 @@
   background: transparent;
   color: var(--green-dark);
   font-weight: 800;
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
 }
 
 .product-app .text-action.danger{
@@ -1109,6 +1126,23 @@
   border-color: transparent;
   background: var(--green-soft);
   color: var(--green-dark);
+}
+
+.product-app .payment-chip--test-submit{
+  border-color: rgba(245, 158, 11, 0.26);
+  background: linear-gradient(180deg, #fff7e8, #fffdf8);
+  color: #9a6700;
+}
+
+.product-app .payment-chip--test-submit:hover{
+  border-color: rgba(245, 158, 11, 0.36);
+  background: linear-gradient(180deg, #fff1d3, #fff9ef);
+}
+
+.product-app .payment-chip--test-submit:disabled{
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .product-app .form-error{
@@ -1362,7 +1396,8 @@
 .product-app .detail-layout{
   display: grid;
   grid-template-columns: 1fr 0.92fr;
-  gap: 22px;
+  gap: 18px;
+  align-items: start;
 }
 
 .product-app .gallery-card,
@@ -1370,8 +1405,34 @@
   overflow: hidden;
 }
 
+.product-app .detail-layout .gallery-card,
+.product-app .detail-layout .purchase-card{
+  padding: 14px;
+}
+
+.product-app .purchase-card__top{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.product-app .purchase-card__quick-actions{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.product-app .purchase-card .compact-btn{
+  min-height: 34px;
+  padding: 7px 12px;
+  font-size: 12px;
+}
+
 .product-app .gallery-main{
-  min-height: 390px;
+  min-height: 238px;
   border-radius: 28px;
   background:
     radial-gradient(circle at top right, var(--media-glow), transparent 28%),
@@ -1467,14 +1528,14 @@
 }
 
 .product-app .detail-title{
-  margin: 18px 0 8px;
-  font-size: 30px;
+  margin: 8px 0 4px;
+  font-size: 22px;
   letter-spacing: -0.03em;
 }
 
 .product-app .price-large{
-  margin: 20px 0 10px;
-  font-size: 32px;
+  margin: 10px 0 6px;
+  font-size: 24px;
   font-weight: 900;
   color: var(--green-dark);
   letter-spacing: -0.04em;
@@ -1484,61 +1545,75 @@
 .product-app .qty-row{
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin: 20px 0 16px;
+  gap: 10px;
+  margin: 10px 0 10px;
 }
 
 .product-app .qty{
   display: inline-flex;
   align-items: center;
-  gap: 16px;
-  padding: 10px 12px;
+  gap: 12px;
+  padding: 8px 10px;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: #fff;
 }
 
 .product-app .qty button{
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border: none;
   border-radius: 50%;
   background: var(--surface-3);
   color: var(--green-dark);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 900;
 }
 
 .product-app .detail-price-breakdown{
   display: grid;
-  gap: 10px;
+  gap: 8px;
+}
+
+.product-app .detail-layout .insight-item{
+  padding: 8px 10px;
+  font-size: 13px;
 }
 
 .product-app .notice{
-  margin-top: 18px;
-  padding: 14px 16px;
+  margin-top: 10px;
+  padding: 10px 12px;
   border-radius: 18px;
   border: 1px solid #f6e4a4;
   background: #fff9e8;
   color: #7b5600;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .product-app .detail-inline-meta{
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 14px;
+  gap: 10px;
+  margin-top: 8px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .product-app .detail-kpis{
-  margin-top: 20px;
+  margin-top: 16px;
 }
 
 .product-app .section{
   margin-top: 34px;
+}
+
+.product-app .detail-recipe-section{
+  margin-top: 14px;
+}
+
+.product-app .detail-recipe-section .recipe-list-grid--compact{
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .product-app .grid-2{
@@ -1653,22 +1728,30 @@
 
 .product-app .recipe-grid{
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
 }
 
 .product-app .recipe-card{
-  display: grid;
-  gap: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   padding: 16px;
+  height: 100%;
+  background: var(--surface);
+  border-radius: var(--radius-panel);
+  border: 1px solid rgba(231, 235, 239, 0.7);
+  box-shadow: var(--shadow);
 }
 
 .product-app .recipe-thumb{
   display: grid;
   place-items: center;
-  height: 180px;
+  aspect-ratio: 1 / 1.06;
+  min-height: 0;
   border-radius: 22px;
-  background: linear-gradient(135deg, #eef5ef, #fbfcfa);
+  background: linear-gradient(135deg, #f4f7f4, #fbfcfa);
   font-size: 70px;
   overflow: hidden;
   border: none;
@@ -1678,13 +1761,15 @@
 }
 
 .product-app .recipe-thumb.has-image{
-  background: #f1f5f9;
+  background: #f5f7fa;
 }
 
 .product-app .recipe-thumb-image{
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center center;
 }
 
 .product-app .recipe-thumb--placeholder{
@@ -1697,6 +1782,12 @@
   min-height: 100%;
 }
 
+.product-app .recipe-card__copy{
+  display: grid;
+  gap: 8px;
+  min-height: 104px;
+}
+
 .product-app .recipe-card__emoji{
   display: grid;
   place-items: center;
@@ -1704,15 +1795,35 @@
   height: 100%;
 }
 
+.product-app .recipe-card h3{
+  font-size: 16px;
+  line-height: 1.34;
+}
+
 .product-app .recipe-card__summary{
   margin: 0;
   color: #64748b;
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.65;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.product-app .recipe-card__meta{
+  margin-top: auto;
+  row-gap: 8px;
+}
+
+.product-app .recipe-card__meta .meta-pill{
+  background: #f5f7fa;
 }
 
 .product-app .recipe-card__action{
+  margin-top: 4px;
   justify-self: flex-start;
+  align-self: flex-start;
 }
 
 .product-app .review-row{

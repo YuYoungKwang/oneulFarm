@@ -12,6 +12,13 @@ public class SeasonalProductCardDto {
     private String summary = "";
     private BigDecimal avgPrice;
     private List<LinkedRecipeDto> linkedRecipes = new ArrayList<LinkedRecipeDto>();
+    private Integer rank = Integer.valueOf(0);
+    private String rankKeyword = "";
+    private BigDecimal rankScore;
+    private BigDecimal latestRatio;
+    private BigDecimal averageRatio;
+    private BigDecimal changeRatio;
+    private String trendDirection = "";
 
     public ProductDto getProduct() {
         return product;
@@ -51,5 +58,61 @@ public class SeasonalProductCardDto {
 
     public void setLinkedRecipes(List<LinkedRecipeDto> linkedRecipes) {
         this.linkedRecipes = linkedRecipes == null ? new ArrayList<LinkedRecipeDto>() : linkedRecipes;
+    }
+
+    public Integer getRank() {
+        return rank;
+    }
+
+    public void setRank(Integer rank) {
+        this.rank = rank == null ? Integer.valueOf(0) : rank;
+    }
+
+    public String getRankKeyword() {
+        return rankKeyword;
+    }
+
+    public void setRankKeyword(String rankKeyword) {
+        this.rankKeyword = rankKeyword == null ? "" : rankKeyword;
+    }
+
+    public BigDecimal getRankScore() {
+        return rankScore;
+    }
+
+    public void setRankScore(BigDecimal rankScore) {
+        this.rankScore = rankScore;
+    }
+
+    public BigDecimal getLatestRatio() {
+        return latestRatio;
+    }
+
+    public void setLatestRatio(BigDecimal latestRatio) {
+        this.latestRatio = latestRatio;
+    }
+
+    public BigDecimal getAverageRatio() {
+        return averageRatio;
+    }
+
+    public void setAverageRatio(BigDecimal averageRatio) {
+        this.averageRatio = averageRatio;
+    }
+
+    public BigDecimal getChangeRatio() {
+        return changeRatio;
+    }
+
+    public void setChangeRatio(BigDecimal changeRatio) {
+        this.changeRatio = changeRatio;
+    }
+
+    public String getTrendDirection() {
+        return trendDirection;
+    }
+
+    public void setTrendDirection(String trendDirection) {
+        this.trendDirection = trendDirection == null ? "" : trendDirection;
     }
 }

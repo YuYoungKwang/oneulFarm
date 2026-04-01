@@ -242,7 +242,7 @@ function App() {
           {currentApp === 'main' && <MainPage authUser={authUser} />}
           {currentApp === 'product' && <ProductApp authUser={authUser} />}
           {currentApp === 'account' && <AccountApp authUser={authUser} />}
-          {currentApp === 'meal-plan' && <MealPlanPlaceholderPage />}
+          {currentApp === 'meal-plan' && <MealPlanPlaceholderPage authUser={authUser} />}
           {currentApp === 'main' && <SiteFooter />}
         </>
       )}

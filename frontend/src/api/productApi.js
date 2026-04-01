@@ -66,7 +66,7 @@ async function requestApi(path, options, fallbackMessage) {
 function apiHeaders(includeJson = false) {
   return buildAuthHeaders({
     includeJson,
-    includeUserNo: false,
+    includeUserNo: true,
   });
 }
 
@@ -75,7 +75,7 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(nextValue) ? nextValue : fallback;
 }
 
-export function getProductImageUrl(imageNo) {
+function getProductImageUrl(imageNo) {
   if (!imageNo) {
     return '';
   }
@@ -282,135 +282,68 @@ export function buildProductModel(rawProduct) {
 
 function normalizeCartItem(rawItem = {}) {
   return {
-    cartItemNo: toNumber(rawItem.cartItemNo, 0) || null,
-    cartNo: toNumber(rawItem.cartNo, 0) || null,
-    cartGroupNo: toNumber(rawItem.cartGroupNo, 0) || null,
-    productNo: toNumber(rawItem.productNo, 0) || null,
+    cartItemNo: rawItem.cartItemNo ?? null,
+    cartNo: rawItem.cartNo ?? null,
+    cartGroupNo: rawItem.cartGroupNo ?? null,
+    productNo: rawItem.productNo ?? null,
     productName: rawItem.productName || '',
-    origin: rawItem.origin || '',
-    unit: rawItem.unit || '',
-    packageWeight: toNumber(rawItem.packageWeight, 0),
+    quantity: toNumber(rawItem.quantity, 0),
     salePrice: toNumber(rawItem.salePrice, 0),
     stockQty: toNumber(rawItem.stockQty, 0),
     saleStatus: rawItem.saleStatus || '',
-    imageNo: toNumber(rawItem.imageNo, 0) || null,
-    imageUrl: rawItem.imageUrl || getProductImageUrl(rawItem.imageNo),
     avgPrice: toNumber(rawItem.avgPrice, 0),
     savingRate: toNumber(rawItem.savingRate, 0),
     savedAmount: toNumber(rawItem.savedAmount, 0),
-    quantity: toNumber(rawItem.quantity, 0),
-    createdAt: rawItem.createdAt || null,
-    updatedAt: rawItem.updatedAt || null,
+    groupKey: rawItem.groupKey || '',
+    groupType: rawItem.groupType || 'PRODUCT',
+    recipeNo: rawItem.recipeNo ?? null,
+    groupName: rawItem.groupName || '',
   };
 }
 
-function normalizeCartGroup(rawGroup = {}) {
-  const items = Array.isArray(rawGroup.items) ? rawGroup.items.map(normalizeCartItem) : [];
-  const totalQuantity = items.reduce((sum, item) => sum + toNumber(item.quantity, 0), 0);
-  const computedTotalAmount = items.reduce(
-    (sum, item) => sum + toNumber(item.salePrice, 0) * toNumber(item.quantity, 0),
-    0
-  );
-  const computedTotalSavedAmount = items.reduce(
-    (sum, item) => sum + toNumber(item.savedAmount, 0),
-    0
-  );
+function adaptCartResponse(rawCart) {
+  const items = Array.isArray(rawCart?.items)
+    ? rawCart.items.map(normalizeCartItem)
+    : [];
+
+  const quantityMap = items.reduce((cartMap, item) => ({
+    ...cartMap,
+    [item.productNo]: toNumber(cartMap[item.productNo], 0) + toNumber(item.quantity, 0),
+  }), {});
 
   return {
-    cartGroupNo: toNumber(rawGroup.cartGroupNo, 0) || null,
-    cartNo: toNumber(rawGroup.cartNo, 0) || null,
-    groupKey: rawGroup.groupKey || '',
-    groupType: rawGroup.groupType || 'PRODUCT',
-    recipeNo: toNumber(rawGroup.recipeNo, 0) || null,
-    groupName: rawGroup.groupName || '',
-    itemCount: toNumber(rawGroup.itemCount, items.length || 0),
-    totalQuantity: toNumber(rawGroup.totalQuantity, totalQuantity),
-    totalAmount: Number.isFinite(Number(rawGroup.totalAmount))
-      ? toNumber(rawGroup.totalAmount, 0)
-      : computedTotalAmount,
-    totalSavedAmount: Number.isFinite(Number(rawGroup.totalSavedAmount))
-      ? toNumber(rawGroup.totalSavedAmount, 0)
-      : computedTotalSavedAmount,
-    createdAt: rawGroup.createdAt || null,
-    updatedAt: rawGroup.updatedAt || null,
+    cartNo: rawCart?.cartNo ?? null,
     items,
+    quantityMap,
+    totalQuantity: toNumber(rawCart?.totalQuantity, items.reduce((sum, item) => sum + item.quantity, 0)),
+    totalAmount: toNumber(rawCart?.totalAmount, 0),
   };
 }
 
-export function adaptCartResponse(rawCart) {
-  if (
-    rawCart &&
-    typeof rawCart === 'object' &&
-    !Array.isArray(rawCart) &&
-    !Array.isArray(rawCart.groups) &&
-    !Array.isArray(rawCart.items) &&
-    !('cartNo' in rawCart)
-  ) {
-    const productQuantities = Object.entries(rawCart).reduce((accumulator, [productNo, quantity]) => {
-      const normalizedProductNo = toNumber(productNo, 0);
-      if (normalizedProductNo > 0) {
-        accumulator[normalizedProductNo] = toNumber(quantity, 0);
-      }
-      return accumulator;
-    }, {});
+function persistCartCache(cartPayload) {
+  if (typeof window === 'undefined' || !cartPayload || typeof cartPayload !== 'object') {
+    return cartPayload;
+  }
 
-    const totalQuantity = Object.values(productQuantities).reduce(
-      (sum, quantity) => sum + toNumber(quantity, 0),
-      0
+  try {
+    window.localStorage.setItem(
+      'oneulFarmCart',
+      JSON.stringify(cartPayload.quantityMap || {})
     );
-
-    return {
-      cartNo: null,
-      groups: [],
-      items: [],
-      productQuantities,
-      totalQuantity,
-      totalAmount: 0,
-    };
+    window.localStorage.setItem(
+      'oneulFarmCartDetails',
+      JSON.stringify(Array.isArray(cartPayload.items) ? cartPayload.items : [])
+    );
+    window.dispatchEvent(
+      new CustomEvent('oneulFarm:storage-change', {
+        detail: { key: 'oneulFarmCart' },
+      })
+    );
+  } catch (error) {
+    // Ignore local cache sync failures and keep API payload.
   }
 
-  let groups = Array.isArray(rawCart?.groups) ? rawCart.groups.map(normalizeCartGroup) : [];
-  let items = groups.flatMap((group) => group.items);
-
-  if (!groups.length && Array.isArray(rawCart?.items) && rawCart.items.length) {
-    items = rawCart.items.map(normalizeCartItem);
-    groups = items.map((item) => ({
-      cartGroupNo: item.cartGroupNo || item.cartItemNo,
-      cartNo: item.cartNo || toNumber(rawCart?.cartNo, 0) || null,
-      groupKey: item.productNo ? `PRODUCT:${item.productNo}` : `ITEM:${item.cartItemNo}`,
-      groupType: 'PRODUCT',
-      recipeNo: null,
-      groupName: item.productName || '상품',
-      itemCount: 1,
-      totalQuantity: item.quantity,
-      totalAmount: toNumber(item.salePrice, 0) * toNumber(item.quantity, 0),
-      totalSavedAmount: toNumber(item.savedAmount, 0),
-      createdAt: item.createdAt,
-      updatedAt: item.updatedAt,
-      items: [item],
-    }));
-  }
-
-  const productQuantities = items.reduce((accumulator, item) => {
-    const productNo = toNumber(item.productNo, 0);
-    if (productNo > 0) {
-      accumulator[productNo] = toNumber(accumulator[productNo], 0) + toNumber(item.quantity, 0);
-    }
-    return accumulator;
-  }, {});
-
-  return {
-    cartNo: toNumber(rawCart?.cartNo, 0) || null,
-    groups,
-    items,
-    productQuantities,
-    totalQuantity:
-      toNumber(rawCart?.totalQuantity, 0) ||
-      items.reduce((sum, item) => sum + toNumber(item.quantity, 0), 0),
-    totalAmount:
-      toNumber(rawCart?.totalAmount, 0) ||
-      items.reduce((sum, item) => sum + toNumber(item.salePrice, 0) * toNumber(item.quantity, 0), 0),
-  };
+  return cartPayload;
 }
 
 function adaptOrderDetail(rawDetail, options = {}) {
@@ -488,35 +421,26 @@ export async function fetchCartFromApi() {
     'Failed to load cart.'
   );
 
-  return adaptCartResponse(data);
+  return persistCartCache(adaptCartResponse(data));
 }
 
-export async function addCartItemToApi(productNo, quantity) {
+export async function addCartItemToApi(productNo, quantity, extraPayload = {}) {
+  const payload = {
+    productNo,
+    quantity,
+    ...(extraPayload && typeof extraPayload === 'object' ? extraPayload : {}),
+  };
   const data = await requestApi(
     `${CART_API_BASE}/me/items`,
     {
       method: 'POST',
       headers: apiHeaders(true),
-      body: JSON.stringify({ productNo, quantity }),
+      body: JSON.stringify(payload),
     },
     'Failed to add cart item.'
   );
 
-  return adaptCartResponse(data);
-}
-
-export async function addRecipeCartGroupToApi(recipeNo, groupName, items) {
-  const data = await requestApi(
-    `${CART_API_BASE}/me/recipe-groups`,
-    {
-      method: 'POST',
-      headers: apiHeaders(true),
-      body: JSON.stringify({ recipeNo, groupName, items }),
-    },
-    'Failed to add recipe cart group.'
-  );
-
-  return adaptCartResponse(data);
+  return persistCartCache(adaptCartResponse(data));
 }
 
 export async function updateCartItemOnApi(cartItemNo, quantity) {
@@ -530,7 +454,7 @@ export async function updateCartItemOnApi(cartItemNo, quantity) {
     'Failed to update cart item.'
   );
 
-  return adaptCartResponse(data);
+  return persistCartCache(adaptCartResponse(data));
 }
 
 export async function removeCartItemFromApi(cartItemNo) {
@@ -543,7 +467,7 @@ export async function removeCartItemFromApi(cartItemNo) {
     'Failed to remove cart item.'
   );
 
-  return adaptCartResponse(data);
+  return persistCartCache(adaptCartResponse(data));
 }
 
 export async function clearCartOnApi() {
@@ -556,7 +480,7 @@ export async function clearCartOnApi() {
     'Failed to clear cart.'
   );
 
-  return adaptCartResponse(data);
+  return persistCartCache(adaptCartResponse(data));
 }
 
 export async function fetchOrdersFromApi() {

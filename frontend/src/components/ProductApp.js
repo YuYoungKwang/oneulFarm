@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useRef, useState } from 'react';
+import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import '../styles/product.css';
 import {
   DEFAULT_PORTONE_CONFIG,
@@ -7,15 +7,12 @@ import {
 } from '../api/paymentApi';
 import {
   addCartItemToApi,
-  addRecipeCartGroupToApi,
-  adaptCartResponse,
   clearCartOnApi,
   createOrderOnApi,
   fetchCartFromApi,
   fetchOrdersFromApi,
   fetchProductDetailFromApi,
   fetchProductsFromApi,
-  getProductImageUrl,
   removeCartItemFromApi,
   updateCartItemOnApi,
 } from '../api/productApi';
@@ -55,8 +52,9 @@ export default function ProductApp({ authUser }) {
   const [wishlist, setWishlist] = useState(() =>
     readStoredValue('oneulFarmWishlist', [])
   );
-  const [cartState, setCartState] = useState(() =>
-    adaptCartResponse(readStoredValue('oneulFarmCart', {}))
+  const [cart, setCart] = useState(() => readStoredValue('oneulFarmCart', {}));
+  const [cartDetails, setCartDetails] = useState(() =>
+    readStoredValue('oneulFarmCartDetails', [])
   );
   const [orders, setOrders] = useState(() =>
     readStoredValue('oneulFarmOrders', [])
@@ -104,8 +102,12 @@ export default function ProductApp({ authUser }) {
   }, [wishlist]);
 
   useEffect(() => {
-    persistValue('oneulFarmCart', cartState);
-  }, [cartState]);
+    persistValue('oneulFarmCart', cart);
+  }, [cart]);
+
+  useEffect(() => {
+    persistValue('oneulFarmCartDetails', cartDetails);
+  }, [cartDetails]);
 
   useEffect(() => {
     persistValue('oneulFarmOrders', orders);
@@ -167,7 +169,8 @@ export default function ProductApp({ authUser }) {
     }
 
     if (!isLoggedIn) {
-      setCartState(adaptCartResponse({}));
+      setCart({});
+      setCartDetails([]);
       setOrders([]);
       return;
     }
@@ -179,7 +182,7 @@ export default function ProductApp({ authUser }) {
       try {
         const nextCart = await fetchCartFromApi();
         if (!cancelled) {
-          setCartState(nextCart);
+          applyCartPayload(nextCart);
         }
       } catch (error) {
         // Keep local cart as fallback.
@@ -420,9 +423,38 @@ export default function ProductApp({ authUser }) {
   const categories = Array.from(
     new Set(products.map((product) => product.categoryName).filter(Boolean))
   );
-  const cartGroups = enrichCartGroups(cartState, products, productDetails);
-  const cartItems = flattenCartItems(cartGroups);
-  const cartQuantities = cartState.productQuantities || {};
+  const cartItems =
+    Array.isArray(cartDetails) && cartDetails.length
+      ? cartDetails
+          .map((item) => {
+            const product = findProduct(products, productDetails, Number(item.productNo));
+            if (!product) {
+              return null;
+            }
+            return {
+              cartItemNo: item.cartItemNo,
+              cartGroupNo: item.cartGroupNo,
+              groupKey: item.groupKey,
+              groupType: item.groupType,
+              groupName: item.groupName,
+              recipeNo: item.recipeNo,
+              product,
+              quantity: item.quantity,
+            };
+          })
+          .filter(Boolean)
+      : Object.entries(cart)
+          .map(([productNo, quantity]) => ({
+            cartItemNo: null,
+            cartGroupNo: null,
+            groupKey: '',
+            groupType: 'PRODUCT',
+            groupName: '',
+            recipeNo: null,
+            product: findProduct(products, productDetails, Number(productNo)),
+            quantity,
+          }))
+          .filter((item) => item.product);
   const currentProduct =
     route.page === 'product-detail'
       ? findProduct(products, productDetails, route.productNo)
@@ -515,14 +547,14 @@ export default function ProductApp({ authUser }) {
     navigateToHash('#/mypage/orders');
   }
 
-  function openAddressSetup() {
+  const openAddressSetup = useCallback(() => {
     if (!isLoggedIn) {
       navigateToHash('#/login');
       return;
     }
 
     navigateToHash('#/mypage?address=manage');
-  }
+  }, [isLoggedIn]);
 
   function openOrderPreview(orderId) {
     if (!isLoggedIn) {
@@ -561,13 +593,162 @@ export default function ProductApp({ authUser }) {
     }, 1800);
   }
 
+  function applyCartPayload(payload) {
+    const nextQuantityMap = payload?.quantityMap || {};
+    setCart(nextQuantityMap);
+    setCartDetails(Array.isArray(payload?.items) ? payload.items : []);
+  }
+
+  function buildQuantityMapFromCartDetails(details) {
+    return (Array.isArray(details) ? details : []).reduce((map, item) => {
+      const productNo = Number(item?.productNo);
+      const quantity = Number(item?.quantity || 0);
+
+      if (!Number.isFinite(productNo) || productNo <= 0 || quantity <= 0) {
+        return map;
+      }
+
+      return {
+        ...map,
+        [productNo]: Number(map[productNo] || 0) + quantity,
+      };
+    }, {});
+  }
+
+  function getLocalCartDetailBase() {
+    if (Array.isArray(cartDetails) && cartDetails.length) {
+      return cartDetails.map((item) => ({ ...item }));
+    }
+
+    return Object.entries(cart).map(([productNo, quantity]) => ({
+      cartItemNo: null,
+      cartGroupNo: null,
+      productNo: Number(productNo),
+      quantity: Number(quantity || 0),
+      groupKey: `PRODUCT:${productNo}`,
+      groupType: 'PRODUCT',
+      groupName: '',
+      recipeNo: null,
+    }));
+  }
+
+  function applyLocalCartDetails(nextDetails) {
+    const normalizedDetails = (Array.isArray(nextDetails) ? nextDetails : []).filter(
+      (item) => Number(item?.quantity || 0) > 0
+    );
+    setCartDetails(normalizedDetails);
+    setCart(buildQuantityMapFromCartDetails(normalizedDetails));
+  }
+
+  function resolveLocalGroupOptions(productNo, groupOptions = {}) {
+    const groupType = groupOptions?.groupType === 'RECIPE' ? 'RECIPE' : 'PRODUCT';
+    const recipeNo =
+      groupType === 'RECIPE' && Number.isFinite(Number(groupOptions?.recipeNo))
+        ? Number(groupOptions.recipeNo)
+        : null;
+    const groupKey =
+      groupOptions?.groupKey ||
+      (groupType === 'RECIPE'
+        ? recipeNo != null
+          ? `RECIPE:${recipeNo}`
+          : `RECIPE:${productNo}`
+        : `PRODUCT:${productNo}`);
+    const groupName =
+      groupOptions?.groupName ||
+      (groupType === 'RECIPE' ? '레시피 담기' : '');
+
+    return {
+      groupKey,
+      groupType,
+      groupName,
+      recipeNo,
+    };
+  }
+
+  function isSameLocalCartItem(leftItem, rightItem) {
+    const leftCartItemNo = Number(leftItem?.cartItemNo);
+    const rightCartItemNo = Number(rightItem?.cartItemNo);
+
+    if (Number.isFinite(leftCartItemNo) && Number.isFinite(rightCartItemNo)) {
+      return leftCartItemNo === rightCartItemNo;
+    }
+
+    return (
+      Number(leftItem?.productNo) === Number(rightItem?.productNo) &&
+      (leftItem?.groupType || 'PRODUCT') === (rightItem?.groupType || 'PRODUCT') &&
+      (leftItem?.groupKey || '') === (rightItem?.groupKey || '') &&
+      Number(leftItem?.recipeNo || 0) === Number(rightItem?.recipeNo || 0)
+    );
+  }
+
+  function appendLocalCartItem(productNo, quantity, groupOptions = {}) {
+    const safeProductNo = Number(productNo);
+    const safeQuantity = Number(quantity || 0);
+    if (!Number.isFinite(safeProductNo) || safeProductNo <= 0 || safeQuantity <= 0) {
+      return;
+    }
+
+    const nextGroupOptions = resolveLocalGroupOptions(safeProductNo, groupOptions);
+    const nextDetails = getLocalCartDetailBase();
+    const matchedIndex = nextDetails.findIndex(
+      (item) =>
+        Number(item?.productNo) === safeProductNo &&
+        (item?.groupType || 'PRODUCT') === nextGroupOptions.groupType &&
+        (item?.groupKey || '') === nextGroupOptions.groupKey
+    );
+
+    if (matchedIndex >= 0) {
+      nextDetails[matchedIndex] = {
+        ...nextDetails[matchedIndex],
+        quantity: Number(nextDetails[matchedIndex].quantity || 0) + safeQuantity,
+      };
+    } else {
+      nextDetails.push({
+        cartItemNo: null,
+        cartGroupNo: null,
+        productNo: safeProductNo,
+        quantity: safeQuantity,
+        groupKey: nextGroupOptions.groupKey,
+        groupType: nextGroupOptions.groupType,
+        groupName: nextGroupOptions.groupName,
+        recipeNo: nextGroupOptions.recipeNo,
+      });
+    }
+
+    applyLocalCartDetails(nextDetails);
+  }
+
+  function updateLocalCartItemQuantity(targetItem, nextQuantity) {
+    const nextDetails = getLocalCartDetailBase()
+      .map((item) => {
+        if (!isSameLocalCartItem(item, targetItem)) {
+          return item;
+        }
+
+        return {
+          ...item,
+          quantity: nextQuantity,
+        };
+      })
+      .filter((item) => Number(item?.quantity || 0) > 0);
+
+    applyLocalCartDetails(nextDetails);
+  }
+
+  function removeLocalCartItem(targetItem) {
+    const nextDetails = getLocalCartDetailBase().filter(
+      (item) => !isSameLocalCartItem(item, targetItem)
+    );
+    applyLocalCartDetails(nextDetails);
+  }
+
   async function addToCart(productNo, quantity = 1) {
     if (!isLoggedIn) {
       navigateToHash('#/login');
       return;
     }
 
-    const currentQuantity = Number(cartQuantities[productNo] || 0);
+    const currentQuantity = Number(cart[productNo] || 0);
     const stockLimit = getProductStockLimit(productNo);
     const remainingStock = Math.max(stockLimit - currentQuantity, 0);
     const safeQuantity = Math.min(Math.max(Number(quantity) || 1, 1), remainingStock);
@@ -577,16 +758,13 @@ export default function ProductApp({ authUser }) {
     }
 
     const targetProduct = findProduct(products, productDetails, productNo);
-    if (!targetProduct) {
-      return;
-    }
     const productLabel = targetProduct?.productName || '\uC0C1\uD488';
     const cartToastMessage = `${productLabel} \uC7A5\uBC14\uAD6C\uB2C8\uC5D0 \uB2F4\uACBC\uC2B5\uB2C8\uB2E4.`;
 
     if (process.env.NODE_ENV !== 'test') {
       try {
         const nextCart = await addCartItemToApi(productNo, safeQuantity);
-        setCartState(nextCart);
+        applyCartPayload(nextCart);
         showCartToast(cartToastMessage);
         return;
       } catch (error) {
@@ -594,13 +772,11 @@ export default function ProductApp({ authUser }) {
       }
     }
 
-    setCartState((previousCart) =>
-      addProductToLocalCart(previousCart, targetProduct, safeQuantity)
-    );
+    appendLocalCartItem(productNo, safeQuantity);
     showCartToast(cartToastMessage);
   }
 
-  async function addMatchedProductsToCart(productList, options = {}) {
+  async function addMatchedProductsToCart(productList, groupOptions = {}) {
     if (!isLoggedIn) {
       navigateToHash('#/login');
       return 0;
@@ -623,122 +799,96 @@ export default function ProductApp({ authUser }) {
       quantityMap.set(productNo, (quantityMap.get(productNo) || 0) + quantity);
     });
 
-    const normalizedItems = [];
+    let addedCount = 0;
     for (const [productNo, quantity] of quantityMap.entries()) {
       const stockLimit = getProductStockLimit(productNo);
-      const currentQuantity = Number(cartQuantities[productNo] || 0);
+      const currentQuantity = Number(cart[productNo] || 0);
       const remainingStock = Math.max(stockLimit - currentQuantity, 0);
-      const safeQuantity = Math.min(quantity, remainingStock);
-
-      if (stockLimit < 1 || safeQuantity < 1) {
+      if (remainingStock < 1) {
         continue;
       }
 
-      normalizedItems.push({ productNo, quantity: safeQuantity });
-    }
-
-    if (!normalizedItems.length) {
-      return 0;
-    }
-
-    if (options?.source === 'RECIPE') {
-      const recipeGroupName = options.recipeName || '레시피 묶음';
-
+      const safeQuantity = Math.min(quantity, remainingStock);
       if (process.env.NODE_ENV !== 'test') {
         try {
-          const nextCart = await addRecipeCartGroupToApi(
-            options.recipeNo,
-            recipeGroupName,
-            normalizedItems
-          );
-          setCartState(nextCart);
-          showCartToast(`${recipeGroupName} 재료를 장바구니에 담았습니다.`);
-          return normalizedItems.length;
+          const nextCart = await addCartItemToApi(productNo, safeQuantity, groupOptions);
+          applyCartPayload(nextCart);
+          addedCount += 1;
+          continue;
         } catch (error) {
-          // Fall back to local cart state.
+          // Fall back to default addToCart below.
         }
       }
 
-      setCartState((previousCart) =>
-        addRecipeItemsToLocalCart(previousCart, normalizedItems, {
-          recipeNo: options.recipeNo,
-          recipeName: recipeGroupName,
-        }, products, productDetails)
-      );
-      showCartToast(`${recipeGroupName} 재료를 장바구니에 담았습니다.`);
-      return normalizedItems.length;
-    }
-
-    let addedCount = 0;
-    for (const item of normalizedItems) {
-      await addToCart(item.productNo, item.quantity);
+      appendLocalCartItem(productNo, safeQuantity, groupOptions);
       addedCount += 1;
     }
 
     return addedCount;
   }
 
-  async function updateCartQuantity(cartItemNo, nextQuantity) {
-    const targetItem = cartItems.find((item) => item.cartItemNo === cartItemNo);
-    if (!targetItem) {
-      return;
-    }
-
-    const stockLimit = getProductStockLimit(targetItem.product.productNo);
-    const totalQuantityForProduct = Number(
-      cartQuantities[targetItem.product.productNo] || 0
-    );
-    const availableForItem = Math.max(
-      stockLimit - (totalQuantityForProduct - targetItem.quantity),
-      0
-    );
+  async function updateCartQuantity(cartItem, nextQuantity) {
+    const productNo = Number(cartItem?.product?.productNo ?? cartItem?.productNo);
+    const stockLimit = getProductStockLimit(productNo);
     const normalizedQuantity =
-      nextQuantity <= 0 ? 0 : Math.min(Math.max(nextQuantity, 1), availableForItem);
+      nextQuantity <= 0 ? 0 : Math.min(Math.max(nextQuantity, 1), stockLimit);
+    const safeCartItemNo = Number(cartItem?.cartItemNo);
 
-    if (process.env.NODE_ENV !== 'test') {
+    if (process.env.NODE_ENV !== 'test' && Number.isFinite(safeCartItemNo) && safeCartItemNo > 0) {
       try {
-        const nextCart = await updateCartItemOnApi(cartItemNo, normalizedQuantity);
-        setCartState(nextCart);
+        const nextCart = await updateCartItemOnApi(safeCartItemNo, normalizedQuantity);
+        applyCartPayload(nextCart);
         return;
       } catch (error) {
         // Fall back to local cart state.
       }
     }
 
-    setCartState((previousCart) =>
-      updateLocalCartItemQuantity(previousCart, cartItemNo, normalizedQuantity)
+    updateLocalCartItemQuantity(
+      {
+        ...cartItem,
+        productNo,
+      },
+      normalizedQuantity
     );
   }
 
-  async function removeFromCart(cartItemNo) {
-    if (process.env.NODE_ENV !== 'test') {
+  async function removeFromCart(cartItem) {
+    const safeCartItemNo = Number(cartItem?.cartItemNo);
+    const productNo = Number(cartItem?.product?.productNo ?? cartItem?.productNo);
+
+    if (process.env.NODE_ENV !== 'test' && Number.isFinite(safeCartItemNo) && safeCartItemNo > 0) {
       try {
-        const nextCart = await removeCartItemFromApi(cartItemNo);
-        setCartState(nextCart);
+        const nextCart = await removeCartItemFromApi(safeCartItemNo);
+        applyCartPayload(nextCart);
         return;
       } catch (error) {
         // Fall back to local cart state.
       }
     }
 
-    setCartState((previousCart) => removeLocalCartItem(previousCart, cartItemNo));
+    removeLocalCartItem({
+      ...cartItem,
+      productNo,
+    });
   }
 
   async function clearCart() {
     if (process.env.NODE_ENV !== 'test') {
       try {
         const nextCart = await clearCartOnApi();
-        setCartState(nextCart);
+        applyCartPayload(nextCart);
         return;
       } catch (error) {
         // Fall back to local cart state.
       }
     }
 
-    setCartState(adaptCartResponse({}));
+    setCart({});
+    setCartDetails([]);
   }
 
-  async function submitOrder(checkoutForm) {
+  async function submitOrder(checkoutForm, options = {}) {
     if (!isLoggedIn) {
       navigateToHash('#/login');
       return;
@@ -749,7 +899,7 @@ export default function ProductApp({ authUser }) {
       return;
     }
 
-    if (process.env.NODE_ENV !== 'test' && paymentConfig?.ready) {
+    if (process.env.NODE_ENV !== 'test' && paymentConfig?.ready && !options.forceDirectOrder) {
       const paymentDraft = createPortOnePaymentDraft(
         paymentConfig,
         checkoutForm,
@@ -777,19 +927,23 @@ export default function ProductApp({ authUser }) {
       }
     }
 
+    const directCheckoutForm = options.forceDirectOrder
+      ? {
+          ...checkoutForm,
+          paymentKey: checkoutForm.paymentKey || `TEST-${Date.now()}`,
+        }
+      : checkoutForm;
+
     if (process.env.NODE_ENV !== 'test') {
-      try {
-        const newOrder = await createOrderOnApi(checkoutForm);
-        applySuccessfulOrder(newOrder);
-        return;
-      } catch (error) {
-        // Fall back to local order state.
-      }
+      const newOrder = await createOrderOnApi(directCheckoutForm);
+      applySuccessfulOrder(newOrder);
+      return;
     }
 
-    const newOrder = createOrderFromCart(cartItems, checkoutForm, orders);
+    const newOrder = createOrderFromCart(cartItems, directCheckoutForm, orders);
     setOrders((previousOrders) => [newOrder, ...previousOrders]);
-    setCartState(adaptCartResponse({}));
+    setCart({});
+    setCartDetails([]);
     navigateToHash(`#/order-complete/${encodeURIComponent(newOrder.orderId)}`);
   }
 
@@ -798,13 +952,14 @@ export default function ProductApp({ authUser }) {
       newOrder,
       ...previousOrders.filter((order) => order.orderNo !== newOrder.orderNo),
     ]);
+    setCart({});
+    setCartDetails([]);
     setProducts((previousProducts) =>
       updateProductsAfterOrder(previousProducts, newOrder)
     );
     setProductDetails((previousDetails) =>
       updateProductDetailsAfterOrder(previousDetails, newOrder)
     );
-    setCartState(adaptCartResponse({}));
 
     const nextHash = `#/order-complete/${encodeURIComponent(newOrder.orderId)}`;
     window.location.hash = nextHash;
@@ -829,14 +984,21 @@ export default function ProductApp({ authUser }) {
         ) : route.page === 'cart' ? (
           isLoggedIn ? (
             <CartPage
-              cartGroups={cartGroups}
               cartItems={cartItems}
               onClearCart={clearCart}
+              onDecreaseQuantity={(item) =>
+                updateCartQuantity(item, Math.max((item.quantity || 1) - 1, 0))
+              }
+              onIncreaseQuantity={(item) => {
+                const product = item.product;
+                const nextQuantity = (item.quantity || 0) + 1;
+
+                updateCartQuantity(item, Math.min(product?.stockQty || nextQuantity, nextQuantity));
+              }}
               onOpenProduct={openProduct}
               onProceedToCheckout={openCheckout}
               onRemoveItem={removeFromCart}
               onReturnToProducts={openProductList}
-              onUpdateQuantity={updateCartQuantity}
             />
           ) : (
             <LoginRequiredCartNotice
@@ -850,6 +1012,9 @@ export default function ProductApp({ authUser }) {
               cartItems={cartItems}
               onBackToCart={openCart}
               onOpenAddressSetup={openAddressSetup}
+              onSubmitInstantPayment={(checkoutForm) =>
+                submitOrder(checkoutForm, { forceDirectOrder: true })
+              }
               onSubmitOrder={submitOrder}
               paymentConfig={paymentConfig}
             />
@@ -925,7 +1090,7 @@ export default function ProductApp({ authUser }) {
         ) : route.page === 'product-detail' ? (
           currentProduct ? (
             <ProductDetailPage
-              cartQuantity={cartQuantities[currentProduct.productNo] || 0}
+              cartQuantity={cart[currentProduct.productNo] || 0}
               isWished={wishlist.includes(currentProduct.productNo)}
               onAddToCart={addToCart}
               onBack={openProductList}
@@ -941,7 +1106,7 @@ export default function ProductApp({ authUser }) {
           )
         ) : (
           <ProductListPage
-            cart={cartQuantities}
+            cart={cart}
             categories={categories}
             filters={filters}
             onAddToCart={addToCart}
@@ -1026,311 +1191,6 @@ function updateProductDetailsAfterOrder(previousDetails, order) {
   });
 
   return nextDetails;
-}
-
-let localCartGroupSeed = -1;
-let localCartItemSeed = -1;
-
-function enrichCartGroups(cartState, products, productDetails) {
-  const baseGroups =
-    cartState?.groups?.length
-      ? cartState.groups
-      : Object.entries(cartState?.productQuantities || {}).map(([productNo, quantity]) => ({
-          cartGroupNo: Number(productNo),
-          cartNo: cartState?.cartNo || null,
-          groupKey: `PRODUCT:${productNo}`,
-          groupType: 'PRODUCT',
-          recipeNo: null,
-          groupName: '',
-          items: [
-            {
-              cartItemNo: Number(productNo),
-              cartNo: cartState?.cartNo || null,
-              cartGroupNo: Number(productNo),
-              productNo: Number(productNo),
-              quantity: Number(quantity || 0),
-            },
-          ],
-        }));
-
-  return baseGroups.map((group) => {
-    const enrichedItems = (group.items || []).map((item) => ({
-      ...item,
-      product:
-        findProduct(products, productDetails, item.productNo) ||
-        buildFallbackProductFromCartItem(item),
-    }));
-    const totalQuantity = enrichedItems.reduce(
-      (sum, item) => sum + Number(item.quantity || 0),
-      0
-    );
-    const totalAmount = enrichedItems.reduce(
-      (sum, item) => sum + Number(item.product?.salePrice || 0) * Number(item.quantity || 0),
-      0
-    );
-    const totalSavedAmount = enrichedItems.reduce(
-      (sum, item) => sum + buildLocalSavedAmount(item.product, item.quantity || 0),
-      0
-    );
-
-    return {
-      ...group,
-      displayName:
-        group.groupType === 'RECIPE'
-          ? group.groupName || '레시피 묶음'
-          : enrichedItems[0]?.product?.productName || group.groupName || '상품',
-      totalQuantity,
-      totalAmount,
-      totalSavedAmount,
-      items: enrichedItems,
-    };
-  });
-}
-
-function flattenCartItems(cartGroups) {
-  return (cartGroups || []).flatMap((group) =>
-    (group.items || []).map((item) => ({
-      ...item,
-      group,
-      quantity: Number(item.quantity || 0),
-    }))
-  );
-}
-
-function buildFallbackProductFromCartItem(item) {
-  const averagePrice = Number(item?.avgPrice || 0);
-  const salePrice = Number(item?.salePrice || 0);
-  const savingRate = Number(item?.savingRate || 0);
-
-  return {
-    productNo: item?.productNo,
-    productName: item?.productName || '상품',
-    origin: item?.origin || '',
-    unit: item?.unit || '',
-    packageWeight: Number(item?.packageWeight || 0),
-    salePrice,
-    stockQty: Number(item?.stockQty || 0),
-    saleStatus: item?.saleStatus || 'SELLING',
-    description: '',
-    display: {
-      symbol: 'OF',
-      softColor: '#eef8ef',
-      strongColor: '#1f8b4c',
-      glowColor: 'rgba(31, 139, 76, 0.18)',
-    },
-    images: item?.imageNo
-      ? [
-          {
-            imageNo: item.imageNo,
-            imageUrl: getProductImageUrl(item.imageNo),
-            isMain: 'Y',
-          },
-        ]
-      : [],
-    mainImage: item?.imageNo
-      ? {
-          imageNo: item.imageNo,
-          imageUrl: getProductImageUrl(item.imageNo),
-          isMain: 'Y',
-        }
-      : null,
-    recommendedFor: [],
-    priceSnapshot: {
-      avgPrice: averagePrice,
-      displayAvgPrice: averagePrice,
-      changeRate: 0,
-    },
-    priceMatch: {
-      comparedPrice: averagePrice,
-      savingRate,
-      badgeType: savingRate > 0 ? 'UNDER_AVG' : 'HOT_DEAL',
-    },
-  };
-}
-
-function createLocalCartGroup(groupType, groupKey, groupName, recipeNo = null) {
-  return {
-    cartGroupNo: localCartGroupSeed--,
-    cartNo: null,
-    groupKey,
-    groupType,
-    recipeNo,
-    groupName,
-    items: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-}
-
-function createLocalCartItem(group, product, quantity) {
-  const averagePrice = Number(
-    product?.priceSnapshot?.displayAvgPrice ||
-      product?.priceSnapshot?.avgPrice ||
-      product?.priceMatch?.comparedPrice ||
-      0
-  );
-  const salePrice = Number(product?.salePrice || 0);
-
-  return {
-    cartItemNo: localCartItemSeed--,
-    cartNo: null,
-    cartGroupNo: group.cartGroupNo,
-    productNo: product?.productNo,
-    productName: product?.productName || '상품',
-    origin: product?.origin || '',
-    unit: product?.unit || '',
-    packageWeight: Number(product?.packageWeight || 0),
-    salePrice,
-    stockQty: Number(product?.stockQty || 0),
-    saleStatus: product?.saleStatus || 'SELLING',
-    imageNo: product?.mainImage?.imageNo || product?.images?.[0]?.imageNo || null,
-    avgPrice: averagePrice,
-    savingRate: Number(product?.priceMatch?.savingRate || 0),
-    savedAmount: Math.max(averagePrice - salePrice, 0) * quantity,
-    quantity,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-}
-
-function cloneCartGroups(cartState) {
-  return (cartState?.groups || []).map((group) => ({
-    ...group,
-    items: (group.items || []).map((item) => ({ ...item })),
-  }));
-}
-
-function addProductToLocalCart(previousCartState, product, quantity) {
-  const nextGroups = cloneCartGroups(previousCartState);
-  const groupKey = `PRODUCT:${product.productNo}`;
-  let targetGroup = nextGroups.find((group) => group.groupKey === groupKey);
-
-  if (!targetGroup) {
-    targetGroup = createLocalCartGroup('PRODUCT', groupKey, product.productName);
-    nextGroups.push(targetGroup);
-  }
-
-  const existingItem = targetGroup.items.find(
-    (item) => Number(item.productNo) === Number(product.productNo)
-  );
-
-  if (existingItem) {
-    existingItem.quantity = Number(existingItem.quantity || 0) + quantity;
-    existingItem.savedAmount = buildLocalSavedAmount(product, existingItem.quantity);
-    existingItem.updatedAt = new Date().toISOString();
-  } else {
-    targetGroup.items.push(createLocalCartItem(targetGroup, product, quantity));
-  }
-
-  targetGroup.updatedAt = new Date().toISOString();
-  return adaptCartResponse({
-    cartNo: previousCartState?.cartNo || null,
-    groups: nextGroups,
-  });
-}
-
-function addRecipeItemsToLocalCart(previousCartState, entries, recipeMeta, products, productDetails) {
-  const nextGroups = cloneCartGroups(previousCartState);
-  const recipeKey = `RECIPE:${recipeMeta.recipeNo}`;
-  let targetGroup = nextGroups.find((group) => group.groupKey === recipeKey);
-
-  if (!targetGroup) {
-    targetGroup = createLocalCartGroup(
-      'RECIPE',
-      recipeKey,
-      recipeMeta.recipeName || '레시피 묶음',
-      recipeMeta.recipeNo
-    );
-    nextGroups.push(targetGroup);
-  }
-
-  entries.forEach((entry) => {
-    const product = findProduct(products, productDetails, entry.productNo);
-    if (!product) {
-      return;
-    }
-
-    const existingItem = targetGroup.items.find(
-      (item) => Number(item.productNo) === Number(entry.productNo)
-    );
-
-    if (existingItem) {
-      existingItem.quantity = Number(existingItem.quantity || 0) + Number(entry.quantity || 0);
-      existingItem.savedAmount = buildLocalSavedAmount(product, existingItem.quantity);
-      existingItem.updatedAt = new Date().toISOString();
-      return;
-    }
-
-    targetGroup.items.push(
-      createLocalCartItem(targetGroup, product, Number(entry.quantity || 0))
-    );
-  });
-
-  targetGroup.updatedAt = new Date().toISOString();
-  return adaptCartResponse({
-    cartNo: previousCartState?.cartNo || null,
-    groups: nextGroups,
-  });
-}
-
-function updateLocalCartItemQuantity(previousCartState, cartItemNo, quantity) {
-  const nextGroups = cloneCartGroups(previousCartState)
-    .map((group) => ({
-      ...group,
-      items: group.items
-        .map((item) => {
-          if (item.cartItemNo !== cartItemNo) {
-            return item;
-          }
-
-          if (quantity <= 0) {
-            return null;
-          }
-
-          const averagePrice = Number(item.avgPrice || 0);
-          const salePrice = Number(item.salePrice || 0);
-          return {
-            ...item,
-            quantity,
-            savedAmount: Math.max(averagePrice - salePrice, 0) * quantity,
-            updatedAt: new Date().toISOString(),
-          };
-        })
-        .filter(Boolean),
-      updatedAt: new Date().toISOString(),
-    }))
-    .filter((group) => group.items.length);
-
-  return adaptCartResponse({
-    cartNo: previousCartState?.cartNo || null,
-    groups: nextGroups,
-  });
-}
-
-function removeLocalCartItem(previousCartState, cartItemNo) {
-  const nextGroups = cloneCartGroups(previousCartState)
-    .map((group) => ({
-      ...group,
-      items: group.items.filter((item) => item.cartItemNo !== cartItemNo),
-      updatedAt: new Date().toISOString(),
-    }))
-    .filter((group) => group.items.length);
-
-  return adaptCartResponse({
-    cartNo: previousCartState?.cartNo || null,
-    groups: nextGroups,
-  });
-}
-
-function buildLocalSavedAmount(product, quantity) {
-  const averagePrice = Number(
-    product?.priceSnapshot?.displayAvgPrice ||
-      product?.priceSnapshot?.avgPrice ||
-      product?.priceMatch?.comparedPrice ||
-      0
-  );
-  const salePrice = Number(product?.salePrice || 0);
-  return Math.max(averagePrice - salePrice, 0) * quantity;
 }
 
 function PaymentFlowPage({

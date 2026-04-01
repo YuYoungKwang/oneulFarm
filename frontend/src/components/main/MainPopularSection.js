@@ -1,17 +1,12 @@
-import MainIngredientLinkCard from "../recommend/MainIngredientLinkCard";
+import MainRecipeCard from "./MainRecipeCard";
 
-function handleImageError(event) {
-  const nextSource = event.currentTarget.dataset.fallbackSrc;
-  if (!nextSource || event.currentTarget.src === nextSource) {
+function openRecipe(recipeNo) {
+  if (recipeNo) {
+    window.location.hash = `#/recipes/${recipeNo}`;
     return;
   }
 
-  event.currentTarget.src = nextSource;
-  event.currentTarget.removeAttribute("data-fallback-src");
-}
-
-function openRecipe(recipeNo) {
-  window.location.hash = `#/recipes/${recipeNo}`;
+  window.location.hash = "#/recipes";
 }
 
 function normalizeIngredientKeyword(value) {
@@ -27,151 +22,65 @@ function normalizeIngredientKeyword(value) {
     .trim();
 }
 
-function openRecipeListByIngredient(ingredientKeyword) {
-  const normalizedKeyword = normalizeIngredientKeyword(ingredientKeyword);
-  if (!normalizedKeyword) {
-    window.location.hash = "#/recipes";
-    return;
+function buildRecipeReason(recipe, metaText) {
+  const summaryText = String(recipe?.summary || "").trim();
+  if (summaryText) {
+    return summaryText;
   }
 
-  window.location.hash = `#/recipes?ingredientKeyword=${encodeURIComponent(
-    normalizedKeyword
-  )}`;
-}
-
-function buildGroupDescription(group) {
-  const sourceKeyword = String(group?.sourceKeyword || "").trim();
-  const categories = Array.isArray(group?.categoryLabels)
-    ? group.categoryLabels.filter(Boolean).join(", ")
-    : "";
-
-  if (group?.datalabDriven && sourceKeyword && categories) {
-    return `네이버 데이터랩 인기 검색어 "${sourceKeyword}" 기준으로 ${categories} 레시피를 모았습니다.`;
+  const categoryLabel = String(recipe?.categoryLabel || "").trim();
+  if (recipe?.datalabDriven && metaText) {
+    return `${metaText} 재료로 많이 찾는 메뉴예요.`;
   }
 
-  if (group?.datalabDriven && sourceKeyword) {
-    return `네이버 데이터랩 인기 검색어 "${sourceKeyword}" 기준으로 관련 레시피를 모았습니다.`;
+  if (categoryLabel) {
+    return `${categoryLabel} 카테고리에서 반응이 좋은 레시피예요.`;
   }
 
-  if (categories) {
-    return `${categories} 분류 중심으로 관련 레시피를 모았습니다.`;
-  }
-
-  return "관련 레시피를 한 번에 확인할 수 있어요.";
+  return "지금 사용자 반응이 좋은 레시피예요.";
 }
 
-function groupPopularItems(items) {
-  const groupMap = new Map();
-
-  items.forEach((recipe) => {
-    const firstIngredient = Array.isArray(recipe?.matchedIngredients)
-      ? recipe.matchedIngredients.find(Boolean)
-      : "";
-    const normalizedIngredient = normalizeIngredientKeyword(firstIngredient);
-    const sourceKeyword = String(recipe?.sourceKeyword || "").trim();
-    const groupKey =
-      sourceKeyword ||
-      normalizedIngredient ||
-      String(recipe?.categoryLabel || "").trim() ||
-      String(recipe?.recipeName || "").trim();
-
-    if (!groupKey) {
-      return;
-    }
-
-    if (!groupMap.has(groupKey)) {
-      groupMap.set(groupKey, {
-        key: groupKey,
-        sourceKeyword: sourceKeyword || groupKey,
-        ingredientKeyword: sourceKeyword || normalizedIngredient || groupKey,
-        datalabDriven: Boolean(recipe?.datalabDriven),
-        categoryLabels: [],
-        recipes: [],
-        imageUrl: recipe?.imageUrl || "",
-      });
-    }
-
-    const group = groupMap.get(groupKey);
-    group.datalabDriven = group.datalabDriven || Boolean(recipe?.datalabDriven);
-
-    if (recipe?.categoryLabel && !group.categoryLabels.includes(recipe.categoryLabel)) {
-      group.categoryLabels.push(recipe.categoryLabel);
-    }
-
-    if (recipe?.imageUrl && !group.imageUrl) {
-      group.imageUrl = recipe.imageUrl;
-    }
-
-    if (
-      recipe &&
-      !group.recipes.some(
-        (item) =>
-          (item?.recipeNo && item.recipeNo === recipe.recipeNo) ||
-          (item?.recipeName && item.recipeName === recipe.recipeName)
-      )
-    ) {
-      group.recipes.push(recipe);
-    }
-  });
-
-  return Array.from(groupMap.values());
-}
-
-function getRecipeItem(group) {
-  return {
-    product: {
-      productName: group.sourceKeyword || "인기 검색어",
-    },
-    linkedRecipes: group.recipes,
-    description: buildGroupDescription(group),
-    ingredientKeyword: group.ingredientKeyword,
-  };
-}
-
-export default function MainPopularSection({ items }) {
-  const groupedItems = groupPopularItems(Array.isArray(items) ? items : []);
+export default function MainPopularSection({ items = [] }) {
+  const recipeItems = Array.isArray(items) ? items.slice(0, 4) : [];
 
   return (
-    <section className="section" id="popular-section">
-      <div className="section-head">
+    <section className="home-section" id="popular-section">
+      <div className="home-section__header">
         <div>
-          <div className="section-title">지금 인기 있는 메뉴</div>
-          <div className="section-sub">
-            네이버 데이터랩 검색 흐름을 먼저 반영하고, 메인요리 반찬 국/찜/탕
-            면/파스타 밥/죽 샐러드 분류 안에서 관련 레시피를 묶어 보여줍니다.
-          </div>
+          <p className="home-section__eyebrow">Popular Recipe</p>
+          <h2 className="home-section__title">지금 인기 있는 레시피</h2>
         </div>
-        <a className="section-link section-link--recipes" href="#/recipes">
-          레시피 전체 보기
+        <a className="home-section__link" href="#/recipes">
+          전체 보기
         </a>
       </div>
 
-      {groupedItems.length ? (
-        <div className="main-link-card-grid">
-          {groupedItems.map((group) => {
-            const item = getRecipeItem(group);
-            const title = `${group.sourceKeyword || "인기 검색어"} 관련 레시피`;
+      {recipeItems.length ? (
+        <div className="home-recipe-grid">
+          {recipeItems.map((recipe, index) => {
+            const firstIngredient = Array.isArray(recipe?.matchedIngredients)
+              ? recipe.matchedIngredients.find(Boolean)
+              : "";
+            const metaText =
+              normalizeIngredientKeyword(firstIngredient) ||
+              String(recipe?.categoryLabel || "").trim() ||
+              "바로 만들기";
 
             return (
-              <div key={group.key}>
-                <MainIngredientLinkCard
-                  imageSources={group.imageUrl ? [group.imageUrl] : []}
-                  item={item}
-                  onImageError={handleImageError}
-                  onOpenPrimary={() => openRecipeListByIngredient(item.ingredientKeyword)}
-                  onOpenRecipe={openRecipe}
-                  primaryLabel="관련 레시피 보기"
-                  title={title}
-                  tone="recipe"
-                />
-              </div>
+              <MainRecipeCard
+                key={recipe.recipeNo || recipe.recipeName || index}
+                featured={index === 0}
+                metaText={metaText}
+                onOpen={() => openRecipe(recipe.recipeNo)}
+                reasonText={buildRecipeReason(recipe, metaText)}
+                recipe={recipe}
+              />
             );
           })}
         </div>
       ) : (
-        <div className="recommend-section-empty">
-          <strong>추천할 메뉴가 아직 없습니다.</strong>
-          <p>레시피 데이터가 더 모이면 여기서 보여드릴게요.</p>
+        <div className="home-section__empty">
+          <strong>지금 보여줄 레시피가 없습니다.</strong>
         </div>
       )}
     </section>

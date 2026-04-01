@@ -14,6 +14,10 @@ public class CartItemDto {
     private Long cartNo;
     private Long cartGroupNo;
     private Long productNo;
+    private String groupKey;
+    private String groupType;
+    private Long recipeNo;
+    private String groupName;
     private String productName;
     private String origin;
     private String unit;

@@ -42,7 +42,8 @@ export default function useMainRecommendations() {
     isLoading,
     errorMessage,
     heroSlides: recommendSummary.heroSlides,
-    seasonalProducts: recommendSummary.seasonalProducts.slice(0, 4),
+    seasonalProducts: recommendSummary.seasonalProducts,
+    rankingProducts: recommendSummary.rankingProducts,
     popularRecipes: recommendSummary.popularRecipes.slice(0, 4),
   };
 }

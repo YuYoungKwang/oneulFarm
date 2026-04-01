@@ -474,9 +474,7 @@ public class AuthServiceImpl implements AuthService {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("userNo", user.getUserNo());
         payload.put("userId", user.getUserId());
-        payload.put("email", user.getEmail());
         payload.put("nickname", user.getNickname());
-        payload.put("phone", user.getPhone());
         payload.put("role", user.getRole());
         payload.put("status", user.getStatus());
         payload.put("accessToken", jwtTokenService.generateAccessToken(user));

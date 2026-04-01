@@ -7,6 +7,7 @@ public class MainRecommendationResponseDto {
 
     private List<HeroSlideDto> heroSlides = new ArrayList<HeroSlideDto>();
     private List<SeasonalProductCardDto> seasonalProducts = new ArrayList<SeasonalProductCardDto>();
+    private List<SeasonalProductCardDto> rankingProducts = new ArrayList<SeasonalProductCardDto>();
     private List<PopularRecipeCardDto> popularRecipes = new ArrayList<PopularRecipeCardDto>();
 
     public List<HeroSlideDto> getHeroSlides() {
@@ -25,6 +26,16 @@ public class MainRecommendationResponseDto {
         this.seasonalProducts = seasonalProducts == null
             ? new ArrayList<SeasonalProductCardDto>()
             : seasonalProducts;
+    }
+
+    public List<SeasonalProductCardDto> getRankingProducts() {
+        return rankingProducts;
+    }
+
+    public void setRankingProducts(List<SeasonalProductCardDto> rankingProducts) {
+        this.rankingProducts = rankingProducts == null
+            ? new ArrayList<SeasonalProductCardDto>()
+            : rankingProducts;
     }
 
     public List<PopularRecipeCardDto> getPopularRecipes() {

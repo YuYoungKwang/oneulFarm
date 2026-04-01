@@ -15,14 +15,20 @@ public final class ProduceStandardWeightSupport {
     private static final Map<String, BigDecimal> STANDARD_WEIGHT_GRAMS = new LinkedHashMap<>();
 
     static {
-        STANDARD_WEIGHT_GRAMS.put("양배추", new BigDecimal("3300"));
-        STANDARD_WEIGHT_GRAMS.put("배추", new BigDecimal("3200"));
-        STANDARD_WEIGHT_GRAMS.put("브로콜리", new BigDecimal("320"));
-        STANDARD_WEIGHT_GRAMS.put("애호박", new BigDecimal("350"));
-        STANDARD_WEIGHT_GRAMS.put("참외", new BigDecimal("280"));
-        STANDARD_WEIGHT_GRAMS.put("오이", new BigDecimal("230"));
-        STANDARD_WEIGHT_GRAMS.put("수박", new BigDecimal("8000"));
-        STANDARD_WEIGHT_GRAMS.put("무", new BigDecimal("1800"));
+        STANDARD_WEIGHT_GRAMS.put("\uC591\uBC30\uCD94", new BigDecimal("3300"));
+        STANDARD_WEIGHT_GRAMS.put("\uBC30\uCD94", new BigDecimal("3200"));
+        STANDARD_WEIGHT_GRAMS.put("\uBE0C\uB85C\uCF5C\uB9AC", new BigDecimal("320"));
+        STANDARD_WEIGHT_GRAMS.put("\uC560\uD638\uBC15", new BigDecimal("350"));
+        STANDARD_WEIGHT_GRAMS.put("\uCC38\uC678", new BigDecimal("280"));
+        STANDARD_WEIGHT_GRAMS.put("\uC624\uC774", new BigDecimal("230"));
+        STANDARD_WEIGHT_GRAMS.put("\uC218\uBC15", new BigDecimal("8000"));
+        STANDARD_WEIGHT_GRAMS.put("\uBB34", new BigDecimal("1800"));
+        STANDARD_WEIGHT_GRAMS.put("\uC0AC\uACFC", new BigDecimal("330"));
+        STANDARD_WEIGHT_GRAMS.put("\uBC30", new BigDecimal("800"));
+        STANDARD_WEIGHT_GRAMS.put("\uAC10\uADE4", new BigDecimal("100"));
+        STANDARD_WEIGHT_GRAMS.put("\uD30C\uC778\uC560\uD50C", new BigDecimal("2000"));
+        STANDARD_WEIGHT_GRAMS.put("\uB9DD\uACE0", new BigDecimal("400"));
+        STANDARD_WEIGHT_GRAMS.put("\uC544\uBCF4\uCE74\uB3C4", new BigDecimal("200"));
     }
 
     private ProduceStandardWeightSupport() {

@@ -4,6 +4,7 @@ const API_BASE_PREFIXES = buildApiBasePrefixes(
   process.env.REACT_APP_API_BASE_URL || ''
 );
 const ADMIN_API_BASE = '/api/admin';
+const CARRIER_API_BASE = '/api/carrier/orders';
 const RECIPE_SYNC_API_BASE = '/api/admin/recipes/sync';
 let resolvedApiBasePrefix = '';
 
@@ -143,6 +144,16 @@ export async function fetchAdminOrderDetail(orderNo) {
   );
 }
 
+export async function fetchCarrierOrderDetail(orderNo) {
+  return requestApi(
+    `${CARRIER_API_BASE}/${orderNo}`,
+    {
+      headers: apiHeaders(),
+    },
+    '배송 주문 상세를 불러오지 못했습니다.'
+  );
+}
+
 export async function updateAdminOrder(orderNo, payload) {
   return requestApi(
     `${ADMIN_API_BASE}/orders/${orderNo}`,
@@ -152,6 +163,85 @@ export async function updateAdminOrder(orderNo, payload) {
       body: JSON.stringify(payload),
     },
     '주문 상태 변경에 실패했습니다.'
+  );
+}
+
+export async function acceptAdminOrderCancel(orderNo) {
+  return requestApi(
+    `${ADMIN_API_BASE}/orders/${orderNo}/cancel/accept`,
+    {
+      method: 'PATCH',
+      headers: apiHeaders(),
+    },
+    '취소 요청 수락에 실패했습니다.'
+  );
+}
+
+export async function acceptAdminOrder(orderNo) {
+  return requestApi(
+    `${ADMIN_API_BASE}/orders/${orderNo}/accept`,
+    {
+      method: 'PATCH',
+      headers: apiHeaders(),
+    },
+    '주문 접수에 실패했습니다.'
+  );
+}
+
+export async function rejectAdminOrderCancel(orderNo) {
+  return requestApi(
+    `${ADMIN_API_BASE}/orders/${orderNo}/cancel/reject`,
+    {
+      method: 'PATCH',
+      headers: apiHeaders(),
+    },
+    '취소 요청 거절에 실패했습니다.'
+  );
+}
+
+export async function assignCarrierWaybill(orderNo, payload) {
+  return requestApi(
+    `${CARRIER_API_BASE}/${orderNo}/waybill`,
+    {
+      method: 'PATCH',
+      headers: apiHeaders(true),
+      body: JSON.stringify(payload || {}),
+    },
+    '송장 등록에 실패했습니다.'
+  );
+}
+
+export async function pickupCarrierOrder(orderNo, payload) {
+  return requestApi(
+    `${CARRIER_API_BASE}/${orderNo}/pickup`,
+    {
+      method: 'PATCH',
+      headers: apiHeaders(true),
+      body: JSON.stringify(payload || {}),
+    },
+    '집하 처리에 실패했습니다.'
+  );
+}
+
+export async function transitCarrierOrder(orderNo) {
+  return requestApi(
+    `${CARRIER_API_BASE}/${orderNo}/transit`,
+    {
+      method: 'PATCH',
+      headers: apiHeaders(),
+    },
+    '배송 중 처리에 실패했습니다.'
+  );
+}
+
+export async function deliverCarrierOrder(orderNo) {
+  return requestApi(
+    `${CARRIER_API_BASE}/${orderNo}/deliver`,
+    {
+      method: 'PATCH',
+      headers: apiHeaders(),
+    },
+    '배송 완료 처리에 실패했습니다.'
   );
 }
 

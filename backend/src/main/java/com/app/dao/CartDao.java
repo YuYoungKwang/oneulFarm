@@ -2,7 +2,6 @@ package com.app.dao;
 
 import java.util.List;
 
-import com.app.dto.CartGroupDto;
 import com.app.dto.CartItemDto;
 
 public interface CartDao {
@@ -11,33 +10,21 @@ public interface CartDao {
 
     int insertCart(Long userNo);
 
-    List<CartGroupDto> findCartGroups(Long userNo);
-
     List<CartItemDto> findCartItems(Long userNo);
 
-    CartGroupDto findCartGroupByKey(Long cartNo, String groupKey);
+    CartItemDto findCartItem(Long cartNo, Long cartGroupNo, Long productNo);
 
-    CartItemDto findCartGroupItem(Long cartGroupNo, Long productNo);
-
-    CartItemDto findCartItemByNo(Long userNo, Long cartItemNo);
-
-    Integer sumCartProductQuantity(Long userNo, Long productNo);
+    Long findCartGroupNo(Long cartNo, String groupKey);
 
     int insertCartGroup(Long cartNo, String groupKey, String groupType, Long recipeNo, String groupName);
 
-    int updateCartGroupName(Long cartGroupNo, String groupName);
-
-    int touchCartGroup(Long cartGroupNo);
-
     int insertCartItem(Long cartNo, Long cartGroupNo, Long productNo, Integer quantity);
 
-    int updateCartItemQuantity(Long cartItemNo, Integer quantity);
+    int updateCartItemQuantity(Long cartNo, Long cartItemNo, Integer quantity);
 
-    int deleteCartItem(Long cartItemNo);
-
-    int deleteCartGroupIfEmpty(Long cartGroupNo);
+    int deleteCartItem(Long cartNo, Long cartItemNo);
 
     int deleteAllCartItems(Long cartNo);
 
-    int deleteAllCartGroups(Long cartNo);
+    int deleteEmptyCartGroups(Long cartNo);
 }

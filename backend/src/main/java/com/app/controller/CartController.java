@@ -14,8 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.app.common.ApiResponse;
 import com.app.dto.CartDto;
-import com.app.dto.CartGroupRequestDto;
-import com.app.dto.CartItemRequestDto;
+import com.app.dto.CartItemDto;
 import com.app.service.CartService;
 
 @RestController
@@ -35,22 +34,11 @@ public class CartController {
     @PostMapping(value = "/me/items", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ApiResponse<CartDto> addCartItem(
         @RequestHeader("X-USER-NO") Long userNo,
-        @RequestBody CartItemRequestDto request
+        @RequestBody CartItemDto request
     ) {
         return ApiResponse.success(
-            cartService.addCartItem(userNo, request.getProductNo(), request.getQuantity()),
+            cartService.addCartItem(userNo, request),
             "Cart item added."
-        );
-    }
-
-    @PostMapping(value = "/me/recipe-groups", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ApiResponse<CartDto> addRecipeCartGroup(
-        @RequestHeader("X-USER-NO") Long userNo,
-        @RequestBody CartGroupRequestDto request
-    ) {
-        return ApiResponse.success(
-            cartService.addRecipeCartGroup(userNo, request),
-            "Recipe cart group added."
         );
     }
 
@@ -58,7 +46,7 @@ public class CartController {
     public ApiResponse<CartDto> updateCartItem(
         @RequestHeader("X-USER-NO") Long userNo,
         @PathVariable Long cartItemNo,
-        @RequestBody CartItemRequestDto request
+        @RequestBody CartItemDto request
     ) {
         return ApiResponse.success(
             cartService.updateCartItem(userNo, cartItemNo, request.getQuantity()),

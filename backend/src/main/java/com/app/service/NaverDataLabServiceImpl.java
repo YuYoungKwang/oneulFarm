@@ -370,7 +370,7 @@ public class NaverDataLabServiceImpl implements NaverDataLabService {
     private RestTemplate createRestTemplate() {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(5000);
-        requestFactory.setReadTimeout(10000);
+        requestFactory.setReadTimeout(20000);
         return new RestTemplate(requestFactory);
     }
 }

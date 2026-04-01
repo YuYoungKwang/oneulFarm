@@ -1,6 +1,7 @@
 package com.app.service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -24,6 +25,7 @@ import com.app.dto.ProductDto;
 import com.app.dto.ProductKeywordProfileDto;
 import com.app.dto.RecipeDTO;
 import com.app.dto.main.HeroSlideDto;
+import com.app.dto.main.LinkedRecipeDto;
 import com.app.dto.main.MainRecommendationResponseDto;
 import com.app.dto.main.PopularRecipeCardDto;
 import com.app.dto.main.SeasonalProductCardDto;
@@ -39,8 +41,8 @@ public class MainServiceImpl implements MainService {
     private static final int MAIN_CHART_DAYS = 7;
     private static final String DEFAULT_MARKET_TYPE = "RETAIL";
 
-    private static final int SEASONAL_LIMIT = 4;
-    private static final int LINKED_RECIPE_LIMIT = 2;
+    private static final int SEASONAL_LIMIT = 20;
+    private static final int LINKED_RECIPE_LIMIT = 4;
     private static final int POPULAR_RECIPE_LIMIT = 6;
     private static final int POPULAR_RECIPE_CANDIDATE_LIMIT = 18;
     private static final int MATCHED_INGREDIENT_LIMIT = 3;
@@ -132,30 +134,327 @@ public class MainServiceImpl implements MainService {
 
         List<SeasonalProductCardDto> seasonalProducts =
             defaultList(mainDao.findSeasonalRecommendationProducts(limitParam(SEASONAL_LIMIT)));
+        List<SeasonalProductCardDto> rankingProducts =
+            defaultList(mainDao.findRankingRecommendationProducts(limitParam(SEASONAL_LIMIT)));
+        Map<Long, ProductKeywordProfileDto> seasonalProductProfileMap =
+            buildSeasonalProductProfileMap(seasonalProducts);
+        Map<Long, ProductKeywordProfileDto> rankingProductProfileMap =
+            buildSeasonalProductProfileMap(rankingProducts);
 
-        for (SeasonalProductCardDto item : seasonalProducts) {
-            item.setSummary(SEASONAL_SUMMARY);
+        applyDatalabRanking(seasonalProducts, seasonalProductProfileMap);
+        applyDatalabRanking(rankingProducts, rankingProductProfileMap);
+
+        decorateRecommendationProducts(seasonalProducts, seasonalProductProfileMap, true);
+        decorateRecommendationProducts(rankingProducts, rankingProductProfileMap, false);
+
+        List<PopularRecipeCardDto> popularRecipes = buildPopularRecipeCards(seasonalProducts);
+
+        response.setSeasonalProducts(seasonalProducts);
+        response.setRankingProducts(rankingProducts);
+        response.setPopularRecipes(popularRecipes);
+        response.setHeroSlides(buildHeroSlides(seasonalProducts, popularRecipes));
+
+        return response;
+    }
+
+    private void decorateRecommendationProducts(
+        List<SeasonalProductCardDto> products,
+        Map<Long, ProductKeywordProfileDto> productProfileMap,
+        boolean seasonal
+    ) {
+        for (SeasonalProductCardDto item : defaultList(products)) {
+            item.setSummary(seasonal ? SEASONAL_SUMMARY : POPULAR_RECIPE_SUMMARY);
 
             List<String> badges = new ArrayList<String>();
-            badges.add(SEASONAL_BADGE);
+            if (seasonal) {
+                badges.add(SEASONAL_BADGE);
+            }
             if (isPriceBenefit(toBigDecimal(item), item.getAvgPrice())) {
                 badges.add(PRICE_BADGE);
             }
             item.setBadges(badges);
 
-            Map<String, Object> linkedParam = new HashMap<String, Object>();
-            linkedParam.put("productName", item.getProduct() == null ? "" : item.getProduct().getProductName());
-            linkedParam.put("limit", Integer.valueOf(LINKED_RECIPE_LIMIT));
-            item.setLinkedRecipes(defaultList(mainDao.findLinkedRecipesByProductName(linkedParam)));
+            ProductKeywordProfileDto keywordProfile =
+                productProfileMap.get(resolveProductNo(item));
+            item.setLinkedRecipes(findLinkedRecipes(item, keywordProfile));
+        }
+    }
+
+    private Map<Long, ProductKeywordProfileDto> buildSeasonalProductProfileMap(
+        List<SeasonalProductCardDto> seasonalProducts
+    ) {
+        Map<Long, ProductKeywordProfileDto> productProfileMap = new LinkedHashMap<Long, ProductKeywordProfileDto>();
+
+        for (SeasonalProductCardDto item : defaultList(seasonalProducts)) {
+            Long productNo = resolveProductNo(item);
+            if (productNo.longValue() <= 0L) {
+                continue;
+            }
+
+            ProductDto product = productService.getProduct(productNo);
+            if (product == null) {
+                continue;
+            }
+
+            ProductKeywordProfileDto keywordProfile = buildKeywordProfile(product);
+            if (keywordProfile == null) {
+                continue;
+            }
+
+            productProfileMap.put(productNo, keywordProfile);
         }
 
-        List<PopularRecipeCardDto> popularRecipes = buildPopularRecipeCards(seasonalProducts);
+        return productProfileMap;
+    }
 
-        response.setSeasonalProducts(seasonalProducts);
-        response.setPopularRecipes(popularRecipes);
-        response.setHeroSlides(buildHeroSlides(seasonalProducts, popularRecipes));
+    private void applyDatalabRanking(
+        List<SeasonalProductCardDto> seasonalProducts,
+        Map<Long, ProductKeywordProfileDto> seasonalProductProfileMap
+    ) {
+        if (seasonalProducts == null || seasonalProducts.isEmpty()) {
+            return;
+        }
 
-        return response;
+        Map<String, KeywordTrendScore> trendScoreMap = buildKeywordTrendScoreMap(seasonalProductProfileMap);
+
+        for (SeasonalProductCardDto item : seasonalProducts) {
+            Long productNo = resolveProductNo(item);
+            ProductKeywordProfileDto keywordProfile = seasonalProductProfileMap.get(productNo);
+            KeywordTrendScore keywordTrendScore = resolveKeywordTrendScore(keywordProfile, trendScoreMap);
+
+            if (keywordProfile != null && keywordProfile.getRepresentKeyword() != null) {
+                item.setRankKeyword(keywordProfile.getRepresentKeyword().trim());
+            }
+
+            if (keywordTrendScore == null) {
+                continue;
+            }
+
+            item.setRankScore(toScaledDecimal(keywordTrendScore.getScore()));
+            item.setLatestRatio(toScaledDecimal(keywordTrendScore.getLatestRatio()));
+            item.setAverageRatio(toScaledDecimal(keywordTrendScore.getAverageRatio()));
+            item.setChangeRatio(toScaledDecimal(keywordTrendScore.getChangeRatio()));
+            item.setTrendDirection(keywordTrendScore.getTrendDirection());
+        }
+
+        seasonalProducts.sort((leftItem, rightItem) -> {
+            int compareValue = Double.compare(
+                getSeasonalRankScoreValue(rightItem),
+                getSeasonalRankScoreValue(leftItem)
+            );
+            if (compareValue != 0) {
+                return compareValue;
+            }
+
+            compareValue = Double.compare(
+                getSeasonalLatestRatioValue(rightItem),
+                getSeasonalLatestRatioValue(leftItem)
+            );
+            if (compareValue != 0) {
+                return compareValue;
+            }
+
+            compareValue = Double.compare(
+                getSeasonalChangeRatioValue(rightItem),
+                getSeasonalChangeRatioValue(leftItem)
+            );
+            if (compareValue != 0) {
+                return compareValue;
+            }
+
+            compareValue = Double.compare(
+                calculateSeasonalSavingRate(rightItem),
+                calculateSeasonalSavingRate(leftItem)
+            );
+            if (compareValue != 0) {
+                return compareValue;
+            }
+
+            return Long.compare(resolveProductNo(rightItem), resolveProductNo(leftItem));
+        });
+
+        for (int index = 0; index < seasonalProducts.size(); index++) {
+            seasonalProducts.get(index).setRank(Integer.valueOf(index + 1));
+        }
+    }
+
+    private Map<String, KeywordTrendScore> buildKeywordTrendScoreMap(
+        Map<Long, ProductKeywordProfileDto> seasonalProductProfileMap
+    ) {
+        Map<String, KeywordTrendScore> trendScoreMap = new HashMap<String, KeywordTrendScore>();
+
+        if (naverDataLabService == null || seasonalProductProfileMap == null || seasonalProductProfileMap.isEmpty()) {
+            return trendScoreMap;
+        }
+
+        Set<String> keywordSet = new LinkedHashSet<String>();
+        for (ProductKeywordProfileDto keywordProfile : seasonalProductProfileMap.values()) {
+            String normalizedKeyword = normalizeKeywordKey(normalizeRepresentKeyword(keywordProfile));
+            if (normalizedKeyword.isEmpty()) {
+                continue;
+            }
+
+            keywordSet.add(normalizedKeyword);
+        }
+
+        List<String> keywordList = new ArrayList<String>(keywordSet);
+        for (int index = 0; index < keywordList.size(); index += DATALAB_KEYWORD_LIMIT) {
+            int endIndex = Math.min(index + DATALAB_KEYWORD_LIMIT, keywordList.size());
+            List<String> keywordBatch = keywordList.subList(index, endIndex);
+            if (keywordBatch.isEmpty()) {
+                continue;
+            }
+
+            trendScoreMap.putAll(fetchKeywordTrendScoreMap(keywordBatch));
+        }
+
+        return trendScoreMap;
+    }
+
+    private Map<String, KeywordTrendScore> fetchKeywordTrendScoreMap(List<String> keywordBatch) {
+        Map<String, KeywordTrendScore> trendScoreMap = new HashMap<String, KeywordTrendScore>();
+        if (keywordBatch == null || keywordBatch.isEmpty()) {
+            return trendScoreMap;
+        }
+
+        try {
+            Map<String, Object> data = naverDataLabService.getPopularSearchData(
+                keywordBatch,
+                null,
+                null,
+                "date"
+            );
+
+            Object popularSearchObject = data.get("popularSearchList");
+            if (!(popularSearchObject instanceof List<?>)) {
+                return trendScoreMap;
+            }
+
+            for (Object value : (List<?>) popularSearchObject) {
+                if (!(value instanceof Map<?, ?> keywordMap)) {
+                    continue;
+                }
+
+                String currentKeyword = normalizeKeywordKey(
+                    String.valueOf(keywordMap.get("keyword") == null ? "" : keywordMap.get("keyword"))
+                );
+                if (currentKeyword.isEmpty()) {
+                    continue;
+                }
+
+                double latestRatio = toDouble(keywordMap.get("latestRatio"));
+                double averageRatio = toDouble(keywordMap.get("averageRatio"));
+                double changeRatio = toDouble(keywordMap.get("changeRatio"));
+                String trendDirection = String.valueOf(
+                    keywordMap.get("trendDirection") == null ? "" : keywordMap.get("trendDirection")
+                ).trim();
+
+                trendScoreMap.put(currentKeyword, new KeywordTrendScore(
+                    calculateKeywordTrendScore(latestRatio, averageRatio, changeRatio, trendDirection),
+                    latestRatio,
+                    averageRatio,
+                    changeRatio,
+                    trendDirection
+                ));
+            }
+        } catch (Exception exception) {
+            logger.warn("Main seasonal ranking - failed to resolve datalab score for keywords={}", keywordBatch, exception);
+        }
+
+        return trendScoreMap;
+    }
+
+    private double calculateKeywordTrendScore(
+        double latestRatio,
+        double averageRatio,
+        double changeRatio,
+        String trendDirection
+    ) {
+        double normalizedChange = Math.max(-20d, Math.min(changeRatio, 40d));
+        double directionBonus;
+
+        if ("UP".equalsIgnoreCase(trendDirection)) {
+            directionBonus = 12d;
+        } else if ("FLAT".equalsIgnoreCase(trendDirection)) {
+            directionBonus = 4d;
+        } else {
+            directionBonus = 0d;
+        }
+
+        return latestRatio * 0.55d
+            + averageRatio * 0.25d
+            + normalizedChange * 1.2d
+            + directionBonus;
+    }
+
+    private KeywordTrendScore resolveKeywordTrendScore(
+        ProductKeywordProfileDto keywordProfile,
+        Map<String, KeywordTrendScore> trendScoreMap
+    ) {
+        if (keywordProfile == null || trendScoreMap == null || trendScoreMap.isEmpty()) {
+            return null;
+        }
+
+        return trendScoreMap.get(normalizeKeywordKey(normalizeRepresentKeyword(keywordProfile)));
+    }
+
+    private String normalizeRepresentKeyword(ProductKeywordProfileDto keywordProfile) {
+        if (keywordProfile == null || keywordProfile.getRepresentKeyword() == null) {
+            return "";
+        }
+
+        return keywordProfile.getRepresentKeyword().trim();
+    }
+
+    private String normalizeKeywordKey(String value) {
+        return nullToEmpty(value).trim().toUpperCase();
+    }
+
+    private List<LinkedRecipeDto> findLinkedRecipes(
+        SeasonalProductCardDto item,
+        ProductKeywordProfileDto keywordProfile
+    ) {
+        Set<Long> usedRecipeNoSet = new LinkedHashSet<Long>();
+        Set<String> keywordSet = new LinkedHashSet<String>();
+        List<LinkedRecipeDto> linkedRecipeList = new ArrayList<LinkedRecipeDto>();
+
+        if (keywordProfile != null) {
+            for (String searchKeyword : defaultList(keywordProfile.getSearchKeywordList())) {
+                String normalizedKeyword = nullToEmpty(searchKeyword).trim();
+                if (!normalizedKeyword.isEmpty()) {
+                    keywordSet.add(normalizedKeyword);
+                }
+            }
+        }
+
+        String productName = item == null || item.getProduct() == null
+            ? ""
+            : nullToEmpty(item.getProduct().getProductName()).trim();
+        if (!productName.isEmpty()) {
+            keywordSet.add(productName);
+        }
+
+        for (String keyword : keywordSet) {
+            Map<String, Object> linkedParam = new HashMap<String, Object>();
+            linkedParam.put("productName", keyword);
+            linkedParam.put("limit", Integer.valueOf(LINKED_RECIPE_LIMIT));
+
+            for (LinkedRecipeDto linkedRecipe : defaultList(mainDao.findLinkedRecipesByProductName(linkedParam))) {
+                if (linkedRecipe == null || linkedRecipe.getRecipeNo() == null) {
+                    continue;
+                }
+                if (!usedRecipeNoSet.add(linkedRecipe.getRecipeNo())) {
+                    continue;
+                }
+
+                linkedRecipeList.add(linkedRecipe);
+                if (linkedRecipeList.size() >= LINKED_RECIPE_LIMIT) {
+                    return linkedRecipeList;
+                }
+            }
+        }
+
+        return linkedRecipeList;
     }
 
     private List<PopularRecipeCardDto> buildPopularRecipeCards(List<SeasonalProductCardDto> seasonalProducts) {
@@ -766,6 +1065,43 @@ public class MainServiceImpl implements MainService {
         return avgPrice.compareTo(BigDecimal.ZERO) > 0 && salePrice.compareTo(avgPrice) < 0;
     }
 
+    private double getSeasonalRankScoreValue(SeasonalProductCardDto item) {
+        return item == null || item.getRankScore() == null ? 0d : item.getRankScore().doubleValue();
+    }
+
+    private double getSeasonalLatestRatioValue(SeasonalProductCardDto item) {
+        return item == null || item.getLatestRatio() == null ? 0d : item.getLatestRatio().doubleValue();
+    }
+
+    private double getSeasonalChangeRatioValue(SeasonalProductCardDto item) {
+        return item == null || item.getChangeRatio() == null ? 0d : item.getChangeRatio().doubleValue();
+    }
+
+    private double calculateSeasonalSavingRate(SeasonalProductCardDto item) {
+        BigDecimal salePrice = toBigDecimal(item);
+        BigDecimal avgPrice = item == null ? null : item.getAvgPrice();
+
+        if (salePrice == null || avgPrice == null || avgPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            return 0d;
+        }
+
+        return avgPrice.subtract(salePrice)
+            .divide(avgPrice, 4, RoundingMode.HALF_UP)
+            .doubleValue();
+    }
+
+    private long resolveProductNo(SeasonalProductCardDto item) {
+        if (item == null || item.getProduct() == null || item.getProduct().getProductNo() == null) {
+            return 0L;
+        }
+
+        return item.getProduct().getProductNo();
+    }
+
+    private BigDecimal toScaledDecimal(double value) {
+        return BigDecimal.valueOf(Math.round(value * 10d) / 10d);
+    }
+
     private BigDecimal toBigDecimal(SeasonalProductCardDto item) {
         if (item == null || item.getProduct() == null) {
             return null;
@@ -820,6 +1156,22 @@ public class MainServiceImpl implements MainService {
 
     private double toDouble(Number value) {
         return value == null ? 0D : value.doubleValue();
+    }
+
+    private double toDouble(Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+
+        if (value == null) {
+            return 0D;
+        }
+
+        try {
+            return Double.parseDouble(String.valueOf(value).trim());
+        } catch (NumberFormatException exception) {
+            return 0D;
+        }
     }
 
     private List<PriceSnapshotDTO> getChartData(List<ProductDto> mainProducts, List<ProductDto> insights) {
@@ -923,5 +1275,48 @@ public class MainServiceImpl implements MainService {
 
     private <T> List<T> defaultList(List<T> source) {
         return source == null ? Collections.<T>emptyList() : source;
+    }
+
+    private static class KeywordTrendScore {
+
+        private final double score;
+        private final double latestRatio;
+        private final double averageRatio;
+        private final double changeRatio;
+        private final String trendDirection;
+
+        private KeywordTrendScore(
+            double score,
+            double latestRatio,
+            double averageRatio,
+            double changeRatio,
+            String trendDirection
+        ) {
+            this.score = score;
+            this.latestRatio = latestRatio;
+            this.averageRatio = averageRatio;
+            this.changeRatio = changeRatio;
+            this.trendDirection = trendDirection == null ? "" : trendDirection;
+        }
+
+        private double getScore() {
+            return score;
+        }
+
+        private double getLatestRatio() {
+            return latestRatio;
+        }
+
+        private double getAverageRatio() {
+            return averageRatio;
+        }
+
+        private double getChangeRatio() {
+            return changeRatio;
+        }
+
+        private String getTrendDirection() {
+            return trendDirection;
+        }
     }
 }

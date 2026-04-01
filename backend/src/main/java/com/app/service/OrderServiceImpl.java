@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.app.common.OrderCompatibilityUtils;
 import com.app.dao.CartDao;
 import com.app.dao.OrderDao;
 import com.app.dto.CartItemDto;
@@ -33,6 +35,9 @@ public class OrderServiceImpl implements OrderService {
     @Autowired
     private CartDao cartDao;
 
+    @Autowired
+    private OrderFulfillmentSimulationService orderFulfillmentSimulationService;
+
     @Override
     public List<OrderDto> getMyOrders(Long userNo) {
         return getMyOrders(userNo, null, null, null);
@@ -40,6 +45,8 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public List<OrderDto> getMyOrders(Long userNo, String deliveryStatus, String dateFrom, String dateTo) {
+        orderFulfillmentSimulationService.advanceEligibleOrders();
+        orderDao.autoConfirmEligiblePurchasesByUser(userNo);
         Map<String, Object> params = buildOrderFilterParams(userNo, deliveryStatus, dateFrom, dateTo);
         List<OrderDto> responses = orderDao.findMyOrders(params);
 
@@ -47,6 +54,7 @@ public class OrderServiceImpl implements OrderService {
             response.setFinalAmount(defaultAmount(response.getFinalAmount()));
             response.setTotalSavedAmount(defaultAmount(response.getTotalSavedAmount()));
             response.setPreviewImageNos(orderDao.findOrderPreviewImageNos(response.getOrderNo()));
+            hydrateOrderRuntimeState(response);
         }
 
         return responses;
@@ -54,6 +62,8 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public OrderDto getMyOrderDetail(Long userNo, Long orderNo) {
+        orderFulfillmentSimulationService.advanceEligibleOrders();
+        orderDao.autoConfirmEligiblePurchasesByUser(userNo);
         OrderDto response = orderDao.findOrderDetail(userNo, orderNo);
         if (response == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found.");
@@ -78,6 +88,17 @@ public class OrderServiceImpl implements OrderService {
         response.setFinalAmount(defaultAmount(response.getFinalAmount()));
         response.setTotalSavedAmount(sumTotalSavedAmount(itemResponses));
         response.setItems(itemResponses);
+        response.setTrackingHistories(orderDao.findDeliveryTrackingHistories(orderNo));
+        response.setOrderStatusHistories(orderDao.findOrderStatusHistories(orderNo));
+        response.setCancelRequestHistories(orderDao.findCancelRequestHistories(orderNo));
+        hydrateOrderRuntimeState(response);
+        return response;
+    }
+
+    @Override
+    public OrderDto getMyOrderTracking(Long userNo, Long orderNo) {
+        OrderDto response = getMyOrderDetail(userNo, orderNo);
+        response.setItems(null);
         return response;
     }
 
@@ -85,6 +106,14 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public OrderDto createOrder(Long userNo, OrderDto request) {
         validateCreateOrderRequest(request);
+
+        String requestedOrderId = trimToNull(request.getOrderId());
+        if (requestedOrderId != null) {
+            Long existingOrderNo = orderDao.findOrderNoByOrderId(requestedOrderId);
+            if (existingOrderNo != null) {
+                return getMyOrderDetail(userNo, existingOrderNo);
+            }
+        }
 
         List<CartItemDto> cartItems = cartDao.findCartItems(userNo);
         if (cartItems.isEmpty()) {
@@ -99,10 +128,7 @@ public class OrderServiceImpl implements OrderService {
             totalAmount = totalAmount.add(lineAmount);
         }
 
-        String orderId = trimToNull(request.getOrderId());
-        if (orderId == null) {
-            orderId = buildOrderId();
-        }
+        String orderId = requestedOrderId != null ? requestedOrderId : generateUniqueOrderId();
 
         OrderDto order = new OrderDto();
         order.setUserNo(userNo);
@@ -158,6 +184,7 @@ public class OrderServiceImpl implements OrderService {
         delivery.setTrackingNo(null);
         delivery.setDeliveryStatus("READY");
         orderDao.insertDelivery(delivery);
+        orderDao.insertOrderStatusHistory(orderNo, null, "PAID", "SYSTEM", null, "주문을 생성하고 결제를 완료했습니다.");
 
         Long cartNo = cartDao.findCartNoByUser(userNo);
         if (cartNo != null) {
@@ -214,16 +241,43 @@ public class OrderServiceImpl implements OrderService {
         if ("PAID".equals(currentStatus)) {
             orderDao.updateOrderStatus(orderNo, "SHIPPING");
             orderDao.updateDeliveryForShipping(orderNo, "TRK-" + currentOrder.getOrderId());
+            orderDao.insertOrderStatusHistory(orderNo, currentStatus, "SHIPPING", "SYSTEM", null, "시스템이 주문을 배송 단계로 전환했습니다.");
             return getMyOrderDetail(userNo, orderNo);
         }
 
         if ("SHIPPING".equals(currentStatus)) {
             orderDao.updateOrderStatus(orderNo, "COMPLETED");
             orderDao.updateDeliveryForDelivered(orderNo);
+            orderDao.insertOrderStatusHistory(orderNo, currentStatus, "COMPLETED", "SYSTEM", null, "시스템이 주문을 배송 완료 단계로 전환했습니다.");
             return getMyOrderDetail(userNo, orderNo);
         }
 
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order status cannot be advanced.");
+    }
+
+    @Override
+    @Transactional
+    public OrderDto requestCancel(Long userNo, Long orderNo) {
+        OrderDto currentOrder = getMyOrderDetail(userNo, orderNo);
+        if (!Boolean.TRUE.equals(currentOrder.getCancelRequestAvailable())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cancel request is not available for this order.");
+        }
+
+        orderDao.updateOrderCancelStatus(orderNo, "CANCEL_REQUESTED");
+        orderDao.insertOrderCancelRequest(orderNo, userNo, "CANCEL_REQUESTED", null);
+        return getMyOrderDetail(userNo, orderNo);
+    }
+
+    @Override
+    @Transactional
+    public OrderDto confirmPurchase(Long userNo, Long orderNo) {
+        OrderDto currentOrder = getMyOrderDetail(userNo, orderNo);
+        if (!Boolean.TRUE.equals(currentOrder.getPurchaseConfirmAvailable())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Purchase confirmation is not available for this order.");
+        }
+
+        orderDao.updateOrderPurchaseConfirm(orderNo, "PURCHASE_CONFIRMED", LocalDateTime.now());
+        return getMyOrderDetail(userNo, orderNo);
     }
 
     private boolean isReviewWritable(String deliveryStatus, Long reviewNo) {
@@ -240,6 +294,10 @@ public class OrderServiceImpl implements OrderService {
             totalSavedAmount = totalSavedAmount.add(defaultAmount(item.getSavedAmount()));
         }
         return totalSavedAmount;
+    }
+
+    private void hydrateOrderRuntimeState(OrderDto order) {
+        OrderCompatibilityUtils.hydrateOrderCompatibility(order);
     }
 
     private void validateCreateOrderRequest(OrderDto request) {
@@ -271,10 +329,24 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
-    private String buildOrderId() {
-        String dateKey = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
-        int nextSequence = orderDao.countOrdersByOrderIdPrefix("OFT-" + dateKey + "-") + 1;
-        return "OFT-" + dateKey + "-" + String.format("%03d", nextSequence);
+    private String generateUniqueOrderId() {
+        for (int attempt = 0; attempt < 10; attempt++) {
+            String candidate = buildOrderIdCandidate();
+            if (orderDao.findOrderNoByOrderId(candidate) == null) {
+                return candidate;
+            }
+        }
+
+        throw new ResponseStatusException(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "Failed to generate unique order id."
+        );
+    }
+
+    private String buildOrderIdCandidate() {
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS"));
+        int randomSuffix = ThreadLocalRandom.current().nextInt(1000, 10000);
+        return "OFT-" + timestamp + "-" + randomSuffix;
     }
 
     private boolean isBlank(String value) {

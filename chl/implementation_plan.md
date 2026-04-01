@@ -311,3 +311,30 @@
 2. 이미 완성된 주문/대시보드/마이페이지 흐름을 깨지 않는지 확인
 3. 다른 사람 작업과 충돌 가능성 확인
 4. 화면 작업이면 account 전용 스타일로 해결 가능한지 확인
+
+## Related Design Doc
+- 주문/배송 역할 분리와 운영 흐름 재설계 초안:
+  - [order_fulfillment_separation_plan.md](/d:/study/oneulFarm/docs/order_fulfillment_separation_plan.md)
+
+## 2026-03-25 Order/Delivery Design Doc
+- 주문/배송 분리 설계 문서: [order_fulfillment_separation_plan.md](/d:/study/oneulFarm/docs/order_fulfillment_separation_plan.md)
+
+- 배송 추적과 배송사 전용 페이지 분리를 위해 문서에 배송사 마스터(OFT_CARRIER), 배송 추적 이력(OFT_DELIVERY_TRACKING_HISTORY), 배송사 계정 구조(ROLE 확장 + OFT_CARRIER_USER)를 반영했다.
+
+- 주문/배송 분리 설계의 DB 적용 검토를 위해 [order_fulfillment_separation_ddl_draft.sql](/d:/study/oneulFarm/backend/src/main/webapp/WEB-INF/sql/order_fulfillment_separation_ddl_draft.sql) 초안을 추가했다.
+
+- 상태값 이관을 위해 [order_fulfillment_state_migration_plan.md](/d:/study/oneulFarm/docs/order_fulfillment_state_migration_plan.md) 문서를 추가했다. 현재 ORDER_STATUS / DELIVERY_STATUS 사용처와 목표 상태 체계 매핑, 단계별 전환 순서를 정리했다.
+
+- 실데이터 점검용 Oracle 쿼리 파일 [order_fulfillment_state_audit_queries.sql](/d:/study/oneulFarm/backend/src/main/webapp/WEB-INF/sql/order_fulfillment_state_audit_queries.sql)을 추가했다. 상태 분포, 취소 주문, 송장/배송상태 불일치, 배송사명 정규화 후보를 점검할 수 있다.
+
+- 백필 검토용 SQL [order_fulfillment_backfill_draft.sql](/d:/study/oneulFarm/backend/src/main/webapp/WEB-INF/sql/order_fulfillment_backfill_draft.sql)을 추가했다. 안전한 기본값 채우기, 주문/배송 상태 변환, 배송사 코드 보정, 이력 테이블 초기 적재 초안을 포함한다.
+
+- 고객/운영자/배송사 역할 분리 구현을 위한 [order_fulfillment_api_spec_draft.md](/d:/study/oneulFarm/docs/order_fulfillment_api_spec_draft.md) 문서를 추가했다. 요청/응답 구조, 권한, 상태 검증 규칙을 정리했다.
+
+- 화면 구조용 [order_fulfillment_ui_wireframe_draft.md](/d:/study/oneulFarm/docs/order_fulfillment_ui_wireframe_draft.md), 실행 순서용 [order_fulfillment_implementation_roadmap.md](/d:/study/oneulFarm/docs/order_fulfillment_implementation_roadmap.md), 검증용 [order_fulfillment_test_checklist.md](/d:/study/oneulFarm/docs/order_fulfillment_test_checklist.md) 문서를 추가했다.
+
+- 구현 착수용 파일 영향 분석 문서 [order_fulfillment_code_change_map.md](/d:/study/oneulFarm/docs/order_fulfillment_code_change_map.md)을 추가했다. 백엔드/프론트 수정 대상, 신규 파일 후보, 단계별 영향 범위를 정리했다.
+
+- 주문 관련 프론트 구현 기준을 기존 화면 수정이 아니라 역할별 신규 화면 생성으로 고정했다. 고객용/운영자용/배송사용 화면은 새 컴포넌트와 전용 CSS를 우선으로 설계한다.
+
+- 백엔드 1차 구현 착수용 체크리스트 [order_fulfillment_backend_phase1_tasklist.md](/d:/study/oneulFarm/docs/order_fulfillment_backend_phase1_tasklist.md)을 추가했다. DTO, Mapper, DAO, Service, Controller, 상태 검증, 이력 적재 작업을 파일 단위로 정리했다.

@@ -444,3 +444,44 @@
 - 레시피 매퍼 초기화 실패 원인으로 `RecipeDTO.recommendedProductList` 제네릭 타입을 명시적으로 `com.app.dto.ProductDto`로 고정.
 - 머지 후 남은 스테일 클래스와 제네릭 타입 해석 충돌 가능성을 줄이기 위해 DTO 타입 선언을 명확화.
 - 리뷰 별점 버튼의 활성/비활성 색 대비와 테두리, 그림자를 강화해 선택 상태가 더 분명하게 보이도록 조정.
+
+## 2026-03-25
+- 고객용 `내 주문`, 운영자용 `주문 관리`, 배송사용 `배송 관리`를 분리하는 방향으로 주문/배송 운영 구조 재설계 문서를 작성.
+- 상태 모델, 상태 전이, 권한별 기능표, 더미 배송사 API, DB 초안, 구현 우선순위를 [order_fulfillment_separation_plan.md](/d:/study/oneulFarm/docs/order_fulfillment_separation_plan.md) 에 정리.
+- 현재 구현 기준 사용자 흐름 문서는 유지하고, 계획성 문서는 별도 설계 문서로 분리.
+
+- 2026-03-25: 주문/배송 구조 재설계 문서를 UTF-8로 다시 정리하고, 고객용 내 주문 / 운영자용 주문 관리 / 배송사용 배송 관리 분리 방향, 상태 체계, API 초안, DB 초안을 [order_fulfillment_separation_plan.md](/d:/study/oneulFarm/docs/order_fulfillment_separation_plan.md)에 문서화했다.
+
+- 2026-03-25: 주문/배송 분리 설계 문서에 배송사 엔티티 필요성을 추가하고, OFT_CARRIER, OFT_DELIVERY 확장, OFT_DELIVERY_TRACKING_HISTORY, 배송사 계정 구조(ROLE 확장 + OFT_CARRIER_USER) 방향을 반영했다.
+
+- 2026-03-25: 주문/배송 분리 설계를 실제 DB 구조로 검토할 수 있도록 [order_fulfillment_separation_ddl_draft.sql](/d:/study/oneulFarm/backend/src/main/webapp/WEB-INF/sql/order_fulfillment_separation_ddl_draft.sql)을 추가했다. OFT_CARRIER, OFT_CARRIER_USER, OFT_ORDER_CANCEL_REQUEST, OFT_ORDER_STATUS_HISTORY, OFT_DELIVERY_TRACKING_HISTORY와 주문/배송 테이블 확장 초안을 포함한다.
+
+- 2026-03-25: 주문/배송 상태 개편을 위한 [order_fulfillment_state_migration_plan.md](/d:/study/oneulFarm/docs/order_fulfillment_state_migration_plan.md) 문서를 추가했다. 현재 ORDER_STATUS / DELIVERY_STATUS 현황, 목표 상태 체계, 매핑 규칙, 영향 코드, 단계별 마이그레이션 순서를 정리했다.
+
+- 2026-03-25: 주문/배송 상태 마이그레이션 전 점검용 [order_fulfillment_state_audit_queries.sql](/d:/study/oneulFarm/backend/src/main/webapp/WEB-INF/sql/order_fulfillment_state_audit_queries.sql)을 추가했다. ORDER_STATUS / DELIVERY_STATUS 분포, CANCELED 주문, 송장/배송상태 불일치, 매핑 미리보기 쿼리를 포함한다.
+
+- 2026-03-25: 주문/배송 상태 개편용 [order_fulfillment_backfill_draft.sql](/d:/study/oneulFarm/backend/src/main/webapp/WEB-INF/sql/order_fulfillment_backfill_draft.sql)을 추가했다. 기본값 백필, 상태값 변환, 배송사 코드 매핑, CANCELED 검토 후보 조회, 이력 테이블 초기 적재 초안을 정리했다.
+
+- 2026-03-25: 주문/배송 분리 구현을 위한 [order_fulfillment_api_spec_draft.md](/d:/study/oneulFarm/docs/order_fulfillment_api_spec_draft.md) 문서를 추가했다. 고객용 내 주문, 운영자용 주문 관리, 배송사용 배송 관리, 더미 배송사 API 명세 초안을 정리했다.
+
+- 2026-03-25: 주문/배송 분리 문서 세트를 확장해 [order_fulfillment_ui_wireframe_draft.md](/d:/study/oneulFarm/docs/order_fulfillment_ui_wireframe_draft.md), [order_fulfillment_implementation_roadmap.md](/d:/study/oneulFarm/docs/order_fulfillment_implementation_roadmap.md), [order_fulfillment_test_checklist.md](/d:/study/oneulFarm/docs/order_fulfillment_test_checklist.md)을 추가했다.
+
+- 2026-03-25: 주문/배송 분리 구현을 바로 시작할 수 있도록 [order_fulfillment_code_change_map.md](/d:/study/oneulFarm/docs/order_fulfillment_code_change_map.md)을 추가했다. SQL, DTO, DAO, Service, Controller, Mapper, 프론트 화면/API 모듈별 수정 후보를 정리했다.
+
+- 2026-03-25: 주문/배송 분리 프론트 구현 전략을 기존 페이지 수정이 아닌 역할별 신규 화면 생성으로 정리했다. 로드맵과 코드 변경 맵에 신규 컴포넌트/전용 CSS 우선 기준을 반영했다.
+
+- 2026-03-25: 주문/배송 분리 백엔드 1차 구현용 [order_fulfillment_backend_phase1_tasklist.md](/d:/study/oneulFarm/docs/order_fulfillment_backend_phase1_tasklist.md)을 추가했다. 상태 구조 확장과 운영자/배송사 API 기반 작업을 체크리스트로 정리했다.
+
+- 2026-03-25: 백엔드 1차 구현을 시작해 [OrderDto.java](/d:/study/oneulFarm/backend/src/main/java/com/app/dto/OrderDto.java), [DeliveryDto.java](/d:/study/oneulFarm/backend/src/main/java/com/app/dto/DeliveryDto.java)에 신규 상태/배송사/송장 관련 필드를 추가했다. [OrderServiceImpl.java](/d:/study/oneulFarm/backend/src/main/java/com/app/service/OrderServiceImpl.java), [AdminServiceImpl.java](/d:/study/oneulFarm/backend/src/main/java/com/app/service/AdminServiceImpl.java)에서는 기존 상태를 새 구조로 파생해 응답에 채워주는 호환 계층을 추가했다.
+
+- 2026-03-25: 주문/배송 상태 파생 로직을 [OrderCompatibilityUtils.java](/d:/study/oneulFarm/backend/src/main/java/com/app/common/OrderCompatibilityUtils.java)로 공통화했다. 고객용 [OrderServiceImpl.java](/d:/study/oneulFarm/backend/src/main/java/com/app/service/OrderServiceImpl.java)와 운영자용 [AdminServiceImpl.java](/d:/study/oneulFarm/backend/src/main/java/com/app/service/AdminServiceImpl.java)가 동일한 호환 규칙을 재사용하도록 정리했다.
+
+- 2026-03-25: 고객용 주문 API를 확장해 [OrderDto.java](/d:/study/oneulFarm/backend/src/main/java/com/app/dto/OrderDto.java)에 취소요청/구매확정/배송조회 가능 플래그를 추가하고, [OrderController.java](/d:/study/oneulFarm/backend/src/main/java/com/app/controller/OrderController.java)에 GET /api/orders/me/{orderNo}/tracking을 추가했다. [OrderService.java](/d:/study/oneulFarm/backend/src/main/java/com/app/service/OrderService.java), [OrderServiceImpl.java](/d:/study/oneulFarm/backend/src/main/java/com/app/service/OrderServiceImpl.java)는 배송 조회 응답을 지원하도록 확장했다.
+
+- 2026-03-25: 운영자 주문 API를 명시적 액션 기준으로 확장했다. [AdminController.java](/d:/study/oneulFarm/backend/src/main/java/com/app/controller/AdminController.java), [AdminService.java](/d:/study/oneulFarm/backend/src/main/java/com/app/service/AdminService.java), [AdminServiceImpl.java](/d:/study/oneulFarm/backend/src/main/java/com/app/service/AdminServiceImpl.java)에 주문 거절(PATCH /api/admin/orders/{orderNo}/reject), 배송 시작(PATCH /api/admin/orders/{orderNo}/ship), 배송 완료(PATCH /api/admin/orders/{orderNo}/deliver) 흐름을 추가했다.
+- 2026-03-25: 마이페이지 주문 탭을 기존 [OrdersView.js](/d:/study/oneulFarm/frontend/src/OrdersView.js) 수정 기준이 아니라 신규 고객용 화면으로 재구성했다. [CustomerOrdersPage.js](/d:/study/oneulFarm/frontend/src/CustomerOrdersPage.js), [CustomerOrderDetailPanel.js](/d:/study/oneulFarm/frontend/src/CustomerOrderDetailPanel.js), [customerOrders.css](/d:/study/oneulFarm/frontend/src/styles/customerOrders.css)를 추가하고 [AccountApp.js](/d:/study/oneulFarm/frontend/src/AccountApp.js) 주문 라우트에 연결했다. 주문 목록과 배송 흐름, 결제 금액, 상품별 리뷰 작성 진입을 한 화면에서 확인할 수 있도록 고객용 주문 UI를 새로 구성했다.
+- 2026-03-25: 프론트 `cmd /c npm run build` 통과. 신규 주문 화면 관련 `npx eslint src/CustomerOrdersPage.js src/CustomerOrderDetailPanel.js src/AccountApp.js`도 통과했다. 전체 빌드 경고는 기존 [AdminApp.js](/d:/study/oneulFarm/frontend/src/AdminApp.js) 미사용 변수 1건만 남아 있다.
+- 2026-03-25: 관리자 주문 화면도 기존 인라인 [OrdersPage](/d:/study/oneulFarm/frontend/src/AdminApp.js) 중심 구조에서 분리해 [AdminOrdersPage.js](/d:/study/oneulFarm/frontend/src/admin/AdminOrdersPage.js) 신규 화면으로 연결했다. [adminOrders.css](/d:/study/oneulFarm/frontend/src/styles/adminOrders.css)를 추가하고 [AdminApp.js](/d:/study/oneulFarm/frontend/src/AdminApp.js)에서 거절/배송시작/배송완료 액션을 새 화면에 맞춰 연결했다. 결제 완료, 주문 확정, 취소 요청, 배송 완료를 운영 시점에서 한 번에 처리할 수 있는 관리자 주문 UI로 재구성했다.
+- 2026-03-25: 프론트 `cmd /c npm run build` 재검증 통과. 관리자 주문 화면 관련 ESLint 경고는 이번 작업분을 정리했고, 전체 경고는 기존 [AdminApp.js](/d:/study/oneulFarm/frontend/src/AdminApp.js) `canManageAdminRole` 미사용 1건만 남아 있다.
+- 2026-03-25: 체크아웃 결제 수단에서 토스페이 선택 시 즉시 주문 완료 흐름으로 들어갈 수 있는 테스트 버튼을 추가했다. [CheckoutPage.js](/d:/study/oneulFarm/frontend/src/components/CheckoutPage.js)에 `결제완료 (테스트)` 버튼과 공통 검증 로직을 추가하고, [ProductApp.js](/d:/study/oneulFarm/frontend/src/components/ProductApp.js)에서 외부 결제창을 거치지 않고 주문 생성 API로 바로 들어가는 `forceDirectOrder` 흐름을 연결했다. 버튼 스타일은 [product.css](/d:/study/oneulFarm/frontend/src/styles/product.css)에 체크아웃 전용 클래스로 분리했다.
+- 2026-03-25: 배송사 전용 화면으로 [CarrierManagementPage.js](/d:/study/oneulFarm/frontend/src/admin/CarrierManagementPage.js)를 추가하고 [carrierManagement.css](/d:/study/oneulFarm/frontend/src/styles/carrierManagement.css)를 분리했다. [AdminLayout.js](/d:/study/oneulFarm/frontend/src/admin/AdminLayout.js)에 `배송 관리` 메뉴를 추가하고 [AdminApp.js](/d:/study/oneulFarm/frontend/src/AdminApp.js)에서 `#/admin/carrier` 라우트를 연결했다. 송장 등록, 집하 처리, 배송 완료 흐름을 배송사 관점에서 조작할 수 있는 신규 화면으로 구성했다.

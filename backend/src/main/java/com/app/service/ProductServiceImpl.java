@@ -72,9 +72,9 @@ public class ProductServiceImpl implements ProductService {
     public List<ProductDto> getProducts() {
         List<ProductDto> products = productDao.findSellingProducts();
         for (ProductDto product : products) {
-            applyFallbackPriceInsight(product);
             sanitizeExistingPriceInsight(product);
             repairExistingPriceInsight(product);
+            applyFallbackPriceInsight(product);
             product.setImages(resolveDisplayImages(product.getProductNo()));
             product.setRecipes(Collections.emptyList());
             product.setReviews(Collections.emptyList());
@@ -89,9 +89,9 @@ public class ProductServiceImpl implements ProductService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found.");
         }
 
-        applyFallbackPriceInsight(product);
         sanitizeExistingPriceInsight(product);
         repairExistingPriceInsight(product);
+        applyFallbackPriceInsight(product);
         product.setImages(resolveDisplayImages(productNo));
         product.setRecipes(productDao.findProductRecipes(productNo));
         product.setReviews(productDao.findProductReviews(productNo));
@@ -168,7 +168,12 @@ public class ProductServiceImpl implements ProductService {
             product.setItemCode(retailSnapshot.getItemCode());
             product.setItemName(retailSnapshot.getItemName());
             product.setMarketType(retailSnapshot.getMarketType());
-            product.setSnapshotUnit(retailSnapshot.getUnit());
+            product.setSnapshotUnit(
+                PriceSnapshotUnitSupport.normalizeConvertedRetailWeightUnit(
+                    retailSnapshot.getItemCode(),
+                    retailSnapshot.getUnit()
+                )
+            );
             product.setChangeRate(retailSnapshot.getChangeRate());
             product.setSnapshotDate(parseSnapshotDate(retailSnapshot.getSnapshotDate()));
             product.setSourceName(retailSnapshot.getSourceName());
@@ -211,31 +216,35 @@ public class ProductServiceImpl implements ProductService {
         }
         product.setSnapshotUnit(effectiveSnapshotUnit);
 
-        if (!"1kg".equalsIgnoreCase(effectiveSnapshotUnit) || product.getAvgPrice() == null) {
+        BigDecimal displayAvgPrice = calculateComparablePrice(
+            product,
+            product.getItemName(),
+            effectiveSnapshotUnit,
+            product.getAvgPrice()
+        );
+        if (displayAvgPrice == null) {
             return;
         }
 
-        BigDecimal productAmountInGram = ProduceStandardWeightSupport.resolveProductAmountInGram(
-            product.getProductName(),
-            product.getUnit(),
-            product.getPackageWeight() == null || product.getPackageWeight().compareTo(BigDecimal.ZERO) <= 0
-                ? BigDecimal.ONE
-                : product.getPackageWeight()
+        BigDecimal displayMinPrice = calculateComparablePrice(
+            product,
+            product.getItemName(),
+            effectiveSnapshotUnit,
+            product.getMinPrice()
         );
-        if (productAmountInGram == null || productAmountInGram.compareTo(BigDecimal.ZERO) <= 0) {
-            return;
-        }
+        BigDecimal displayMaxPrice = calculateComparablePrice(
+            product,
+            product.getItemName(),
+            effectiveSnapshotUnit,
+            product.getMaxPrice()
+        );
 
-        BigDecimal divisor = BigDecimal.valueOf(1000L);
-        BigDecimal displayAvgPrice = scaleMoney(
-            product.getAvgPrice().multiply(productAmountInGram).divide(divisor, 2, RoundingMode.HALF_UP)
-        );
-        BigDecimal displayMinPrice = product.getMinPrice() == null
-            ? displayAvgPrice
-            : scaleMoney(product.getMinPrice().multiply(productAmountInGram).divide(divisor, 2, RoundingMode.HALF_UP));
-        BigDecimal displayMaxPrice = product.getMaxPrice() == null
-            ? displayAvgPrice
-            : scaleMoney(product.getMaxPrice().multiply(productAmountInGram).divide(divisor, 2, RoundingMode.HALF_UP));
+        if (displayMinPrice == null) {
+            displayMinPrice = displayAvgPrice;
+        }
+        if (displayMaxPrice == null) {
+            displayMaxPrice = displayAvgPrice;
+        }
 
         BigDecimal salePrice = scaleMoney(product.getSalePrice());
         BigDecimal priceGap = displayAvgPrice.subtract(salePrice).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
@@ -334,12 +343,24 @@ public class ProductServiceImpl implements ProductService {
     }
 
     private BigDecimal calculateComparablePrice(ProductDto product, PriceSnapshotDTO snapshot) {
+        if (snapshot == null) {
+            return null;
+        }
+        return calculateComparablePrice(product, snapshot.getItemName(), snapshot.getUnit(), snapshot.getAvgPrice());
+    }
+
+    private BigDecimal calculateComparablePrice(
+        ProductDto product,
+        String snapshotItemName,
+        String snapshotUnit,
+        BigDecimal snapshotPrice
+    ) {
         Quantity productQuantity = resolveProductQuantity(product);
-        Quantity snapshotQuantity = resolveSnapshotQuantity(snapshot == null ? null : snapshot.getUnit());
+        Quantity snapshotQuantity = resolveSnapshotQuantity(snapshotUnit);
         if (productQuantity == null || snapshotQuantity == null) {
             return null;
         }
-        if (snapshot.getAvgPrice() == null) {
+        if (snapshotPrice == null) {
             return null;
         }
 
@@ -348,7 +369,7 @@ public class ProductServiceImpl implements ProductService {
                 return null;
             }
 
-            return snapshot.getAvgPrice()
+            return snapshotPrice
                 .multiply(productQuantity.amount)
                 .divide(snapshotQuantity.amount, 2, RoundingMode.HALF_UP);
         }
@@ -361,8 +382,8 @@ public class ProductServiceImpl implements ProductService {
                 : product.getPackageWeight()
         );
         BigDecimal snapshotAmountInGram = ProduceStandardWeightSupport.resolveSnapshotAmountInGram(
-            snapshot.getItemName() == null ? product.getProductName() : snapshot.getItemName(),
-            snapshot.getUnit()
+            snapshotItemName == null ? product.getProductName() : snapshotItemName,
+            snapshotUnit
         );
         if (productAmountInGram == null
             || snapshotAmountInGram == null
@@ -371,7 +392,7 @@ public class ProductServiceImpl implements ProductService {
             return null;
         }
 
-        return snapshot.getAvgPrice()
+        return snapshotPrice
             .multiply(productAmountInGram)
             .divide(snapshotAmountInGram, 2, RoundingMode.HALF_UP);
     }

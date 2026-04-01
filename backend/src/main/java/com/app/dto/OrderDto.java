@@ -39,11 +39,40 @@ public class OrderDto {
     private BigDecimal paidAmount;
     private LocalDateTime paidAt;
 
+    private String normalizedOrderStatus;
+    private String cancelStatus;
+    private String purchaseConfirmStatus;
+    private LocalDateTime purchaseConfirmedAt;
+    private LocalDateTime fulfillmentStartedAt;
+
     private String deliveryStatus;
+    private String normalizedDeliveryStatus;
     private String courierName;
+    private String carrierCode;
+    private String carrierName;
     private String trackingNo;
+    private String waybillStatus;
+    private LocalDateTime waybillAssignedAt;
+    private LocalDateTime pickedUpAt;
+    private LocalDateTime inTransitAt;
     private LocalDateTime shippedAt;
     private LocalDateTime deliveredAt;
+    private Boolean legacyStatusNeedsReview;
+    private Boolean cancelRequestAvailable;
+    private Boolean purchaseConfirmAvailable;
+    private Boolean trackingAvailable;
+    private Boolean rejectAvailable;
+    private Boolean acceptAvailable;
+    private Boolean cancelAcceptAvailable;
+    private Boolean cancelRejectAvailable;
+    private Boolean shipAvailable;
+    private Boolean deliverAvailable;
+    private Boolean waybillAssignable;
+    private Boolean pickupAvailable;
+    private Boolean transitAvailable;
 
     private List<OrderItemDto> items;
+    private List<DeliveryTrackingHistoryDto> trackingHistories;
+    private List<OrderStatusHistoryDto> orderStatusHistories;
+    private List<CancelRequestHistoryDto> cancelRequestHistories;
 }

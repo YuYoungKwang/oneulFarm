@@ -1,5 +1,5 @@
 import { buildProductImageSources } from "../../api/productApi";
-import { formatCurrency, formatPercent } from "../productUiUtils";
+import { formatCurrency } from "../productUiUtils";
 
 function handleImageError(event) {
   const nextSource = event.currentTarget.dataset.fallbackSrc;
@@ -13,23 +13,26 @@ function handleImageError(event) {
 
 export default function RecommendProductCard({
   badges = [],
-  detail,
-  hideSavingRate = false,
-  metricLabel,
-  metricValue,
   onOpen,
   product,
-  summary,
   title,
   typeLabel,
 }) {
   const productName = title || product?.productName || "추천 상품";
   const displaySymbol = product?.display?.symbol || "P";
   const salePrice = Number(product?.salePrice || 0);
-  const savingRate = Number(product?.priceMatch?.savingRate || 0);
+  const averagePrice = Number(
+    product?.priceSnapshot?.displayAvgPrice ||
+      product?.priceSnapshot?.avgPrice ||
+      0
+  );
   const imageSources = buildProductImageSources(product);
-  const hasMetric = Boolean(metricLabel && metricValue);
   const visibleBadges = badges.filter(Boolean);
+  const packageLabel =
+    product?.packageWeight && product?.unit
+      ? `${product.packageWeight}${product.unit}`
+      : product?.unit || "";
+  const metaLabel = [product?.origin, packageLabel].filter(Boolean).join(" / ");
 
   return (
     <article className="recommend-product-card">
@@ -60,26 +63,23 @@ export default function RecommendProductCard({
       <div className="recommend-product-card__body">
         <div className="recommend-product-card__heading">
           <h3>{productName}</h3>
-          <p>{product?.origin || product?.categoryName || "오늘의 추천 상품"}</p>
+          <p>{metaLabel || product?.categoryName || "오늘의 추천 상품"}</p>
         </div>
 
-        <div className="recommend-product-card__price">
-          <strong>{formatCurrency(salePrice)}</strong>
-          {!hideSavingRate ? <span>{formatPercent(savingRate)}</span> : null}
+        <div className="recommend-product-card__price-grid">
+          <div className="recommend-product-card__price-line">
+            <span className="recommend-product-card__price-label">평균가</span>
+            <strong className="recommend-product-card__price-value recommend-product-card__price-value--muted">
+              {formatCurrency(averagePrice)}
+            </strong>
+          </div>
+          <div className="recommend-product-card__price-line">
+            <span className="recommend-product-card__price-label">판매가</span>
+            <strong className="recommend-product-card__price-value">
+              {formatCurrency(salePrice)}
+            </strong>
+          </div>
         </div>
-
-        <div className="recommend-product-card__copy">
-          {/* <p>평균가 {formatCurrency(averagePrice)}</p> */}
-          <p>{summary}</p>
-          {detail ? <small>{detail}</small> : null}
-        </div>
-
-        {hasMetric ? (
-          <dl className="recommend-product-card__metric">
-            <dt>{metricLabel}</dt>
-            <dd>{metricValue}</dd>
-          </dl>
-        ) : null}
 
         {visibleBadges.length ? (
           <div className="recommend-product-card__badges">

@@ -22,13 +22,6 @@ export default function MainIngredientLinkCard({
         ? "\uAC00\uACA9 \uBA54\uB9AC\uD2B8"
         : "\uC778\uAE30 \uB808\uC2DC\uD53C";
 
-  const fallbackDescription =
-    tone === "seasonal"
-      ? "\uC9C0\uAE08 \uC4F0\uAE30 \uC88B\uC740 \uC7AC\uB8CC\uC640 \uC5F0\uACB0\uB41C \uBA54\uB274\uB97C \uBC14\uB85C \uD655\uC778\uD560 \uC218 \uC788\uC5B4\uC694."
-      : tone === "value"
-        ? "\uAC00\uACA9 \uBA54\uB9AC\uD2B8\uAC00 \uC88B\uC740 \uC7AC\uB8CC\uC640 \uC5F0\uACB0\uB41C \uBA54\uB274\uB97C \uD568\uAED8 \uD655\uC778\uD560 \uC218 \uC788\uC5B4\uC694."
-        : "\uC778\uAE30 \uB808\uC2DC\uD53C\uB97C \uBCF4\uACE0 \uD544\uC694\uD55C \uC7AC\uB8CC\uC640 \uBA54\uB274 \uC815\uBCF4\uB97C \uBC14\uB85C \uD655\uC778\uD560 \uC218 \uC788\uC5B4\uC694.";
-
   const emptyMessage =
     tone === "recipe"
       ? "\uC7AC\uB8CC \uC815\uBCF4\uB97C \uC900\uBE44 \uC911\uC785\uB2C8\uB2E4."
@@ -61,7 +54,6 @@ export default function MainIngredientLinkCard({
       <div className="main-link-card__body">
         <div className="main-link-card__copy">
           <h3 className="main-link-card__title">{title}</h3>
-          <p className="main-link-card__desc">{item?.description || fallbackDescription}</p>
         </div>
 
         <div className="main-link-card__media">
