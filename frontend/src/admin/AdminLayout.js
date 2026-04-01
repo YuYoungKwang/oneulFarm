@@ -6,7 +6,6 @@ const MENU_ITEMS = [
   { id: 'products', label: '\uC0C1\uD488 \uAD00\uB9AC', hash: '#/admin/products' },
   { id: 'purchase', label: '\uB9E4\uC785 / \uC18C\uBD84', hash: '#/admin/purchase' },
   { id: 'orders', label: '\uC8FC\uBB38 \uAD00\uB9AC', hash: '#/admin/orders' },
-  { id: 'carrier', label: '\uBC30\uC1A1 \uAD00\uB9AC', hash: '#/admin/carrier' },
   { id: 'users', label: '\uD68C\uC6D0 \uAD00\uB9AC', hash: '#/admin/users' },
   { id: 'content', label: '\uBC30\uB108 / \uB808\uC2DC\uD53C', hash: '#/admin/content' },
 ];

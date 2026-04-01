@@ -7,7 +7,7 @@
   width: var(--container);
   margin: 0 auto;
   display: grid;
-  gap: 28px;
+  gap: 24px;
 }
 
 .recommend-page .recommend-hero {
@@ -192,9 +192,9 @@
 }
 
 .recommend-page .recommend-section {
-  padding: 26px;
+  padding: 22px;
   display: grid;
-  gap: 18px;
+  gap: 14px;
 }
 
 .recommend-page .recommend-section__head {
@@ -220,7 +220,7 @@
 
 .recommend-page .recommend-product-grid {
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
 
 .recommend-page .recommend-signal-grid {
@@ -236,17 +236,17 @@
 
 .recommend-page .recommend-product-card {
   display: grid;
-  gap: 16px;
-  padding: 18px;
-  border-radius: 24px;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 20px;
   background: #fbfcfa;
   border: 1px solid rgba(231, 235, 239, 0.9);
 }
 
 .recommend-page .recommend-product-card__media {
-  height: 220px;
-  padding: 16px;
-  border-radius: 22px;
+  height: 180px;
+  padding: 12px;
+  border-radius: 18px;
   background:
     radial-gradient(circle at top right, var(--recommend-media-glow), transparent 28%),
     linear-gradient(135deg, var(--recommend-media-soft), #ffffff 100%);
@@ -259,11 +259,12 @@
 
 .recommend-page .recommend-product-card__type {
   align-self: flex-start;
-  padding: 6px 11px;
+  padding: 5px 10px;
   background: rgba(255, 255, 255, 0.88);
   color: var(--green-dark);
   position: relative;
   z-index: 1;
+  font-size: 11px;
 }
 
 .recommend-page .recommend-product-card__image {
@@ -276,7 +277,7 @@
 .recommend-page .recommend-product-card__symbol {
   display: grid;
   place-items: center;
-  font-size: 72px;
+  font-size: 60px;
   font-weight: 800;
   color: #20412e;
   line-height: 1;
@@ -284,17 +285,17 @@
 
 .recommend-page .recommend-product-card__body {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .recommend-page .recommend-product-card__heading h3 {
   margin: 0;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 900;
   letter-spacing: -0.02em;
   color: #152330;
   line-height: 1.35;
-  min-height: calc(22px * 1.35 * 2);
+  min-height: calc(20px * 1.35 * 2);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -304,74 +305,44 @@
 .recommend-page .recommend-product-card__heading p {
   margin: 2px 0 0;
   color: var(--muted);
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.recommend-page .recommend-product-card__price {
-  display: grid;
-  gap: 4px;
-}
-
-.recommend-page .recommend-product-card__price strong {
-  font-size: 24px;
-  font-weight: 900;
-  color: var(--green-dark);
-  letter-spacing: -0.03em;
-}
-
-.recommend-page .recommend-product-card__price span {
-  display: block;
-  color: var(--muted);
   font-size: 13px;
   line-height: 1.5;
 }
 
-.recommend-page .recommend-product-card__metric {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin: 0;
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: #f2f7f2;
-}
-
-.recommend-page .recommend-product-card__metric dt {
-  color: #475569;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.recommend-page .recommend-product-card__metric dd {
-  margin: 0;
-  color: #173f2b;
-  font-size: 16px;
-  font-weight: 900;
-}
-
-.recommend-page .recommend-product-card__copy {
+.recommend-page .recommend-product-card__price-grid {
   display: grid;
   gap: 6px;
 }
 
-.recommend-page .recommend-product-card__copy p,
-.recommend-page .recommend-product-card__copy small {
-  margin: 0;
-  line-height: 1.6;
+.recommend-page .recommend-product-card__price-line {
+  align-items: baseline;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
 }
 
-
-
-.recommend-page .recommend-product-card__copy small {
+.recommend-page .recommend-product-card__price-label {
   color: var(--muted);
-  font-size: 15px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.recommend-page .recommend-product-card__price-value {
+  color: var(--green-dark);
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+}
+
+.recommend-page .recommend-product-card__price-value--muted {
+  color: #475569;
 }
 
 .recommend-page .recommend-product-card__badges {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
@@ -379,11 +350,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 7px 11px;
+  padding: 6px 10px;
   border-radius: 999px;
   background: #eef5ef;
   color: var(--green-dark);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
 }
 

@@ -37,6 +37,11 @@ public class MainDaoImpl implements MainDao {
     }
 
     @Override
+    public List<SeasonalProductCardDto> findRankingRecommendationProducts(Map<String, Object> paramMap) {
+        return sqlSessionTemplate.selectList(NAMESPACE + "selectRankingRecommendationProducts", paramMap);
+    }
+
+    @Override
     public List<LinkedRecipeDto> findLinkedRecipesByProductName(Map<String, Object> paramMap) {
         return sqlSessionTemplate.selectList(NAMESPACE + "selectLinkedRecipesByProductName", paramMap);
     }

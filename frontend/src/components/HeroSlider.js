@@ -3,37 +3,40 @@ import "../styles/banner.css";
 
 const FALLBACK_SLIDES = [
   {
-    key: "seasonal",
-    eyebrow: "Seasonal Pick",
-    title: "제철 추천",
-    desc: "지금 가장 신선한 제철 재료와 연결되는 추천 정보를 먼저 보여드립니다.",
-    primaryLabel: "제철 재료 보기",
-    primaryHref: "#/products?tag=SEASONAL",
-    secondaryLabel: "상품 전체 보기",
+    key: "recipe",
+    eyebrow: "Recipe",
+    title: "지금 인기 있는 레시피",
+    desc: "많이 찾는 메뉴부터 빠르게 살펴보세요.",
+    primaryLabel: "레시피 보기",
+    primaryHref: "#/recipes",
+    secondaryLabel: "상품 보기",
     secondaryHref: "#/products",
+    highlights: ["인기 레시피", "대표 재료", "빠른 탐색"],
+    imageUrl: buildFallbackArtwork("recipe"),
+  },
+  {
+    key: "seasonal",
+    eyebrow: "Seasonal",
+    title: "지금 담기 좋은 제철 재료",
+    desc: "가격 메리트 좋은 제철 상품만 골라보세요.",
+    primaryLabel: "제철 상품 보기",
+    primaryHref: "#/products?tag=SEASONAL",
+    secondaryLabel: "가격 분석 보기",
+    secondaryHref: "#/price-analysis",
+    highlights: ["제철", "할인 추천", "레시피 연계"],
     imageUrl: buildFallbackArtwork("seasonal"),
   },
   {
-    key: "sale",
-    eyebrow: "Special Price",
-    title: "특가 추천",
-    desc: "가격 메리트가 좋은 상품과 바로 이어지는 추천 구성을 확인할 수 있습니다.",
-    primaryLabel: "특가 상품 보기",
-    primaryHref: "#/products?tag=UNDER_AVG",
-    secondaryLabel: "상품 전체 보기",
-    secondaryHref: "#/products",
-    imageUrl: buildFallbackArtwork("sale"),
-  },
-  {
-    key: "recipe",
-    eyebrow: "Recipe Match",
-    title: "인기 레시피",
-    desc: "지금 많이 보는 레시피와 연결되는 메뉴를 메인에서 바로 확인할 수 있습니다.",
-    primaryLabel: "레시피 보러가기",
-    primaryHref: "#/recipes",
-    secondaryLabel: "추천 레시피",
+    key: "meal-plan",
+    eyebrow: "Meal Plan",
+    title: "AI 챗봇으로 맞춤 식단",
+    desc: "대화로 조건을 입력하면 식단표와 장보기 목록을 바로 추천해요.",
+    primaryLabel: "챗봇 시작",
+    primaryHref: "#/meal-plan",
+    secondaryLabel: "레시피 둘러보기",
     secondaryHref: "#/recipes",
-    imageUrl: buildFallbackArtwork("recipe"),
+    highlights: ["대화형 추천", "주간 식단표", "장보기 연결"],
+    imageUrl: buildFallbackArtwork("meal-plan"),
   },
 ];
 
@@ -50,12 +53,25 @@ function buildFallbackArtwork(type) {
     `);
   }
 
-  if (type === "sale") {
+  if (type === "meal-plan") {
     return buildSvgDataUri(`
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 360">
-        <rect width="520" height="360" rx="34" fill="#fff4e7"/>
-        <rect x="40" y="34" width="440" height="292" rx="28" fill="#fff"/>
-        <path d="M208 112h132l68 68-132 132-132-132z" fill="#ff9d3f"/>
+        <rect width="520" height="360" rx="34" fill="#eef7f1"/>
+        <rect x="36" y="30" width="448" height="300" rx="28" fill="#ffffff"/>
+        <rect x="72" y="72" width="150" height="90" rx="22" fill="#f4fbf6"/>
+        <rect x="94" y="94" width="72" height="14" rx="7" fill="#c7e4d0"/>
+        <rect x="94" y="118" width="104" height="12" rx="6" fill="#dcefe2"/>
+        <rect x="94" y="140" width="84" height="12" rx="6" fill="#dcefe2"/>
+        <rect x="254" y="72" width="194" height="212" rx="24" fill="#f8fbf8"/>
+        <rect x="278" y="96" width="146" height="20" rx="10" fill="#dbeedf"/>
+        <rect x="278" y="132" width="68" height="54" rx="16" fill="#89c78d"/>
+        <rect x="356" y="132" width="68" height="54" rx="16" fill="#f3c85d"/>
+        <rect x="278" y="196" width="68" height="54" rx="16" fill="#ef8b6b"/>
+        <rect x="356" y="196" width="68" height="54" rx="16" fill="#9ed5aa"/>
+        <path d="M122 202c0-19 15-34 34-34h42c19 0 34 15 34 34v40c0 8-6 14-14 14h-52l-20 18v-18h-10c-8 0-14-6-14-14z" fill="#1f8e4d"/>
+        <circle cx="164" cy="212" r="6" fill="#ffffff"/>
+        <circle cx="187" cy="212" r="6" fill="#ffffff"/>
+        <circle cx="210" cy="212" r="6" fill="#ffffff"/>
       </svg>
     `);
   }
@@ -79,8 +95,11 @@ function normalizeSlides(slides) {
   }
 
   return slides.map((slide, index) => ({
-    ...FALLBACK_SLIDES[index],
+    ...(FALLBACK_SLIDES[index] || FALLBACK_SLIDES[0]),
     ...slide,
+    highlights: Array.isArray(slide?.highlights)
+      ? slide.highlights.filter(Boolean).slice(0, 3)
+      : FALLBACK_SLIDES[index]?.highlights || [],
     imageUrl: slide?.imageUrl || FALLBACK_SLIDES[index]?.imageUrl,
   }));
 }
@@ -105,18 +124,42 @@ export default function HeroSlider({ slides }) {
 
   const currentSlide = normalizedSlides[index];
 
+  function handleHeroImageError(event) {
+    const fallbackSlide =
+      FALLBACK_SLIDES.find((slide) => slide.key === currentSlide.key) ||
+      FALLBACK_SLIDES[index] ||
+      FALLBACK_SLIDES[0];
+    const fallbackImageUrl = fallbackSlide?.imageUrl || "";
+
+    if (!fallbackImageUrl || event.currentTarget.src === fallbackImageUrl) {
+      return;
+    }
+
+    event.currentTarget.src = fallbackImageUrl;
+  }
+
   return (
     <section className="hero-banner">
       <div className="hero-banner__copy">
-        <span className="hero-banner__eyebrow">{currentSlide.eyebrow}</span>
+        <div className="hero-banner__top">
+          <span className="hero-banner__eyebrow">{currentSlide.eyebrow}</span>
+          <span className="hero-banner__pager">
+            {index + 1} / {normalizedSlides.length}
+          </span>
+        </div>
 
-        <h1 className="hero-banner__title">
-          오늘의
-          <br />
-          <span>{currentSlide.title}</span>
-        </h1>
-
+        <h1 className="hero-banner__title">{currentSlide.title}</h1>
         <p className="hero-banner__desc">{currentSlide.desc}</p>
+
+        {Array.isArray(currentSlide.highlights) && currentSlide.highlights.length ? (
+          <div className="hero-banner__highlights">
+            {currentSlide.highlights.map((highlight) => (
+              <span key={highlight} className="hero-banner__chip">
+                {highlight}
+              </span>
+            ))}
+          </div>
+        ) : null}
 
         <div className="hero-actions">
           <a className="btn" href={currentSlide.primaryHref}>
@@ -129,7 +172,9 @@ export default function HeroSlider({ slides }) {
       </div>
 
       <div className="hero-banner__art">
-        <img alt={currentSlide.title} src={currentSlide.imageUrl} />
+        <div className="hero-banner__art-frame">
+          <img alt={currentSlide.title} onError={handleHeroImageError} src={currentSlide.imageUrl} />
+        </div>
       </div>
 
       <div className="hero-dots">
