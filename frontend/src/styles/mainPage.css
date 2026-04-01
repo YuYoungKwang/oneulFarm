@@ -84,12 +84,13 @@
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(300px, 360px);
   gap: 20px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .home-trend-recipes {
   display: grid;
   gap: 18px;
+  height: 100%;
   padding: 20px;
   border-radius: 28px;
   border: 1px solid rgba(223, 229, 224, 0.92);
@@ -139,23 +140,6 @@
   line-height: 1.5;
 }
 
-.home-trend-recipes__action {
-  min-width: 120px;
-  min-height: 44px;
-  padding: 0 16px;
-  border: 0;
-  border-radius: 14px;
-  background: #183024;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.home-trend-recipes__action:hover {
-  background: #10261b;
-}
-
 .home-trend-recipes__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -164,7 +148,9 @@
 
 .home-trend-ranking {
   display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 14px;
+  height: 100%;
   padding: 18px 16px;
   border-radius: 28px;
   border: 1px solid rgba(223, 229, 224, 0.92);
@@ -223,6 +209,7 @@
 
 .home-trend-ranking__list {
   display: grid;
+  align-content: start;
   gap: 8px;
 }
 
@@ -236,6 +223,8 @@
   border: 1px solid rgba(223, 229, 224, 0.92);
   border-radius: 16px;
   background: #fff;
+  appearance: none;
+  font: inherit;
   text-align: left;
   cursor: pointer;
   transition:
@@ -243,6 +232,11 @@
     border-color 0.18s ease,
     box-shadow 0.18s ease,
     background-color 0.18s ease;
+}
+
+.home-trend-ranking__item:focus-visible {
+  outline: 3px solid rgba(30, 109, 67, 0.2);
+  outline-offset: 2px;
 }
 
 .home-trend-ranking__item:hover {
@@ -374,15 +368,27 @@
 .home-recipe-card {
   display: grid;
   grid-template-rows: 176px auto;
+  width: 100%;
+  padding: 0;
   border-radius: 24px;
   overflow: hidden;
   border: 1px solid rgba(223, 229, 224, 0.92);
   background: #fff;
+  appearance: none;
   box-shadow: 0 18px 30px rgba(17, 24, 39, 0.05);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
   transition:
     transform 0.22s ease,
     border-color 0.22s ease,
     box-shadow 0.22s ease;
+}
+
+.home-recipe-card:focus-visible {
+  outline: 3px solid rgba(30, 109, 67, 0.2);
+  outline-offset: 2px;
 }
 
 .home-recipe-card__media {
@@ -444,23 +450,6 @@
   line-height: 1.45;
 }
 
-.home-recipe-card__action {
-  width: fit-content;
-  min-height: 38px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 12px;
-  background: #183024;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-  transition:
-    transform 0.18s ease,
-    background-color 0.18s ease,
-    box-shadow 0.18s ease;
-}
-
 .home-recipe-card:hover {
   transform: translateY(-6px);
   border-color: rgba(39, 102, 62, 0.18);
@@ -469,11 +458,6 @@
 
 .home-recipe-card:hover .home-recipe-card__media img {
   transform: scale(1.04);
-}
-
-.home-recipe-card:hover .home-recipe-card__action {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(24, 48, 36, 0.18);
 }
 
 .home-product-grid {
@@ -485,15 +469,26 @@
 .home-product-card {
   display: grid;
   gap: 16px;
+  width: 100%;
   padding: 18px;
   border-radius: 28px;
   border: 1px solid rgba(223, 229, 224, 0.92);
   background: #fff;
+  appearance: none;
   box-shadow: 0 22px 38px rgba(17, 24, 39, 0.06);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
   transition:
     transform 0.22s ease,
     border-color 0.22s ease,
     box-shadow 0.22s ease;
+}
+
+.home-product-card:focus-visible {
+  outline: 3px solid rgba(30, 109, 67, 0.2);
+  outline-offset: 2px;
 }
 
 .home-product-card.is-featured {
@@ -577,22 +572,6 @@
   font-weight: 800;
 }
 
-.home-product-card__action {
-  width: 100%;
-  min-height: 44px;
-  border: 0;
-  border-radius: 14px;
-  background: #183024;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 800;
-  cursor: pointer;
-  transition:
-    transform 0.18s ease,
-    background-color 0.18s ease,
-    box-shadow 0.18s ease;
-}
-
 .home-product-card:hover {
   transform: translateY(-6px);
   border-color: rgba(21, 154, 85, 0.2);
@@ -601,16 +580,6 @@
 
 .home-product-card:hover .home-product-card__media img {
   transform: scale(1.05);
-}
-
-.home-product-card:hover .home-product-card__action {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 22px rgba(24, 48, 36, 0.18);
-}
-
-.home-recipe-card__action:hover,
-.home-product-card__action:hover {
-  background: #10261b;
 }
 
 @media (max-width: 1240px) {

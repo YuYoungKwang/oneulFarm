@@ -17,7 +17,12 @@ export default function MainRecipeCard({
   const recipeName = recipe?.recipeName || "추천 레시피";
 
   return (
-    <article className={`home-recipe-card ${featured ? "is-featured" : ""}`.trim()}>
+    <button
+      aria-label={`${recipeName} 레시피 보기`}
+      className={`home-recipe-card ${featured ? "is-featured" : ""}`.trim()}
+      type="button"
+      onClick={onOpen}
+    >
       <div className="home-recipe-card__media">
         {recipe?.imageUrl ? (
           <img alt={recipeName} src={recipe.imageUrl} />
@@ -32,10 +37,7 @@ export default function MainRecipeCard({
         {metaText ? <span className="home-recipe-card__meta">{metaText}</span> : null}
         <h3 className="home-recipe-card__title">{recipeName}</h3>
         {reasonText ? <p className="home-recipe-card__reason">{reasonText}</p> : null}
-        <button className="home-recipe-card__action" type="button" onClick={onOpen}>
-          레시피 보기
-        </button>
       </div>
-    </article>
+    </button>
   );
 }

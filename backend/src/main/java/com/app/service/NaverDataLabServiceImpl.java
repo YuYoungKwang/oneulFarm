@@ -1,6 +1,8 @@
 package com.app.service;
 
 import java.io.IOException;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -11,6 +13,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +26,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -36,6 +41,12 @@ public class NaverDataLabServiceImpl implements NaverDataLabService {
     private static final String DEFAULT_TIME_UNIT = "date";
     private static final int DEFAULT_PERIOD_DAYS = 30;
     private static final int MAX_KEYWORD_COUNT = 5;
+    private static final int CONNECT_TIMEOUT_MS = 5000;
+    private static final int READ_TIMEOUT_MS = 7000;
+    private static final int MAX_REQUEST_ATTEMPTS = 2;
+    private static final long RETRY_DELAY_MILLIS = 250L;
+    private static final long CACHE_TTL_MILLIS = 10L * 60L * 1000L;
+    private static final long STALE_CACHE_TTL_MILLIS = 60L * 60L * 1000L;
 
     @Value("${naver.datalab.baseUrl:https://openapi.naver.com/v1/datalab/search}")
     private String naverDataLabBaseUrl;
@@ -48,10 +59,12 @@ public class NaverDataLabServiceImpl implements NaverDataLabService {
 
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
+    private final ConcurrentMap<String, CachedTrendResponse> responseCache;
 
     public NaverDataLabServiceImpl() {
         this.objectMapper = new ObjectMapper();
         this.restTemplate = createRestTemplate();
+        this.responseCache = new ConcurrentHashMap<String, CachedTrendResponse>();
     }
 
     @Override
@@ -79,7 +92,7 @@ public class NaverDataLabServiceImpl implements NaverDataLabService {
             );
         }
 
-        logger.info(
+        logger.debug(
             "Naver DataLab request - keywords={}, startDate={}, endDate={}, timeUnit={}",
             resolvedKeywordList,
             resolvedStartDate,
@@ -87,20 +100,66 @@ public class NaverDataLabServiceImpl implements NaverDataLabService {
             resolvedTimeUnit
         );
 
-        String responseBody = requestSearchTrend(
+        String cacheKey = buildCacheKey(
             resolvedKeywordList,
             resolvedStartDate,
             resolvedEndDate,
             resolvedTimeUnit
         );
+        long currentTimeMillis = System.currentTimeMillis();
+        Map<String, Object> cachedResponse = findCachedResponse(cacheKey, currentTimeMillis, false);
+        if (cachedResponse != null) {
+            return cachedResponse;
+        }
 
-        return parseSearchTrendResponse(
-            responseBody,
-            resolvedKeywordList,
-            resolvedStartDate,
-            resolvedEndDate,
-            resolvedTimeUnit
-        );
+        try {
+            String responseBody = requestSearchTrend(
+                resolvedKeywordList,
+                resolvedStartDate,
+                resolvedEndDate,
+                resolvedTimeUnit
+            );
+
+            Map<String, Object> responseData = parseSearchTrendResponse(
+                responseBody,
+                resolvedKeywordList,
+                resolvedStartDate,
+                resolvedEndDate,
+                resolvedTimeUnit
+            );
+            cacheResponse(cacheKey, responseData, currentTimeMillis);
+            return responseData;
+        } catch (IllegalStateException exception) {
+            Map<String, Object> staleResponse = findCachedResponse(
+                cacheKey,
+                currentTimeMillis,
+                true
+            );
+            if (staleResponse != null) {
+                logger.warn(
+                    "Naver DataLab request failed. Use stale cache instead. keywords={}, cause={}",
+                    resolvedKeywordList,
+                    rootCauseMessage(exception)
+                );
+                return staleResponse;
+            }
+
+            if (isRetryableFailure(exception)) {
+                logger.warn(
+                    "Naver DataLab request failed. Return empty result. keywords={}, cause={}",
+                    resolvedKeywordList,
+                    rootCauseMessage(exception)
+                );
+                return buildEmptySearchTrendResponse(
+                    resolvedKeywordList,
+                    resolvedStartDate,
+                    resolvedEndDate,
+                    resolvedTimeUnit
+                );
+            }
+
+            throw exception;
+        }
     }
 
     private boolean hasCredentials() {
@@ -196,18 +255,116 @@ public class NaverDataLabServiceImpl implements NaverDataLabService {
 
             String requestBody = objectMapper.writeValueAsString(requestBodyMap);
             HttpEntity<String> requestEntity = new HttpEntity<String>(requestBody, headers);
-            ResponseEntity<String> responseEntity = restTemplate.exchange(
-                naverDataLabBaseUrl,
-                HttpMethod.POST,
-                requestEntity,
-                String.class
-            );
+            Exception lastException = null;
 
-            return responseEntity.getBody();
+            for (int attempt = 1; attempt <= MAX_REQUEST_ATTEMPTS; attempt++) {
+                try {
+                    ResponseEntity<String> responseEntity = restTemplate.exchange(
+                        naverDataLabBaseUrl,
+                        HttpMethod.POST,
+                        requestEntity,
+                        String.class
+                    );
+                    return responseEntity.getBody();
+                } catch (Exception exception) {
+                    lastException = exception;
+
+                    if (!isRetryableFailure(exception) || attempt >= MAX_REQUEST_ATTEMPTS) {
+                        break;
+                    }
+
+                    logger.warn(
+                        "Naver DataLab transient failure. Retry request. attempt={}, keywords={}, cause={}",
+                        Integer.valueOf(attempt),
+                        keywordList,
+                        rootCauseMessage(exception)
+                    );
+                    sleepQuietly(RETRY_DELAY_MILLIS);
+                }
+            }
+
+            throw new IllegalStateException("Failed to call Naver DataLab API.", lastException);
         } catch (IOException exception) {
             throw new IllegalStateException("Failed to build Naver DataLab request body.", exception);
+        } catch (IllegalStateException exception) {
+            throw exception;
         } catch (Exception exception) {
             throw new IllegalStateException("Failed to call Naver DataLab API.", exception);
+        }
+    }
+
+    private String buildCacheKey(
+        List<String> keywordList,
+        String startDate,
+        String endDate,
+        String timeUnit
+    ) {
+        return String.join("|", keywordList) + "|" + startDate + "|" + endDate + "|" + timeUnit;
+    }
+
+    private Map<String, Object> findCachedResponse(
+        String cacheKey,
+        long currentTimeMillis,
+        boolean allowStale
+    ) {
+        CachedTrendResponse cachedTrendResponse = responseCache.get(cacheKey);
+        if (cachedTrendResponse == null) {
+            return null;
+        }
+
+        long ttlMillis = allowStale ? STALE_CACHE_TTL_MILLIS : CACHE_TTL_MILLIS;
+        if (currentTimeMillis - cachedTrendResponse.cachedAt > ttlMillis) {
+            if (!allowStale) {
+                responseCache.remove(cacheKey, cachedTrendResponse);
+            }
+            return null;
+        }
+
+        return new LinkedHashMap<String, Object>(cachedTrendResponse.responseData);
+    }
+
+    private void cacheResponse(String cacheKey, Map<String, Object> responseData, long currentTimeMillis) {
+        responseCache.put(
+            cacheKey,
+            new CachedTrendResponse(new LinkedHashMap<String, Object>(responseData), currentTimeMillis)
+        );
+    }
+
+    private boolean isRetryableFailure(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof ResourceAccessException) {
+                return true;
+            }
+            if (current instanceof SocketTimeoutException || current instanceof SocketException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private String rootCauseMessage(Throwable throwable) {
+        Throwable current = throwable;
+        Throwable root = throwable;
+        while (current != null) {
+            root = current;
+            current = current.getCause();
+        }
+
+        String message = root == null ? "" : trimToNull(root.getMessage());
+        if (message != null) {
+            return message;
+        }
+
+        return root == null ? "unknown" : root.getClass().getSimpleName();
+    }
+
+    private void sleepQuietly(long delayMillis) {
+        try {
+            Thread.sleep(delayMillis);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -369,8 +526,19 @@ public class NaverDataLabServiceImpl implements NaverDataLabService {
 
     private RestTemplate createRestTemplate() {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(5000);
-        requestFactory.setReadTimeout(20000);
+        requestFactory.setConnectTimeout(CONNECT_TIMEOUT_MS);
+        requestFactory.setReadTimeout(READ_TIMEOUT_MS);
         return new RestTemplate(requestFactory);
+    }
+
+    private static final class CachedTrendResponse {
+
+        private final Map<String, Object> responseData;
+        private final long cachedAt;
+
+        private CachedTrendResponse(Map<String, Object> responseData, long cachedAt) {
+            this.responseData = responseData;
+            this.cachedAt = cachedAt;
+        }
     }
 }
