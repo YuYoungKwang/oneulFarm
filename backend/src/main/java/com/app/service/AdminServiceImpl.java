@@ -38,6 +38,8 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class AdminServiceImpl implements AdminService {
 
+    private static final int RECENT_RETAIL_LOOKBACK_DAYS = 7;
+
     @Autowired
     private AdminDao adminDao;
 
@@ -1246,6 +1248,9 @@ public class AdminServiceImpl implements AdminService {
         List<PriceSnapshotDTO> retailSnapshots =
             priceSnapshotService.getPriceSnapshotList(productName, "RETAIL", null, 40);
         if (retailSnapshots == null || retailSnapshots.isEmpty()) {
+            retailSnapshots = findRecentRetailSnapshots(productName, RECENT_RETAIL_LOOKBACK_DAYS);
+        }
+        if (retailSnapshots == null || retailSnapshots.isEmpty()) {
             return null;
         }
 
@@ -1259,6 +1264,19 @@ public class AdminServiceImpl implements AdminService {
             }
         }
         return bestSnapshot;
+    }
+
+    private List<PriceSnapshotDTO> findRecentRetailSnapshots(String productName, int daysBack) {
+        LocalDate today = LocalDate.now();
+        for (int offset = 0; offset <= daysBack; offset++) {
+            String snapshotDate = today.minusDays(offset).toString();
+            List<PriceSnapshotDTO> retailSnapshots =
+                priceSnapshotService.getPriceSnapshotList(productName, "RETAIL", snapshotDate, 40);
+            if (retailSnapshots != null && !retailSnapshots.isEmpty()) {
+                return retailSnapshots;
+            }
+        }
+        return Collections.emptyList();
     }
 
     private int calculateSnapshotMatchScore(String query, PriceSnapshotDTO candidate) {
