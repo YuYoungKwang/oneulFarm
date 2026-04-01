@@ -30,7 +30,6 @@
 }
 
 .hero-banner__eyebrow,
-.hero-banner__pager,
 .hero-banner__chip {
   display: inline-flex;
   align-items: center;
@@ -47,13 +46,6 @@
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-}
-
-.hero-banner__pager {
-  padding: 7px 12px;
-  background: rgba(255, 255, 255, 0.86);
-  color: #466056;
-  font-size: 12px;
 }
 
 .hero-banner__title {
