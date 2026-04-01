@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mealPlanChatMapper">
+
+    <resultMap id="MealPlanChatSessionMap" type="com.app.dto.MealPlanChatSessionDto">
+        <id property="chatNo" column="chatNo" />
+        <result property="userNo" column="userNo" />
+        <result property="chatTitle" column="chatTitle" />
+        <result property="lastMessageText" column="lastMessageText" />
+        <result property="chatJson" column="chatJson" />
+        <result property="previousResponseId" column="previousResponseId" />
+        <result property="messageCount" column="messageCount" />
+        <result property="fallbackFlag" column="fallbackFlag" />
+        <result property="createdAt" column="createdAt" />
+        <result property="updatedAt" column="updatedAt" />
+    </resultMap>
+
+    <select id="selectActiveChatSessions" parameterType="long" resultMap="MealPlanChatSessionMap">
+        SELECT
+            CHAT_NO AS chatNo,
+            USER_NO AS userNo,
+            CHAT_TITLE AS chatTitle,
+            LAST_MESSAGE_TEXT AS lastMessageText,
+            CHAT_JSON AS chatJson,
+            PREVIOUS_RESPONSE_ID AS previousResponseId,
+            MESSAGE_COUNT AS messageCount,
+            IS_FALLBACK AS fallbackFlag,
+            TO_CHAR(CREATED_AT, 'YYYY-MM-DD"T"HH24:MI:SS') AS createdAt,
+            TO_CHAR(UPDATED_AT, 'YYYY-MM-DD"T"HH24:MI:SS') AS updatedAt
+        FROM OFT_MEAL_PLAN_CHAT
+        WHERE USER_NO = #{_parameter}
+          AND DELETED_YN = 'N'
+        ORDER BY UPDATED_AT DESC, CHAT_NO DESC
+    </select>
+
+    <select id="selectChatSession" parameterType="map" resultMap="MealPlanChatSessionMap">
+        SELECT
+            CHAT_NO AS chatNo,
+            USER_NO AS userNo,
+            CHAT_TITLE AS chatTitle,
+            LAST_MESSAGE_TEXT AS lastMessageText,
+            CHAT_JSON AS chatJson,
+            PREVIOUS_RESPONSE_ID AS previousResponseId,
+            MESSAGE_COUNT AS messageCount,
+            IS_FALLBACK AS fallbackFlag,
+            TO_CHAR(CREATED_AT, 'YYYY-MM-DD"T"HH24:MI:SS') AS createdAt,
+            TO_CHAR(UPDATED_AT, 'YYYY-MM-DD"T"HH24:MI:SS') AS updatedAt
+        FROM OFT_MEAL_PLAN_CHAT
+        WHERE USER_NO = #{userNo}
+          AND CHAT_NO = #{chatNo}
+          AND DELETED_YN = 'N'
+    </select>
+
+    <insert id="insertChatSession" parameterType="com.app.dto.MealPlanChatSessionDto">
+        INSERT INTO OFT_MEAL_PLAN_CHAT (
+            USER_NO,
+            CHAT_TITLE,
+            LAST_MESSAGE_TEXT,
+            CHAT_JSON,
+            PREVIOUS_RESPONSE_ID,
+            MESSAGE_COUNT,
+            IS_FALLBACK,
+            DELETED_YN
+        ) VALUES (
+            #{userNo},
+            #{chatTitle},
+            #{lastMessageText},
+            #{chatJson},
+            #{previousResponseId},
+            #{messageCount},
+            #{fallbackFlag},
+            'N'
+        )
+        <selectKey keyProperty="chatNo" resultType="long" order="AFTER">
+            SELECT CHAT_NO
+            FROM OFT_MEAL_PLAN_CHAT
+            WHERE USER_NO = #{userNo}
+            ORDER BY CHAT_NO DESC
+            FETCH FIRST 1 ROW ONLY
+        </selectKey>
+    </insert>
+
+    <update id="updateChatSession" parameterType="com.app.dto.MealPlanChatSessionDto">
+        UPDATE OFT_MEAL_PLAN_CHAT
+        SET
+            CHAT_TITLE = #{chatTitle},
+            LAST_MESSAGE_TEXT = #{lastMessageText},
+            CHAT_JSON = #{chatJson},
+            PREVIOUS_RESPONSE_ID = #{previousResponseId},
+            MESSAGE_COUNT = #{messageCount},
+            IS_FALLBACK = #{fallbackFlag}
+        WHERE USER_NO = #{userNo}
+          AND CHAT_NO = #{chatNo}
+          AND DELETED_YN = 'N'
+    </update>
+
+    <update id="softDeleteChatSession" parameterType="map">
+        UPDATE OFT_MEAL_PLAN_CHAT
+        SET DELETED_YN = 'Y'
+        WHERE USER_NO = #{userNo}
+          AND CHAT_NO = #{chatNo}
+          AND DELETED_YN = 'N'
+    </update>
+
+</mapper>

@@ -1,4 +1,4 @@
-import { getAuthUser, requestAuthApi } from '../auth';
+import { buildAuthHeaders, getAuthUser, requestAuthApi } from '../auth';
 
 function normalizeIngredient(item = {}) {
   return {
@@ -99,6 +99,32 @@ function normalizeResponse(data = {}) {
       : [],
     cartPromptMessage: data.cartPromptMessage || '',
     cartPreview: data.cartPreview ? normalizeCartPreview(data.cartPreview) : null,
+  };
+}
+
+function parseChatSessionJson(chatJson) {
+  if (!chatJson) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(chatJson);
+  } catch (error) {
+    return null;
+  }
+}
+
+function normalizeChatSession(data = {}) {
+  return {
+    chatNo: data.chatNo ?? null,
+    chatTitle: data.chatTitle || '',
+    lastMessageText: data.lastMessageText || '',
+    previousResponseId: data.previousResponseId || null,
+    messageCount: data.messageCount ?? 0,
+    fallbackMode: Boolean(data.fallbackMode),
+    createdAt: data.createdAt || null,
+    updatedAt: data.updatedAt || null,
+    sessionData: parseChatSessionJson(data.chatJson),
   };
 }
 
@@ -497,6 +523,58 @@ export async function requestMealPlanChat({ message, previousResponseId } = {}) 
     console.warn('meal-plan chat fallback', error);
     return buildLocalDemoResponse(message);
   }
+}
+
+export async function listMealPlanChatSessions(user = getAuthUser()) {
+  const payload = await requestAuthApi(
+    '/api/users/me/meal-plan-chats',
+    {
+      method: 'GET',
+      headers: buildAuthHeaders({ user }),
+    },
+    '\uC2DD\uB2E8 AI \uCC44\uD305 \uBAA9\uB85D\uC744 \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.'
+  );
+
+  return Array.isArray(payload?.data) ? payload.data.map(normalizeChatSession) : [];
+}
+
+export async function createMealPlanChatSession(sessionPayload = {}, user = getAuthUser()) {
+  const payload = await requestAuthApi(
+    '/api/users/me/meal-plan-chats',
+    {
+      method: 'POST',
+      headers: buildAuthHeaders({ includeJson: true, user }),
+      body: JSON.stringify(sessionPayload),
+    },
+    '\uC2DD\uB2E8 AI \uCC44\uD305\uC744 \uC0DD\uC131\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.'
+  );
+
+  return normalizeChatSession(payload?.data || {});
+}
+
+export async function updateMealPlanChatSession(chatNo, sessionPayload = {}, user = getAuthUser()) {
+  const payload = await requestAuthApi(
+    `/api/users/me/meal-plan-chats/${chatNo}`,
+    {
+      method: 'PATCH',
+      headers: buildAuthHeaders({ includeJson: true, user }),
+      body: JSON.stringify(sessionPayload),
+    },
+    '\uC2DD\uB2E8 AI \uCC44\uD305\uC744 \uC800\uC7A5\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.'
+  );
+
+  return normalizeChatSession(payload?.data || {});
+}
+
+export async function deleteMealPlanChatSession(chatNo, user = getAuthUser()) {
+  await requestAuthApi(
+    `/api/users/me/meal-plan-chats/${chatNo}`,
+    {
+      method: 'DELETE',
+      headers: buildAuthHeaders({ user }),
+    },
+    '\uC2DD\uB2E8 AI \uCC44\uD305\uC744 \uC0AD\uC81C\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.'
+  );
 }
 
 export async function importMealPlanToCalendar({

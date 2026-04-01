@@ -1,11 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { isAuthenticated } from '../auth';
-import { importMealPlanToCalendar, requestMealPlanChat } from '../api/mealPlanApi';
+import {
+  createMealPlanChatSession,
+  deleteMealPlanChatSession,
+  importMealPlanToCalendar,
+  listMealPlanChatSessions,
+  requestMealPlanChat,
+  updateMealPlanChatSession,
+} from '../api/mealPlanApi';
 import { addCartItemToApi } from '../api/productApi';
 import '../styles/mealPlan.css';
 
 const MEAL_PLAN_CHAT_STORAGE_PREFIX = 'oneulFarmMealPlanChat:v1';
+const MEAL_PLAN_CHAT_TAB_ID_KEY = 'oneulFarmMealPlanChat:tabId';
 const MAX_STORED_MESSAGES = 40;
+const MAX_STORED_SESSIONS = 5;
 const MEAL_PLAN_IMPORT_RANGE_PROMPT =
   '\uC88B\uC544\uC694. \uB9C8\uC774\uD398\uC774\uC9C0 \uC2DD\uB2E8\uAD00\uB9AC\uC5D0 \uCD94\uAC00\uD560\uAC8C\uC694. \uBA87\uC77C\uBD80\uD130 \uBA87\uC77C\uAE4C\uC9C0 \uB123\uC744\uAE4C\uC694? \uC608: 2026-04-01\uBD80\uD130 2026-04-07\uAE4C\uC9C0 \uCD94\uAC00\uD574\uC918';
 
@@ -380,10 +389,29 @@ function buildMealPlanImportTitleSafe(plan, startDate, endDate) {
 }
 
 function buildMealPlanStorageKey(authUser) {
-  if (!isAuthenticated(authUser) || authUser?.userNo == null) {
-    return '';
+  if (isAuthenticated(authUser) && authUser?.userNo != null) {
+    return `${MEAL_PLAN_CHAT_STORAGE_PREFIX}:${authUser.userNo}`;
   }
-  return `${MEAL_PLAN_CHAT_STORAGE_PREFIX}:${authUser.userNo}`;
+  return `${MEAL_PLAN_CHAT_STORAGE_PREFIX}:guest`;
+}
+
+function getMealPlanTabId() {
+  try {
+    const existingTabId = window.sessionStorage.getItem(MEAL_PLAN_CHAT_TAB_ID_KEY);
+    if (existingTabId) {
+      return existingTabId;
+    }
+
+    const nextTabId = `tab-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    window.sessionStorage.setItem(MEAL_PLAN_CHAT_TAB_ID_KEY, nextTabId);
+    return nextTabId;
+  } catch (error) {
+    return 'tab-default';
+  }
+}
+
+function buildScopedMealPlanStorageKey(storageKey) {
+  return `${storageKey}:${getMealPlanTabId()}`;
 }
 
 function normalizeStoredMessage(message, index) {
@@ -420,18 +448,138 @@ function normalizeStoredMessage(message, index) {
   };
 }
 
+function buildSessionTitle(messages) {
+  const sourceMessage = messages.find(
+    (message) => message.role === 'user' && normalizeText(message.text)
+  );
+  const title = normalizeText(sourceMessage?.text).replace(/\s+/g, ' ');
+
+  if (!title) {
+    return '\uC0C8 \uCC44\uD305';
+  }
+
+  return title.length > 22 ? `${title.slice(0, 22)}\u2026` : title;
+}
+
+function buildSessionPreview(messages) {
+  const sourceMessage = [...messages].reverse().find((message) => normalizeText(message.text));
+  const preview = normalizeText(sourceMessage?.text).replace(/\s+/g, ' ');
+
+  if (!preview) {
+    return '\uB300\uD654\uB97C \uC2DC\uC791\uD574 \uBCF4\uC138\uC694.';
+  }
+
+  return preview.length > 44 ? `${preview.slice(0, 44)}\u2026` : preview;
+}
+
+function createChatSession(overrides = {}) {
+  const messages =
+    Array.isArray(overrides.messages) && overrides.messages.length
+      ? overrides.messages
+      : buildInitialMessages();
+  const now = new Date().toISOString();
+
+  return {
+    chatNo: overrides.chatNo ?? null,
+    id: overrides.id || `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    title: overrides.title || buildSessionTitle(messages),
+    createdAt: overrides.createdAt || now,
+    updatedAt: overrides.updatedAt || now,
+    messages,
+    previousResponseId: overrides.previousResponseId || null,
+    isFallbackMode: Boolean(overrides.isFallbackMode),
+    isAwaitingMealPlanDateRange: Boolean(overrides.isAwaitingMealPlanDateRange),
+  };
+}
+
+function normalizeStoredSession(session, index) {
+  if (!session || typeof session !== 'object') {
+    return null;
+  }
+
+  const nextMessages = Array.isArray(session.messages)
+    ? session.messages
+        .map((message, messageIndex) => normalizeStoredMessage(message, messageIndex))
+        .filter(Boolean)
+    : [];
+
+  return createChatSession({
+    chatNo: session.chatNo ?? null,
+    id: session.id || `chat-stored-${index}-${Math.random().toString(36).slice(2, 8)}`,
+    title: normalizeText(session.title) || buildSessionTitle(nextMessages),
+    createdAt: session.createdAt || null,
+    updatedAt: session.updatedAt || session.createdAt || null,
+    messages: nextMessages.length ? nextMessages : buildInitialMessages(),
+    previousResponseId:
+      typeof session.previousResponseId === 'string' ? session.previousResponseId : null,
+    isFallbackMode: Boolean(session.isFallbackMode),
+    isAwaitingMealPlanDateRange: Boolean(session.isAwaitingMealPlanDateRange),
+  });
+}
+
+function sortChatSessions(sessions) {
+  return [...sessions].sort((left, right) => {
+    const leftTime = new Date(left.updatedAt || left.createdAt || 0).getTime();
+    const rightTime = new Date(right.updatedAt || right.createdAt || 0).getTime();
+    return rightTime - leftTime;
+  });
+}
+
 function loadStoredConversation(storageKey) {
   if (!storageKey) {
     return null;
   }
 
   try {
-    const storedValue = window.localStorage.getItem(storageKey);
+    const scopedStorageKey = buildScopedMealPlanStorageKey(storageKey);
+    const scopedLocalValue = window.localStorage.getItem(scopedStorageKey);
+    const legacySessionValue = scopedLocalValue ? '' : window.sessionStorage.getItem(storageKey);
+    const legacyLocalValue =
+      scopedLocalValue || legacySessionValue ? '' : window.localStorage.getItem(storageKey);
+    const storedValue = scopedLocalValue || legacySessionValue || legacyLocalValue;
     if (!storedValue) {
       return null;
     }
 
+    if (!scopedLocalValue && (legacySessionValue || legacyLocalValue)) {
+      try {
+        window.localStorage.setItem(scopedStorageKey, legacySessionValue || legacyLocalValue);
+        if (legacySessionValue) {
+          window.sessionStorage.removeItem(storageKey);
+        }
+        if (legacyLocalValue) {
+          window.localStorage.removeItem(storageKey);
+        }
+      } catch (error) {
+        // Ignore storage migration failures for local preview.
+      }
+    }
+
     const parsedValue = JSON.parse(storedValue);
+
+    if (Array.isArray(parsedValue?.sessions)) {
+      const nextSessions = sortChatSessions(
+        parsedValue.sessions
+          .map((session, index) => normalizeStoredSession(session, index))
+          .filter(Boolean)
+      ).slice(0, MAX_STORED_SESSIONS);
+
+      if (!nextSessions.length) {
+        return null;
+      }
+
+      const activeSessionId = nextSessions.some(
+        (session) => session.id === parsedValue?.activeSessionId
+      )
+        ? parsedValue.activeSessionId
+        : nextSessions[0].id;
+
+      return {
+        sessions: nextSessions,
+        activeSessionId,
+      };
+    }
+
     const nextMessages = Array.isArray(parsedValue?.messages)
       ? parsedValue.messages
           .map((message, index) => normalizeStoredMessage(message, index))
@@ -442,44 +590,218 @@ function loadStoredConversation(storageKey) {
       return null;
     }
 
-    return {
+    const migratedSession = createChatSession({
+      id: `chat-migrated-${Date.now()}`,
       messages: nextMessages,
       previousResponseId:
         typeof parsedValue?.previousResponseId === 'string' ? parsedValue.previousResponseId : null,
       isFallbackMode: Boolean(parsedValue?.isFallbackMode),
       isAwaitingMealPlanDateRange: Boolean(parsedValue?.isAwaitingMealPlanDateRange),
+    });
+
+    return {
+      sessions: [migratedSession],
+      activeSessionId: migratedSession.id,
     };
   } catch (error) {
     return null;
   }
 }
 
-function persistConversation(
-  storageKey,
-  messages,
-  previousResponseId,
-  isFallbackMode,
-  isAwaitingMealPlanDateRange
-) {
+function persistConversation(storageKey, sessions, activeSessionId) {
   if (!storageKey) {
     return;
   }
 
   try {
+    const scopedStorageKey = buildScopedMealPlanStorageKey(storageKey);
     const payload = {
-      messages: messages.slice(-MAX_STORED_MESSAGES),
-      previousResponseId: previousResponseId || null,
-      isFallbackMode: Boolean(isFallbackMode),
-      isAwaitingMealPlanDateRange: Boolean(isAwaitingMealPlanDateRange),
+      activeSessionId: activeSessionId || null,
+      sessions: sortChatSessions(sessions)
+        .slice(0, MAX_STORED_SESSIONS)
+        .map((session) => ({
+          ...session,
+          messages: Array.isArray(session.messages)
+            ? session.messages.slice(-MAX_STORED_MESSAGES)
+            : buildInitialMessages(),
+        })),
     };
-    window.localStorage.setItem(storageKey, JSON.stringify(payload));
+    window.localStorage.setItem(scopedStorageKey, JSON.stringify(payload));
   } catch (error) {
     // Ignore storage failures for local preview.
   }
 }
 
+function formatSessionTimestamp(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const now = new Date();
+  const isSameYear = date.getFullYear() === now.getFullYear();
+  const isSameDay =
+    isSameYear &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+
+  return date.toLocaleString('ko-KR', {
+    month: isSameDay ? undefined : 'numeric',
+    day: isSameDay ? undefined : 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
+function areMessagesEqual(leftMessages = [], rightMessages = []) {
+  if (leftMessages === rightMessages) {
+    return true;
+  }
+
+  if (!Array.isArray(leftMessages) || !Array.isArray(rightMessages)) {
+    return false;
+  }
+
+  if (leftMessages.length !== rightMessages.length) {
+    return false;
+  }
+
+  for (let index = 0; index < leftMessages.length; index += 1) {
+    const left = leftMessages[index] || {};
+    const right = rightMessages[index] || {};
+    if (
+      left.id !== right.id ||
+      left.role !== right.role ||
+      left.text !== right.text ||
+      left.responseId !== right.responseId ||
+      left.cartPromptMessage !== right.cartPromptMessage ||
+      left.model !== right.model ||
+      Boolean(left.fallbackMode) !== Boolean(right.fallbackMode)
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function buildSessionSnapshot(
+  sessions,
+  activeSessionId,
+  messages,
+  previousResponseId,
+  isFallbackMode,
+  isAwaitingMealPlanDateRange
+) {
+  if (!activeSessionId) {
+    return sessions;
+  }
+
+  const activeSession = sessions.find((session) => session.id === activeSessionId);
+  if (!activeSession) {
+    return sessions;
+  }
+
+  const nextMessages = messages.length ? messages.slice(-MAX_STORED_MESSAGES) : buildInitialMessages();
+  const nextTitle = buildSessionTitle(nextMessages);
+  const isSameSessionState =
+    areMessagesEqual(activeSession.messages, nextMessages) &&
+    (activeSession.previousResponseId || null) === (previousResponseId || null) &&
+    Boolean(activeSession.isFallbackMode) === Boolean(isFallbackMode) &&
+    Boolean(activeSession.isAwaitingMealPlanDateRange) === Boolean(isAwaitingMealPlanDateRange) &&
+    activeSession.title === nextTitle;
+
+  if (isSameSessionState) {
+    return sessions;
+  }
+
+  const updatedSession = {
+    ...activeSession,
+    title: nextTitle,
+    updatedAt: new Date().toISOString(),
+    messages: nextMessages,
+    previousResponseId: previousResponseId || null,
+    isFallbackMode: Boolean(isFallbackMode),
+    isAwaitingMealPlanDateRange: Boolean(isAwaitingMealPlanDateRange),
+  };
+
+  return [updatedSession, ...sessions.filter((session) => session.id !== activeSessionId)].slice(
+    0,
+    MAX_STORED_SESSIONS
+  );
+}
+
+function buildSessionRequestPayload(session) {
+  const normalizedSession = normalizeStoredSession(session, 0) || createChatSession();
+  const payloadSession = {
+    id: normalizedSession.id,
+    title: normalizedSession.title || '\uC0C8 \uCC44\uD305',
+    messages: Array.isArray(normalizedSession.messages)
+      ? normalizedSession.messages.slice(-MAX_STORED_MESSAGES)
+      : buildInitialMessages(),
+    previousResponseId: normalizedSession.previousResponseId || null,
+    isFallbackMode: Boolean(normalizedSession.isFallbackMode),
+    isAwaitingMealPlanDateRange: Boolean(normalizedSession.isAwaitingMealPlanDateRange),
+  };
+
+  return {
+    chatTitle: normalizedSession.title || '\uC0C8 \uCC44\uD305',
+    lastMessageText: buildSessionPreview(payloadSession.messages),
+    previousResponseId: payloadSession.previousResponseId || null,
+    messageCount: payloadSession.messages.length,
+    fallbackMode: Boolean(payloadSession.isFallbackMode),
+    chatJson: JSON.stringify(payloadSession),
+  };
+}
+
+function hasPersistableConversation(session) {
+  return Array.isArray(session?.messages)
+    ? session.messages.some(
+        (message) => message?.role === 'user' && Boolean(normalizeText(message?.text))
+      )
+    : false;
+}
+
+function normalizeRemoteChatSession(session, index) {
+  const sessionData = session?.sessionData && typeof session.sessionData === 'object'
+    ? session.sessionData
+    : null;
+  const normalizedSession = normalizeStoredSession(
+    {
+      ...sessionData,
+      chatNo: session?.chatNo ?? sessionData?.chatNo ?? null,
+      title: session?.chatTitle || sessionData?.title || '\uC0C8 \uCC44\uD305',
+      createdAt: session?.createdAt || sessionData?.createdAt || null,
+      updatedAt: session?.updatedAt || sessionData?.updatedAt || null,
+      previousResponseId: session?.previousResponseId || sessionData?.previousResponseId || null,
+      isFallbackMode:
+        typeof session?.fallbackMode === 'boolean'
+          ? session.fallbackMode
+          : sessionData?.isFallbackMode,
+    },
+    index
+  );
+
+  return {
+    ...normalizedSession,
+    chatNo: session?.chatNo ?? normalizedSession?.chatNo ?? null,
+    title: session?.chatTitle || normalizedSession?.title || '\uC0C8 \uCC44\uD305',
+    createdAt: session?.createdAt || normalizedSession?.createdAt,
+    updatedAt: session?.updatedAt || normalizedSession?.updatedAt,
+    previousResponseId: session?.previousResponseId || normalizedSession?.previousResponseId || null,
+    isFallbackMode:
+      typeof session?.fallbackMode === 'boolean'
+        ? session.fallbackMode
+        : Boolean(normalizedSession?.isFallbackMode),
+  };
+}
+
 export default function MealPlanPlaceholderPage({ authUser }) {
+  const isSignedIn = isAuthenticated(authUser);
   const storageKey = useMemo(() => buildMealPlanStorageKey(authUser), [authUser]);
+  const [chatSessions, setChatSessions] = useState(() => [createChatSession()]);
+  const [activeSessionId, setActiveSessionId] = useState('');
   const [draft, setDraft] = useState('');
   const [messages, setMessages] = useState(() => buildInitialMessages());
   const [previousResponseId, setPreviousResponseId] = useState(null);
@@ -489,6 +811,10 @@ export default function MealPlanPlaceholderPage({ authUser }) {
   const [isCartSubmitting, setIsCartSubmitting] = useState(false);
   const [isAwaitingMealPlanDateRange, setIsAwaitingMealPlanDateRange] = useState(false);
   const messageListRef = useRef(null);
+  const isStorageHydratedRef = useRef(false);
+  const isBackendPersistenceEnabledRef = useRef(false);
+  const persistTimeoutRef = useRef(null);
+  const lastPersistedSignatureRef = useRef('');
   const hasConversation = messages.length > 1;
 
   const latestCartCandidates = useMemo(() => collectCartCandidates(messages), [messages]);
@@ -502,33 +828,251 @@ export default function MealPlanPlaceholderPage({ authUser }) {
   }, [messages, isSending, isCartSubmitting]);
 
   useEffect(() => {
-    const storedConversation = loadStoredConversation(storageKey);
-    if (storedConversation) {
-      setMessages(storedConversation.messages);
-      setPreviousResponseId(storedConversation.previousResponseId || null);
-      setIsFallbackMode(Boolean(storedConversation.isFallbackMode));
-      setIsAwaitingMealPlanDateRange(Boolean(storedConversation.isAwaitingMealPlanDateRange));
+    let isCancelled = false;
+
+    async function hydrateConversation() {
+      isStorageHydratedRef.current = false;
+      lastPersistedSignatureRef.current = '';
+
+      const applyConversation = (storedConversation) => {
+        const nextSessions = storedConversation?.sessions?.length
+          ? storedConversation.sessions
+          : [createChatSession()];
+        const nextActiveSessionId = nextSessions.some(
+          (session) => session.id === storedConversation?.activeSessionId
+        )
+          ? storedConversation.activeSessionId
+          : nextSessions[0].id;
+        const activeSession =
+          nextSessions.find((session) => session.id === nextActiveSessionId) || nextSessions[0];
+
+        if (isCancelled) {
+          return;
+        }
+
+        setChatSessions(nextSessions);
+        setActiveSessionId(nextActiveSessionId);
+        setDraft('');
+        setErrorMessage('');
+        setMessages(activeSession.messages);
+        setPreviousResponseId(activeSession.previousResponseId || null);
+        setIsFallbackMode(Boolean(activeSession.isFallbackMode));
+        setIsAwaitingMealPlanDateRange(Boolean(activeSession.isAwaitingMealPlanDateRange));
+        isStorageHydratedRef.current = true;
+      };
+
+      if (isSignedIn) {
+        try {
+          const remoteSessionList = await listMealPlanChatSessions(authUser);
+          isBackendPersistenceEnabledRef.current = true;
+
+          if (remoteSessionList.length) {
+            applyConversation({
+              sessions: sortChatSessions(
+                remoteSessionList.map((session, index) => normalizeRemoteChatSession(session, index))
+              ).slice(0, MAX_STORED_SESSIONS),
+              activeSessionId: null,
+            });
+            return;
+          }
+        } catch (error) {
+          console.warn('meal-plan chat session hydrate fallback', error);
+          isBackendPersistenceEnabledRef.current = false;
+        }
+      } else {
+        isBackendPersistenceEnabledRef.current = false;
+      }
+
+      applyConversation(loadStoredConversation(storageKey));
+    }
+
+    hydrateConversation();
+
+    return () => {
+      isCancelled = true;
+      if (persistTimeoutRef.current) {
+        window.clearTimeout(persistTimeoutRef.current);
+      }
+    };
+  }, [authUser, isSignedIn, storageKey]);
+
+  useEffect(() => {
+    if (!activeSessionId || !isStorageHydratedRef.current) {
       return;
     }
 
-    setMessages(buildInitialMessages());
-    setPreviousResponseId(null);
-    setIsFallbackMode(false);
-    setIsAwaitingMealPlanDateRange(false);
-  }, [storageKey]);
+    setChatSessions((currentSessions) =>
+      buildSessionSnapshot(
+        currentSessions,
+        activeSessionId,
+        messages,
+        previousResponseId,
+        isFallbackMode,
+        isAwaitingMealPlanDateRange
+      )
+    );
+  }, [activeSessionId, messages, previousResponseId, isFallbackMode, isAwaitingMealPlanDateRange]);
 
   useEffect(() => {
     if (!storageKey) {
       return;
     }
-    persistConversation(
-      storageKey,
+
+    const sessionsForPersistence = buildSessionSnapshot(
+      chatSessions,
+      activeSessionId,
       messages,
       previousResponseId,
       isFallbackMode,
       isAwaitingMealPlanDateRange
     );
-  }, [storageKey, messages, previousResponseId, isFallbackMode, isAwaitingMealPlanDateRange]);
+
+    persistConversation(storageKey, sessionsForPersistence, activeSessionId);
+
+    if (!isSignedIn || !isBackendPersistenceEnabledRef.current) {
+      return undefined;
+    }
+
+    const activeSession = sessionsForPersistence.find((session) => session.id === activeSessionId);
+    if (!activeSession) {
+      return undefined;
+    }
+
+    if (!activeSession.chatNo && !hasPersistableConversation(activeSession)) {
+      return undefined;
+    }
+
+    const sessionPayload = buildSessionRequestPayload(activeSession);
+    const persistSignature = JSON.stringify({
+      sessionId: activeSession.id,
+      chatTitle: sessionPayload.chatTitle,
+      lastMessageText: sessionPayload.lastMessageText,
+      previousResponseId: sessionPayload.previousResponseId,
+      messageCount: sessionPayload.messageCount,
+      fallbackMode: sessionPayload.fallbackMode,
+      chatJson: sessionPayload.chatJson,
+    });
+
+    if (lastPersistedSignatureRef.current === persistSignature) {
+      return undefined;
+    }
+
+    if (persistTimeoutRef.current) {
+      window.clearTimeout(persistTimeoutRef.current);
+    }
+
+    persistTimeoutRef.current = window.setTimeout(async () => {
+      try {
+        const savedSession = activeSession.chatNo
+          ? await updateMealPlanChatSession(activeSession.chatNo, sessionPayload, authUser)
+          : await createMealPlanChatSession(sessionPayload, authUser);
+
+        lastPersistedSignatureRef.current = persistSignature;
+        setChatSessions((currentSessions) =>
+          currentSessions.map((session) =>
+            session.id === activeSession.id
+              ? {
+                  ...session,
+                  chatNo: savedSession.chatNo ?? session.chatNo ?? null,
+                  title: savedSession.chatTitle || session.title,
+                  previousResponseId: savedSession.previousResponseId || session.previousResponseId,
+                  isFallbackMode:
+                    typeof savedSession.fallbackMode === 'boolean'
+                      ? savedSession.fallbackMode
+                      : session.isFallbackMode,
+                  createdAt: savedSession.createdAt || session.createdAt,
+                  updatedAt: savedSession.updatedAt || session.updatedAt,
+                }
+              : session
+          )
+        );
+      } catch (error) {
+        console.warn('meal-plan chat session persist fallback', error);
+        isBackendPersistenceEnabledRef.current = false;
+      }
+    }, 350);
+
+    return () => {
+      if (persistTimeoutRef.current) {
+        window.clearTimeout(persistTimeoutRef.current);
+      }
+    };
+  }, [
+    authUser,
+    isSignedIn,
+    storageKey,
+    chatSessions,
+    activeSessionId,
+    messages,
+    previousResponseId,
+    isFallbackMode,
+    isAwaitingMealPlanDateRange,
+  ]);
+
+  function openChatSession(sessionId, sessionList = chatSessions) {
+    const targetSession =
+      sessionList.find((session) => session.id === sessionId) || sessionList[0] || createChatSession();
+
+    setActiveSessionId(targetSession.id);
+    setDraft('');
+    setErrorMessage('');
+    setMessages(targetSession.messages);
+    setPreviousResponseId(targetSession.previousResponseId || null);
+    setIsFallbackMode(Boolean(targetSession.isFallbackMode));
+    setIsAwaitingMealPlanDateRange(Boolean(targetSession.isAwaitingMealPlanDateRange));
+  }
+
+  function handleCreateNewChat() {
+    if (isSending || isCartSubmitting) {
+      return;
+    }
+
+    const nextSession = createChatSession();
+    const nextSessions = [nextSession, ...chatSessions].slice(0, MAX_STORED_SESSIONS);
+
+    setChatSessions(nextSessions);
+    openChatSession(nextSession.id, nextSessions);
+  }
+
+  function handleSelectChatSession(sessionId) {
+    if (!sessionId || sessionId === activeSessionId || isSending || isCartSubmitting) {
+      return;
+    }
+
+    openChatSession(sessionId);
+  }
+
+  async function handleDeleteChatSession(sessionId) {
+    if (!sessionId || isSending || isCartSubmitting) {
+      return;
+    }
+
+    const targetSession = chatSessions.find((session) => session.id === sessionId) || null;
+    if (isSignedIn && isBackendPersistenceEnabledRef.current && targetSession?.chatNo) {
+      try {
+        await deleteMealPlanChatSession(targetSession.chatNo, authUser);
+      } catch (error) {
+        setErrorMessage(
+          error?.message || '\uC2DD\uB2E8 AI \uCC44\uD305\uC744 \uC0AD\uC81C\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.'
+        );
+        return;
+      }
+    }
+
+    let nextSessions = chatSessions.filter((session) => session.id !== sessionId);
+    if (!nextSessions.length) {
+      nextSessions = [createChatSession()];
+    }
+
+    const nextActiveSessionId =
+      sessionId === activeSessionId || !nextSessions.some((session) => session.id === activeSessionId)
+        ? nextSessions[0].id
+        : activeSessionId;
+
+    setChatSessions(nextSessions);
+    lastPersistedSignatureRef.current = '';
+    openChatSession(nextActiveSessionId, nextSessions);
+  }
 
   function promptMealPlanImportRange() {
     if (!isAuthenticated(authUser)) {
@@ -926,83 +1470,135 @@ export default function MealPlanPlaceholderPage({ authUser }) {
         </section>
 
         <section className="meal-plan-chat">
-          <div className="meal-plan-chat__header">
-            <div>
-              <h2>{'\uB9DE\uCDA4 \uC2DD\uB2E8 \uB300\uD654'}</h2>
-              <p>{'\uC2DD\uB2E8\uACFC \uC7AC\uB8CC, \uC7A5\uBC14\uAD6C\uB2C8 \uD6C4\uBCF4\uB97C \uD55C \uD750\uB984\uC5D0\uC11C \uD655\uC778\uD560 \uC218 \uC788\uC5B4\uC694.'}</p>
-            </div>
-            {isFallbackMode ? (
-              <span className="meal-plan-chat__status">{'\uC784\uC2DC \uC751\uB2F5 \uBAA8\uB4DC'}</span>
-            ) : hasConversation ? (
-              <span className="meal-plan-chat__status is-live">{'AI \uC5F0\uACB0\uB428'}</span>
-            ) : (
-              <span className="meal-plan-chat__status">{'\uB300\uD654 \uC900\uBE44\uB428'}</span>
-            )}
-          </div>
-
-          <div className="meal-plan-chat__prompts">
-            {STARTER_PROMPTS.map((prompt) => (
-              <button
-                key={prompt}
-                type="button"
-                className="meal-plan-chat__prompt"
-                onClick={() => handleSend(prompt)}
-                disabled={isSending || isCartSubmitting}
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
-
-          <div ref={messageListRef} className="meal-plan-chat__messages">
-            {messages.map((message) => (
-              <article
-                key={message.id}
-                className={`meal-plan-message ${message.role === 'user' ? 'is-user' : 'is-assistant'}`}
-              >
-                <div className="meal-plan-message__meta">
-                  <strong>{message.role === 'user' ? '\uB098' : 'Meal Plan AI'}</strong>
-                  {message.model ? <span>{message.model}</span> : null}
+          <div className="meal-plan-chat__shell">
+            <aside className="meal-plan-chat__sidebar">
+              <div className="meal-plan-chat__sidebar-head">
+                <div>
+                  <strong>{'\uCC44\uD305 \uBAA9\uB85D'}</strong>
+                  <p>{`\uCD5C\uB300 ${MAX_STORED_SESSIONS}\uAC1C\uAE4C\uC9C0 \uC800\uC7A5`}</p>
                 </div>
-                <p>{message.text}</p>
+                <button
+                  type="button"
+                  className="meal-plan-chat__new-button"
+                  onClick={handleCreateNewChat}
+                  disabled={isSending || isCartSubmitting}
+                >
+                  {'\uC0C8 \uCC44\uD305'}
+                </button>
+              </div>
 
-                {message.role === 'assistant' && message.plan ? (
-                  <AssistantStructuredBlocks
-                    message={message}
-                    onAddToCart={handleAddMatchedItemsToCart}
-                    onOpenMealPlanImport={promptMealPlanImportRange}
-                    isCartSubmitting={isCartSubmitting}
-                    isMealPlanImportPending={isAwaitingMealPlanDateRange}
-                  />
+              <div className="meal-plan-chat__session-list">
+                {chatSessions.map((session) => (
+                  <div
+                    key={session.id}
+                    className={`meal-plan-chat__session ${
+                      session.id === activeSessionId ? 'is-active' : ''
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      className="meal-plan-chat__session-main"
+                      onClick={() => handleSelectChatSession(session.id)}
+                      disabled={isSending || isCartSubmitting}
+                    >
+                      <strong>{session.title || '\uC0C8 \uCC44\uD305'}</strong>
+                      <small>{buildSessionPreview(session.messages || [])}</small>
+                      <span>{formatSessionTimestamp(session.updatedAt || session.createdAt)}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="meal-plan-chat__session-delete"
+                      onClick={() => handleDeleteChatSession(session.id)}
+                      disabled={isSending || isCartSubmitting}
+                      aria-label={`${session.title || '\uCC44\uD305'} \uC0AD\uC81C`}
+                    >
+                      {'\uC0AD\uC81C'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </aside>
+
+            <div className="meal-plan-chat__main">
+              <div className="meal-plan-chat__header">
+                <div>
+                  <h2>{'\uB9DE\uCDA4 \uC2DD\uB2E8 \uB300\uD654'}</h2>
+                  <p>{'\uC2DD\uB2E8\uACFC \uC7AC\uB8CC, \uC7A5\uBC14\uAD6C\uB2C8 \uD6C4\uBCF4\uB97C \uD55C \uD750\uB984\uC5D0\uC11C \uD655\uC778\uD560 \uC218 \uC788\uC5B4\uC694.'}</p>
+                </div>
+                {isFallbackMode ? (
+                  <span className="meal-plan-chat__status">{'\uC784\uC2DC \uC751\uB2F5 \uBAA8\uB4DC'}</span>
+                ) : hasConversation ? (
+                  <span className="meal-plan-chat__status is-live">{'AI \uC5F0\uACB0\uB428'}</span>
+                ) : (
+                  <span className="meal-plan-chat__status">{'\uB300\uD654 \uC900\uBE44\uB428'}</span>
+                )}
+              </div>
+
+              <div className="meal-plan-chat__prompts">
+                {STARTER_PROMPTS.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    className="meal-plan-chat__prompt"
+                    onClick={() => handleSend(prompt)}
+                    disabled={isSending || isCartSubmitting}
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+
+              <div ref={messageListRef} className="meal-plan-chat__messages">
+                {messages.map((message) => (
+                  <article
+                    key={message.id}
+                    className={`meal-plan-message ${message.role === 'user' ? 'is-user' : 'is-assistant'}`}
+                  >
+                    <div className="meal-plan-message__meta">
+                      <strong>{message.role === 'user' ? '\uB098' : 'Meal Plan AI'}</strong>
+                      {message.model ? <span>{message.model}</span> : null}
+                    </div>
+                    <p>{message.text}</p>
+
+                    {message.role === 'assistant' && message.plan ? (
+                      <AssistantStructuredBlocks
+                        message={message}
+                        onAddToCart={handleAddMatchedItemsToCart}
+                        onOpenMealPlanImport={promptMealPlanImportRange}
+                        isCartSubmitting={isCartSubmitting}
+                        isMealPlanImportPending={isAwaitingMealPlanDateRange}
+                      />
+                    ) : null}
+                  </article>
+                ))}
+
+                {isSending ? (
+                  <article className="meal-plan-message is-assistant is-loading">
+                    <div className="meal-plan-message__meta">
+                      <strong>Meal Plan AI</strong>
+                    </div>
+                    <p>{'\uC2DD\uB2E8\uACFC \uC7AC\uB8CC\uB97C \uC815\uB9AC\uD558\uACE0 \uC788\uC5B4\uC694...'}</p>
+                  </article>
                 ) : null}
-              </article>
-            ))}
+              </div>
 
-            {isSending ? (
-              <article className="meal-plan-message is-assistant is-loading">
-                <div className="meal-plan-message__meta">
-                  <strong>Meal Plan AI</strong>
-                </div>
-                <p>{'\uC2DD\uB2E8\uACFC \uC7AC\uB8CC\uB97C \uC815\uB9AC\uD558\uACE0 \uC788\uC5B4\uC694...'}</p>
-              </article>
-            ) : null}
+              {errorMessage ? <p className="meal-plan-chat__error">{errorMessage}</p> : null}
+
+              <form className="meal-plan-chat__composer" onSubmit={handleSubmit}>
+                <textarea
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  placeholder={
+                    '\uC608: \uC800\uB294 \uD1B5\uD48D\uC774 \uC788\uACE0 \uB2E4\uC774\uC5B4\uD2B8 \uC911\uC774\uC5D0\uC694. 7\uC77C \uC2DD\uB2E8\uC744 \uC9DC\uC8FC\uACE0, \uC6D4\uC694\uC77C \uC800\uB141\uC740 \uBE7C\uC8FC \uC138\uC694.'
+                  }
+                  rows={3}
+                />
+                <button type="submit" disabled={isSending || isCartSubmitting || !draft.trim()}>
+                  {'\uBCF4\uB0B4\uAE30'}
+                </button>
+              </form>
+            </div>
           </div>
-
-          {errorMessage ? <p className="meal-plan-chat__error">{errorMessage}</p> : null}
-
-          <form className="meal-plan-chat__composer" onSubmit={handleSubmit}>
-            <textarea
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              placeholder={
-                '\uC608: \uC800\uB294 \uD1B5\uD48D\uC774 \uC788\uACE0 \uB2E4\uC774\uC5B4\uD2B8 \uC911\uC774\uC5D0\uC694. 7\uC77C \uC2DD\uB2E8\uC744 \uC9DC\uC8FC\uACE0, \uC6D4\uC694\uC77C \uC800\uB141\uC740 \uBE7C\uC8FC \uC138\uC694.'
-              }
-              rows={3}
-            />
-            <button type="submit" disabled={isSending || isCartSubmitting || !draft.trim()}>
-              {'\uBCF4\uB0B4\uAE30'}
-            </button>
-          </form>
         </section>
       </main>
     </div>
