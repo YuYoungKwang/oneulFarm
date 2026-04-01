@@ -65,6 +65,8 @@ public interface AdminDao {
 
     int updateAdminDeliveryForShipping(Long orderNo, String trackingNo, String courierName);
 
+    int updateAdminDeliveryForPickup(Long orderNo, String trackingNo, String courierName);
+
     int updateAdminDeliveryForDelivered(Long orderNo);
 
     int deleteReviewImagesByOrder(Long orderNo);
@@ -84,6 +86,8 @@ public interface AdminDao {
     UserProfileDto findAdminUser(Long userNo);
 
     int updateAdminUserStatus(Long userNo, String status);
+
+    int updateAdminUserRole(Long userNo, String role);
 
     int countPackageHistoriesByUser(Long userNo);
 
@@ -125,7 +129,13 @@ public interface AdminDao {
 
     List<PackageHistoryDto> findPackageHistories();
 
+    List<PackageHistoryDto> findPackageHistoriesByBatch(Long batchNo);
+
+    PackageHistoryDto findPackageHistory(Long packageNo);
+
     int insertPackageHistory(PackageHistoryDto packageHistory);
+
+    int deletePackageHistory(Long packageNo);
 
     int deletePackageHistoriesByBatch(Long batchNo);
 
@@ -133,7 +143,11 @@ public interface AdminDao {
 
     int updatePurchaseBatchStatus(Long batchNo, String status);
 
+    int updatePurchaseBatchInventory(Long batchNo, java.math.BigDecimal remainingQty, String status);
+
     int increaseProductStock(Long productNo, Integer quantity);
+
+    int decreaseProductStock(Long productNo, Integer quantity);
 
     List<MainBannerDto> findMainBanners();
 

@@ -42,10 +42,16 @@ export default function ProductDetailPage({
   const averageRating = reviews.length
     ? (reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / reviews.length).toFixed(1)
     : '0.0';
+  const displayAvgPrice =
+    Number(product.priceSnapshot?.displayAvgPrice || 0) || Number(product.priceSnapshot?.avgPrice || 0);
+  const displayMinPrice =
+    Number(product.priceSnapshot?.displayMinPrice || 0) || Number(product.priceSnapshot?.minPrice || 0);
+  const displayMaxPrice =
+    Number(product.priceSnapshot?.displayMaxPrice || 0) || Number(product.priceSnapshot?.maxPrice || 0);
   const comparisonMax = Math.max(
-    Number(product.priceSnapshot?.avgPrice || 0),
-    Number(product.priceSnapshot?.minPrice || 0),
-    Number(product.priceSnapshot?.maxPrice || 0),
+    displayAvgPrice,
+    displayMinPrice,
+    displayMaxPrice,
     Number(product.salePrice || 0),
     1
   );
@@ -119,26 +125,6 @@ export default function ProductDetailPage({
 
   return (
     <>
-      <section className="page-head">
-        <div>
-          <span className="eyebrow">Product Detail</span>
-          <h1>{product.productName}</h1>
-          <p>상품 정보와 시세, 관련 레시피, 리뷰까지 한 번에 확인해보세요.</p>
-        </div>
-        <div className="page-actions">
-          <button className="btn-outline" type="button" onClick={onBack}>
-            목록으로
-          </button>
-          <button
-            className={`btn-chip ${isWished ? 'active' : ''}`}
-            type="button"
-            onClick={() => onToggleWishlist(product.productNo)}
-          >
-            {isWished ? '찜 완료' : '찜하기'}
-          </button>
-        </div>
-      </section>
-
       <section className="detail-layout">
         <article
           className="gallery-card"
@@ -187,7 +173,21 @@ export default function ProductDetailPage({
         </article>
 
         <article className="purchase-card">
-          <span className="eyebrow">오늘 추천 상품</span>
+          <div className="purchase-card__top">
+            <span className="eyebrow">오늘 추천 상품</span>
+            <div className="purchase-card__quick-actions">
+              <button className="btn-outline compact-btn" type="button" onClick={onBack}>
+                목록으로
+              </button>
+              <button
+                className={`btn-chip compact-btn ${isWished ? 'active' : ''}`}
+                type="button"
+                onClick={() => onToggleWishlist(product.productNo)}
+              >
+                {isWished ? '찜 완료' : '찜하기'}
+              </button>
+            </div>
+          </div>
           <h2 className="detail-title">{product.productName}</h2>
           <p className="muted-copy">
             {product.origin} · {product.packageWeight}
@@ -196,7 +196,7 @@ export default function ProductDetailPage({
 
           <div className="price-large">{formatCurrency(product.salePrice)}</div>
           <div className="avg">
-            평균가 {formatCurrency(product.priceSnapshot?.avgPrice)} ·{' '}
+            평균가 {formatCurrency(displayAvgPrice)} ·{' '}
             {formatPercent(product.priceMatch?.savingRate)} 절약
           </div>
 
@@ -257,13 +257,6 @@ export default function ProductDetailPage({
             >
               {isSoldOut ? '품절' : '장바구니 담기'}
             </button>
-            <button
-              className="btn-outline"
-              type="button"
-              onClick={() => onToggleWishlist(product.productNo)}
-            >
-              {isWished ? '찜 해제' : '찜하기'}
-            </button>
           </div>
 
           <div className="notice">오후 2시 이전 주문 시 당일 출고 기준으로 준비해드려요.</div>
@@ -273,6 +266,118 @@ export default function ProductDetailPage({
             <span>{product.deliveryInfo}</span>
           </div>
         </article>
+      </section>
+
+      <section className="section detail-recipe-section">
+        <div className="section-head">
+          <div>
+            <div className="section-title">이 재료로 만들 수 있는 레시피</div>
+            <div className="section-sub">
+              {recipeSearchKeyword
+                ? `"${recipeSearchKeyword}" 재료 기준으로 인기 레시피를 모아봤어요.`
+                : '관련 레시피를 불러오고 있어요.'}
+            </div>
+          </div>
+          <button className="section-link" type="button" onClick={handleOpenRecipeList}>
+            레시피 더 보기
+          </button>
+        </div>
+
+        {relatedRecipesStatus === 'loading' ? (
+          <div className="recipe-grid">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <article className="recipe-card recipe-card--state" key={`loading-${index}`}>
+                <div className="recipe-thumb recipe-thumb--placeholder" />
+                <h3>레시피를 불러오는 중입니다</h3>
+                <p className="recipe-card__summary">조금만 기다리면 관련 레시피를 보여드릴게요.</p>
+              </article>
+            ))}
+          </div>
+        ) : relatedRecipesStatus === 'success' ? (
+          <div className="recipe-list-grid recipe-list-grid--compact">
+            {relatedRecipes.map((recipe) => (
+              <article className="recipe-list-card recipe-list-card--compact" key={recipe.recipeNo}>
+                <div className="recipe-list-card__visual">
+                  <button
+                    className="recipe-list-card__media recipe-list-card__media--compact"
+                    type="button"
+                    onClick={() => onOpenRecipe?.(recipe.recipeNo)}
+                  >
+                    {recipe.imageUrl ? (
+                      <SafeImage
+                        alt={recipe.recipeName}
+                        fallback={
+                          <div className="recipe-list-card__fallback recipe-list-card__fallback--compact">
+                            {getRecipeEmoji(recipe.recipeName)}
+                          </div>
+                        }
+                        src={recipe.imageUrl}
+                      />
+                    ) : (
+                      <div className="recipe-list-card__fallback recipe-list-card__fallback--compact">
+                        {getRecipeEmoji(recipe.recipeName)}
+                      </div>
+                    )}
+                  </button>
+
+                  <div className="recipe-list-card__badge-row">
+                    {recipe.calories != null ? (
+                      <span className="recipe-badge recipe-badge--green">
+                        {Math.round(recipe.calories)} kcal
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="recipe-list-card__body">
+                  <div className="recipe-list-card__head">
+                    <button
+                      className="recipe-list-card__title recipe-list-card__title--compact"
+                      type="button"
+                      onClick={() => onOpenRecipe?.(recipe.recipeNo)}
+                    >
+                      {recipe.recipeName}
+                    </button>
+                    <p className="recipe-list-card__summary recipe-list-card__summary--compact">
+                      {summarizeRecipeDescription(recipe.description)}
+                    </p>
+                  </div>
+
+                  <div className="recipe-list-card__meta">
+                    <span className="recipe-pill">{recipe.cookTime || '조리 시간 미정'}</span>
+                    <span className="recipe-pill">{recipe.difficulty || '난이도 미정'}</span>
+                  </div>
+
+                  <div className="recipe-list-card__foot recipe-list-card__foot--compact">
+                    <button
+                      className="btn recipe-list-card__action recipe-list-card__action--compact"
+                      type="button"
+                      onClick={() => onOpenRecipe?.(recipe.recipeNo)}
+                    >
+                      레시피 보기
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : relatedRecipesStatus === 'error' ? (
+          <article className="recipe-card recipe-card--state">
+            <div className="recipe-thumb recipe-thumb--placeholder">!</div>
+            <h3>관련 레시피를 불러오지 못했어요</h3>
+            <p className="recipe-card__summary">
+              레시피 더 보기에서 전체 목록을 직접 확인해 주세요.
+            </p>
+          </article>
+        ) : (
+          <article className="recipe-card recipe-card--state">
+            <div className="recipe-thumb recipe-thumb--placeholder">-</div>
+            <h3>연결된 레시피가 아직 없어요</h3>
+            <p className="recipe-card__summary">
+              레시피 더 보기로 이동하면 해당 재료로 바로 검색해드릴게요.
+            </p>
+          </article>
+        )}
       </section>
 
       <section className="quick-grid detail-kpis">
@@ -285,7 +390,7 @@ export default function ProductDetailPage({
         </article>
         <article className="quick-card">
           <div className="quick-label">평균 시세</div>
-          <div className="quick-value">{formatCurrency(product.priceSnapshot?.avgPrice)}</div>
+          <div className="quick-value">{formatCurrency(displayAvgPrice)}</div>
           <div className="section-sub">최근 공개 시세 기준</div>
         </article>
         <article className="quick-card">
@@ -343,8 +448,8 @@ export default function ProductDetailPage({
             <CompareBar
               label="평균가"
               tone="neutral"
-              value={product.priceSnapshot?.avgPrice}
-              width={(Number(product.priceSnapshot?.avgPrice || 0) / comparisonMax) * 100}
+              value={displayAvgPrice}
+              width={(displayAvgPrice / comparisonMax) * 100}
             />
             <CompareBar
               label="판매가"
@@ -355,103 +460,11 @@ export default function ProductDetailPage({
             <CompareBar
               label="최저가"
               tone="accent"
-              value={product.priceSnapshot?.minPrice}
-              width={(Number(product.priceSnapshot?.minPrice || 0) / comparisonMax) * 100}
+              value={displayMinPrice}
+              width={(displayMinPrice / comparisonMax) * 100}
             />
           </div>
         </article>
-      </section>
-
-      <section className="section">
-        <div className="section-head">
-          <div>
-            <div className="section-title">이 재료로 만들 수 있는 레시피</div>
-            <div className="section-sub">
-              {recipeSearchKeyword
-                ? `"${recipeSearchKeyword}" 재료 기준으로 인기 레시피를 모아봤어요.`
-                : '관련 레시피를 불러오고 있어요.'}
-            </div>
-          </div>
-          <button className="section-link" type="button" onClick={handleOpenRecipeList}>
-            레시피 더 보기
-          </button>
-        </div>
-
-        {relatedRecipesStatus === 'loading' ? (
-          <div className="recipe-grid">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <article className="recipe-card recipe-card--state" key={`loading-${index}`}>
-                <div className="recipe-thumb recipe-thumb--placeholder" />
-                <h3>레시피를 불러오는 중입니다</h3>
-                <p className="recipe-card__summary">조금만 기다리면 관련 레시피를 보여드릴게요.</p>
-              </article>
-            ))}
-          </div>
-        ) : relatedRecipesStatus === 'success' ? (
-          <div className="recipe-grid">
-            {relatedRecipes.map((recipe) => (
-              <article className="recipe-card" key={recipe.recipeNo}>
-                <button
-                  className={`recipe-thumb ${recipe.imageUrl ? 'has-image' : ''}`}
-                  type="button"
-                  onClick={() => onOpenRecipe?.(recipe.recipeNo)}
-                >
-                  {recipe.imageUrl ? (
-                    <SafeImage
-                      alt={recipe.recipeName}
-                      className="recipe-thumb-image"
-                      fallback={
-                        <div className="recipe-card__emoji">
-                          {getRecipeEmoji(recipe.recipeName)}
-                        </div>
-                      }
-                      src={recipe.imageUrl}
-                    />
-                  ) : (
-                    <div className="recipe-card__emoji">{getRecipeEmoji(recipe.recipeName)}</div>
-                  )}
-                </button>
-
-                <h3>{recipe.recipeName}</h3>
-                <p className="recipe-card__summary">
-                  {summarizeRecipeDescription(recipe.description)}
-                </p>
-
-                <div className="meta-row">
-                  <span className="meta-pill">{recipe.cookTime || '조리 시간 미정'}</span>
-                  <span className="meta-pill">{recipe.difficulty || '난이도 미정'}</span>
-                  {recipe.calories != null ? (
-                    <span className="meta-pill">{Math.round(recipe.calories)} kcal</span>
-                  ) : null}
-                </div>
-
-                <button
-                  className="btn-outline recipe-card__action"
-                  type="button"
-                  onClick={() => onOpenRecipe?.(recipe.recipeNo)}
-                >
-                  레시피 보기
-                </button>
-              </article>
-            ))}
-          </div>
-        ) : relatedRecipesStatus === 'error' ? (
-          <article className="recipe-card recipe-card--state">
-            <div className="recipe-thumb recipe-thumb--placeholder">!</div>
-            <h3>관련 레시피를 불러오지 못했어요</h3>
-            <p className="recipe-card__summary">
-              레시피 더 보기에서 전체 목록을 직접 확인해 주세요.
-            </p>
-          </article>
-        ) : (
-          <article className="recipe-card recipe-card--state">
-            <div className="recipe-thumb recipe-thumb--placeholder">-</div>
-            <h3>연결된 레시피가 아직 없어요</h3>
-            <p className="recipe-card__summary">
-              레시피 더 보기로 이동하면 해당 재료로 바로 검색해드릴게요.
-            </p>
-          </article>
-        )}
       </section>
 
       <section className="section">

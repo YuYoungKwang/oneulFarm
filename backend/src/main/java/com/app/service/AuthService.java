@@ -2,6 +2,7 @@ package com.app.service;
 
 import java.util.Map;
 
+import com.app.dto.SocialLoginRequestDto;
 import com.app.dto.UserDto;
 
 public interface AuthService {
@@ -9,6 +10,8 @@ public interface AuthService {
     Map<String, Object> signup(UserDto request);
 
     Map<String, Object> login(UserDto request);
+
+    Map<String, Object> socialLogin(String provider, SocialLoginRequestDto request);
 
     Map<String, Object> findUserId(UserDto request);
 

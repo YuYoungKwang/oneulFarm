@@ -80,6 +80,12 @@
         FROM OFT_PRICE_SNAPSHOT
     </select>
 
+    <select id="selectLatestSnapshotDateByMarketType" parameterType="string" resultType="string">
+        SELECT TO_CHAR(MAX(SNAPSHOT_DATE), 'YYYY-MM-DD')
+        FROM OFT_PRICE_SNAPSHOT
+        WHERE MARKET_TYPE = #{marketType}
+    </select>
+
     <select id="selectPriceSnapshotList" parameterType="map" resultMap="priceSnapshotResultMap">
         SELECT *
         FROM (
@@ -136,6 +142,78 @@
             WHERE ROWNUM &lt;= #{limit}
         )
         ORDER BY snapshotDate ASC
+    </select>
+
+    <select id="selectLatestPriceSnapshotListByItemName" parameterType="map" resultMap="priceSnapshotResultMap">
+        SELECT *
+        FROM (
+            SELECT
+                snapshotNo,
+                itemCode,
+                itemName,
+                marketType,
+                unit,
+                avgPrice,
+                minPrice,
+                maxPrice,
+                changeRate,
+                snapshotDate,
+                sourceName
+            FROM (
+                SELECT
+                    SNAPSHOT_NO AS snapshotNo,
+                    ITEM_CODE AS itemCode,
+                    ITEM_NAME AS itemName,
+                    MARKET_TYPE AS marketType,
+                    UNIT AS unit,
+                    AVG_PRICE AS avgPrice,
+                    MIN_PRICE AS minPrice,
+                    MAX_PRICE AS maxPrice,
+                    CHANGE_RATE AS changeRate,
+                    TO_CHAR(SNAPSHOT_DATE, 'YYYY-MM-DD') AS snapshotDate,
+                    SOURCE_NAME AS sourceName,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY UPPER(TRIM(ITEM_NAME))
+                        ORDER BY SNAPSHOT_DATE DESC, SNAPSHOT_NO DESC
+                    ) AS rowNumber
+                FROM OFT_PRICE_SNAPSHOT
+                WHERE 1 = 1
+                <if test="marketType != null and marketType != ''">
+                    AND MARKET_TYPE = #{marketType}
+                </if>
+                <if test="itemName != null and itemName != ''">
+                    AND UPPER(ITEM_NAME) LIKE '%' || UPPER(#{itemName}) || '%'
+                </if>
+            )
+            WHERE rowNumber = 1
+            ORDER BY snapshotDate DESC, marketType ASC, itemName ASC
+        )
+        WHERE ROWNUM &lt;= #{limit}
+    </select>
+
+    <select id="selectLatestPriceSnapshotByItemCode" parameterType="map" resultMap="priceSnapshotResultMap">
+        SELECT *
+        FROM (
+            SELECT
+                SNAPSHOT_NO AS snapshotNo,
+                ITEM_CODE AS itemCode,
+                ITEM_NAME AS itemName,
+                MARKET_TYPE AS marketType,
+                UNIT AS unit,
+                AVG_PRICE AS avgPrice,
+                MIN_PRICE AS minPrice,
+                MAX_PRICE AS maxPrice,
+                CHANGE_RATE AS changeRate,
+                TO_CHAR(SNAPSHOT_DATE, 'YYYY-MM-DD') AS snapshotDate,
+                SOURCE_NAME AS sourceName
+            FROM OFT_PRICE_SNAPSHOT
+            WHERE ITEM_CODE = #{itemCode}
+            <if test="marketType != null and marketType != ''">
+                AND MARKET_TYPE = #{marketType}
+            </if>
+            ORDER BY SNAPSHOT_DATE DESC, SNAPSHOT_NO DESC
+        )
+        WHERE ROWNUM = 1
     </select>
 
 </mapper>

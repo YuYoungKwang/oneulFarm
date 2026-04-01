@@ -4,18 +4,30 @@ import './styles/account.css';
 import DashboardView from './DashboardView';
 import MyPageView from './MyPageView';
 import ActivityView from './ActivityView';
-import OrdersView from './OrdersView';
+import MealScheduleView from './MealScheduleView';
+import CustomerOrdersPage from './CustomerOrdersPage';
 import AddressModal from './AddressModal';
 import { addCartItemToApi, fetchProductsFromApi } from './api/productApi';
+import {
+  createMealPlanEntry,
+  createRecipeMealPlanEntry,
+  deleteMealPlanBatch,
+  deleteMealPlanEntry,
+  fetchMealPlanCalendar,
+  getMealScheduleStorageEventName,
+  updateMealPlanEntry,
+} from './api/accountMealPlanApi';
 import { persistValue, readStoredValue } from './components/productUiUtils';
 
 const ORDER_API_PATH = '/api/orders';
+const CLIENT_ORDER_STATUS_FILTERS = new Set(['PURCHASE_PENDING', 'PURCHASE_CONFIRMED']);
 const DASHBOARD_API_PATH = '/api/dashboard';
 const USER_API_PATH = '/api/users';
 const ADDRESS_API_PATH = '/api/users/me/addresses';
 const REVIEW_API_PATH = '/api/reviews';
 const WISHLIST_STORAGE_KEY = 'oneulFarmWishlist';
 const CART_STORAGE_KEY = 'oneulFarmCart';
+const CART_DETAILS_STORAGE_KEY = 'oneulFarmCartDetails';
 
 const EMPTY_PROFILE = {
   userId: '',
@@ -113,9 +125,28 @@ function notifyReviewChange(productNo) {
 const ACCOUNT_ROUTES = {
   dashboard: '#/dashboard',
   mypage: '#/mypage',
+  mealPlans: '#/mypage/meal-plans',
   activity: '#/mypage/activity',
   orders: '#/mypage/orders',
 };
+
+function padMonthPart(value) {
+  return String(value).padStart(2, '0');
+}
+
+function createMonthKey(date = new Date()) {
+  return `${date.getFullYear()}-${padMonthPart(date.getMonth() + 1)}`;
+}
+
+function createTodayKey(date = new Date()) {
+  return `${date.getFullYear()}-${padMonthPart(date.getMonth() + 1)}-${padMonthPart(
+    date.getDate()
+  )}`;
+}
+
+function toMonthKey(value) {
+  return String(value || '').slice(0, 7);
+}
 
 function accountHeaders(authUser, includeJson = false) {
   return buildAuthHeaders({
@@ -127,6 +158,10 @@ function accountHeaders(authUser, includeJson = false) {
 function getAccountPageFromHash(hash) {
   if (hash.startsWith(ACCOUNT_ROUTES.dashboard)) {
     return 'dashboard';
+  }
+
+  if (hash.startsWith(ACCOUNT_ROUTES.mealPlans)) {
+    return 'mealPlans';
   }
 
   if (hash.startsWith(ACCOUNT_ROUTES.activity)) {
@@ -151,15 +186,15 @@ function validateAddressForm(form) {
   const address1 = String(form.address1 || '').trim();
 
   if (!recipientName) {
-    return '수령인을 입력해 주세요.';
+    return '수령인 이름을 입력해 주세요.';
   }
 
   if (!recipientPhone) {
-    return '연락처를 입력해 주세요.';
+    return '수령인 연락처를 입력해 주세요.';
   }
 
   if (!/^01[0-9]-?\d{3,4}-?\d{4}$/.test(recipientPhone)) {
-    return '연락처 형식이 올바르지 않습니다. 예: 010-1234-5678';
+    return '수령인 연락처 형식이 올바르지 않습니다. 예: 010-1234-5678';
   }
 
   if (!zipCode) {
@@ -211,7 +246,7 @@ function buildWishlistSummary(product) {
   }
 
   if (reviewCount > 0) {
-    return `평점 ${averageRating.toFixed(1)} · 리뷰 ${reviewCount}건`;
+    return `평점 ${averageRating.toFixed(1)} · 리뷰 ${reviewCount}개`;
   }
 
   if (product?.origin) {
@@ -248,6 +283,8 @@ function AccountApp({ authUser: initialAuthUser }) {
   const [orderDetail, setOrderDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
+  const [orderActionSubmitting, setOrderActionSubmitting] = useState('');
+  const [orderActionError, setOrderActionError] = useState('');
 
   const [summary, setSummary] = useState(EMPTY_SUMMARY);
   const [summaryLoading, setSummaryLoading] = useState(true);
@@ -300,6 +337,12 @@ function AccountApp({ authUser: initialAuthUser }) {
   const [reviewFormError, setReviewFormError] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [deletingReviewNo, setDeletingReviewNo] = useState(null);
+  const [mealScheduleMonth, setMealScheduleMonth] = useState(() => createMonthKey());
+  const [mealScheduleSelectedDate, setMealScheduleSelectedDate] = useState(() => createTodayKey());
+  const [mealScheduleEntries, setMealScheduleEntries] = useState([]);
+  const [mealSchedulePlans, setMealSchedulePlans] = useState([]);
+  const [mealScheduleLoading, setMealScheduleLoading] = useState(false);
+  const [mealScheduleError, setMealScheduleError] = useState('');
 
   useEffect(() => {
     setAuthUser(initialAuthUser || getAuthUser());
@@ -345,6 +388,32 @@ function AccountApp({ authUser: initialAuthUser }) {
       setReviewsLoading(false);
     }
   }, [authUser]);
+
+  const loadMealScheduleData = useCallback(
+    async (targetMonth = mealScheduleMonth) => {
+      setMealScheduleLoading(true);
+      setMealScheduleError('');
+
+      try {
+        const payload = await fetchMealPlanCalendar({
+          user: authUser,
+          month: targetMonth,
+        });
+
+        setMealScheduleEntries(Array.isArray(payload?.entries) ? payload.entries : []);
+        setMealSchedulePlans(Array.isArray(payload?.plans) ? payload.plans : []);
+      } catch (error) {
+        setMealScheduleEntries([]);
+        setMealSchedulePlans([]);
+        setMealScheduleError(
+          error.message || '\uC2DD\uB2E8 \uCE98\uB9B0\uB354\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.'
+        );
+      } finally {
+        setMealScheduleLoading(false);
+      }
+    },
+    [authUser, mealScheduleMonth]
+  );
 
   useEffect(() => {
     const syncPage = () => {
@@ -409,7 +478,7 @@ function AccountApp({ authUser: initialAuthUser }) {
             savingRate: buildWishlistSavingRate(product),
             badge: buildWishlistBadge(product),
             imageUrl: product.mainImage?.imageUrl || '',
-            emoji: product.display?.symbol || '🛒',
+            emoji: product.display?.symbol || '🥕',
           }));
 
         setWishlistItems(nextItems);
@@ -436,6 +505,30 @@ function AccountApp({ authUser: initialAuthUser }) {
   }, [loadReviewsData]);
 
   useEffect(() => {
+    if (toMonthKey(mealScheduleSelectedDate) !== mealScheduleMonth) {
+      setMealScheduleSelectedDate(`${mealScheduleMonth}-01`);
+    }
+  }, [mealScheduleMonth, mealScheduleSelectedDate]);
+
+  useEffect(() => {
+    if (currentPage !== 'mealPlans') {
+      return undefined;
+    }
+
+    loadMealScheduleData(mealScheduleMonth);
+
+    const handleMealScheduleChange = () => {
+      loadMealScheduleData(mealScheduleMonth);
+    };
+
+    window.addEventListener(getMealScheduleStorageEventName(), handleMealScheduleChange);
+
+    return () => {
+      window.removeEventListener(getMealScheduleStorageEventName(), handleMealScheduleChange);
+    };
+  }, [currentPage, loadMealScheduleData, mealScheduleMonth]);
+
+  useEffect(() => {
     if (!isAuthenticated(authUser)) {
       setOrders([]);
       setOrdersLoading(false);
@@ -449,11 +542,15 @@ function AccountApp({ authUser: initialAuthUser }) {
       setOrdersLoading(true);
       setOrdersError('');
 
-      try {
-        const query = new URLSearchParams();
-        if (appliedOrderFilters.deliveryStatus && appliedOrderFilters.deliveryStatus !== 'ALL') {
-          query.set('deliveryStatus', appliedOrderFilters.deliveryStatus);
-        }
+        try {
+          const query = new URLSearchParams();
+          if (
+            appliedOrderFilters.deliveryStatus &&
+            appliedOrderFilters.deliveryStatus !== 'ALL' &&
+            !CLIENT_ORDER_STATUS_FILTERS.has(appliedOrderFilters.deliveryStatus)
+          ) {
+            query.set('deliveryStatus', appliedOrderFilters.deliveryStatus);
+          }
         if (appliedOrderFilters.dateFrom) {
           query.set('dateFrom', appliedOrderFilters.dateFrom);
         }
@@ -542,23 +639,16 @@ function AccountApp({ authUser: initialAuthUser }) {
               headers: accountHeaders(authUser),
               signal: controller.signal,
             },
-            '대시보드 차트 데이터를 불러오지 못했습니다.'
+            '이번 달 절약 차트를 불러오지 못했습니다.'
           ),
-          requestAuthApi(
-            `${DASHBOARD_API_PATH}/product-savings`,
-            {
-              headers: accountHeaders(authUser),
-              signal: controller.signal,
-            },
-            '대시보드 품목 분석 데이터를 불러오지 못했습니다.'
-          ),
+          Promise.resolve({ data: [] }),
           requestAuthApi(
             `${DASHBOARD_API_PATH}/patterns`,
             {
               headers: accountHeaders(authUser),
               signal: controller.signal,
             },
-            '대시보드 소비 패턴 데이터를 불러오지 못했습니다.'
+            '이번 달 절약 패턴을 불러오지 못했습니다.'
           ),
         ]);
 
@@ -574,7 +664,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           setMonthlySavings([]);
           setProductSavings([]);
           setDashboardPatterns(EMPTY_DASHBOARD_PATTERNS);
-          setDashboardError(error.message || '대시보드 상세 데이터를 불러오지 못했습니다.');
+          setDashboardError(error.message || '대시보드 정보를 불러오지 못했습니다.');
         }
       } finally {
         setDashboardLoading(false);
@@ -670,6 +760,94 @@ function AccountApp({ authUser: initialAuthUser }) {
     }
   }, [orders, selectedOrderNo]);
 
+  async function handleMealScheduleCreateEntry(entryForm) {
+    const savedEntry = await createMealPlanEntry({
+      user: authUser,
+      payload: {
+        mealDate: entryForm.mealDate,
+        mealType: entryForm.mealType,
+        entryTitle: entryForm.entryTitle,
+        entryDescription: entryForm.entryDescription,
+        servings: entryForm.servings,
+        sourceType: 'MANUAL',
+      },
+    });
+
+    setMealScheduleSelectedDate(savedEntry.mealDate || mealScheduleSelectedDate);
+    await loadMealScheduleData(toMonthKey(savedEntry.mealDate) || mealScheduleMonth);
+  }
+
+  async function handleMealScheduleUpdateEntry(entryNo, entryForm) {
+    const savedEntry = await updateMealPlanEntry({
+      user: authUser,
+      entryNo,
+      payload: {
+        mealDate: entryForm.mealDate,
+        mealType: entryForm.mealType,
+        entryTitle: entryForm.entryTitle,
+        entryDescription: entryForm.entryDescription,
+        servings: entryForm.servings,
+      },
+    });
+
+    setMealScheduleSelectedDate(savedEntry.mealDate || mealScheduleSelectedDate);
+    await loadMealScheduleData(toMonthKey(savedEntry.mealDate) || mealScheduleMonth);
+  }
+
+  async function handleMealScheduleDeleteEntry(entryNo) {
+    await deleteMealPlanEntry({
+      user: authUser,
+      entryNo,
+    });
+    await loadMealScheduleData(mealScheduleMonth);
+  }
+
+  async function handleMealScheduleDeletePlan(planNo) {
+    await deleteMealPlanBatch({
+      user: authUser,
+      planNo,
+    });
+    await loadMealScheduleData(mealScheduleMonth);
+  }
+
+  async function handleMealScheduleCreateRecipeEntry(payload) {
+    const savedEntry = await createRecipeMealPlanEntry({
+      user: authUser,
+      recipeNo: payload.recipeNo,
+      mealDate: payload.mealDate,
+      mealType: payload.mealType,
+      servings: payload.servings,
+    });
+
+    setMealScheduleSelectedDate(savedEntry.mealDate || mealScheduleSelectedDate);
+    await loadMealScheduleData(toMonthKey(savedEntry.mealDate) || mealScheduleMonth);
+  }
+
+  function handleMealScheduleChangeMonth(nextMonth) {
+    const safeMonth = toMonthKey(nextMonth) || createMonthKey();
+    setMealScheduleMonth(safeMonth);
+    setMealScheduleSelectedDate((currentDate) => {
+      if (toMonthKey(currentDate) === safeMonth) {
+        return currentDate;
+      }
+      return `${safeMonth}-01`;
+    });
+  }
+
+  function handleMealScheduleSelectDate(nextDate) {
+    if (!nextDate) {
+      return;
+    }
+    setMealScheduleSelectedDate(nextDate);
+    if (toMonthKey(nextDate) !== mealScheduleMonth) {
+      setMealScheduleMonth(toMonthKey(nextDate));
+    }
+  }
+
+  function handleOpenMealPlanAi() {
+    window.location.hash = '#/meal-plan';
+  }
+
   function moveToPage(page) {
     window.location.hash = ACCOUNT_ROUTES[page] || ACCOUNT_ROUTES.mypage;
   }
@@ -720,13 +898,13 @@ function AccountApp({ authUser: initialAuthUser }) {
           headers: accountHeaders(authUser),
           body: formData,
         },
-        '프로필 사진 변경에 실패했습니다.'
+        '프로필 이미지 변경에 실패했습니다.'
       );
 
       await refreshProfile();
       return true;
     } catch (error) {
-      setProfileImageError(error.message || '프로필 사진 변경에 실패했습니다.');
+      setProfileImageError(error.message || '프로필 이미지 변경에 실패했습니다.');
       return false;
     } finally {
       setProfileImageUploading(false);
@@ -838,7 +1016,7 @@ function AccountApp({ authUser: initialAuthUser }) {
 
         if (nextValue !== currentValue && (!state.available || state.checkedValue !== nextValue)) {
           setProfileSubmitError(
-          '저장에 실패했습니다. 닉네임 중복 확인을 완료해 주세요.'
+          '이미 사용 중인 닉네임입니다. 닉네임 중복 확인을 완료해 주세요.'
           );
           setProfileSubmitting(false);
           return false;
@@ -853,7 +1031,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           headers: accountHeaders(authUser, true),
           body: JSON.stringify(profileForm),
         },
-        '회원정보를 저장하지 못했습니다.'
+        '회원정보를 수정하지 못했습니다.'
       );
 
       if (payload.data) {
@@ -868,7 +1046,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           [fieldKey]: {
             checking: false,
             available: true,
-            message: fieldKey === 'email' ? '이메일이 저장되었습니다.' : '닉네임이 저장되었습니다.',
+            message: fieldKey === 'email' ? '이메일이 변경되었습니다.' : '닉네임이 변경되었습니다.',
             checkedValue: String(profileForm[fieldKey] || '').trim(),
           },
         }));
@@ -876,7 +1054,7 @@ function AccountApp({ authUser: initialAuthUser }) {
 
       return true;
     } catch (error) {
-      setProfileSubmitError(error.message || '회원정보를 저장하지 못했습니다.');
+      setProfileSubmitError(error.message || '회원정보를 수정하지 못했습니다.');
       return false;
     } finally {
       setProfileSubmitting(false);
@@ -935,7 +1113,7 @@ function AccountApp({ authUser: initialAuthUser }) {
     setWithdrawError('');
 
     const confirmed = window.confirm(
-      '정말 회원 탈퇴를 진행하시겠습니까? 탈퇴 이후에는 현재 계정으로 마이페이지 기능을 계속 사용할 수 없습니다.'
+      '정말 회원을 탈퇴하시겠어요? 탈퇴 후에는 현재 계정으로 마이페이지 기능을 계속 사용할 수 없습니다.'
     );
     if (!confirmed) {
       setWithdrawing(false);
@@ -1153,13 +1331,13 @@ function AccountApp({ authUser: initialAuthUser }) {
 
   async function handleDeleteAddress(address) {
     const addressNo = address?.addressNo;
-    const addressLabel = address?.addressName || address?.recipientName || '선택한 배송지';
+    const addressLabel = address?.addressName || address?.recipientName || '새 배송지';
 
     if (!addressNo) {
       return;
     }
 
-    const confirmed = window.confirm(`'${addressLabel}' 배송지를 삭제하시겠습니까?`);
+    const confirmed = window.confirm(`'${addressLabel}' 배송지를 삭제하시겠어요?`);
     if (!confirmed) {
       return;
     }
@@ -1186,6 +1364,7 @@ function AccountApp({ authUser: initialAuthUser }) {
   }
 
   function handleSelectOrder(orderNo) {
+    setOrderActionError('');
     setSelectedOrderNo((current) => (current === orderNo ? null : orderNo));
   }
 
@@ -1207,13 +1386,131 @@ function AccountApp({ authUser: initialAuthUser }) {
     setAppliedOrderFilters(EMPTY_ORDER_FILTERS);
   }
 
+    async function refreshOrdersAndDetail(targetOrderNo = selectedOrderNo) {
+      const query = new URLSearchParams();
+    if (
+      appliedOrderFilters.deliveryStatus &&
+      appliedOrderFilters.deliveryStatus !== 'ALL' &&
+      !CLIENT_ORDER_STATUS_FILTERS.has(appliedOrderFilters.deliveryStatus)
+    ) {
+      query.set('deliveryStatus', appliedOrderFilters.deliveryStatus);
+    }
+    if (appliedOrderFilters.dateFrom) {
+      query.set('dateFrom', appliedOrderFilters.dateFrom);
+    }
+    if (appliedOrderFilters.dateTo) {
+      query.set('dateTo', appliedOrderFilters.dateTo);
+    }
+
+    const ordersPayload = await requestAuthApi(
+      `${ORDER_API_PATH}/me${query.toString() ? `?${query.toString()}` : ''}`,
+      {
+        headers: accountHeaders(authUser),
+      },
+      '주문 목록을 불러오지 못했습니다.'
+    );
+
+    const nextOrders = Array.isArray(ordersPayload.data) ? ordersPayload.data : [];
+    setOrders(nextOrders);
+
+    if (!targetOrderNo) {
+      return;
+    }
+
+    const stillExists = nextOrders.some((order) => Number(order.orderNo) === Number(targetOrderNo));
+    if (!stillExists) {
+      setSelectedOrderNo(null);
+      setOrderDetail(null);
+      return;
+    }
+
+    const detailPayload = await requestAuthApi(
+      `${ORDER_API_PATH}/me/${targetOrderNo}`,
+      {
+        headers: accountHeaders(authUser),
+      },
+      '주문 상세를 불러오지 못했습니다.'
+    );
+    setOrderDetail(detailPayload.data || null);
+  }
+
+  async function handleRequestOrderCancel(targetOrderNo = orderDetail?.orderNo) {
+    if (!targetOrderNo) {
+      return;
+    }
+
+    const confirmed = window.confirm('이 주문의 취소를 요청하시겠습니까?');
+    if (!confirmed) {
+      return;
+    }
+
+    setOrderActionSubmitting('cancel');
+    setOrderActionError('');
+
+    try {
+      const payload = await requestAuthApi(
+        `${ORDER_API_PATH}/me/${targetOrderNo}/cancel-request`,
+        {
+          method: 'PATCH',
+          headers: accountHeaders(authUser),
+        },
+        '주문 취소 요청에 실패했습니다.'
+      );
+      if (Number(selectedOrderNo) === Number(targetOrderNo)) {
+        setOrderDetail(payload.data || null);
+      }
+      await refreshOrdersAndDetail(
+        Number(selectedOrderNo) === Number(targetOrderNo) ? targetOrderNo : selectedOrderNo
+      );
+    } catch (error) {
+      setOrderActionError(error.message || '주문 취소 요청에 실패했습니다.');
+    } finally {
+      setOrderActionSubmitting('');
+    }
+  }
+
+  async function handleConfirmPurchase() {
+    if (!orderDetail?.orderNo) {
+      return;
+    }
+
+    const confirmed = window.confirm('이 주문을 구매 확정하시겠습니까?');
+    if (!confirmed) {
+      return;
+    }
+
+    setOrderActionSubmitting('purchase-confirm');
+    setOrderActionError('');
+
+    try {
+      const payload = await requestAuthApi(
+        `${ORDER_API_PATH}/me/${orderDetail.orderNo}/purchase-confirm`,
+        {
+          method: 'PATCH',
+          headers: accountHeaders(authUser),
+        },
+        '구매 확정 처리에 실패했습니다.'
+      );
+      setOrderDetail(payload.data || null);
+      await refreshOrdersAndDetail(orderDetail.orderNo);
+    } catch (error) {
+      setOrderActionError(error.message || '구매 확정 처리에 실패했습니다.');
+    } finally {
+      setOrderActionSubmitting('');
+    }
+  }
+
   async function handleAddWishlistItemToCart(productNo) {
     setWishlistActionProductNo(productNo);
     setWishlistError('');
 
     try {
       const nextCart = await addCartItemToApi(productNo, 1);
-      persistValue(CART_STORAGE_KEY, nextCart);
+      persistValue(CART_STORAGE_KEY, nextCart?.quantityMap || {});
+      persistValue(
+        CART_DETAILS_STORAGE_KEY,
+        Array.isArray(nextCart?.items) ? nextCart.items : []
+      );
     } catch (error) {
       setWishlistError(error.message || '장바구니 담기에 실패했습니다.');
     } finally {
@@ -1222,7 +1519,7 @@ function AccountApp({ authUser: initialAuthUser }) {
   }
 
   function handleRemoveWishlistItem(productNo) {
-    const confirmed = window.confirm('찜한 상품에서 제거하시겠습니까?');
+    const confirmed = window.confirm('찜한 상품에서 제거하시겠어요?');
     if (!confirmed) {
       return;
     }
@@ -1315,7 +1612,7 @@ function AccountApp({ authUser: initialAuthUser }) {
     const nextImageFiles = [...(reviewForm.imageFiles || []), ...files];
 
     if (activeExistingCount + nextImageFiles.length > 3) {
-      setReviewFormError('리뷰 사진은 최대 3장까지 등록할 수 있습니다.');
+      setReviewFormError('리뷰 이미지는 최대 3장까지 등록할 수 있습니다.');
       event.target.value = '';
       return;
     }
@@ -1375,7 +1672,7 @@ function AccountApp({ authUser: initialAuthUser }) {
           headers: accountHeaders(authUser),
           body: formData,
         },
-        isEditMode ? '리뷰 수정에 실패했습니다.' : '리뷰 작성에 실패했습니다.'
+        isEditMode ? '리뷰 수정에 실패했습니다.' : '리뷰 등록에 실패했습니다.'
       );
 
       await loadReviewsData();
@@ -1386,7 +1683,7 @@ function AccountApp({ authUser: initialAuthUser }) {
       setReviewFormError(
         error.message || (reviewEditor?.mode === 'edit'
           ? '리뷰 수정에 실패했습니다.'
-          : '리뷰 작성에 실패했습니다.')
+          : '리뷰 등록에 실패했습니다.')
       );
       return false;
     } finally {
@@ -1395,7 +1692,7 @@ function AccountApp({ authUser: initialAuthUser }) {
   }
 
   async function handleDeleteReview(reviewNo) {
-    const confirmed = window.confirm('이 리뷰를 삭제하시겠습니까?');
+    const confirmed = window.confirm('정말 리뷰를 삭제하시겠어요?');
     if (!confirmed) {
       return;
     }
@@ -1441,8 +1738,8 @@ function AccountApp({ authUser: initialAuthUser }) {
           <section className="card">
             <div className="page-head" style={{ marginBottom: '8px' }}>
               <div>
-                <h1>로그인이 필요합니다.</h1>
-                <p>마이페이지와 대시보드는 로그인 후 이용할 수 있습니다.</p>
+                <h1>{'\uB85C\uADF8\uC778\uC774 \uD544\uC694\uD569\uB2C8\uB2E4.'}</h1>
+                <p>{'\uB9C8\uC774\uD398\uC774\uC9C0\uC640 \uC808\uC57D \uB300\uC2DC\uBCF4\uB4DC\uB294 \uB85C\uADF8\uC778 \uD6C4 \uC774\uC6A9\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.'}</p>
               </div>
             </div>
             <div className="page-actions">
@@ -1453,7 +1750,7 @@ function AccountApp({ authUser: initialAuthUser }) {
                   window.location.hash = '#/login';
                 }}
               >
-                로그인하러 가기
+                {'\uB85C\uADF8\uC778\uD558\uB7EC \uAC00\uAE30'}
               </button>
               <button
                 className="btn-outline"
@@ -1462,7 +1759,7 @@ function AccountApp({ authUser: initialAuthUser }) {
                   window.location.hash = '#/signup';
                 }}
               >
-                회원가입
+                {'\uD68C\uC6D0\uAC00\uC785'}
               </button>
             </div>
           </section>
@@ -1470,11 +1767,11 @@ function AccountApp({ authUser: initialAuthUser }) {
 
         <footer className="site-footer">
           <div className="footer-links">
-            <a href="#/products">개인정보처리방침</a>
-            <a href="#/products">이용약관</a>
-            <a href="#/products">고객센터</a>
+            <a href="#/products">{'\uAC1C\uC778\uC815\uBCF4\uCC98\uB9AC\uBC29\uCE68'}</a>
+            <a href="#/products">{'\uC774\uC6A9\uC57D\uAD00'}</a>
+            <a href="#/products">{'\uACE0\uAC1D\uC13C\uD130'}</a>
           </div>
-          <div>© 2026 oneulFarm. All rights reserved.</div>
+          <div>{'\u00A9 2026 oneulFarm. All rights reserved.'}</div>
         </footer>
       </div>
     );
@@ -1489,28 +1786,35 @@ function AccountApp({ authUser: initialAuthUser }) {
             className={`account-local-nav__link ${currentPage === 'mypage' ? 'is-active' : ''}`}
             onClick={() => moveToPage('mypage')}
           >
-            개인정보 관리
+            {'\uAC1C\uC778\uC815\uBCF4 \uAD00\uB9AC'}
+          </button>
+          <button
+            type="button"
+            className={`account-local-nav__link ${currentPage === 'mealPlans' ? 'is-active' : ''}`}
+            onClick={() => moveToPage('mealPlans')}
+          >
+            {'\uB0B4 \uC2DD\uB2E8 \uAD00\uB9AC'}
           </button>
           <button
             type="button"
             className={`account-local-nav__link ${currentPage === 'activity' ? 'is-active' : ''}`}
             onClick={() => moveToPage('activity')}
           >
-              내 활동
+            {'\uB0B4 \uD65C\uB3D9'}
           </button>
           <button
             type="button"
             className={`account-local-nav__link ${currentPage === 'orders' ? 'is-active' : ''}`}
             onClick={() => moveToPage('orders')}
           >
-            주문관리
+            {'\uC8FC\uBB38\uAD00\uB9AC'}
           </button>
           <button
             type="button"
             className={`account-local-nav__link ${currentPage === 'dashboard' ? 'is-active' : ''}`}
             onClick={() => moveToPage('dashboard')}
           >
-            대시보드
+            {'\uB300\uC2DC\uBCF4\uB4DC'}
           </button>
         </section>
 
@@ -1544,6 +1848,23 @@ function AccountApp({ authUser: initialAuthUser }) {
             onWithdrawSubmit={handleWithdrawSubmit}
             onOpenAddressModal={openAddressModal}
           />
+        ) : currentPage === 'mealPlans' ? (
+          <MealScheduleView
+            month={mealScheduleMonth}
+            entries={mealScheduleEntries}
+            plans={mealSchedulePlans}
+            loading={mealScheduleLoading}
+            error={mealScheduleError}
+            selectedDate={mealScheduleSelectedDate}
+            onSelectDate={handleMealScheduleSelectDate}
+            onChangeMonth={handleMealScheduleChangeMonth}
+            onCreateEntry={handleMealScheduleCreateEntry}
+            onUpdateEntry={handleMealScheduleUpdateEntry}
+            onDeleteEntry={handleMealScheduleDeleteEntry}
+            onDeletePlan={handleMealScheduleDeletePlan}
+            onCreateRecipeEntry={handleMealScheduleCreateRecipeEntry}
+            onOpenMealPlanAi={handleOpenMealPlanAi}
+          />
         ) : currentPage === 'activity' ? (
           <ActivityView
             activeTab={activeTab}
@@ -1573,11 +1894,12 @@ function AccountApp({ authUser: initialAuthUser }) {
             onDeleteReview={handleDeleteReview}
           />
         ) : currentPage === 'orders' ? (
-          <OrdersView
+          <CustomerOrdersPage
             orders={orders}
             ordersLoading={ordersLoading}
             ordersError={ordersError}
             orderFilters={orderFilters}
+            appliedOrderFilters={appliedOrderFilters}
             selectedOrderNo={selectedOrderNo}
             orderDetail={orderDetail}
             detailLoading={detailLoading}
@@ -1587,6 +1909,10 @@ function AccountApp({ authUser: initialAuthUser }) {
             onOrderFilterReset={handleOrderFilterReset}
             onSelectOrder={handleSelectOrder}
             onStartCreateReview={handleStartCreateReviewFromOrder}
+            onRequestOrderCancel={handleRequestOrderCancel}
+            onConfirmPurchase={handleConfirmPurchase}
+            orderActionSubmitting={orderActionSubmitting}
+            orderActionError={orderActionError}
           />
         ) : (
           <DashboardView

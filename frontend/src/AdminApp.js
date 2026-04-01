@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import { clearAuthUser, getAuthUser, isSuperAdminUser } from './auth';
 import './styles/admin.css';
 import AdminLayout from './admin/AdminLayout';
+import AdminOrdersPage from './admin/AdminOrdersPage';
+import CarrierManagementPage from './admin/CarrierManagementPage';
 import {
   AdminEmptyState,
   AdminMetricCard,
@@ -12,9 +15,14 @@ import {
   formatAdminDateParts,
 } from './admin/AdminUi';
 import {
+  acceptAdminOrder,
+  acceptAdminOrderCancel,
+  cancelAdminPackageHistory,
   createAdminPackageHistory,
+  assignCarrierWaybill,
   createAdminPurchaseBatch,
   deleteAdminPurchaseBatch,
+  deliverCarrierOrder,
   deleteAdminOrder,
   deleteAdminProduct,
   deleteAdminUser,
@@ -26,14 +34,21 @@ import {
   fetchAdminProducts,
   fetchAdminPurchases,
   fetchAdminPurchaseQuote,
+  fetchAdminRetailPriceList,
+  fetchAdminPurchaseReferenceItems,
   fetchAdminRecipeMappings,
   fetchAdminUsers,
+  fetchCarrierOrderDetail,
   getAdminBannerImageUrl,
   getAdminProductImageUrl,
+  pickupCarrierOrder,
+  rejectAdminOrderCancel,
   saveAdminProduct,
+  transitCarrierOrder,
   triggerAdminRecipeSync,
   uploadAdminProductImages,
   updateAdminOrder,
+  updateAdminUserRole,
   updateAdminUserStatus,
 } from './admin/adminApi';
 import { isAdminMode, leaveAdminPage, openAdminPage } from './admin/adminSession';
@@ -54,13 +69,27 @@ const EMPTY_PRODUCT_FORM = {
 
 const EMPTY_PURCHASE_FORM = {
   categoryNo: '',
+  referenceItemCode: '',
   productName: '',
   origin: '',
+  supplierProfileKey: 'farm-cheonan',
   purchaseUnit: 'kg',
   purchaseQty: '0',
+  referenceUnitPrice: '0',
+  referenceTotalPrice: '0',
+  referenceSnapshotDate: '',
+  grade: '',
+  supplierType: '\uB18D\uC7A5',
+  actualUnitPrice: '0',
+  actualPurchaseAmount: '0',
+  logisticsCost: '0',
+  commissionRate: '0',
+  commissionCost: '0',
+  otherPurchaseCost: '0',
+  discardRate: '3',
   purchasePrice: '0',
   purchaseDate: new Date().toISOString().slice(0, 10),
-  supplierName: '',
+  supplierName: '\uCC9C\uC548 \uB18D\uC7A5',
   status: 'PURCHASED',
 };
 
@@ -69,6 +98,9 @@ const EMPTY_PACKAGE_FORM = {
   packagedQty: '0',
   packagedWeight: '1',
   salePrice: '0',
+  packagingMaterialCost: '0',
+  packagingLaborCost: '0',
+  otherPackagingCost: '0',
   saleStatus: 'SELLING',
   note: '',
 };
@@ -82,7 +114,7 @@ function parseAdminPage(hash) {
   }
 
   const page = segments[1] || 'dashboard';
-  return ['dashboard', 'products', 'purchase', 'orders', 'users', 'content'].includes(page)
+  return ['dashboard', 'products', 'purchase', 'orders', 'carrier', 'users', 'content'].includes(page)
     ? page
     : 'dashboard';
 }
@@ -96,7 +128,205 @@ function hasAdminValue(value) {
   return value !== null && value !== undefined && value !== '';
 }
 
-const COUNT_UNIT_SET = new Set(['ea', 'each', '개', '포기', '단', '망', '봉', '봉지', 'pack', 'pk']);
+const COUNT_UNIT_SET = new Set(['ea', 'each', '\uAC1C', '\uAC1C\uC785', '\uAD6C', '\uB9DD', '\uBCF4', '\uBCF4\uB530\uB9AC', 'pack', 'pk']);
+const VOLUME_UNIT_SET = new Set(['ml', 'milliliter', 'milliliters', 'millilitre', 'millilitres', 'l', 'liter', 'liters', 'litre', 'litres', '\u2113', '\uB9AC\uD130']);
+
+const ADMIN_SUPPORTED_CATEGORY_NAMES = ['\uCC44\uC18C', '\uACFC\uC77C', '\uBC84\uC12F', '\uC721\uB958', '\uC720\uC81C\uD488', '\uB2EC\uAC40', '\uAC00\uACF5\uC2DD\uD488'];
+const ADMIN_DISABLED_PURCHASE_CATEGORY_NAMES = new Set(['\uC720\uC81C\uD488']);
+const ADMIN_FRUIT_KEYWORDS = ['\uC0AC\uACFC', '\uBC30', '\uBCF5\uC22D\uC544', '\uD3EC\uB3C4', '\uAC10\uADE4', '\uB2E8\uAC10', '\uBC14\uB098\uB098', '\uCC38\uB2E4\uB798', '\uCC38\uC678', '\uB538\uAE30', '\uBA5C\uB860', '\uC624\uB80C\uC9C0', '\uB9DD\uACE0', '\uC790\uB450', '\uD30C\uC778\uC560\uD50C', '\uCCB4\uB9AC', '\uD0A4\uC704', '\uC218\uBC15'];
+const ADMIN_FRUIT_EXACT_NAMES = new Set(ADMIN_FRUIT_KEYWORDS);
+const ADMIN_MUSHROOM_KEYWORDS = ['\uBC84\uC12F', '\uC1A1\uC774'];
+const ADMIN_DAIRY_KEYWORDS = ['\uC6B0\uC720', '\uCE58\uC988', '\uC694\uAC70\uD2B8', '\uC694\uAD6C\uB974\uD2B8', '\uBC84\uD130', '\uBD84\uC720', '\uC0DD\uD06C\uB9BC'];
+const ADMIN_EGG_KEYWORDS = ['\uACC4\uB780', '\uB2EC\uAC40', '\uD2B9\uB780', '\uC655\uB780'];
+const ADMIN_MEAT_KEYWORDS = ['\uC1E0\uACE0\uAE30', '\uD55C\uC6B0', '\uC18C\uACE0\uAE30', '\uB3FC\uC9C0', '\uB2ED', '\uC624\uB9AC', '\uB4F1\uC2EC', '\uC548\uC2EC', '\uC0BC\uACB9\uC0B4', '\uAC08\uBE44', '\uBAA9\uC2EC', '\uC591\uC9C0', '\uC124\uB3C4', '\uC55E\uB2E4\uB9AC', '\uAC00\uC2B4\uC0B4', '\uBD81\uCC44', '\uD1A0\uC885\uB2ED', '\uC721\uACC4'];
+const ADMIN_PROCESSED_KEYWORDS = ['\uAE40\uCE58', '\uACE0\uCD94\uC7A5', '\uB41C\uC7A5', '\uAC04\uC7A5', '\uB450\uBD80', '\uC21C\uB450\uBD80', '\uC5F0\uB450\uBD80', '\uC989\uC11D\uBC25', '\uB9DB\uAE40', '\uCF69\uB098\uBB3C'];
+const ADMIN_UNSUPPORTED_REFERENCE_KEYWORDS = ['\uAC00\uB9AC\uBE44', '\uAC08\uCE58', '\uACE0\uB4F1\uC5B4', '\uAD74', '\uAE40/', '\uB2E4\uC2DC\uB9C8', '\uBA78\uCE58', '\uBBF8\uC5ED', '\uC624\uC9D5\uC5B4', '\uC0C8\uC6B0', '\uBCD1\uC5B4', '\uBD81\uC5B4', '\uAF41\uCE58', '\uBA85\uD0DC', '\uCC38\uAE68', '\uCF69', '\uC300', '\uCC39\uC300', '\uB179\uB450', '\uBA54\uBC00', '\uB4E4\uAE68'];
+const ADMIN_REFERENCE_ALIAS_MAP = {
+  'catalog:200:214:01|02': [
+    { key: 'red-lettuce', productName: '\uC801\uC0C1\uCD94', quoteName: '\uC0C1\uCD94' },
+    { key: 'green-lettuce', productName: '\uCCAD\uC0C1\uCD94', quoteName: '\uC0C1\uCD94' },
+  ],
+  'catalog:200:223:01|02|03': [
+    { key: 'spined-cucumber', productName: '\uAC00\uC2DC\uC624\uC774', quoteName: '\uC624\uC774' },
+    { key: 'dadagi-cucumber', productName: '\uB2E4\uB2E4\uAE30\uC624\uC774', quoteName: '\uC624\uC774' },
+    { key: 'cheong-cucumber', productName: '\uCDE8\uCCAD\uC624\uC774', quoteName: '\uC624\uC774' },
+  ],
+  'catalog:200:224:01|02': [
+    { key: 'green-zucchini', productName: '\uC560\uD638\uBC15', quoteName: '\uD638\uBC15' },
+    { key: 'zucchini', productName: '\uC96C\uD0A4\uB2C8', quoteName: '\uD638\uBC15' },
+  ],
+};
+
+// eslint-disable-next-line no-unused-vars
+const LEGACY_PURCHASE_SUPPLIER_PROFILES_UNUSED = [
+  {
+    key: 'farm-cheonan',
+    supplierName: '泥쒖븞 ?띻?',
+    supplierType: '?띻?',
+    defaultLogisticsCost: 8000,
+    defaultCommissionRate: 0,
+    defaultDiscardRate: 3,
+    priceMultiplierMin: 0.9,
+    priceMultiplierMax: 0.95,
+    note: '?쒖꽭蹂대떎 ?쎄컙 ??? ?④?瑜?湲곕낯 ?쒖븞?⑸땲??',
+  },
+  {
+    key: 'wholesale-daejeon',
+    supplierName: '????꾨ℓ?쒖옣',
+    supplierType: '?꾨ℓ',
+    defaultLogisticsCost: 5000,
+    defaultCommissionRate: 5,
+    defaultDiscardRate: 7,
+    priceMultiplierMin: 0.97,
+    priceMultiplierMax: 1.04,
+    note: '?쒖꽭? 鍮꾩듂???④?瑜?湲곕낯 ?쒖븞?⑸땲??',
+  },
+  {
+    key: 'distributor-seoul',
+    supplierName: '?쒖슱 ?곗? ?좏넻',
+    supplierType: '?좏넻',
+    defaultLogisticsCost: 0,
+    defaultCommissionRate: 0,
+    defaultDiscardRate: 2,
+    priceMultiplierMin: 1.1,
+    priceMultiplierMax: 1.2,
+    note: '?④? ?ы븿?뺤씠??臾쇰쪟鍮꾨뒗 0?먯쑝濡??쒖옉?⑸땲??',
+  },
+];
+
+// eslint-disable-next-line no-unused-vars
+const LEGACY_PACKAGE_COST_PROFILES_UNUSED = [
+  {
+    key: 'small',
+    label: '?뚰룷??湲곕낯媛',
+    maxWeightKg: 0.5,
+    packagingMaterialPerUnit: 20,
+    packagingLaborPerUnit: 90,
+    otherPackagingPerUnit: 20,
+  },
+  {
+    key: 'medium',
+    label: '以묓룷??湲곕낯媛',
+    maxWeightKg: 1,
+    packagingMaterialPerUnit: 40,
+    packagingLaborPerUnit: 120,
+    otherPackagingPerUnit: 30,
+  },
+  {
+    key: 'large',
+    label: '??ъ옣 湲곕낯媛',
+    maxWeightKg: 3,
+    packagingMaterialPerUnit: 80,
+    packagingLaborPerUnit: 170,
+    otherPackagingPerUnit: 40,
+  },
+  {
+    key: 'bulk',
+    label: '??됲룷??湲곕낯媛',
+    maxWeightKg: Number.POSITIVE_INFINITY,
+    packagingMaterialPerUnit: 120,
+    packagingLaborPerUnit: 220,
+    otherPackagingPerUnit: 50,
+  },
+];
+
+const PURCHASE_SUPPLIER_PROFILES = [
+  {
+    key: 'farm-cheonan',
+    supplierName: '\uCC9C\uC548 \uB18D\uC7A5',
+    supplierType: '\uB18D\uC7A5',
+    defaultLogisticsCost: 8000,
+    defaultCommissionRate: 0,
+    defaultDiscardRate: 3,
+    priceMultiplierMin: 0.9,
+    priceMultiplierMax: 0.95,
+    note: '\uC2DC\uC138\uBCF4\uB2E4 \uC870\uAE08 \uB0AE\uC740 \uC6D0\uBB3C \uB2E8\uAC00\uB97C \uAE30\uBCF8 \uC81C\uC548\uD569\uB2C8\uB2E4.',
+  },
+  {
+    key: 'wholesale-daejeon',
+    supplierName: '\uB300\uC804 \uB3C4\uB9E4\uC2DC\uC7A5',
+    supplierType: '\uB3C4\uB9E4',
+    defaultLogisticsCost: 5000,
+    defaultCommissionRate: 5,
+    defaultDiscardRate: 7,
+    priceMultiplierMin: 0.97,
+    priceMultiplierMax: 1.04,
+    note: '\uC2DC\uC138\uC640 \uBE44\uC2B7\uD55C \uC6D0\uBB3C \uB2E8\uAC00\uB97C \uAE30\uBCF8 \uC81C\uC548\uD569\uB2C8\uB2E4.',
+  },
+  {
+    key: 'distributor-seoul',
+    supplierName: '\uC11C\uC6B8 \uC678\uBD80 \uC720\uD1B5',
+    supplierType: '\uC720\uD1B5',
+    defaultLogisticsCost: 0,
+    defaultCommissionRate: 0,
+    defaultDiscardRate: 2,
+    priceMultiplierMin: 1.1,
+    priceMultiplierMax: 1.2,
+    note: '\uB2E8\uAC00 \uD3EC\uD568 \uC815\uCC45\uC774\uC9C0\uB9CC \uBB3C\uB958\uBE44\uB294 0\uC6D0\uC73C\uB85C \uC2DC\uC791\uD569\uB2C8\uB2E4.',
+  },
+];
+
+const PACKAGE_COST_PROFILES = [
+  {
+    key: 'small',
+    label: '\uC18C\uD3EC\uC7A5 \uAE30\uBCF8\uAC00',
+    maxWeightKg: 0.5,
+    packagingMaterialPerUnit: 20,
+    packagingLaborPerUnit: 90,
+    otherPackagingPerUnit: 20,
+  },
+  {
+    key: 'medium',
+    label: '\uC911\uD3EC\uC7A5 \uAE30\uBCF8\uAC00',
+    maxWeightKg: 1,
+    packagingMaterialPerUnit: 40,
+    packagingLaborPerUnit: 120,
+    otherPackagingPerUnit: 30,
+  },
+  {
+    key: 'large',
+    label: '\uB300\uD3EC\uC7A5 \uAE30\uBCF8\uAC00',
+    maxWeightKg: 3,
+    packagingMaterialPerUnit: 80,
+    packagingLaborPerUnit: 170,
+    otherPackagingPerUnit: 40,
+  },
+  {
+    key: 'bulk',
+    label: '\uB300\uB7C9\uD3EC\uC7A5 \uAE30\uBCF8\uAC00',
+    maxWeightKg: Number.POSITIVE_INFINITY,
+    packagingMaterialPerUnit: 120,
+    packagingLaborPerUnit: 220,
+    otherPackagingPerUnit: 50,
+  },
+];
+
+function splitAdminReferenceNameSegments(value) {
+  return String(value || '')
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+}
+
+function dedupeAdminReferenceNameSegments(segmentArray) {
+  return segmentArray.filter((segment, index) => segment && segmentArray.indexOf(segment) === index);
+}
+
+function normalizeAdminReferenceProductName(value) {
+  const segmentArray = dedupeAdminReferenceNameSegments(splitAdminReferenceNameSegments(value));
+  if (!segmentArray.length) {
+    return String(value || '').trim();
+  }
+  return segmentArray[0];
+}
+
+function buildAdminReferenceDisplayName(value) {
+  const segmentArray = dedupeAdminReferenceNameSegments(splitAdminReferenceNameSegments(value));
+  if (!segmentArray.length) {
+    return String(value || '').trim();
+  }
+  return segmentArray.join(' / ');
+}
 
 function formatDecimalInput(value, fractionDigits = 2) {
   const nextValue = Number(value);
@@ -107,13 +337,32 @@ function formatDecimalInput(value, fractionDigits = 2) {
   return nextValue.toFixed(fractionDigits).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
 }
 
+function formatAdminIsoDate(date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
+}
+
+function buildAdminRecentSnapshotDateList(daysBack = 7) {
+  const dateList = [];
+  const today = new Date();
+  for (let offset = 0; offset <= daysBack; offset += 1) {
+    const nextDate = new Date(today);
+    nextDate.setDate(today.getDate() - offset);
+    dateList.push(formatAdminIsoDate(nextDate));
+  }
+  return dateList;
+}
+
 function resolveUnitAmount(value, unit) {
   const amount = Number(value);
   if (!Number.isFinite(amount) || amount < 0) {
     return null;
   }
 
-  const normalizedUnit = String(unit || '').trim().toLowerCase();
+  const normalizedUnit = normalizeMeasurementUnit(unit);
   if (!normalizedUnit) {
     return null;
   }
@@ -124,11 +373,58 @@ function resolveUnitAmount(value, unit) {
   if (normalizedUnit === 'g') {
     return { type: 'WEIGHT', amount };
   }
+  if (isVolumeUnit(normalizedUnit)) {
+    return { type: 'VOLUME', amount: normalizeVolumeAmount(normalizedUnit, amount) };
+  }
   if (COUNT_UNIT_SET.has(normalizedUnit)) {
     return { type: 'COUNT', amount };
   }
 
   return null;
+}
+
+function normalizeMeasurementUnit(unit) {
+  const normalizedUnit = normalizeUnitKey(unit);
+  if (!normalizedUnit) {
+    return null;
+  }
+
+  if (
+    normalizedUnit === '\uAD6C' ||
+    normalizedUnit === '\uC54C' ||
+    normalizedUnit === '\uD310' ||
+    normalizedUnit === '\uBCD1' ||
+    normalizedUnit === '\uD1B5' ||
+    normalizedUnit === '\uD329'
+  ) {
+    return 'ea';
+  }
+
+  return normalizedUnit;
+}
+
+function normalizeUnitKey(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized ? normalized.replace(/\s+/g, '') : '';
+}
+
+function isVolumeUnit(unit) {
+  return Boolean(unit && VOLUME_UNIT_SET.has(unit));
+}
+
+function normalizeVolumeAmount(unit, amount) {
+  if (
+    unit === 'l' ||
+    unit === 'liter' ||
+    unit === 'liters' ||
+    unit === 'litre' ||
+    unit === 'litres' ||
+    unit === '\u2113' ||
+    unit === '\uB9AC\uD130'
+  ) {
+    return amount * 1000;
+  }
+  return amount;
 }
 
 function calculatePurchasePriceFromQuote(purchaseQuote, purchaseQty, purchaseUnit) {
@@ -152,6 +448,949 @@ function calculatePurchasePriceFromQuote(purchaseQuote, purchaseQty, purchaseUni
   }
 
   return (basePrice * currentQuantity.amount) / baseQuantity.amount;
+}
+
+function calculatePurchaseDraftMetrics(purchaseForm) {
+  const purchaseQty = toNumber(purchaseForm.purchaseQty, 0);
+  const referenceUnitPrice = toNumber(purchaseForm.referenceUnitPrice, 0);
+  const actualUnitPrice = toNumber(purchaseForm.actualUnitPrice, 0);
+  const typedActualPurchaseAmount = toNumber(purchaseForm.actualPurchaseAmount, 0);
+  const logisticsCost = toNumber(purchaseForm.logisticsCost, 0);
+  const commissionRate = toNumber(purchaseForm.commissionRate, 0);
+  const otherPurchaseCost = toNumber(purchaseForm.otherPurchaseCost, 0);
+  const discardRate = toNumber(purchaseForm.discardRate, 0);
+
+  const referenceTotalPrice = referenceUnitPrice > 0 ? referenceUnitPrice * purchaseQty : 0;
+  const actualPurchaseAmount =
+    typedActualPurchaseAmount > 0 ? typedActualPurchaseAmount : actualUnitPrice * purchaseQty;
+  const commissionCost = actualPurchaseAmount * Math.max(commissionRate, 0) / 100;
+  const discardQty = purchaseQty * Math.max(discardRate, 0) / 100;
+  const sellableQty = Math.max(purchaseQty - discardQty, 0);
+  const totalPurchaseCost = actualPurchaseAmount + logisticsCost + commissionCost + otherPurchaseCost;
+  const actualCostPerKg = sellableQty > 0 ? totalPurchaseCost / sellableQty : 0;
+
+  return {
+    referenceTotalPrice,
+    actualPurchaseAmount,
+    commissionCost,
+    discardQty,
+    sellableQty,
+    totalPurchaseCost,
+    actualCostPerKg,
+  };
+}
+
+function findPurchaseSupplierProfile(profileKey) {
+  return PURCHASE_SUPPLIER_PROFILES.find((profile) => profile.key === profileKey) || PURCHASE_SUPPLIER_PROFILES[0];
+}
+
+function calculateSupplierSuggestedUnitPrice(referenceUnitPrice, supplierProfile) {
+  const numericReferenceUnitPrice = Number(referenceUnitPrice);
+  if (!Number.isFinite(numericReferenceUnitPrice) || numericReferenceUnitPrice <= 0 || !supplierProfile) {
+    return 0;
+  }
+
+  const midpoint = (supplierProfile.priceMultiplierMin + supplierProfile.priceMultiplierMax) / 2;
+  return numericReferenceUnitPrice * midpoint;
+}
+
+function calculatePackageDraftMetrics(batch, packageForm) {
+  if (!batch) {
+    return null;
+  }
+
+  const packagedQty = toNumber(packageForm.packagedQty, 0);
+  const packagedWeight = toNumber(packageForm.packagedWeight, 0);
+  const salePrice = toNumber(packageForm.salePrice, 0);
+  const packagingMaterialCost = toNumber(packageForm.packagingMaterialCost, 0);
+  const packagingLaborCost = toNumber(packageForm.packagingLaborCost, 0);
+  const otherPackagingCost = toNumber(packageForm.otherPackagingCost, 0);
+  const sellableQty = toNumber(batch.sellableQty, 0);
+  const remainingQty = toNumber(batch.remainingQty ?? batch.sellableQty, 0);
+  const totalPurchaseCost = toNumber(batch.totalPurchaseCost || batch.purchasePrice, 0);
+  const totalPackagingCost =
+    packagingMaterialCost + packagingLaborCost + otherPackagingCost;
+  const finalTotalCost = totalPurchaseCost + totalPackagingCost;
+  const finalCostPerKg = sellableQty > 0 ? finalTotalCost / sellableQty : 0;
+  const finalCostPerPackage = packagedWeight > 0 ? finalCostPerKg * packagedWeight : 0;
+  const expectedProfitPerUnit = salePrice - finalCostPerPackage;
+  const expectedTotalProfit = expectedProfitPerUnit * packagedQty;
+  const expectedTotalSales = salePrice * packagedQty;
+  const marginRate = salePrice > 0 ? (expectedProfitPerUnit / salePrice) * 100 : 0;
+  const requiredSellableQty = packagedQty * packagedWeight;
+
+  return {
+    totalPackagingCost,
+    finalTotalCost,
+    finalCostPerKg,
+    finalCostPerPackage,
+    expectedProfitPerUnit,
+    expectedTotalProfit,
+    expectedTotalSales,
+    marginRate,
+    requiredSellableQty,
+    remainingQty,
+    exceedsSellableQty: requiredSellableQty > remainingQty,
+  };
+}
+
+function containsAnyTextKeyword(value, keywordArray) {
+  const normalizedValue = String(value || '').trim();
+  if (!normalizedValue) {
+    return false;
+  }
+
+  return keywordArray.some((keyword) => normalizedValue.includes(keyword));
+}
+
+// eslint-disable-next-line no-unused-vars
+function resolveAdminReferenceCategoryName(item) {
+  const currentCategoryName = String(item?.categoryName || '').trim();
+  const rawProductName = String(item?.productName || '').trim();
+  const normalizedProductName = normalizeAdminReferenceProductName(rawProductName) || rawProductName;
+  const itemCategoryCode = extractAdminReferenceCategoryCode(item?.itemCode);
+  if (!normalizedProductName) {
+    return '';
+  }
+
+  if (containsAnyTextKeyword(rawProductName || normalizedProductName, ADMIN_UNSUPPORTED_REFERENCE_KEYWORDS)) {
+    return '';
+  }
+  if (itemCategoryCode === '800' || containsAnyTextKeyword(normalizedProductName, ADMIN_PROCESSED_KEYWORDS)) {
+    return '\uAC00\uACF5\uC2DD\uD488';
+  }
+  if (containsAnyTextKeyword(normalizedProductName, ADMIN_DAIRY_KEYWORDS)) {
+    return '\uC720\uC81C\uD488';
+  }
+  if (containsAnyTextKeyword(normalizedProductName, ADMIN_EGG_KEYWORDS)) {
+    return '\uB2EC\uAC40';
+  }
+  if (itemCategoryCode === '500' || containsAnyTextKeyword(normalizedProductName, ADMIN_MEAT_KEYWORDS)) {
+    return '\uC721\uB958';
+  }
+  if (itemCategoryCode === '300' || containsAnyTextKeyword(normalizedProductName, ADMIN_MUSHROOM_KEYWORDS)) {
+    return '\uBC84\uC12F';
+  }
+  if (
+    ADMIN_FRUIT_EXACT_NAMES.has(normalizedProductName)
+    || itemCategoryCode === '400'
+    || containsAnyTextKeyword(rawProductName, ADMIN_FRUIT_KEYWORDS)
+  ) {
+    return '\uACFC\uC77C';
+  }
+  if (itemCategoryCode === '100' || itemCategoryCode === '200') {
+    return '\uCC44\uC18C';
+  }
+  if (ADMIN_SUPPORTED_CATEGORY_NAMES.includes(currentCategoryName) && currentCategoryName !== '\uACFC\uC77C') {
+    return currentCategoryName;
+  }
+
+  return '\uCC44\uC18C';
+}
+
+function resolveStableAdminReferenceCategoryName(item) {
+  const supportedCategoryNames = [
+    '\uCC44\uC18C',
+    '\uACFC\uC77C',
+    '\uBC84\uC12F',
+    '\uC721\uB958',
+    '\uC720\uC81C\uD488',
+    '\uB2EC\uAC40',
+    '\uAC00\uACF5\uC2DD\uD488',
+  ];
+  const fruitExactNames = new Set([
+    '\uC0AC\uACFC',
+    '\uBC30',
+    '\uBCF5\uC22D\uC544',
+    '\uD3EC\uB3C4',
+    '\uAC10\uADE4',
+    '\uB2E8\uAC10',
+    '\uBC14\uB098\uB098',
+    '\uCC38\uB2E4\uB798',
+    '\uCC38\uC678',
+    '\uC624\uB80C\uC9C0',
+    '\uD30C\uC778\uC560\uD50C',
+    '\uBA5C\uB860',
+    '\uB538\uAE30',
+    '\uCCB4\uB9AC',
+    '\uB9DD\uACE0',
+    '\uD0A4\uC704',
+    '\uC790\uB450',
+    '\uC218\uBC15',
+  ]);
+  const fruitKeywords = Array.from(fruitExactNames);
+  const mushroomKeywords = ['\uBC84\uC12F', '\uC1A1\uC774'];
+  const dairyKeywords = ['\uC6B0\uC720', '\uCE58\uC988', '\uC694\uAC70\uD2B8', '\uC694\uAD6C\uB974\uD2B8', '\uBC84\uD130', '\uBD84\uC720', '\uC0DD\uD06C\uB9BC'];
+  const eggKeywords = ['\uACC4\uB780', '\uB2EC\uAC40', '\uD2B9\uB780', '\uC655\uB780'];
+  const meatKeywords = [
+    '\uC1E0\uACE0\uAE30',
+    '\uD55C\uC6B0',
+    '\uC18C\uACE0\uAE30',
+    '\uB3FC\uC9C0',
+    '\uB2ED',
+    '\uC624\uB9AC',
+    '\uB4F1\uC2EC',
+    '\uC548\uC2EC',
+    '\uC0BC\uACB9\uC0B4',
+    '\uAC08\uBE44',
+    '\uBAA9\uC2EC',
+    '\uC591\uC9C0',
+    '\uC124\uB3C4',
+    '\uC55E\uB2E4\uB9AC',
+    '\uAC00\uC2B4\uC0B4',
+    '\uBD81\uCC44',
+    '\uD1A0\uC885\uB2ED',
+    '\uC721\uACC4',
+  ];
+  const processedKeywords = ['\uAE40\uCE58', '\uACE0\uCD94\uC7A5', '\uB41C\uC7A5', '\uAC04\uC7A5', '\uB450\uBD80', '\uC21C\uB450\uBD80', '\uC5F0\uB450\uBD80', '\uC989\uC11D\uBC25', '\uB9DB\uAE40', '\uCF69\uB098\uBB3C'];
+  const unsupportedKeywords = [
+    '\uAC00\uB9AC\uBE44',
+    '\uAC08\uCE58',
+    '\uACE0\uB4F1\uC5B4',
+    '\uAD74',
+    '\uAE40/',
+    '\uB2E4\uC2DC\uB9C8',
+    '\uBA78\uCE58',
+    '\uBBF8\uC5ED',
+    '\uC624\uC9D5\uC5B4',
+    '\uC0C8\uC6B0',
+    '\uBCD1\uC5B4',
+    '\uBD81\uC5B4',
+    '\uAF41\uCE58',
+    '\uBA85\uD0DC',
+    '\uCC38\uAE68',
+    '\uCF69',
+    '\uC300',
+    '\uCC39\uC300',
+    '\uB179\uB450',
+    '\uBA54\uBC00',
+    '\uB4E4\uAE68',
+  ];
+  const currentCategoryName = String(item?.categoryName || '').trim();
+  const rawProductName = String(item?.productName || '').trim();
+  const normalizedProductName = normalizeAdminReferenceProductName(rawProductName) || rawProductName;
+  const itemCategoryCode = extractAdminReferenceCategoryCode(item?.itemCode);
+
+  if (!normalizedProductName) {
+    return '';
+  }
+  if (containsAnyTextKeyword(rawProductName || normalizedProductName, unsupportedKeywords)) {
+    return '';
+  }
+  if (itemCategoryCode === '800' || containsAnyTextKeyword(normalizedProductName, processedKeywords)) {
+    return '\uAC00\uACF5\uC2DD\uD488';
+  }
+  if (containsAnyTextKeyword(normalizedProductName, dairyKeywords)) {
+    return '\uC720\uC81C\uD488';
+  }
+  if (containsAnyTextKeyword(normalizedProductName, eggKeywords)) {
+    return '\uB2EC\uAC40';
+  }
+  if (itemCategoryCode === '500' || containsAnyTextKeyword(normalizedProductName, meatKeywords)) {
+    return '\uC721\uB958';
+  }
+  if (itemCategoryCode === '300' || containsAnyTextKeyword(normalizedProductName, mushroomKeywords)) {
+    return '\uBC84\uC12F';
+  }
+  if (
+    fruitExactNames.has(normalizedProductName)
+    || itemCategoryCode === '400'
+    || containsAnyTextKeyword(rawProductName || normalizedProductName, fruitKeywords)
+  ) {
+    return '\uACFC\uC77C';
+  }
+  if (itemCategoryCode === '100' || itemCategoryCode === '200') {
+    return '\uCC44\uC18C';
+  }
+  if (supportedCategoryNames.includes(currentCategoryName)) {
+    return currentCategoryName;
+  }
+  return '\uCC44\uC18C';
+}
+
+function extractAdminReferenceCategoryCode(itemCode) {
+  const normalizedItemCode = String(itemCode || '').trim().split('::')[0];
+  if (!normalizedItemCode) {
+    return '';
+  }
+
+  if (normalizedItemCode.startsWith('catalog:')) {
+    return normalizedItemCode.split(':')[1] || '';
+  }
+
+  const matched = normalizedItemCode.match(/^[A-Z]+_(\d{3})_/);
+  if (matched) {
+    return matched[1];
+  }
+
+  return '';
+}
+
+function isAdminCatalogReferenceItem(itemCode) {
+  return String(itemCode || '').trim().split('::')[0].startsWith('catalog:');
+}
+
+function parseAdminCatalogReferenceCode(itemCode) {
+  const normalizedItemCode = String(itemCode || '').trim().split('::')[0];
+  if (!normalizedItemCode.startsWith('catalog:')) {
+    return null;
+  }
+
+  const tokenArray = normalizedItemCode.split(':');
+  if (tokenArray.length < 4) {
+    return null;
+  }
+
+  return {
+    itemCategoryCode: tokenArray[1] || '',
+    itemCode: tokenArray[2] || '',
+    kindCode: tokenArray.slice(3).join(':') || '',
+  };
+}
+
+function buildAdminReferenceOptionCode(itemCode, aliasKey) {
+  const normalizedItemCode = String(itemCode || '').trim();
+  const normalizedAliasKey = String(aliasKey || '').trim();
+  return normalizedAliasKey ? `${normalizedItemCode}::${normalizedAliasKey}` : normalizedItemCode;
+}
+
+function normalizeAdminCatalogKindCode(kindCode) {
+  return String(kindCode || '').trim().replace(/\|/g, '-');
+}
+
+function normalizeAdminSearchKey(value) {
+  return String(value || '').trim().replace(/\s+/g, '').toLowerCase();
+}
+
+function parseAdminSnapshotUnit(snapshotUnit) {
+  const normalizedSnapshotUnit = String(snapshotUnit || '').replace(/\s+/g, '').trim();
+  if (!normalizedSnapshotUnit) {
+    return null;
+  }
+
+  const matched = normalizedSnapshotUnit.match(/^([0-9]+(?:\.[0-9]+)?)?([A-Za-z\uAC00-\uD7A3\u2113]+)$/);
+  if (!matched) {
+    return null;
+  }
+
+  const quantity = Number(matched[1] || 1);
+  const displayUnit = matched[2] || '';
+  const resolvedQuantity = resolveUnitAmount(quantity, displayUnit);
+  if (!Number.isFinite(quantity) || quantity <= 0 || !displayUnit || !resolvedQuantity) {
+    return null;
+  }
+
+  return {
+    quantity,
+    displayUnit,
+    resolvedQuantity,
+  };
+}
+
+function buildAdminPricingBasisFromSnapshotUnit(snapshotUnit) {
+  const parsedUnit = parseAdminSnapshotUnit(snapshotUnit);
+  if (!parsedUnit) {
+    return null;
+  }
+
+  if (parsedUnit.resolvedQuantity.type === 'WEIGHT') {
+    return {
+      type: 'WEIGHT',
+      amount: 1000,
+      unit: 'kg',
+      label: '1kg',
+    };
+  }
+
+  if (parsedUnit.resolvedQuantity.type === 'VOLUME') {
+    return {
+      type: 'VOLUME',
+      amount: 1000,
+      unit: 'L',
+      label: '1L',
+    };
+  }
+
+  const displayUnit = parsedUnit.displayUnit === 'ea' ? '\uAC1C' : parsedUnit.displayUnit;
+  return {
+    type: 'COUNT',
+    amount: 1,
+    unit: displayUnit,
+    label: `1${displayUnit}`,
+  };
+}
+
+function calculateAdminComparablePrice(avgPrice, snapshotUnit, pricingBasis) {
+  const parsedUnit = parseAdminSnapshotUnit(snapshotUnit);
+  const numericAvgPrice = Number(avgPrice);
+  if (!parsedUnit || !pricingBasis || !Number.isFinite(numericAvgPrice) || numericAvgPrice <= 0) {
+    return null;
+  }
+
+  if (parsedUnit.resolvedQuantity.type !== pricingBasis.type || parsedUnit.resolvedQuantity.amount <= 0) {
+    return null;
+  }
+
+  return (numericAvgPrice * pricingBasis.amount) / parsedUnit.resolvedQuantity.amount;
+}
+
+function findAdminRetailFallbackSnapshot(referenceItem, retailPriceList) {
+  const parsedReferenceCode = parseAdminCatalogReferenceCode(referenceItem?.itemCode);
+  const normalizedProductName = normalizeAdminReferenceProductName(referenceItem?.productName);
+  const normalizedQuoteName = normalizeAdminReferenceProductName(
+    referenceItem?.quoteName || referenceItem?.rawProductName || referenceItem?.productName
+  );
+  const normalizedProductSearchKey = normalizeAdminSearchKey(normalizedProductName);
+  const normalizedQuoteSearchKey = normalizeAdminSearchKey(normalizedQuoteName);
+  const storedItemCodePrefix = parsedReferenceCode
+    ? `RETAIL_${parsedReferenceCode.itemCategoryCode}_${parsedReferenceCode.itemCode}_${normalizeAdminCatalogKindCode(parsedReferenceCode.kindCode)}_`
+    : '';
+  const referenceUnit = String(referenceItem?.snapshotUnit || '').replace(/\s+/g, '').trim();
+
+  let bestSnapshot = null;
+  let bestScore = Number.NEGATIVE_INFINITY;
+
+  (retailPriceList || []).forEach((snapshot) => {
+    const snapshotItemCode = String(snapshot?.itemCode || '').trim();
+    const snapshotItemName = String(snapshot?.itemName || '').trim();
+    const normalizedSnapshotName = normalizeAdminReferenceProductName(snapshotItemName);
+    const normalizedSnapshotSearchKey = normalizeAdminSearchKey(normalizedSnapshotName);
+    const snapshotSegmentArray = dedupeAdminReferenceNameSegments(splitAdminReferenceNameSegments(snapshotItemName));
+    if (!snapshotItemCode || !snapshotItemName) {
+      return;
+    }
+
+    let score = 0;
+    if (storedItemCodePrefix && snapshotItemCode.startsWith(storedItemCodePrefix)) {
+      score += 5000;
+    }
+    if (
+      normalizedProductSearchKey
+      && snapshotSegmentArray.some(
+        (segment) => normalizeAdminSearchKey(segment) === normalizedProductSearchKey
+      )
+    ) {
+      score += 2600;
+    }
+    if (normalizedSnapshotSearchKey === normalizedProductSearchKey) {
+      score += 1600;
+    }
+    if (normalizedSnapshotSearchKey === normalizedQuoteSearchKey) {
+      score += 1200;
+    } else if (
+      normalizedSnapshotSearchKey.includes(normalizedProductSearchKey)
+      || normalizedProductSearchKey.includes(normalizedSnapshotSearchKey)
+      || normalizedSnapshotSearchKey.includes(normalizedQuoteSearchKey)
+      || normalizedQuoteSearchKey.includes(normalizedSnapshotSearchKey)
+    ) {
+      score += 800;
+    }
+    if (referenceUnit && String(snapshot.unit || '').replace(/\s+/g, '').trim() === referenceUnit) {
+      score += 400;
+    }
+    if (String(snapshot.sourceName || '').includes('KAMIS_PROCESS_RETAIL_ITEM_PAGE')) {
+      score += 300;
+    }
+    if (String(snapshot.sourceName || '').includes('KAMIS_PERIOD_RETAIL_PRODUCT_LIST')) {
+      score += 200;
+    }
+    if (String(snapshot.sourceName || '').includes('KAMIS_DAILY_SALES_LIST')) {
+      score += 100;
+    }
+
+    if (score > bestScore) {
+      bestSnapshot = snapshot;
+      bestScore = score;
+    }
+  });
+
+  return bestScore > 0 ? bestSnapshot : null;
+}
+
+function findAdminRetailSnapshotByName(searchName, retailPriceList) {
+  const normalizedSearchName = normalizeAdminSearchKey(
+    normalizeAdminReferenceProductName(searchName)
+  );
+  if (!normalizedSearchName) {
+    return null;
+  }
+
+  let bestSnapshot = null;
+  let bestScore = Number.NEGATIVE_INFINITY;
+
+  (retailPriceList || []).forEach((snapshot) => {
+    const snapshotName = normalizeAdminSearchKey(
+      normalizeAdminReferenceProductName(snapshot?.itemName)
+    );
+    if (!snapshotName) {
+      return;
+    }
+
+    let score = 0;
+    if (snapshotName === normalizedSearchName) {
+      score += 3000;
+    } else if (
+      snapshotName.includes(normalizedSearchName)
+      || normalizedSearchName.includes(snapshotName)
+    ) {
+      score += 1800;
+    }
+
+    if (String(snapshot?.sourceName || '').includes('KAMIS_PROCESS_RETAIL_ITEM_PAGE')) {
+      score += 300;
+    }
+    if (String(snapshot?.sourceName || '').includes('KAMIS_PERIOD_RETAIL_PRODUCT_LIST')) {
+      score += 200;
+    }
+
+    if (score > bestScore) {
+      bestSnapshot = snapshot;
+      bestScore = score;
+    }
+  });
+
+  return bestScore > 0 ? bestSnapshot : null;
+}
+
+function buildAdminRetailFallbackQuote(referenceItem, retailSnapshot) {
+  const snapshotUnit = String(retailSnapshot?.unit || referenceItem?.snapshotUnit || '').trim();
+  const parsedSnapshotUnit = parseAdminSnapshotUnit(snapshotUnit);
+  const pricingBasis = buildAdminPricingBasisFromSnapshotUnit(snapshotUnit);
+  const retailComparablePrice = calculateAdminComparablePrice(
+    retailSnapshot?.avgPrice,
+    snapshotUnit,
+    pricingBasis
+  );
+  const purchaseQty = parsedSnapshotUnit?.quantity ?? 1;
+  const purchaseUnit = parsedSnapshotUnit?.displayUnit || snapshotUnit || 'ea';
+  const purchasePrice = Number(retailSnapshot?.avgPrice || 0);
+  const comparableRounded = Number.isFinite(retailComparablePrice)
+    ? Math.round(retailComparablePrice)
+    : null;
+
+  return {
+    quoteSource: 'RETAIL_FALLBACK',
+    queryName: referenceItem?.productName || retailSnapshot?.itemName || '',
+    requestedItemCode: referenceItem?.itemCode || '',
+    matchedItemName: retailSnapshot?.itemName || referenceItem?.productName || '',
+    matchedItemCode: retailSnapshot?.itemCode || referenceItem?.itemCode || '',
+    snapshotDate: retailSnapshot?.snapshotDate || null,
+    wholesaleSnapshotDate: null,
+    retailSnapshotDate: retailSnapshot?.snapshotDate || null,
+    snapshotUnit,
+    wholesaleSourceUnit: null,
+    purchaseUnit,
+    purchaseQty,
+    purchasePrice,
+    pricingBaseUnit: purchaseUnit,
+    pricingBaseQty: purchaseQty,
+    pricingBasePrice: purchasePrice,
+    priceBasisUnit: pricingBasis?.label || snapshotUnit,
+    wholesalePriceBasisUnit: null,
+    retailPriceBasisUnit: pricingBasis?.label || snapshotUnit,
+    recommendedPriceBasisUnit: pricingBasis?.label || snapshotUnit,
+    wholesaleSourcePrice: null,
+    retailSourcePrice: purchasePrice,
+    wholesaleAvgPrice: null,
+    wholesaleComparablePrice: null,
+    retailAvgPrice: retailComparablePrice,
+    retailSnapshotUnit: snapshotUnit,
+    retailComparablePrice,
+    recommendedSalePrice: comparableRounded,
+    pricingNote: '\uB3C4\uB9E4 \uC2DC\uC138\uAC00 \uC5C6\uC5B4 \uC18C\uB9E4 \uC2DC\uC138 \uAE30\uC900\uC73C\uB85C \uB9E4\uC785 \uB2E8\uC704, \uC218\uB7C9, \uAC00\uACA9\uC744 \uC790\uB3D9 \uC785\uB825\uD588\uC2B5\uB2C8\uB2E4.',
+    wholesaleItemCode: null,
+    retailItemCode: retailSnapshot?.itemCode || null,
+  };
+}
+
+function mergeAdminRetailFallbackIntoQuote(baseQuote, retailSnapshot) {
+  const snapshotUnit = String(retailSnapshot?.unit || '').trim();
+  const pricingBasisUnit =
+    String(
+      baseQuote?.recommendedPriceBasisUnit
+      || baseQuote?.retailPriceBasisUnit
+      || baseQuote?.priceBasisUnit
+      || ''
+    ).trim();
+  const pricingBasisQuantity = parsePricingBasisQuantity(pricingBasisUnit);
+  const parsedSnapshotUnit = parseAdminSnapshotUnit(snapshotUnit);
+  const numericRetailSourcePrice = Number(retailSnapshot?.avgPrice);
+
+  let retailComparablePrice = null;
+  if (
+    pricingBasisQuantity
+    && parsedSnapshotUnit
+    && pricingBasisQuantity.type === parsedSnapshotUnit.resolvedQuantity.type
+    && parsedSnapshotUnit.resolvedQuantity.amount > 0
+    && Number.isFinite(numericRetailSourcePrice)
+    && numericRetailSourcePrice > 0
+  ) {
+    retailComparablePrice =
+      (numericRetailSourcePrice * pricingBasisQuantity.amount) / parsedSnapshotUnit.resolvedQuantity.amount;
+  }
+
+  const wholesaleComparablePrice = Number(baseQuote?.wholesaleComparablePrice);
+  let recommendedSalePrice = baseQuote?.recommendedSalePrice ?? null;
+  if (
+    recommendedSalePrice == null
+    && Number.isFinite(wholesaleComparablePrice)
+    && wholesaleComparablePrice > 0
+    && Number.isFinite(retailComparablePrice)
+    && retailComparablePrice > 0
+  ) {
+    recommendedSalePrice = Math.round((wholesaleComparablePrice + retailComparablePrice) / 2);
+  }
+
+  return {
+    ...baseQuote,
+    retailSnapshotDate: retailSnapshot?.snapshotDate || baseQuote?.retailSnapshotDate || null,
+    retailSourcePrice: Number.isFinite(numericRetailSourcePrice) ? numericRetailSourcePrice : baseQuote?.retailSourcePrice ?? null,
+    retailAvgPrice: Number.isFinite(retailComparablePrice) ? retailComparablePrice : baseQuote?.retailAvgPrice ?? null,
+    retailSnapshotUnit: snapshotUnit || baseQuote?.retailSnapshotUnit || null,
+    retailComparablePrice: Number.isFinite(retailComparablePrice) ? retailComparablePrice : baseQuote?.retailComparablePrice ?? null,
+    retailItemCode: retailSnapshot?.itemCode || baseQuote?.retailItemCode || null,
+    recommendedSalePrice,
+    pricingNote:
+      Number.isFinite(retailComparablePrice)
+      ? null
+      : baseQuote?.pricingNote || '\uC5F0\uACB0\uB41C \uC18C\uB9E4 \uC2DC\uC138\uAC00 \uC5C6\uC5B4 \uAD8C\uC7A5 \uD310\uB9E4\uAC00\uB97C \uACC4\uC0B0\uD558\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4.',
+  };
+}
+
+async function fetchAdminRecentRetailPriceList(itemName, limit = 200, daysBack = 7) {
+  const snapshotDateList = buildAdminRecentSnapshotDateList(daysBack);
+
+  for (const snapshotDate of snapshotDateList) {
+    const retailPriceList = await fetchAdminRetailPriceList(itemName, limit, snapshotDate);
+    if (Array.isArray(retailPriceList) && retailPriceList.length) {
+      return retailPriceList;
+    }
+  }
+
+  return [];
+}
+
+function getAdminReferenceCategoryPriority(categoryName) {
+  switch (String(categoryName || '').trim()) {
+    case '\uAC00\uACF5\uC2DD\uD488':
+      return 7;
+    case '\uC720\uC81C\uD488':
+      return 6;
+    case '\uB2EC\uAC40':
+      return 5;
+    case '\uC721\uB958':
+      return 4;
+    case '\uACFC\uC77C':
+      return 3;
+    case '\uBC84\uC12F':
+      return 2;
+    case '\uCC44\uC18C':
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+function getAdminReferenceMergePriority(item) {
+  let score = 0;
+  if (item?.supportsAutoQuote) {
+    score += 100;
+  }
+  if (String(item?.referenceSource || '').trim() === 'WHOLESALE') {
+    score += 20;
+  }
+  if (item?.snapshotDate) {
+    score += 5;
+  }
+  return score;
+}
+
+function mergeAdminPurchaseReferenceOptions(referenceItemList) {
+  const mergedItemMap = new Map();
+
+  (referenceItemList || []).forEach((item) => {
+    const mergeKey = normalizeAdminSearchKey(
+      item?.productName || item?.quoteName || item?.rawProductName || item?.displayLabel
+    );
+    if (!mergeKey) {
+      return;
+    }
+
+    const existingItem = mergedItemMap.get(mergeKey);
+    if (!existingItem) {
+      mergedItemMap.set(mergeKey, item);
+      return;
+    }
+
+    const nextPrimaryItem =
+      getAdminReferenceMergePriority(item) > getAdminReferenceMergePriority(existingItem)
+        ? item
+        : existingItem;
+    const nextSecondaryItem = nextPrimaryItem === item ? existingItem : item;
+    const mergedCategoryName =
+      getAdminReferenceCategoryPriority(item?.categoryName) >= getAdminReferenceCategoryPriority(existingItem?.categoryName)
+        ? item?.categoryName
+        : existingItem?.categoryName;
+    const mergedDisplayName = buildAdminReferenceDisplayName(
+      nextPrimaryItem?.productName || nextPrimaryItem?.rawProductName || nextPrimaryItem?.quoteName
+    );
+    const mergedSnapshotUnit = nextPrimaryItem?.snapshotUnit || nextSecondaryItem?.snapshotUnit || '';
+
+    mergedItemMap.set(mergeKey, {
+      ...nextSecondaryItem,
+      ...nextPrimaryItem,
+      categoryName: mergedCategoryName || nextPrimaryItem?.categoryName || nextSecondaryItem?.categoryName || '',
+      supportsAutoQuote: Boolean(existingItem?.supportsAutoQuote || item?.supportsAutoQuote),
+      productName: nextPrimaryItem?.productName || nextSecondaryItem?.productName || '',
+      quoteName: nextPrimaryItem?.quoteName || nextSecondaryItem?.quoteName || '',
+      rawProductName: nextPrimaryItem?.rawProductName || nextSecondaryItem?.rawProductName || '',
+      quoteItemCode:
+        nextPrimaryItem?.quoteItemCode
+        || nextPrimaryItem?.itemCode
+        || nextSecondaryItem?.quoteItemCode
+        || nextSecondaryItem?.itemCode
+        || '',
+      itemCode: nextPrimaryItem?.itemCode || nextSecondaryItem?.itemCode || '',
+      snapshotUnit: mergedSnapshotUnit,
+      displayLabel: mergedCategoryName
+        ? `${mergedCategoryName} / ${mergedDisplayName}${mergedSnapshotUnit ? ` / ${mergedSnapshotUnit}` : ''}`
+        : nextPrimaryItem?.displayLabel || nextSecondaryItem?.displayLabel || mergedDisplayName,
+    });
+  });
+
+  return Array.from(mergedItemMap.values());
+}
+
+function normalizeAdminPurchaseReferenceItems(referenceItems, categories) {
+  const availableCategoryNameSet = new Set(
+    (categories || []).map((category) => String(category?.categoryName || '').trim()).filter(Boolean)
+  );
+
+  const normalizedReferenceItemList = (referenceItems || [])
+    .flatMap((item) => {
+      const resolvedCategoryName = resolveStableAdminReferenceCategoryName(item);
+      const normalizedProductName = normalizeAdminReferenceProductName(item.productName);
+      const normalizedDisplayName = buildAdminReferenceDisplayName(item.productName);
+      const aliasDefinitionList = ADMIN_REFERENCE_ALIAS_MAP[String(item.itemCode || '').trim()] || [null];
+
+      return aliasDefinitionList.map((aliasDefinition) => {
+        const aliasedProductName = aliasDefinition?.productName || normalizedProductName || item.productName;
+        const aliasedDisplayName = aliasDefinition?.productName || normalizedDisplayName || item.productName;
+
+        return {
+          ...item,
+          itemCode: buildAdminReferenceOptionCode(item.itemCode, aliasDefinition?.key),
+          quoteItemCode: item.itemCode,
+          quoteName: aliasDefinition?.quoteName || normalizedProductName || item.productName,
+          rawProductName: item.productName,
+          productName: aliasedProductName,
+          categoryName: resolvedCategoryName,
+          displayLabel: resolvedCategoryName
+            ? `${resolvedCategoryName} / ${aliasedDisplayName}${item.snapshotUnit ? ` / ${item.snapshotUnit}` : ''}`
+            : item.displayLabel || aliasedDisplayName || item.productName,
+          supportsAutoQuote: item.supportsAutoQuote !== false,
+        };
+      });
+    })
+    .filter((item) => item.categoryName && availableCategoryNameSet.has(item.categoryName));
+
+  return mergeAdminPurchaseReferenceOptions(normalizedReferenceItemList)
+    .filter((item) => item?.supportsAutoQuote)
+    .sort((leftItem, rightItem) => {
+      const leftAutoQuoteRank = leftItem.supportsAutoQuote ? 0 : 1;
+      const rightAutoQuoteRank = rightItem.supportsAutoQuote ? 0 : 1;
+      if (leftAutoQuoteRank !== rightAutoQuoteRank) {
+        return leftAutoQuoteRank - rightAutoQuoteRank;
+      }
+
+      const leftSourceRank = leftItem.referenceSource === 'WHOLESALE' ? 0 : 1;
+      const rightSourceRank = rightItem.referenceSource === 'WHOLESALE' ? 0 : 1;
+      if (leftSourceRank !== rightSourceRank) {
+        return leftSourceRank - rightSourceRank;
+      }
+
+      return String(leftItem.displayLabel || leftItem.productName || '').localeCompare(
+        String(rightItem.displayLabel || rightItem.productName || ''),
+        'ko'
+      );
+    });
+}
+
+function parsePricingBasisQuantity(basisUnit) {
+  const normalizedBasisUnit = String(basisUnit || '').replace(/\s+/g, '').trim();
+  if (!normalizedBasisUnit) {
+    return null;
+  }
+
+  const matched = normalizedBasisUnit.match(/^([0-9]+(?:\.[0-9]+)?)?([A-Za-z\uAC00-\uD7A3]+)$/);
+  if (!matched) {
+    return null;
+  }
+
+  return resolveUnitAmount(matched[1] || 1, matched[2]);
+}
+
+function convertQuantityAmountToDisplayUnit(quantity, displayUnit) {
+  if (!quantity) {
+    return null;
+  }
+
+  const normalizedDisplayUnit = normalizeMeasurementUnit(displayUnit);
+  if (!normalizedDisplayUnit) {
+    return null;
+  }
+
+  if (quantity.type === 'WEIGHT') {
+    if (normalizedDisplayUnit === 'kg') {
+      return quantity.amount / 1000;
+    }
+    if (normalizedDisplayUnit === 'g') {
+      return quantity.amount;
+    }
+  }
+
+  if (quantity.type === 'VOLUME') {
+    if (normalizedDisplayUnit === 'l') {
+      return quantity.amount / 1000;
+    }
+    if (normalizedDisplayUnit === 'ml') {
+      return quantity.amount;
+    }
+  }
+
+  if (quantity.type === 'COUNT' && COUNT_UNIT_SET.has(normalizedDisplayUnit)) {
+    return quantity.amount;
+  }
+
+  return null;
+}
+
+function floorMoneyToHundred(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue) || numericValue <= 0) {
+    return 0;
+  }
+
+  return Math.floor(numericValue / 100) * 100;
+}
+
+function calculateAutoPackageDefaults(batch, packageQuote, packagedQty) {
+  const packagedQtyNumber = Number(packagedQty);
+  if (!batch || !Number.isFinite(packagedQtyNumber) || packagedQtyNumber <= 0) {
+    return null;
+  }
+
+  const totalBatchQuantity = resolveUnitAmount(batch.purchaseQty, batch.purchaseUnit);
+  if (!totalBatchQuantity || totalBatchQuantity.amount <= 0) {
+    return null;
+  }
+
+  const perPackageQuantity = {
+    ...totalBatchQuantity,
+    amount: totalBatchQuantity.amount / packagedQtyNumber,
+  };
+  const packagedWeightValue = convertQuantityAmountToDisplayUnit(
+    perPackageQuantity,
+    batch.purchaseUnit
+  );
+
+  let salePrice = null;
+  const pricingBasisQuantity = parsePricingBasisQuantity(
+    packageQuote?.recommendedPriceBasisUnit ||
+      packageQuote?.retailPriceBasisUnit ||
+      packageQuote?.priceBasisUnit
+  );
+
+  if (
+    pricingBasisQuantity &&
+    pricingBasisQuantity.type === perPackageQuantity.type &&
+    pricingBasisQuantity.amount > 0
+  ) {
+    const sameWeightRetailPrice =
+      Number(packageQuote?.retailComparablePrice || 0) *
+      (perPackageQuantity.amount / pricingBasisQuantity.amount);
+    const sameWeightRecommendedPrice =
+      Number(packageQuote?.recommendedSalePrice || 0) *
+      (perPackageQuantity.amount / pricingBasisQuantity.amount);
+
+    if (
+      Number.isFinite(sameWeightRetailPrice) &&
+      sameWeightRetailPrice > 0 &&
+      Number.isFinite(sameWeightRecommendedPrice) &&
+      sameWeightRecommendedPrice > 0
+    ) {
+      salePrice = floorMoneyToHundred(
+        (sameWeightRetailPrice + sameWeightRecommendedPrice) / 2
+      );
+    } else if (Number.isFinite(sameWeightRetailPrice) && sameWeightRetailPrice > 0) {
+      salePrice = floorMoneyToHundred(sameWeightRetailPrice);
+    } else if (
+      Number.isFinite(sameWeightRecommendedPrice) &&
+      sameWeightRecommendedPrice > 0
+    ) {
+      salePrice = floorMoneyToHundred(sameWeightRecommendedPrice);
+    }
+  }
+
+  return {
+    packagedWeight: packagedWeightValue,
+    salePrice,
+    saleStatus: 'SELLING',
+  };
+}
+
+function resolvePackageWeightToKg(packagedWeight, unit) {
+  const quantity = resolveUnitAmount(packagedWeight, unit);
+  if (!quantity || quantity.type !== 'WEIGHT') {
+    return null;
+  }
+  return quantity.amount / 1000;
+}
+
+function findPackageCostProfile(packagedWeight, unit) {
+  const packagedWeightKg = resolvePackageWeightToKg(packagedWeight, unit);
+  if (!Number.isFinite(packagedWeightKg) || packagedWeightKg <= 0) {
+    return PACKAGE_COST_PROFILES[1];
+  }
+
+  return (
+    PACKAGE_COST_PROFILES.find((profile) => packagedWeightKg <= profile.maxWeightKg)
+    || PACKAGE_COST_PROFILES[PACKAGE_COST_PROFILES.length - 1]
+  );
+}
+
+function calculatePackageCostDefaults(batch, packageForm) {
+  if (!batch || !packageForm) {
+    return null;
+  }
+
+  const packagedQty = toNumber(packageForm.packagedQty, 0);
+  const packagedWeight = toNumber(packageForm.packagedWeight, 0);
+  if (packagedQty <= 0 || packagedWeight <= 0) {
+    return null;
+  }
+
+  const costProfile = findPackageCostProfile(packagedWeight, batch.purchaseUnit);
+  return {
+    profileLabel: costProfile.label,
+    packagingMaterialCost: costProfile.packagingMaterialPerUnit * packagedQty,
+    packagingLaborCost: costProfile.packagingLaborPerUnit * packagedQty,
+    otherPackagingCost: costProfile.otherPackagingPerUnit * packagedQty,
+  };
+}
+
+function applyPackageCostDefaultsToForm(batch, packageForm) {
+  const packageCostDefaults = calculatePackageCostDefaults(batch, packageForm);
+  if (!packageCostDefaults) {
+    return packageForm;
+  }
+
+  return {
+    ...packageForm,
+    packagingMaterialCost: formatDecimalInput(packageCostDefaults.packagingMaterialCost, 0),
+    packagingLaborCost: formatDecimalInput(packageCostDefaults.packagingLaborCost, 0),
+    otherPackagingCost: formatDecimalInput(packageCostDefaults.otherPackagingCost, 0),
+  };
 }
 
 function resolveAdminOrderDisplayStatus(order) {
@@ -196,7 +1435,7 @@ function buildProductImagePreviews(product) {
   )).map((image, index) => ({
     key: image.imageNo || `${product.productNo}-${index}`,
     imageNo: image.imageNo,
-    name: image.imageName || `상품 이미지 ${index + 1}`,
+    name: image.imageName || ('\uAE30\uC874 \uC774\uBBF8\uC9C0 ' + (index + 1)),
     previewUrl: image.imageNo ? getAdminProductImageUrl(image.imageNo) : '',
     isMain: image.isMain === 'Y',
   }));
@@ -212,7 +1451,7 @@ function revokeProductImagePreviews(previews) {
 
 function validateAdminProductForm(productForm, categories) {
   if (!productForm.productNo) {
-    return '상품관리는 기존 상품만 수정할 수 있습니다. 매입/소분에서 먼저 상품을 생성해주세요.';
+    return '\uC0C1\uD488\uAD00\uB9AC\uC5D0\uC11C\uB294 \uAE30\uC874 \uC0C1\uD488\uB9CC \uC218\uC815\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4. \uB9E4\uC785/\uC18C\uBD84\uC5D0\uC11C \uBA3C\uC800 \uC0C1\uD488\uC744 \uC0DD\uC131\uD574\uC8FC\uC138\uC694.';
   }
 
   if (!productForm.categoryNo) {
@@ -255,37 +1494,58 @@ function validateAdminProductForm(productForm, categories) {
 
 function validatePurchaseBatchForm(purchaseForm, categories, imageCount) {
   if (!purchaseForm.categoryNo) {
-    return '카테고리를 선택해주세요.';
+    return '\uCE74\uD14C\uACE0\uB9AC\uB97C \uC120\uD0DD\uD574\uC8FC\uC138\uC694.';
   }
 
   if (!categories.some((category) => String(category.categoryNo) === String(purchaseForm.categoryNo))) {
-    return '유효한 카테고리를 선택해주세요.';
+    return '\uC720\uD6A8\uD55C \uCE74\uD14C\uACE0\uB9AC\uB97C \uC120\uD0DD\uD574\uC8FC\uC138\uC694.';
   }
 
-  if (!String(purchaseForm.productName || '').trim()) {
-    return '품목명을 입력해주세요.';
+  if (!String(purchaseForm.referenceItemCode || '').trim()) {
+    return '\uC2DC\uC138 \uD488\uBAA9\uC744 \uC120\uD0DD\uD574\uC8FC\uC138\uC694.';
   }
 
   if (!String(purchaseForm.purchaseUnit || '').trim()) {
-    return '매입 단위를 입력해주세요.';
+    return '\uB9E4\uC785 \uB2E8\uC704\uB97C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
   }
 
   const purchaseQty = Number(purchaseForm.purchaseQty);
   if (!Number.isFinite(purchaseQty) || purchaseQty <= 0) {
-    return '매입 수량은 0보다 큰 숫자로 입력해주세요.';
+    return '\uB9E4\uC785 \uC218\uB7C9\uC740 0\uBCF4\uB2E4 \uD070 \uC22B\uC790\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
   }
 
   const purchasePrice = Number(purchaseForm.purchasePrice);
   if (!Number.isFinite(purchasePrice) || purchasePrice < 0) {
-    return '총 매입가는 0 이상 숫자로 입력해주세요.';
+    return '\uCC38\uACE0 \uCD1D \uB9E4\uC785\uAC00\uB294 0 \uC774\uC0C1 \uC22B\uC790\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
+  }
+
+  const actualUnitPrice = Number(purchaseForm.actualUnitPrice);
+  if (!Number.isFinite(actualUnitPrice) || actualUnitPrice < 0) {
+    return '\uC2E4\uC81C \uB9E4\uC785 \uB2E8\uAC00\uB294 0 \uC774\uC0C1 \uC22B\uC790\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
+  }
+
+  const logisticsCost = Number(purchaseForm.logisticsCost);
+  const commissionRate = Number(purchaseForm.commissionRate);
+  const otherPurchaseCost = Number(purchaseForm.otherPurchaseCost);
+  const discardRate = Number(purchaseForm.discardRate);
+
+  if (!Number.isFinite(logisticsCost) || logisticsCost < 0
+    || !Number.isFinite(commissionRate) || commissionRate < 0
+    || !Number.isFinite(otherPurchaseCost) || otherPurchaseCost < 0
+    || !Number.isFinite(discardRate) || discardRate < 0) {
+    return '\uC2E4\uC81C \uBE44\uC6A9\uACFC \uD3D0\uAE30 \uAC12\uC740 0 \uC774\uC0C1 \uC22B\uC790\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
+  }
+
+  if (discardRate > 100 || commissionRate > 100) {
+    return '\uD3D0\uAE30\uC728\uACFC \uC218\uC218\uB8CC\uC728\uC740 100% \uC774\uD558\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
   }
 
   if (!String(purchaseForm.purchaseDate || '').trim()) {
-    return '매입일을 입력해주세요.';
+    return '\uB9E4\uC785\uC77C\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694.';
   }
 
   if (!imageCount) {
-    return '매입 이미지는 최소 1장 이상 등록해주세요.';
+    return '\uB9E4\uC785 \uC774\uBBF8\uC9C0\uB97C \uCD5C\uC18C 1\uC7A5 \uC774\uC0C1 \uB4F1\uB85D\uD574\uC8FC\uC138\uC694.';
   }
 
   return '';
@@ -293,30 +1553,44 @@ function validatePurchaseBatchForm(purchaseForm, categories, imageCount) {
 
 function validatePackageForm(selectedBatch, packageForm) {
   if (!selectedBatch) {
-    return '소분할 매입 배치를 먼저 선택해주세요.';
+    return '\uC18C\uBD84\uD560 \uB9E4\uC785 \uBC30\uCE58\uB97C \uBA3C\uC800 \uC120\uD0DD\uD574\uC8FC\uC138\uC694.';
   }
 
   if (!selectedBatch.productNo && !String(packageForm.productNo || '').trim()) {
-    return '연결할 상품이 없습니다. 기존 배치는 상품을 한 번 연결해주세요.';
+    return '\uC5F0\uACB0\uB41C \uC0C1\uD488\uC774 \uC5C6\uC2B5\uB2C8\uB2E4. \uAE30\uC874 \uBC30\uCE58\uC5D0 \uC0C1\uD488\uC744 \uD55C \uBC88 \uC5F0\uACB0\uD574\uC8FC\uC138\uC694.';
   }
 
   const packagedQty = Number(packageForm.packagedQty);
   if (!Number.isFinite(packagedQty) || packagedQty <= 0) {
-    return '생성 수량은 0보다 큰 숫자로 입력해주세요.';
+    return '\uC0DD\uC131 \uC218\uB7C9\uC740 0\uBCF4\uB2E4 \uD070 \uC22B\uC790\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
   }
 
   const packagedWeight = Number(packageForm.packagedWeight);
   if (!Number.isFinite(packagedWeight) || packagedWeight <= 0) {
-    return '포장 중량은 0보다 큰 숫자로 입력해주세요.';
+    return '\uD3EC\uC7A5 \uC911\uB7C9\uC740 0\uBCF4\uB2E4 \uD070 \uC22B\uC790\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
   }
 
   const salePrice = Number(packageForm.salePrice);
-  if (!Number.isFinite(salePrice) || salePrice < 0) {
-    return '판매가는 0 이상 숫자로 입력해주세요.';
+  if (!Number.isFinite(salePrice) || salePrice <= 0) {
+    return '\uD310\uB9E4\uAC00\uB294 0\uBCF4\uB2E4 \uD070 \uC22B\uC790\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
+  }
+
+  const packagingMaterialCost = Number(packageForm.packagingMaterialCost);
+  const packagingLaborCost = Number(packageForm.packagingLaborCost);
+  const otherPackagingCost = Number(packageForm.otherPackagingCost);
+  if (!Number.isFinite(packagingMaterialCost) || packagingMaterialCost < 0
+    || !Number.isFinite(packagingLaborCost) || packagingLaborCost < 0
+    || !Number.isFinite(otherPackagingCost) || otherPackagingCost < 0) {
+    return '\uC18C\uBD84 \uBE44\uC6A9\uC740 0 \uC774\uC0C1 \uC22B\uC790\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.';
+  }
+
+  const packageMetrics = calculatePackageDraftMetrics(selectedBatch, packageForm);
+  if (packageMetrics?.exceedsSellableQty) {
+    return '\uC794\uC5EC \uC7AC\uACE0\uB97C \uCD08\uACFC\uD558\uC5EC \uC18C\uBD84\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.';
   }
 
   if (!String(packageForm.saleStatus || '').trim()) {
-    return '판매 상태를 선택해주세요.';
+    return '\uD310\uB9E4 \uC0C1\uD0DC\uB97C \uC120\uD0DD\uD574\uC8FC\uC138\uC694.';
   }
 
   return '';
@@ -396,15 +1670,15 @@ function DashboardPage({
   return (
     <>
       <AdminPageHeader
-        title="관리자 대시보드"
-        description="주문, 매출, 재고, 매입 현황을 한 번에 확인하는 운영 메인 화면"
+        title={'\uAD00\uB9AC\uC790 \uB300\uC2DC\uBCF4\uB4DC'}
+        description={'\uC8FC\uBB38, \uB9E4\uCD9C, \uC7AC\uACE0, \uB9E4\uC785 \uD604\uD669\uC744 \uD55C \uBC88\uC5D0 \uD655\uC778\uD558\uB294 \uC6B4\uC601 \uBA54\uC778 \uD654\uBA74'}
         actions={
           <>
             <button type="button" className="admin-action admin-action--line" onClick={() => (window.location.hash = '#/admin/orders')}>
-              주문 보기
+              {'\uC8FC\uBB38 \uBCF4\uAE30'}
             </button>
             <button type="button" className="admin-action admin-action--primary" onClick={() => (window.location.hash = '#/admin/products')}>
-              상품 관리
+              {'\uC0C1\uD488 \uAD00\uB9AC'}
             </button>
           </>
         }
@@ -412,31 +1686,31 @@ function DashboardPage({
 
       <section className="admin-metrics-grid">
         <AdminMetricCard
-          label="오늘 주문 수"
+          label={'\uC624\uB298 \uC8FC\uBB38 \uC218'}
           value={formatAdminCount(todayOrders.length)}
-          helper="오늘 생성된 전체 주문"
+          helper={'\uC624\uB298 \uC0DD\uC131\uB41C \uC804\uCCB4 \uC8FC\uBB38'}
         />
         <AdminMetricCard
-          label="오늘 매출"
+          label={'\uC624\uB298 \uB9E4\uCD9C'}
           value={formatAdminCurrency(todaySales)}
-          helper="주문 기준 합계"
+          helper={'\uC8FC\uBB38 \uAE30\uC900 \uD569\uACC4'}
         />
         <AdminMetricCard
-          label="재고 부족 상품"
-          value={formatAdminCount(lowStockProducts.length, '개')}
-          helper="재고 10개 이하 상품"
+          label={'\uC7AC\uACE0 \uBD80\uC871 \uC0C1\uD488'}
+          value={formatAdminCount(lowStockProducts.length, '\uAC1C')}
+          helper={'\uC7AC\uACE0 10\uAC1C \uC774\uD558 \uC0C1\uD488'}
         />
         <AdminMetricCard
-          label="활성 회원"
+          label={'\uD65C\uC131 \uD68C\uC6D0'}
           value={formatAdminCount(activeUsers.length, '\uBA85')}
-          helper="회원 관리 테이블 기준 활성 계정"
+          helper={'\uD68C\uC6D0 \uAD00\uB9AC \uD14C\uC774\uBE14 \uAE30\uC900 \uD65C\uC131 \uACC4\uC815'}
         />
       </section>
 
       <section className="admin-grid admin-grid--3">
         <article className="admin-card admin-card--panel">
-          <h2>주간 주문 추이</h2>
-          <p className="admin-card__sub">일자별 주문 수와 매출 흐름</p>
+          <h2>{'\uC8FC\uAC04 \uC8FC\uBB38 \uCD94\uC774'}</h2>
+          <p className="admin-card__sub">{'\uC77C\uC790\uBCC4 \uC8FC\uBB38 \uC218\uC640 \uB9E4\uCD9C \uD750\uB984'}</p>
           <div className="admin-chart">
             <svg viewBox="0 0 640 260" preserveAspectRatio="none" aria-hidden="true">
               <polyline points={chartPoints} className="admin-chart__line" />
@@ -457,45 +1731,45 @@ function DashboardPage({
         </article>
 
         <article className="admin-card admin-card--panel">
-          <h2>재고 경고</h2>
+          <h2>{'\uC7AC\uACE0 \uACBD\uACE0'}</h2>
           <div className="admin-stack">
             {lowStockProducts.slice(0, 4).map((product) => (
               <div key={product.productNo} className="admin-summary-box">
                 <strong>{product.productName}</strong>
-                <div className="admin-muted">남은 재고 {toNumber(product.stockQty, 0)}개</div>
+                <div className="admin-muted">{'\uC7AC\uACE0 '}{toNumber(product.stockQty, 0)}{'\uAC1C'}</div>
               </div>
             ))}
             {!lowStockProducts.length ? (
-              <AdminEmptyState title="재고 경고 없음" description="현재 기준 임계 재고 상품이 없습니다." />
+              <AdminEmptyState title={'\uC7AC\uACE0 \uACBD\uACE0 \uC5C6\uC74C'} description={'\uD604\uC7AC \uAE30\uC900 \uC784\uACC4 \uC7AC\uACE0 \uC0C1\uD488\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.'} />
             ) : null}
           </div>
         </article>
 
         <article className="admin-card admin-card--panel">
-          <h2>오늘 해야 할 일</h2>
+          <h2>{'\uC624\uB298 \uD574\uC57C \uD560 \uC77C'}</h2>
           <div className="admin-stack">
             <div className="admin-summary-box">
-              <strong>출고 대기</strong>
+              <strong>{'\uCD9C\uACE0 \uC608\uC815'}</strong>
               <div className="admin-muted">
                 {formatAdminCount(
                   shippingReadyCount
-                )} 출고 예정
+                )} {'\uAC74 \uCD9C\uACE0 \uB300\uAE30\uC911'}
               </div>
             </div>
             <div className="admin-summary-box">
-              <strong>매입 검수</strong>
+              <strong>{'\uD655\uC778 \uD544\uC694'}</strong>
               <div className="admin-muted">
                 {formatAdminCount(
                   pendingPurchaseCount
-                )} 확인 필요
+                )} {'\uAC74 \uB9E4\uC785 \uB300\uAE30\uC911'}
               </div>
             </div>
             <div className="admin-summary-box">
-              <strong>배너 운영</strong>
+              <strong>{'\uBC30\uB108 \uC6B4\uC601'}</strong>
               <div className="admin-muted">
-                현재 노출 배너 {formatAdminCount(
+                {'\uD604\uC7AC \uB178\uCD9C \uBC30\uB108 '}{formatAdminCount(
                   activeBannerCount,
-                  '개'
+                  '\uAC1C'
                 )}
               </div>
             </div>
@@ -505,19 +1779,19 @@ function DashboardPage({
       <section className="admin-grid admin-grid--2">
         <article className="admin-card admin-card--panel">
           <div className="admin-section-line">
-            <h2>최근 주문</h2>
+            <h2>{'\uCD5C\uADFC \uC8FC\uBB38'}</h2>
             <button type="button" className="admin-action admin-action--soft" onClick={() => (window.location.hash = '#/admin/orders')}>
-              전체 보기
+              {'\uC804\uCCB4 \uBCF4\uAE30'}
             </button>
           </div>
           <table className="admin-table">
             <thead>
               <tr>
-                <th>주문번호</th>
-                <th>고객</th>
-                <th>상품</th>
-                <th>금액</th>
-                <th>상태</th>
+                <th>{'\uC8FC\uBB38\uBC88\uD638'}</th>
+                <th>{'\uACE0\uAC1D'}</th>
+                <th>{'\uC0C1\uD488'}</th>
+                <th>{'\uAE08\uC561'}</th>
+                <th>{'\uC0C1\uD0DC'}</th>
               </tr>
             </thead>
             <tbody>
@@ -536,18 +1810,18 @@ function DashboardPage({
 
         <article className="admin-card admin-card--panel">
           <div className="admin-section-line">
-            <h2>매입 / 소분 현황</h2>
+            <h2>{'\uB9E4\uC785 / \uC18C\uBD84 \uD604\uD669'}</h2>
             <button type="button" className="admin-action admin-action--soft" onClick={() => (window.location.hash = '#/admin/purchase')}>
-              작업 보기
+              {'\uC791\uC5C5 \uBCF4\uAE30'}
             </button>
           </div>
           <table className="admin-table">
             <thead>
               <tr>
-                <th>배치</th>
-                <th>품목</th>
-                <th>수량</th>
-                <th>상태</th>
+                <th>{'\uBC30\uCE58'}</th>
+                <th>{'\uD488\uBAA9'}</th>
+                <th>{'\uC218\uB7C9'}</th>
+                <th>{'\uC0C1\uD0DC'}</th>
               </tr>
             </thead>
             <tbody>
@@ -568,235 +1842,6 @@ function DashboardPage({
 }
 
 // eslint-disable-next-line no-unused-vars
-function LegacyProductsPage({
-  categories,
-  products,
-  selectedProductNo,
-  productFilter,
-  productForm,
-  productImagePreviews,
-  onSelectProduct,
-  onProductFilterChange,
-  onProductFormChange,
-  onProductImagesChange,
-  onClearProductImages,
-  onResetProductForm,
-  onRetireProduct,
-  onSaveProduct,
-  submitting,
-}) {
-  const filteredProducts = products.filter((product) => {
-    if (productFilter === 'ALL') {
-      return true;
-    }
-    if (productFilter === 'LOW_STOCK') {
-      return toNumber(product.stockQty, 0) <= 10;
-    }
-    if (productFilter === 'SEASONAL') {
-      return product.isSeasonal === 'Y';
-    }
-    return product.saleStatus === productFilter;
-  });
-
-  return (
-    <>
-      <AdminPageHeader
-        title="상품 관리"
-        description="상품 등록, 수정, 재고 현황을 관리하는 화면"
-        actions={
-          <>
-            <button type="button" className="admin-action admin-action--line" onClick={onClearProductImages}>
-              엑셀 업로드
-            </button>
-            <button type="button" className="admin-action admin-action--primary" onClick={onResetProductForm}>
-              상품 등록
-            </button>
-          </>
-        }
-      />
-
-      <div className="admin-filter-row">
-        {[
-          ['ALL', '전체'],
-          ['SELLING', '판매중'],
-          ['STOP', '판매중지'],
-          ['LOW_STOCK', '재고부족'],
-          ['SEASONAL', '제철상품'],
-        ].map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            className={`admin-filter-chip ${productFilter === value ? 'is-active' : ''}`}
-            onClick={() => onProductFilterChange(value)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <section className="admin-grid admin-grid--2">
-        <article className="admin-card admin-card--panel">
-          <h2>상품 목록</h2>
-          <table className="admin-table admin-table--clickable">
-            <thead>
-              <tr>
-                <th>상품</th>
-                <th>카테고리</th>
-                <th>판매가</th>
-                <th>재고</th>
-                <th>상태</th>
-                <th>관리</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredProducts.map((product) => (
-                <tr
-                  key={product.productNo}
-                  className={product.productNo === selectedProductNo ? 'is-selected' : ''}
-                  onClick={() => onSelectProduct(product)}
-                >
-                  <td>{product.productName}</td>
-                  <td>{product.categoryName}</td>
-                  <td>{formatAdminCurrency(product.salePrice)}</td>
-                  <td>{formatAdminCount(product.stockQty, '개')}</td>
-                  <td><AdminStatusBadge status={product.saleStatus} /></td>
-                  <td className="admin-table__actions">
-                    <button
-                      type="button"
-                      className="admin-action admin-action--danger"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onRetireProduct(product);
-                      }}
-                      disabled={submitting}
-                    >
-                      영구삭제
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </article>
-
-        <article className="admin-card admin-card--panel">
-          <h2>상품 등록 / 수정</h2>
-          <div className="admin-form-grid">
-            <label>
-              <span>상품명</span>
-              <input name="productName" value={productForm.productName} onChange={onProductFormChange} />
-            </label>
-            <label>
-              <span>카테고리</span>
-              <select name="categoryNo" value={productForm.categoryNo} onChange={onProductFormChange}>
-                <option value="">선택</option>
-                {categories.map((category) => (
-                  <option key={category.categoryNo} value={category.categoryNo}>
-                    {category.categoryName}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>판매가</span>
-              <input name="salePrice" value={productForm.salePrice} onChange={onProductFormChange} />
-            </label>
-            <label>
-              <span>재고 수량</span>
-              <input name="stockQty" value={productForm.stockQty} onChange={onProductFormChange} />
-            </label>
-            <label>
-              <span>원산지</span>
-              <input name="origin" value={productForm.origin} onChange={onProductFormChange} />
-            </label>
-            <label>
-              <span>단위</span>
-              <input name="unit" value={productForm.unit} onChange={onProductFormChange} />
-            </label>
-            <label>
-              <span>포장 중량</span>
-              <input name="packageWeight" value={productForm.packageWeight} onChange={onProductFormChange} />
-            </label>
-            <label>
-              <span>판매 상태</span>
-              <select name="saleStatus" value={productForm.saleStatus} onChange={onProductFormChange}>
-                <option value="READY">준비</option>
-                <option value="SELLING">판매중</option>
-                <option value="SOLD_OUT">품절</option>
-                <option value="STOP">판매중지</option>
-              </select>
-            </label>
-            <label>
-              <span>제철 상품</span>
-              <select name="isSeasonal" value={productForm.isSeasonal} onChange={onProductFormChange}>
-                <option value="N">일반</option>
-                <option value="Y">제철</option>
-              </select>
-            </label>
-          </div>
-          <label className="admin-form-field admin-form-field--full">
-            <span>상품 설명</span>
-            <textarea name="description" value={productForm.description} onChange={onProductFormChange} />
-          </label>
-          <div className="admin-form-field admin-form-field--full">
-            <span>상품 이미지</span>
-            <label className="admin-file-upload">
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={onProductImagesChange}
-              />
-              <strong>이미지 선택</strong>
-              <small>최소 1장 필수 · 여러 장 업로드 가능</small>
-            </label>
-            <div className="admin-file-upload__hint">
-              권장 사이즈: 1200 x 1200px 이상 / 정사각형 비율 / JPG, PNG, WEBP
-            </div>
-            <div className="admin-page-actions">
-              <button type="button" className="admin-action admin-action--line" onClick={onClearProductImages}>
-                선택 이미지 초기화
-              </button>
-            </div>
-            {productImagePreviews.length ? (
-              <div className="admin-image-preview-grid">
-                {productImagePreviews.map((image, index) => (
-                  <article className="admin-image-preview" key={image.key || image.imageNo || index}>
-                    <div className="admin-image-preview__thumb">
-                      <img
-                        src={image.previewUrl}
-                        alt={image.name || `상품 이미지 ${index + 1}`}
-                      />
-                    </div>
-                    <div className="admin-image-preview__meta">
-                      <strong>{image.name || `상품 이미지 ${index + 1}`}</strong>
-                      <span>{image.isMain ? '대표 이미지' : `추가 이미지 ${index + 1}`}</span>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="admin-image-empty">
-                등록된 이미지가 없습니다. 상품 이미지는 최소 1장 이상 필요합니다.
-              </div>
-            )}
-          </div>
-          <div className="admin-page-actions admin-page-actions--end">
-            <button type="button" className="admin-action admin-action--line" disabled>
-              이미지 업로드
-            </button>
-            <button type="button" className="admin-action admin-action--soft" onClick={onResetProductForm}>
-              초기화
-            </button>
-            <button type="button" className="admin-action admin-action--primary" onClick={onSaveProduct} disabled={submitting}>
-              {submitting ? '저장 중...' : '저장'}
-            </button>
-          </div>
-        </article>
-      </section>
-    </>
-  );
-}
-
 function OrdersPage({
   orders,
   selectedOrderNo,
@@ -825,12 +1870,12 @@ function OrdersPage({
   return (
     <>
       <AdminPageHeader
-        title="주문 관리"
-        description="주문 목록, 상세 정보, 배송 상태를 관리하는 화면"
+        title={'\uC8FC\uBB38 \uAD00\uB9AC'}
+        description={'\uC8FC\uBB38 \uBAA9\uB85D, \uC0C1\uC138 \uC815\uBCF4, \uBC30\uC1A1 \uC0C1\uD0DC\uB97C \uAD00\uB9AC\uD558\uB294 \uD654\uBA74'}
         actions={
           <>
             <button type="button" className="admin-action admin-action--line" disabled>
-              송장 업로드
+              {'\uC1A1\uC7A5 \uB4F1\uB85D \uC900\uBE44\uC911'}
             </button>
             <button
               type="button"
@@ -838,7 +1883,7 @@ function OrdersPage({
               onClick={() => onUpdateOrder({ orderStatus: 'SHIPPING' })}
               disabled={!selectedOrderDetail || updating}
             >
-              출고 처리
+              {'\uCD9C\uACE0 \uCC98\uB9AC'}
             </button>
           </>
         }
@@ -846,10 +1891,10 @@ function OrdersPage({
 
       <div className="admin-filter-row">
         {[
-          ['ALL', '전체'],
-          ['PAID', '결제완료'],
-          ['SHIPPING', '배송중'],
-          ['DELIVERED', '배송완료'],
+          ['ALL', '\uC804\uCCB4'],
+          ['PAID', '\uACB0\uC81C\uC644\uB8CC'],
+          ['SHIPPING', '\uBC30\uC1A1\uC911'],
+          ['DELIVERED', '\uBC30\uC1A1\uC644\uB8CC'],
         ].map(([value, label]) => (
           <button
             key={value}
@@ -864,15 +1909,15 @@ function OrdersPage({
 
       <section className="admin-grid admin-grid--2">
         <article className="admin-card admin-card--panel">
-          <h2>주문 목록</h2>
+          <h2>{'\uC8FC\uBB38 \uBAA9\uB85D'}</h2>
           <table className="admin-table admin-table--clickable admin-table--users">
             <thead>
               <tr>
-                <th>주문번호</th>
-                <th>고객</th>
-                <th>주문일</th>
-                <th>결제금액</th>
-                <th>상태</th>
+                <th>{'\uC8FC\uBB38\uBC88\uD638'}</th>
+                <th>{'\uACE0\uAC1D'}</th>
+                <th>{'\uC8FC\uBB38\uC77C'}</th>
+                <th>{'\uACB0\uC81C\uAE08\uC561'}</th>
+                <th>{'\uC0C1\uD0DC'}</th>
               </tr>
             </thead>
             <tbody>
@@ -894,17 +1939,17 @@ function OrdersPage({
         </article>
 
         <article className="admin-card admin-card--panel">
-          <h2>주문 상세</h2>
+          <h2>{'\uC8FC\uBB38 \uC0C1\uC138'}</h2>
           {!selectedOrderDetail ? (
-            <AdminEmptyState title="주문을 선택해주세요." description="좌측 주문 목록에서 상세를 확인할 주문을 고를 수 있습니다." />
+            <AdminEmptyState title={'\uC8FC\uBB38\uC744 \uC120\uD0DD\uD574\uC8FC\uC138\uC694.'} description={'\uC67C\uCABD \uC8FC\uBB38 \uBAA9\uB85D\uC5D0\uC11C \uC0C1\uC138\uB97C \uD655\uC778\uD560 \uC8FC\uBB38\uC744 \uACE0\uB974\uBA74 \uC815\uBCF4\uAC00 \uC5F4\uB9BD\uB2C8\uB2E4.'} />
           ) : (
             <div className="admin-stack">
               <div className="admin-summary-box">
-                <strong>주문번호</strong>
+                <strong>{'\uC8FC\uBB38\uBC88\uD638'}</strong>
                 <div className="admin-muted">{selectedOrderDetail.orderId}</div>
               </div>
               <div className="admin-summary-box">
-                <strong>고객 정보</strong>
+                <strong>{'\uACE0\uAC1D \uC815\uBCF4'}</strong>
                 <div className="admin-muted">
                   {selectedOrderDetail.recipientName} / {selectedOrderDetail.recipientPhone}
                 </div>
@@ -913,7 +1958,7 @@ function OrdersPage({
                 </div>
               </div>
               <div className="admin-summary-box">
-                <strong>주문 상품</strong>
+                <strong>{'\uC8FC\uBB38 \uC0C1\uD488'}</strong>
                 <div className="admin-detail-list">
                   {(selectedOrderDetail.items || []).map((item) => (
                     <div key={item.orderItemNo}>
@@ -923,7 +1968,7 @@ function OrdersPage({
                 </div>
               </div>
               <div className="admin-summary-box">
-                <strong>배송 상태 변경</strong>
+                <strong>{'\uBC30\uC1A1 \uC0C1\uD0DC \uBCC0\uACBD'}</strong>
                 <div className="admin-page-actions">
                   <AdminStatusBadge status={resolveAdminOrderDisplayStatus(selectedOrderDetail)} />
                   {canDeleteOrder ? (
@@ -933,23 +1978,23 @@ function OrdersPage({
                       onClick={() => onDeleteOrder(selectedOrderDetail)}
                       disabled={updating}
                     >
-                      정보 제거
+                      {'\uC815\uBCF4 \uC0AD\uC81C'}
                     </button>
                   ) : null}
                   <button type="button" className="admin-action admin-action--soft" onClick={() => onUpdateOrder({ orderStatus: 'SHIPPING' })} disabled={updating}>
-                    배송중
+                    {'\uBC30\uC1A1\uC911'}
                   </button>
                   <button type="button" className="admin-action admin-action--primary" onClick={() => onUpdateOrder({ orderStatus: 'COMPLETED' })} disabled={updating}>
-                    배송완료
+                    {'\uBC30\uC1A1\uC644\uB8CC'}
                   </button>
                 </div>
               </div>
               <div className="admin-summary-box">
-                <strong>송장 정보</strong>
+                <strong>{'\uC1A1\uC7A5 \uC815\uBCF4'}</strong>
                 <div className="admin-inline-form">
-                  <input value={trackingNo} onChange={onTrackingChange} placeholder="송장번호 입력" />
+                  <input value={trackingNo} onChange={onTrackingChange} placeholder={'\uC1A1\uC7A5\uBC88\uD638 \uC785\uB825'} />
                   <button type="button" className="admin-action admin-action--line" onClick={() => onUpdateOrder({ trackingNo })} disabled={updating}>
-                    저장
+                    {'\uC800\uC7A5'}
                   </button>
                 </div>
               </div>
@@ -968,7 +2013,9 @@ function UsersPage({
   onUserFilterChange,
   onSelectUser,
   onUpdateUserStatus,
+  onUpdateUserRole,
   onDeleteUser,
+  canManageAdminRole,
   updating,
 }) {
   const rankedUsers = [...users].sort((left, right) => (
@@ -979,36 +2026,42 @@ function UsersPage({
   const filteredUsers = userFilter === 'TOP'
     ? rankedUsers.slice(0, 5)
     : users.filter((user) => {
+      if (userFilter === 'ROLE') {
+        return true;
+      }
       if (userFilter === 'ALL') {
         return true;
       }
       return user.status === userFilter;
     });
   const selectedUser = users.find((user) => user.userNo === selectedUserNo) || null;
+  const isRoleGrantTab = canManageAdminRole && userFilter === 'ROLE';
 
   return (
     <>
       <AdminPageHeader
-        title="회원 관리"
-        actions={
+        title={'\uD68C\uC6D0 \uAD00\uB9AC'}
+        actions={(
           <button type="button" className="admin-action admin-action--line" disabled>
-            엑셀 다운로드
+            {'\uC5D1\uC140 \uB2E4\uC6B4\uB85C\uB4DC'}
           </button>
-        }
+        )}
       />
 
       <div className="admin-filter-row">
         {[
-          ['ALL', '전체 회원'],
-          ['ACTIVE', '활성'],
-          ['BLOCKED', '차단'],
-          ['WITHDRAWN', '탈퇴'],
-          ['TOP', '구매 상위'],
-        ].map(([value, label]) => (
+          ['ALL', '\uC804\uCCB4\uD68C\uC6D0'],
+          ['ACTIVE', '\uD65C\uC131'],
+          ['BLOCKED', '\uCC28\uB2E8'],
+          ['WITHDRAWN', '\uD0C8\uD1F4'],
+          ['TOP', '\uAD6C\uB9E4\uC0C1\uC704'],
+        ].concat(canManageAdminRole ? [['ROLE', '\uAD8C\uD55C \uBD80\uC5EC']] : []).map(([value, label]) => (
           <button
             key={value}
             type="button"
-            className={`admin-filter-chip ${userFilter === value ? 'is-active' : ''}`}
+            className={
+              'admin-filter-chip ' + (userFilter === value ? 'is-active' : '')
+            }
             onClick={() => onUserFilterChange(value)}
           >
             {label}
@@ -1016,99 +2069,194 @@ function UsersPage({
         ))}
       </div>
 
-      <section className="admin-grid admin-grid--users">
-        <article className="admin-card admin-card--panel">
-          <h2>회원 목록</h2>
-          <div className="admin-table-wrap">
-            <table className="admin-table admin-table--clickable admin-table--users">
-              <thead>
-                <tr>
-                  <th>회원</th>
-                  <th>가입일</th>
-                  <th>주문 수</th>
-                  <th>누적 구매</th>
-                  <th>상태</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map((user) => (
-                  <tr
-                    key={user.userNo}
-                    className={user.userNo === selectedUserNo ? 'is-selected' : ''}
-                    onClick={() => onSelectUser(user.userNo)}
-                  >
-                    <td>
-                      <div className="admin-user-cell">
-                        <strong className="admin-user-primary">{user.nickname}</strong>
-                        <span className="admin-user-sub">{user.email}</span>
-                      </div>
-                    </td>
-                    <td className="admin-date-cell">{renderAdminDateCell(user.createdAt)}</td>
-                    <td className="admin-count-cell">{formatAdminCount(user.totalOrderCount)}</td>
-                    <td>{formatAdminCurrency(user.totalPurchaseAmount)}</td>
-                    <td className="admin-table__actions">
-                      <div className="admin-user-actions">
-                        <AdminStatusBadge status={user.status} />
-                        <button
-                          type="button"
-                          className="admin-action admin-action--danger admin-action--tiny"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onDeleteUser(user);
-                          }}
-                          disabled={updating}
-                        >
-                          삭제
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </article>
-
-        <article className="admin-card admin-card--panel">
-          <h2>회원 상세 / 상태 관리</h2>
-          {!selectedUser ? (
-            <AdminEmptyState title="회원을 선택해주세요." description="좌측 목록에서 확인할 회원을 고를 수 있습니다." />
-          ) : (
-            <div className="admin-stack">
-              <div className="admin-summary-box">
-                <strong>기본 정보</strong>
-                <div className="admin-muted">
-                  {selectedUser.nickname} / {selectedUser.email} / {selectedUser.phone}
-                </div>
-              </div>
-              <div className="admin-summary-box">
-                <strong>구매 통계</strong>
-                <div className="admin-muted">
-                  주문 {formatAdminCount(selectedUser.totalOrderCount, '회')} / 누적 구매 {formatAdminCurrency(selectedUser.totalPurchaseAmount)} / 누적 절약 {formatAdminCurrency(selectedUser.totalSavedAmount)}
-                </div>
-              </div>
-              <div className="admin-summary-box">
-                <strong>상태 변경</strong>
-                <div className="admin-page-actions">
-                  <button type="button" className="admin-action admin-action--soft" onClick={() => onUpdateUserStatus(selectedUser.userNo, 'ACTIVE')} disabled={updating}>
-                    활성
-                  </button>
-                  <button type="button" className="admin-action admin-action--line" onClick={() => onUpdateUserStatus(selectedUser.userNo, 'WITHDRAWN')} disabled={updating}>
-                    탈퇴
-                  </button>
-                  <button type="button" className="admin-action admin-action--danger" onClick={() => onUpdateUserStatus(selectedUser.userNo, 'BLOCKED')} disabled={updating}>
-                    차단
-                  </button>
-                </div>
-              </div>
-              <div className="admin-summary-box">
-                <strong>기본 배송지</strong>
-                <div className="admin-muted">{selectedUser.defaultAddress || '기본 배송지 없음'}</div>
+      {isRoleGrantTab ? (
+        <section className="admin-grid">
+          <article className="admin-card admin-card--panel">
+            <div className="admin-section-line">
+              <div>
+                <h2>{'\uAD8C\uD55C \uBAA9\uB85D'}</h2>
+                <p className="admin-card__sub">
+                  {'\uC288\uD37C\uC5B4\uB4DC\uBBFC \uACC4\uC815\uB9CC \uAD00\uB9AC\uC790 \uAD8C\uD55C\uC744 \uBD80\uC5EC\uD558\uAC70\uB098 \uD574\uC81C\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.'}
+                </p>
               </div>
             </div>
-          )}
-        </article>
-      </section>
+            <div className="admin-table-wrap">
+              <table className="admin-table admin-table--clickable admin-table--users admin-table--roles">
+                <thead>
+                  <tr>
+                    <th>{'\uD68C\uC6D0'}</th>
+                    <th>{'\uAC00\uC785\uC77C'}</th>
+                    <th>{'\uC8FC\uBB38 \uC218'}</th>
+                    <th>{'\uB204\uC801 \uAD6C\uB9E4'}</th>
+                    <th>{'\uAD8C\uD55C \uBD80\uC5EC'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredUsers.map((user) => (
+                    <tr
+                      key={user.userNo}
+                      className={user.userNo === selectedUserNo ? 'is-selected' : ''}
+                      onClick={() => onSelectUser(user.userNo)}
+                    >
+                      <td>
+                        <div className="admin-user-cell">
+                          <strong className="admin-user-primary">{user.nickname}</strong>
+                          <span className="admin-user-sub">{user.email}</span>
+                        </div>
+                      </td>
+                      <td className="admin-date-cell">{renderAdminDateCell(user.createdAt)}</td>
+                      <td className="admin-count-cell">{formatAdminCount(user.totalOrderCount)}</td>
+                      <td>{formatAdminCurrency(user.totalPurchaseAmount)}</td>
+                      <td className="admin-table__actions">
+                        <div className="admin-role-cell">
+                          <button
+                            type="button"
+                            className={
+                              'admin-toggle admin-toggle--compact '
+                              + (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' ? 'is-on' : '')
+                            }
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onUpdateUserRole(
+                                user.userNo,
+                                user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' ? 'USER' : 'ADMIN'
+                              );
+                            }}
+                            disabled={updating || user.role === 'SUPER_ADMIN'}
+                          >
+                            <span className="admin-toggle__track">
+                              <span className="admin-toggle__thumb" />
+                            </span>
+                            <span className="admin-toggle__label">
+                              {user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' ? 'ON' : 'OFF'}
+                            </span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+      ) : (
+        <section className="admin-grid admin-grid--users">
+          <article className="admin-card admin-card--panel">
+            <h2>{'\uD68C\uC6D0 \uBAA9\uB85D'}</h2>
+            <div className="admin-table-wrap">
+              <table className="admin-table admin-table--clickable admin-table--users">
+                <thead>
+                  <tr>
+                    <th>{'\uD68C\uC6D0'}</th>
+                    <th>{'\uAC00\uC785\uC77C'}</th>
+                    <th>{'\uC8FC\uBB38 \uC218'}</th>
+                    <th>{'\uB204\uC801 \uAD6C\uB9E4'}</th>
+                    <th>{'\uC0C1\uD0DC'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredUsers.map((user) => (
+                    <tr
+                      key={user.userNo}
+                      className={user.userNo === selectedUserNo ? 'is-selected' : ''}
+                      onClick={() => onSelectUser(user.userNo)}
+                    >
+                      <td>
+                        <div className="admin-user-cell">
+                          <strong className="admin-user-primary">{user.nickname}</strong>
+                          <span className="admin-user-sub">{user.email}</span>
+                        </div>
+                      </td>
+                      <td className="admin-date-cell">{renderAdminDateCell(user.createdAt)}</td>
+                      <td className="admin-count-cell">{formatAdminCount(user.totalOrderCount)}</td>
+                      <td>{formatAdminCurrency(user.totalPurchaseAmount)}</td>
+                      <td className="admin-table__actions">
+                        <div className="admin-user-actions">
+                          <AdminStatusBadge status={user.status} />
+                          <button
+                            type="button"
+                            className="admin-action admin-action--danger admin-action--tiny"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onDeleteUser(user);
+                            }}
+                            disabled={updating}
+                          >
+                            {'\uC0AD\uC81C'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <article className="admin-card admin-card--panel">
+            <h2>{'\uD68C\uC6D0 \uC0C1\uC138 / \uC0C1\uD0DC \uAD00\uB9AC'}</h2>
+            {!selectedUser ? (
+              <AdminEmptyState
+                title={'\uD68C\uC6D0\uC744 \uC120\uD0DD\uD574 \uC8FC\uC138\uC694.'}
+                description={'\uC67C\uCABD \uBAA9\uB85D\uC5D0\uC11C \uD655\uC778\uD560 \uD68C\uC6D0\uC744 \uACE0\uB974\uBA74 \uC0C1\uC138 \uC815\uBCF4\uAC00 \uC5F4\uB9BD\uB2C8\uB2E4.'}
+              />
+            ) : (
+              <div className="admin-stack">
+                <div className="admin-summary-box">
+                  <strong>{'\uAE30\uBCF8 \uC815\uBCF4'}</strong>
+                  <div className="admin-muted">
+                    {selectedUser.nickname} / {selectedUser.email} / {selectedUser.phone}
+                  </div>
+                </div>
+                <div className="admin-summary-box">
+                  <strong>{'\uAD6C\uB9E4 \uD1B5\uACC4'}</strong>
+                  <div className="admin-muted">
+                    {'\uC8FC\uBB38 '}{formatAdminCount(selectedUser.totalOrderCount, '\uAC74')}
+                    {' / \uB204\uC801 \uAD6C\uB9E4 '}{formatAdminCurrency(selectedUser.totalPurchaseAmount)}
+                    {' / \uB204\uC801 \uC808\uC57D '}{formatAdminCurrency(selectedUser.totalSavedAmount)}
+                  </div>
+                </div>
+                <div className="admin-summary-box">
+                  <strong>{'\uC0C1\uD0DC \uBCC0\uACBD'}</strong>
+                  <div className="admin-page-actions">
+                    <button
+                      type="button"
+                      className="admin-action admin-action--soft"
+                      onClick={() => onUpdateUserStatus(selectedUser.userNo, 'ACTIVE')}
+                      disabled={updating}
+                    >
+                      {'\uD65C\uC131'}
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-action admin-action--line"
+                      onClick={() => onUpdateUserStatus(selectedUser.userNo, 'WITHDRAWN')}
+                      disabled={updating}
+                    >
+                      {'\uD0C8\uD1F4'}
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-action admin-action--danger"
+                      onClick={() => onUpdateUserStatus(selectedUser.userNo, 'BLOCKED')}
+                      disabled={updating}
+                    >
+                      {'\uCC28\uB2E8'}
+                    </button>
+                  </div>
+                </div>
+                <div className="admin-summary-box">
+                  <strong>{'\uAE30\uBCF8 \uBC30\uC1A1\uC9C0'}</strong>
+                  <div className="admin-muted">
+                    {selectedUser.defaultAddress || '\uAE30\uBCF8 \uBC30\uC1A1\uC9C0 \uC5C6\uC74C'}
+                  </div>
+                </div>
+              </div>
+            )}
+          </article>
+        </section>
+      )}
     </>
   );
 }
@@ -1125,136 +2273,8 @@ function renderAdminDateCell(value) {
 }
 
 // eslint-disable-next-line no-unused-vars
-function LegacyPurchasePage({
-  products,
-  purchases,
-  packageHistories,
-  selectedBatchNo,
-  purchaseForm,
-  packageForm,
-  onSelectBatch,
-  onPurchaseFormChange,
-  onPackageFormChange,
-  onCreatePurchase,
-  onCreatePackageHistory,
-  onDeletePurchaseBatch,
-  submittingPurchase,
-  submittingPackage,
-}) {
-  const selectedBatch = purchases.find((purchase) => purchase.batchNo === selectedBatchNo) || null;
-
-  return (
-    <>
-      <AdminPageHeader
-        title="매입 / 소분 관리"
-        description="농산물 원물 매입과 소분 작업, 재고 반영을 관리하는 화면"
-      />
-
-      <section className="admin-grid admin-grid--split">
-        <article className="admin-card admin-card--panel">
-          <h2>매입 등록</h2>
-          <div className="admin-form-grid">
-            <label><span>품목명</span><input name="productName" value={purchaseForm.productName} onChange={onPurchaseFormChange} /></label>
-            <label><span>공급처</span><input name="supplierName" value={purchaseForm.supplierName} onChange={onPurchaseFormChange} /></label>
-            <label><span>매입 수량</span><input name="purchaseQty" value={purchaseForm.purchaseQty} onChange={onPurchaseFormChange} /></label>
-            <label><span>단위</span><input name="purchaseUnit" value={purchaseForm.purchaseUnit} onChange={onPurchaseFormChange} /></label>
-            <label><span>총 매입가</span><input name="purchasePrice" value={purchaseForm.purchasePrice} onChange={onPurchaseFormChange} /></label>
-            <label><span>매입일</span><input type="date" name="purchaseDate" value={purchaseForm.purchaseDate} onChange={onPurchaseFormChange} /></label>
-            <label><span>원산지</span><input name="origin" value={purchaseForm.origin} onChange={onPurchaseFormChange} /></label>
-          </div>
-          <div className="admin-page-actions admin-page-actions--end">
-            <button type="button" className="admin-action admin-action--primary" onClick={onCreatePurchase} disabled={submittingPurchase}>
-              {submittingPurchase ? '저장 중...' : '매입 등록'}
-            </button>
-          </div>
-        </article>
-
-        <article className="admin-card admin-card--panel">
-          <h2>소분 작업</h2>
-          <div className="admin-summary-box">
-            <strong>선택 배치</strong>
-            <div className="admin-muted">
-              {selectedBatch
-                ? `${selectedBatch.batchNo} / ${selectedBatch.productName} / ${selectedBatch.purchaseQty}${selectedBatch.purchaseUnit}`
-                : '좌측 이력 테이블에서 배치를 선택해주세요.'}
-            </div>
-          </div>
-          <div className="admin-form-grid admin-form-grid--spaced">
-            <label>
-              <span>소분 상품</span>
-              <select name="productNo" value={packageForm.productNo} onChange={onPackageFormChange}>
-                <option value="">선택</option>
-                {products.map((product) => (
-                  <option key={product.productNo} value={product.productNo}>
-                    {product.productName}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label><span>생성 수량</span><input name="packagedQty" value={packageForm.packagedQty} onChange={onPackageFormChange} /></label>
-            <label><span>1개당 중량</span><input name="packagedWeight" value={packageForm.packagedWeight} onChange={onPackageFormChange} /></label>
-            <label className="admin-form-field admin-form-field--full"><span>메모</span><textarea name="note" value={packageForm.note} onChange={onPackageFormChange} /></label>
-          </div>
-          <div className="admin-page-actions admin-page-actions--end">
-            <button type="button" className="admin-action admin-action--primary" onClick={onCreatePackageHistory} disabled={!selectedBatch || submittingPackage}>
-              {submittingPackage ? '처리 중...' : '소분 실행'}
-            </button>
-          </div>
-        </article>
-      </section>
-
-      <section className="admin-card admin-card--panel">
-        <h2>매입 / 소분 이력</h2>
-        <table className="admin-table admin-table--clickable">
-          <thead>
-            <tr>
-              <th>배치번호</th>
-              <th>품목</th>
-              <th>매입수량</th>
-              <th>매입가</th>
-              <th>상태</th>
-              <th>최근 소분</th>
-              <th>관리</th>
-              <th>관리</th>
-              <th>관리</th>
-            </tr>
-          </thead>
-          <tbody>
-            {purchases.map((purchase) => {
-              const latestPackage = packageHistories.find((history) => history.batchNo === purchase.batchNo);
-              return (
-                <tr
-                  key={purchase.batchNo}
-                  className={purchase.batchNo === selectedBatchNo ? 'is-selected' : ''}
-                  onClick={() => onSelectBatch(purchase.batchNo)}
-                >
-                  <td>{purchase.batchNo}</td>
-                  <td>{purchase.productName}</td>
-                  <td>{purchase.purchaseQty}{purchase.purchaseUnit}</td>
-                  <td>{formatAdminCurrency(purchase.purchasePrice)}</td>
-                  <td><AdminStatusBadge status={purchase.status} /></td>
-                  <td>{latestPackage ? formatAdminDate(latestPackage.packagedAt) : '-'}</td>
-                  <td className="admin-table__actions">
-                    <button
-                      type="button"
-                      className="admin-action admin-action--danger"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onDeletePurchaseBatch(purchase);
-                      }}
-                      disabled={submittingPurchase || submittingPackage}
-                    >
-                      삭제
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </section>
-    </>
-  );
+function LegacyPurchasePage() {
+  return null;
 }
 
 function ContentPage({
@@ -1266,15 +2286,15 @@ function ContentPage({
   return (
     <>
       <AdminPageHeader
-        title="배너 / 레시피 관리"
-        description="메인 배너 노출과 레시피 매핑, 콘텐츠 노출 순서를 관리하는 화면"
+        title={'\uBC30\uB108 / \uB808\uC2DC\uD53C \uAD00\uB9AC'}
+        description={'\uBA54\uC778 \uBC30\uB108 \uB178\uCD9C\uACFC \uB808\uC2DC\uD53C \uB9E4\uD551, \uCF58\uD150\uCE20 \uB178\uCD9C \uC21C\uC11C\uB97C \uAD00\uB9AC\uD558\uB294 \uD654\uBA74'}
         actions={
           <>
             <button type="button" className="admin-action admin-action--line" disabled>
-              배너 업로드 준비중
+              {'\uBC30\uB108 \uC5C5\uB85C\uB4DC \uC900\uBE44\uC911'}
             </button>
             <button type="button" className="admin-action admin-action--primary" onClick={onSyncRecipes} disabled={syncingRecipes}>
-              {syncingRecipes ? '동기화 중...' : '레시피 동기화'}
+              {syncingRecipes ? '\uB3D9\uAE30\uD654 \uC911...' : '\uB808\uC2DC\uD53C \uB3D9\uAE30\uD654'}
             </button>
           </>
         }
@@ -1282,15 +2302,15 @@ function ContentPage({
 
       <section className="admin-grid admin-grid--2">
         <article className="admin-card admin-card--panel">
-          <h2>메인 배너 관리</h2>
+          <h2>{'\uBA54\uC778 \uBC30\uB108 \uAD00\uB9AC'}</h2>
           <table className="admin-table">
             <thead>
               <tr>
-                <th>배너</th>
-                <th>제목</th>
-                <th>링크</th>
-                <th>상태</th>
-                <th>순서</th>
+                <th>{'\uBC30\uB108'}</th>
+                <th>{'\uC81C\uBAA9'}</th>
+                <th>{'\uB9C1\uD06C'}</th>
+                <th>{'\uC0C1\uD0DC'}</th>
+                <th>{'\uC21C\uC11C'}</th>
               </tr>
             </thead>
             <tbody>
@@ -1312,14 +2332,14 @@ function ContentPage({
         </article>
 
         <article className="admin-card admin-card--panel">
-          <h2>레시피 매핑 관리</h2>
+          <h2>{'\uB808\uC2DC\uD53C \uB9E4\uD551 \uAD00\uB9AC'}</h2>
           <table className="admin-table">
             <thead>
               <tr>
-                <th>레시피</th>
-                <th>연결 상품</th>
-                <th>연관도</th>
-                <th>상태</th>
+                <th>{'\uB808\uC2DC\uD53C'}</th>
+                <th>{'\uC5F0\uACB0 \uC0C1\uD488'}</th>
+                <th>{'\uB9E4\uCE6D \uC810\uC218'}</th>
+                <th>{'\uC0C1\uD0DC'}</th>
               </tr>
             </thead>
             <tbody>
@@ -1334,9 +2354,9 @@ function ContentPage({
             </tbody>
           </table>
           <div className="admin-summary-box admin-summary-box--note">
-            <strong>이미지 저장 기준</strong>
+            <strong>{'\uC774\uBBF8\uC9C0 \uC800\uC7A5 \uAE30\uC900'}</strong>
             <div className="admin-muted">
-              PRODUCT_IMAGE, REVIEW_IMAGE, MAIN_BANNER는 BLOB 저장이며 RECIPE와 RECIPE_STEP은 외부 URL을 사용합니다.
+              {'PRODUCT_IMAGE, REVIEW_IMAGE, MAIN_BANNER\uB294 BLOB \uB370\uC774\uD130\uC774\uBA70 RECIPE\uC640 RECIPE_STEP\uC740 \uC678\uBD80 URL\uC744 \uC0AC\uC6A9\uD569\uB2C8\uB2E4.'}
             </div>
           </div>
         </article>
@@ -1376,12 +2396,12 @@ function ProductsPage({
   return (
     <>
       <AdminPageHeader
-        title="상품 관리"
-        description="매입/소분에서 생성된 상품을 수정하거나 삭제하는 화면"
+        title={'\uC0C1\uD488 \uAD00\uB9AC'}
+        description={'\uB9E4\uC785\uACFC \uC18C\uBD84\uC5D0\uC11C \uC0DD\uC131\uB41C \uC0C1\uD488\uC744 \uC218\uC815\uD558\uACE0 \uAD00\uB9AC\uD558\uB294 \uD654\uBA74'}
         actions={
           <>
             <button type="button" className="admin-action admin-action--line" onClick={onResetProductForm}>
-              선택 상품 다시 불러오기
+              {'\uC120\uD0DD \uC0C1\uD488 \uB2E4\uC2DC \uBD88\uB7EC\uC624\uAE30'}
             </button>
           </>
         }
@@ -1389,11 +2409,11 @@ function ProductsPage({
 
       <div className="admin-filter-row">
         {[
-          ['ALL', '전체'],
-          ['SELLING', '판매중'],
-          ['STOP', '판매중지'],
-          ['LOW_STOCK', '재고부족'],
-          ['SEASONAL', '제철상품'],
+          ['ALL', '\uC804\uCCB4'],
+          ['SELLING', '\uD310\uB9E4\uC911'],
+          ['STOP', '\uD310\uB9E4\uC911\uC9C0'],
+          ['LOW_STOCK', '\uC7AC\uACE0\uBD80\uC871'],
+          ['SEASONAL', '\uC81C\uCCA0\uC0C1\uD488'],
         ].map(([value, label]) => (
           <button
             key={value}
@@ -1407,16 +2427,16 @@ function ProductsPage({
       </div>
       <section className="admin-grid admin-grid--2">
         <article className="admin-card admin-card--panel">
-          <h2>상품 목록</h2>
+          <h2>{'\uC0C1\uD488 \uBAA9\uB85D'}</h2>
           <table className="admin-table admin-table--clickable">
             <thead>
               <tr>
-                <th>상품</th>
-                <th>카테고리</th>
-                <th>판매가</th>
-                <th>재고</th>
-                <th>상태</th>
-                <th>관리</th>
+                <th>{'\uC0C1\uD488'}</th>
+                <th>{'\uCE74\uD14C\uACE0\uB9AC'}</th>
+                <th>{'\uD310\uB9E4\uAC00'}</th>
+                <th>{'\uC7AC\uACE0'}</th>
+                <th>{'\uC0C1\uD0DC'}</th>
+                <th>{'\uAD00\uB9AC'}</th>
               </tr>
             </thead>
             <tbody>
@@ -1429,7 +2449,7 @@ function ProductsPage({
                   <td>{product.productName}</td>
                   <td>{product.categoryName}</td>
                   <td>{formatAdminCurrency(product.salePrice)}</td>
-                  <td>{formatAdminCount(product.stockQty, '개')}</td>
+                  <td>{formatAdminCount(product.stockQty, '\uAC1C')}</td>
                   <td><AdminStatusBadge status={product.saleStatus} /></td>
                   <td className="admin-table__actions">
                     <button
@@ -1441,7 +2461,7 @@ function ProductsPage({
                       }}
                       disabled={submitting}
                     >
-                      영구삭제
+                      {'\uC601\uAD6C \uC0AD\uC81C'}
                     </button>
                   </td>
                 </tr>
@@ -1451,16 +2471,16 @@ function ProductsPage({
         </article>
 
         <article className="admin-card admin-card--panel">
-          <h2>상품 수정 / 삭제</h2>
+          <h2>{'\uC0C1\uD488 \uC218\uC815 / \uC0AD\uC81C'}</h2>
           <div className="admin-form-grid">
             <label>
-              <span>상품명</span>
+              <span>{'\uC0C1\uD488\uBA85'}</span>
               <input name="productName" value={productForm.productName} onChange={onProductFormChange} />
             </label>
             <label>
-              <span>카테고리</span>
+              <span>{'\uCE74\uD14C\uACE0\uB9AC'}</span>
               <select name="categoryNo" value={productForm.categoryNo} onChange={onProductFormChange}>
-                <option value="">선택</option>
+                <option value="">{'\uC120\uD0DD'}</option>
                 {categories.map((category) => (
                   <option key={category.categoryNo} value={category.categoryNo}>
                     {category.categoryName}
@@ -1469,50 +2489,50 @@ function ProductsPage({
               </select>
             </label>
             <label>
-              <span>판매가</span>
+              <span>{'\uD310\uB9E4\uAC00'}</span>
               <input name="salePrice" value={productForm.salePrice} onChange={onProductFormChange} />
             </label>
             <label>
-              <span>재고 수량</span>
+              <span>{'\uC7AC\uACE0 \uC218\uB7C9'}</span>
               <input name="stockQty" value={productForm.stockQty} onChange={onProductFormChange} />
             </label>
             <label>
-              <span>원산지</span>
+              <span>{'\uC6D0\uC0B0\uC9C0'}</span>
               <input name="origin" value={productForm.origin} onChange={onProductFormChange} />
             </label>
             <label>
-              <span>단위</span>
+              <span>{'\uB2E8\uC704'}</span>
               <input name="unit" value={productForm.unit} onChange={onProductFormChange} />
             </label>
             <label>
-              <span>포장 중량</span>
+              <span>{'\uD3EC\uC7A5 \uC911\uB7C9'}</span>
               <input name="packageWeight" value={productForm.packageWeight} onChange={onProductFormChange} />
             </label>
             <label>
-              <span>판매 상태</span>
+              <span>{'\uD310\uB9E4 \uC0C1\uD0DC'}</span>
               <select name="saleStatus" value={productForm.saleStatus} onChange={onProductFormChange}>
-                <option value="READY">준비중</option>
-                <option value="SELLING">판매중</option>
-                <option value="SOLD_OUT">품절</option>
-                <option value="STOP">판매중지</option>
+                <option value="READY">{'\uC900\uBE44\uC911'}</option>
+                <option value="SELLING">{'\uD310\uB9E4\uC911'}</option>
+                <option value="SOLD_OUT">{'\uD488\uC808'}</option>
+                <option value="STOP">{'\uD310\uB9E4\uC911\uC9C0'}</option>
               </select>
             </label>
             <label>
-              <span>제철 상품</span>
+              <span>{'\uC81C\uCCA0 \uC0C1\uD488'}</span>
               <select name="isSeasonal" value={productForm.isSeasonal} onChange={onProductFormChange}>
-                <option value="N">일반</option>
-                <option value="Y">제철</option>
+                <option value="N">{'\uC77C\uBC18'}</option>
+                <option value="Y">{'\uC81C\uCCA0'}</option>
               </select>
             </label>
           </div>
           <label className="admin-form-field admin-form-field--full">
-            <span>상품 설명</span>
+            <span>{'\uC0C1\uD488 \uC124\uBA85'}</span>
             <textarea name="description" value={productForm.description} onChange={onProductFormChange} />
           </label>
           <div className="admin-form-field admin-form-field--full">
-            <span>등록된 상품 이미지</span>
+            <span>{'\uB4F1\uB85D\uB41C \uC0C1\uD488 \uC774\uBBF8\uC9C0'}</span>
             <div className="admin-file-upload__hint">
-              이미지는 매입 단계에서 등록됩니다. 여기서는 연결된 이미지를 확인만 할 수 있습니다.
+              {'\uC774\uBBF8\uC9C0\uB294 \uB9E4\uC785 \uB2E8\uACC4\uC5D0\uC11C \uB4F1\uB85D\uD569\uB2C8\uB2E4. \uC5EC\uAE30\uC11C\uB294 \uC5F0\uACB0\uB41C \uC774\uBBF8\uC9C0\uB97C \uD655\uC778\uB9CC \uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.'}
             </div>
             {productImagePreviews.length ? (
               <div className="admin-image-preview-grid">
@@ -1521,28 +2541,28 @@ function ProductsPage({
                     <div className="admin-image-preview__thumb">
                       <img
                         src={image.previewUrl}
-                        alt={image.name || `상품 이미지 ${index + 1}`}
+                        alt={image.name || '\uC0C1\uD488 \uC774\uBBF8\uC9C0'}
                       />
                     </div>
                     <div className="admin-image-preview__meta">
-                      <strong>{image.name || `상품 이미지 ${index + 1}`}</strong>
-                      <span>{image.isMain ? '대표 이미지' : `추가 이미지 ${index + 1}`}</span>
+                      <strong>{image.name || '\uC0C1\uD488 \uC774\uBBF8\uC9C0'}</strong>
+                      <span>{image.isMain ? '\uB300\uD45C \uC774\uBBF8\uC9C0' : '\uCD94\uAC00 \uC774\uBBF8\uC9C0 ' + (index + 1)}</span>
                     </div>
                   </article>
                 ))}
               </div>
             ) : (
               <div className="admin-image-empty">
-                아직 연결된 이미지가 없습니다. 이미지는 매입 등록 단계에서 추가해주세요.
+                {'\uC5F0\uACB0\uB41C \uC774\uBBF8\uC9C0\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4. \uC774\uBBF8\uC9C0\uB294 \uB9E4\uC785 \uB4F1\uB85D \uB2E8\uACC4\uC5D0\uC11C \uCD94\uAC00\uD574\uC8FC\uC138\uC694.'}
               </div>
             )}
           </div>
           <div className="admin-page-actions">
             <button type="button" className="admin-action admin-action--soft" onClick={onResetProductForm}>
-              되돌리기
+              {'\uB418\uB3CC\uB9AC\uAE30'}
             </button>
             <button type="button" className="admin-action admin-action--primary" onClick={onSaveProduct} disabled={submitting}>
-              {submitting ? '저장 중...' : '수정 저장'}
+              {submitting ? '\uC800\uC7A5 \uC911...' : '\uC0C1\uD488 \uC800\uC7A5'}
             </button>
           </div>
         </article>
@@ -1556,12 +2576,14 @@ function PurchasePage({
   products,
   purchases,
   packageHistories,
+  purchaseReferenceItems,
   selectedBatchNo,
   purchaseForm,
   packageForm,
   purchaseQuote,
   purchaseImagePreviews,
   onSelectBatch,
+  onPurchaseReferenceChange,
   onPurchaseFormChange,
   onPackageFormChange,
   onAutofillPurchaseQuote,
@@ -1569,6 +2591,8 @@ function PurchasePage({
   onClearPurchaseImages,
   onCreatePurchase,
   onCreatePackageHistory,
+  onApplyPackageCostDefaults,
+  onCancelPackageHistory,
   onDeletePurchaseBatch,
   quotingPurchase,
   submittingPurchase,
@@ -1578,22 +2602,50 @@ function PurchasePage({
   const selectedBatchProduct = products.find((product) => product.productNo === selectedBatch?.productNo) || null;
   const linkedProductPreviews = selectedBatchProduct ? buildProductImagePreviews(selectedBatchProduct) : [];
   const needsLegacyProductLink = Boolean(selectedBatch && !selectedBatch.productNo);
+  const selectedPurchaseCategoryName =
+    categories.find((category) => String(category.categoryNo) === String(purchaseForm.categoryNo))
+      ?.categoryName || '';
+  const filteredPurchaseReferenceItems = selectedPurchaseCategoryName
+    ? purchaseReferenceItems.filter((item) => item.categoryName === selectedPurchaseCategoryName)
+    : [];
+  const purchaseMetrics = calculatePurchaseDraftMetrics(purchaseForm);
+  const packageMetrics = calculatePackageDraftMetrics(selectedBatch, packageForm);
+  const selectedBatchPackageHistories = selectedBatch
+    ? packageHistories.filter((history) => history.batchNo === selectedBatch.batchNo)
+    : [];
+  const packageCostDefaults = calculatePackageCostDefaults(selectedBatch, packageForm);
 
   return (
     <>
       <AdminPageHeader
-        title="매입 / 소분 관리"
-        description="매입 단계에서 이미지까지 등록하고, 소분 단계에서 판매가를 확정해 판매 상품으로 넘깁니다."
+        title={'\uB9E4\uC785 / \uC18C\uBD84 \uAD00\uB9AC'}
+        description={'\uB9E4\uC785 \uB2E8\uACC4\uC5D0\uC11C \uBC30\uCE58\uAE4C\uC9C0 \uB4F1\uB85D\uD558\uACE0, \uC18C\uBD84 \uB2E8\uACC4\uC5D0\uC11C \uD310\uB9E4\uAC00\uB97C \uD655\uC815\uD574 \uD310\uB9E4 \uC0C1\uD488\uC73C\uB85C \uC804\uD658\uD569\uB2C8\uB2E4.'}
       />
 
       <section className="admin-grid admin-grid--split">
         <article className="admin-card admin-card--panel">
-          <h2>매입 등록</h2>
+          <h2>{'\uB9E4\uC785 \uB4F1\uB85D'}</h2>
           <div className="admin-form-grid">
             <label>
-              <span>카테고리</span>
+              <span>{'\uC2DC\uC138 \uD488\uBAA9'}</span>
+              <select
+                name="referenceItemCode"
+                value={purchaseForm.referenceItemCode}
+                onChange={onPurchaseReferenceChange}
+                disabled={!selectedPurchaseCategoryName}
+              >
+                <option value="">{'\uC120\uD0DD'}</option>
+                {filteredPurchaseReferenceItems.map((item) => (
+                  <option key={item.itemCode} value={item.itemCode}>
+                    {item.displayLabel || item.productName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>{'\uCE74\uD14C\uACE0\uB9AC'}</span>
               <select name="categoryNo" value={purchaseForm.categoryNo} onChange={onPurchaseFormChange}>
-                <option value="">선택</option>
+                <option value="">{'\uC120\uD0DD'}</option>
                 {categories.map((category) => (
                   <option key={category.categoryNo} value={category.categoryNo}>
                     {category.categoryName}
@@ -1601,80 +2653,137 @@ function PurchasePage({
                 ))}
               </select>
             </label>
-            <label><span>품목명</span><input name="productName" value={purchaseForm.productName} onChange={onPurchaseFormChange} onBlur={() => {
-              if (String(purchaseForm.productName || '').trim()) {
-                onAutofillPurchaseQuote();
-              }
-            }} /></label>
-            <label><span>공급처</span><input name="supplierName" value={purchaseForm.supplierName} onChange={onPurchaseFormChange} /></label>
-            <label><span>매입 수량</span><input name="purchaseQty" value={purchaseForm.purchaseQty} onChange={onPurchaseFormChange} /></label>
-            <label><span>단위</span><input name="purchaseUnit" value={purchaseForm.purchaseUnit} onChange={onPurchaseFormChange} /></label>
-            <label><span>총 매입가</span><input name="purchasePrice" value={purchaseForm.purchasePrice} onChange={onPurchaseFormChange} /></label>
-            <label><span>매입일</span><input type="date" name="purchaseDate" value={purchaseForm.purchaseDate} onChange={onPurchaseFormChange} /></label>
-            <label><span>원산지</span><input name="origin" value={purchaseForm.origin} onChange={onPurchaseFormChange} /></label>
+            <label>
+              <span>{'\uD488\uBAA9\uBA85'}</span>
+              <input
+                name="productName"
+                value={purchaseForm.productName}
+                readOnly
+                placeholder={'\uC2DC\uC138 \uD488\uBAA9\uC744 \uC120\uD0DD\uD558\uBA74 \uC790\uB3D9 \uC785\uB825\uB429\uB2C8\uB2E4.'}
+              />
+            </label>
+            <label>
+              <span>{'\uACF5\uAE09\uCC98'}</span>
+              <select name="supplierProfileKey" value={purchaseForm.supplierProfileKey} onChange={onPurchaseFormChange}>
+                {PURCHASE_SUPPLIER_PROFILES.map((profile) => (
+                  <option key={profile.key} value={profile.key}>
+                    {profile.supplierName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label><span>{'\uB9E4\uC785 \uC218\uB7C9'}</span><input name="purchaseQty" value={purchaseForm.purchaseQty} onChange={onPurchaseFormChange} /></label>
+            <label><span>{'\uC2E4\uC81C \uB9E4\uC785 \uB2E8\uAC00'}</span><input name="actualUnitPrice" value={purchaseForm.actualUnitPrice} onChange={onPurchaseFormChange} /></label>
+            <label><span>{'\uB2E8\uC704'}</span><input name="purchaseUnit" value={purchaseForm.purchaseUnit} onChange={onPurchaseFormChange} /></label>
+            <label><span>{'\uBB3C\uB958\uBE44'}</span><input name="logisticsCost" value={purchaseForm.logisticsCost} onChange={onPurchaseFormChange} /></label>
+            <label><span>{'\uC218\uC218\uB8CC\uC728(%)'}</span><input name="commissionRate" value={purchaseForm.commissionRate} onChange={onPurchaseFormChange} /></label>
+            <label><span>{'\uD3D0\uAE30\uC728(%)'}</span><input name="discardRate" value={purchaseForm.discardRate} onChange={onPurchaseFormChange} /></label>
+            <label><span>{'\uAE30\uD0C0 \uBE44\uC6A9'}</span><input name="otherPurchaseCost" value={purchaseForm.otherPurchaseCost} onChange={onPurchaseFormChange} /></label>
+            <label><span>{'\uB9E4\uC785\uC77C'}</span><input type="date" name="purchaseDate" value={purchaseForm.purchaseDate} onChange={onPurchaseFormChange} /></label>
           </div>
-          <div className="admin-page-actions admin-page-actions--spaced">
-            <span className="admin-muted">
-              최신 도매 시세 기준으로 매입 단위, 매입 수량, 총 매입가를 자동 채웁니다.
-            </span>
+          <div className="admin-page-actions admin-page-actions--end admin-page-actions--compact">
             <button
               type="button"
               className="admin-action admin-action--line"
               onMouseDown={(event) => event.preventDefault()}
               onClick={onAutofillPurchaseQuote}
-              disabled={quotingPurchase || !String(purchaseForm.productName || '').trim()}
+              disabled={
+                quotingPurchase
+                || !String(purchaseForm.referenceItemCode || '').trim()
+              }
             >
-              {quotingPurchase ? '시세 조회 중...' : '시세로 자동 채움'}
+              {quotingPurchase ? '\uC2DC\uC138 \uC870\uD68C \uC911...' : '\uC2DC\uC138 \uC790\uB3D9 \uCC44\uC6C0'}
             </button>
           </div>
-          {purchaseQuote ? (
-            <div className="admin-summary-box admin-summary-box--note">
-              <strong>시세 자동 채움 기준</strong>
-              <div className="admin-muted">
-                {purchaseQuote.matchedItemName} · 기준일 {purchaseQuote.snapshotDate} · 계산 기준{' '}
-                {purchaseQuote.priceBasisUnit || '1kg'}
+          <div className="admin-kpi-grid">
+            <div className="admin-kpi-card admin-kpi-card--primary">
+              <div className="admin-kpi-card__label">{'\uCD1D \uB9E4\uC785 \uC6D0\uAC00'}</div>
+              <div className="admin-kpi-card__value">{formatAdminCurrency(purchaseMetrics.totalPurchaseCost)}</div>
+            </div>
+            <div className="admin-kpi-card">
+              <div className="admin-kpi-card__label">{'\uC2E4\uD310\uB9E4 \uAC00\uB2A5\uB7C9'}</div>
+              <div className="admin-kpi-card__value">{formatDecimalInput(purchaseMetrics.sellableQty, 2)}{purchaseForm.purchaseUnit}</div>
+            </div>
+            <div className="admin-kpi-card">
+              <div className="admin-kpi-card__label">{'\uC2E4\uC81C \uC6D0\uAC00/kg'}</div>
+              <div className="admin-kpi-card__value">{formatAdminCurrency(purchaseMetrics.actualCostPerKg)}</div>
+            </div>
+          </div>
+          <details className="admin-disclosure">
+            <summary>{'\uC0C1\uC138 \uACC4\uC0B0 \uBCF4\uAE30'}</summary>
+            <div className="admin-disclosure__content">
+              <div className="admin-summary-grid">
+                <div className="admin-summary-box">
+                  <strong>{'\uD3D0\uAE30\uB7C9'}</strong>
+                  <div className="admin-summary-box__kpi">{formatDecimalInput(purchaseMetrics.discardQty, 2)}{purchaseForm.purchaseUnit}</div>
+                </div>
+                <div className="admin-summary-box">
+                  <strong>{'\uC218\uC218\uB8CC \uAE08\uC561'}</strong>
+                  <div className="admin-summary-box__kpi">{formatAdminCurrency(purchaseMetrics.commissionCost)}</div>
+                </div>
+                <div className="admin-summary-box">
+                  <strong>{'\uC2E4\uC81C \uC6D0\uBB3C \uB9E4\uC785\uC561'}</strong>
+                  <div className="admin-summary-box__kpi">{formatAdminCurrency(purchaseMetrics.actualPurchaseAmount)}</div>
+                </div>
+                <div className="admin-summary-box">
+                  <strong>{'\uCC38\uACE0 \uB9E4\uC785 \uB2E8\uAC00'}</strong>
+                  <div className="admin-summary-box__kpi">{formatAdminCurrency(purchaseForm.referenceUnitPrice)}</div>
+                </div>
+                <div className="admin-summary-box">
+                  <strong>{'\uCC38\uACE0 \uCD1D \uB9E4\uC785\uAC00'}</strong>
+                  <div className="admin-summary-box__kpi">{formatAdminCurrency(purchaseMetrics.referenceTotalPrice)}</div>
+                </div>
+                <div className="admin-summary-box">
+                  <strong>{'\uACF5\uAE09\uCC98'}</strong>
+                  <div className="admin-muted">{purchaseForm.supplierName}</div>
+                  <div className="admin-muted">{'\uB4F1\uAE09 '}{purchaseForm.grade || '-'}</div>
+                  <div className="admin-muted">{'\uC6D0\uC0B0\uC9C0 '}{purchaseForm.origin || '-'}</div>
+                </div>
               </div>
-              <div className="admin-muted">
-                도매 원시세 {formatAdminCurrency(purchaseQuote.wholesaleSourcePrice)} ({purchaseQuote.wholesaleSourceUnit || purchaseQuote.snapshotUnit} 기준)
-                {hasAdminValue(purchaseQuote.wholesaleAvgPrice) ? (
-                  <> · {purchaseQuote.wholesalePriceBasisUnit || purchaseQuote.priceBasisUnit || '1kg'} 환산 {formatAdminCurrency(purchaseQuote.wholesaleAvgPrice)}</>
-                ) : null}
-              </div>
-              <div className="admin-muted">
-                기준 단위 {purchaseQuote.snapshotUnit} · 자동 입력 {purchaseQuote.purchaseQty}
-                {purchaseQuote.purchaseUnit}
-                {hasAdminValue(purchaseQuote.retailSourcePrice) ? (
-                  <>
-                    {' '}
-                    · 소매 원시세 {formatAdminCurrency(purchaseQuote.retailSourcePrice)}
-                    {purchaseQuote.retailSnapshotUnit ? ` (${purchaseQuote.retailSnapshotUnit} 기준)` : ''}
-                  </>
-                ) : null}
-                {hasAdminValue(purchaseQuote.retailComparablePrice) ? (
-                  <> · {purchaseQuote.retailPriceBasisUnit || purchaseQuote.priceBasisUnit || '1kg'} 환산 {formatAdminCurrency(purchaseQuote.retailComparablePrice)}</>
-                ) : null}
-                {hasAdminValue(purchaseQuote.recommendedSalePrice) ? (
-                  <> · 권장 판매가 {formatAdminCurrency(purchaseQuote.recommendedSalePrice)} ({purchaseQuote.recommendedPriceBasisUnit || purchaseQuote.priceBasisUnit || '1kg'} 기준)</>
-                ) : null}
-              </div>
-              {purchaseQuote.pricingNote ? (
-                <div className="admin-muted">{purchaseQuote.pricingNote}</div>
+              {purchaseQuote ? (
+                <div className="admin-summary-box admin-summary-box--note">
+                  <strong>{'\uC2DC\uC138 \uCC38\uACE0 \uC815\uBCF4'}</strong>
+                  <div className="admin-muted">
+                    {purchaseQuote.matchedItemName} {'\u00B7 '} {purchaseQuote.snapshotDate || '-'} {'\u00B7 '} {purchaseQuote.priceBasisUnit || '1kg'}
+                  </div>
+                  <div className="admin-muted">
+                    {hasAdminValue(purchaseQuote.wholesaleSourcePrice)
+                      ? `${formatAdminCurrency(purchaseQuote.wholesaleSourcePrice)} / ${purchaseQuote.wholesaleSourceUnit || purchaseQuote.snapshotUnit || '-'}`
+                      : '-'}
+                  </div>
+                  <div className="admin-muted">
+                    {'\uC18C\uB9E4\uAC00 '}
+                    {hasAdminValue(purchaseQuote.retailComparablePrice)
+                      ? formatAdminCurrency(purchaseQuote.retailComparablePrice)
+                      : '-'}
+                  </div>
+                  <div className="admin-muted">
+                    {'\uAD8C\uC7A5\uAC00 '}
+                    {hasAdminValue(purchaseQuote.recommendedSalePrice)
+                      ? formatAdminCurrency(purchaseQuote.recommendedSalePrice)
+                      : '-'}
+                  </div>
+                  <div className="admin-muted">
+                    {'\uAC00\uACA9 \uAE30\uC900 '}
+                    {purchaseQuote.priceBasisUnit || purchaseQuote.recommendedPriceBasisUnit || '1kg'}
+                  </div>
+                </div>
               ) : null}
             </div>
-          ) : null}
+          </details>
           <div className="admin-form-field admin-form-field--full">
-            <span>매입 이미지</span>
+            <span>{'\uB9E4\uC785 \uC774\uBBF8\uC9C0'}</span>
             <label className="admin-file-upload">
               <input type="file" accept="image/*" multiple onChange={onPurchaseImagesChange} />
-              <strong>이미지 선택</strong>
-              <small>매입 단계에서 등록한 이미지를 소분/상품관리에서도 그대로 사용합니다.</small>
+              <strong>{'\uC774\uBBF8\uC9C0 \uC120\uD0DD'}</strong>
+              <small>{'\uB9E4\uC785 \uB2E8\uACC4\uC5D0\uC11C \uB4F1\uB85D\uD55C \uC774\uBBF8\uC9C0\uB97C \uC18C\uBD84\uACFC \uC0C1\uD488\uAD00\uB9AC\uC5D0\uC11C\uB3C4 \uADF8\uB300\uB85C \uC0AC\uC6A9\uD569\uB2C8\uB2E4.'}</small>
             </label>
             <div className="admin-file-upload__hint">
-              권장 사이즈: 1200 x 1200px 이상 / 정사각형 비율 / JPG, PNG, WEBP
+              {'\uAD8C\uC7A5 \uC0AC\uC774\uC988 1200 x 1200px \uC774\uC0C1 / \uC815\uC0AC\uAC01\uD615 \uBE44\uC728 / JPG, PNG, WEBP'}
             </div>
             <div className="admin-page-actions">
               <button type="button" className="admin-action admin-action--line" onClick={onClearPurchaseImages}>
-                선택 이미지 초기화
+                {'\uC120\uD0DD \uC774\uBBF8\uC9C0 \uCD08\uAE30\uD654'}
               </button>
             </div>
             {purchaseImagePreviews.length ? (
@@ -1682,54 +2791,63 @@ function PurchasePage({
                 {purchaseImagePreviews.map((image, index) => (
                   <article className="admin-image-preview" key={image.key || image.imageNo || index}>
                     <div className="admin-image-preview__thumb">
-                      <img src={image.previewUrl} alt={image.name || `매입 이미지 ${index + 1}`} />
+                      <img src={image.previewUrl} alt={image.name || '\uB9E4\uC785 \uC774\uBBF8\uC9C0'} />
                     </div>
                     <div className="admin-image-preview__meta">
-                      <strong>{image.name || `매입 이미지 ${index + 1}`}</strong>
-                      <span>{image.isMain ? '대표 이미지' : `추가 이미지 ${index + 1}`}</span>
+                      <strong>{image.name || '\uB9E4\uC785 \uC774\uBBF8\uC9C0'}</strong>
+                      <span>{image.isMain ? '\uB300\uD45C \uC774\uBBF8\uC9C0' : '\uCD94\uAC00 \uC774\uBBF8\uC9C0 ' + (index + 1)}</span>
                     </div>
                   </article>
                 ))}
               </div>
             ) : (
               <div className="admin-image-empty">
-                매입 이미지는 최소 1장 이상 등록해주세요.
+                {'\uB9E4\uC785 \uC774\uBBF8\uC9C0\uB97C \uCD5C\uC18C 1\uC7A5 \uC774\uC0C1 \uB4F1\uB85D\uD574\uC8FC\uC138\uC694.'}
               </div>
             )}
           </div>
           <div className="admin-page-actions admin-page-actions--end">
             <button type="button" className="admin-action admin-action--primary" onClick={onCreatePurchase} disabled={submittingPurchase}>
-              {submittingPurchase ? '저장 중...' : '매입 등록'}
+              {submittingPurchase ? '\uC800\uC7A5 \uC911...' : '\uB9E4\uC785 \uB4F1\uB85D'}
             </button>
           </div>
         </article>
 
         <article className="admin-card admin-card--panel">
-          <h2>소분 / 판매 전환</h2>
-          <div className="admin-summary-box">
-            <strong>선택 배치</strong>
-            <div className="admin-muted">
-              {selectedBatch
-                ? `${selectedBatch.batchNo} / ${selectedBatch.productName} / ${selectedBatch.purchaseQty}${selectedBatch.purchaseUnit}`
-                : '아래 매입/소분 이력 테이블에서 배치를 선택해주세요.'}
-            </div>
-          </div>
-          {selectedBatchProduct ? (
-            <div className="admin-summary-box admin-summary-box--note">
-              <strong>연결된 상품</strong>
+          <h2>{'\uC18C\uBD84 / \uD310\uB9E4 \uC804\uD658'}</h2>
+          <section className="admin-batch-overview">
+            <div className="admin-summary-box admin-summary-box--compact">
+              <strong>{'\uC120\uD0DD \uBC30\uCE58'}</strong>
               <div className="admin-muted">
-                {selectedBatchProduct.productName} / {selectedBatchProduct.categoryName} / 상품번호 {selectedBatchProduct.productNo}
+                {selectedBatch
+                  ? `${selectedBatch.batchNo} / ${selectedBatch.productName} / ${selectedBatch.purchaseQty}${selectedBatch.purchaseUnit}`
+                  : '\uC544\uB798 \uB9E4\uC785 / \uC18C\uBD84 \uC774\uB825 \uD14C\uC774\uBE14\uC5D0\uC11C \uBC30\uCE58\uB97C \uC120\uD0DD\uD574\uC8FC\uC138\uC694.'}
+              </div>
+            </div>
+            <div className="admin-summary-box admin-summary-box--compact admin-summary-box--accent">
+              <strong>{'\uC794\uC5EC \uC7AC\uACE0'}</strong>
+              <div className="admin-summary-box__kpi">
+                {formatDecimalInput(selectedBatch?.remainingQty ?? selectedBatch?.sellableQty ?? 0, 2)}
+                {selectedBatch?.purchaseUnit || ''}
+              </div>
+            </div>
+          </section>
+          {selectedBatchProduct ? (
+            <div className="admin-summary-box admin-summary-box--note admin-summary-box--compact">
+              <strong>{'\uC5F0\uACB0 \uC0C1\uD488'}</strong>
+              <div className="admin-muted">
+                {selectedBatchProduct.productName} / {selectedBatchProduct.categoryName} / {'\uC0C1\uD488\uBC88\uD638 '}{selectedBatchProduct.productNo}
               </div>
               {linkedProductPreviews.length ? (
                 <div className="admin-image-preview-grid admin-image-preview-grid--compact">
-                  {linkedProductPreviews.map((image, index) => (
-                    <article className="admin-image-preview" key={image.key || image.imageNo || index}>
+                  {linkedProductPreviews.slice(0, 1).map((image, index) => (
+                    <article className="admin-image-preview admin-image-preview--compact" key={image.key || image.imageNo || index}>
                       <div className="admin-image-preview__thumb">
-                        <img src={image.previewUrl} alt={image.name || `상품 이미지 ${index + 1}`} />
+                        <img src={image.previewUrl} alt={image.name || '\uC0C1\uD488 \uC774\uBBF8\uC9C0'} />
                       </div>
                       <div className="admin-image-preview__meta">
-                        <strong>{image.name || `상품 이미지 ${index + 1}`}</strong>
-                        <span>{image.isMain ? '대표 이미지' : `추가 이미지 ${index + 1}`}</span>
+                        <strong>{image.name || '\uC0C1\uD488 \uC774\uBBF8\uC9C0'}</strong>
+                        <span>{image.isMain ? '\uB300\uD45C \uC774\uBBF8\uC9C0' : '\uCD94\uAC00 \uC774\uBBF8\uC9C0'}</span>
                       </div>
                     </article>
                   ))}
@@ -1737,12 +2855,24 @@ function PurchasePage({
               ) : null}
             </div>
           ) : null}
-          <div className="admin-form-grid admin-form-grid--spaced">
+          <section className="admin-section-block">
+            <div className="admin-section-block__head">
+              <h3>{'\uC785\uB825 \uC601\uC5ED'}</h3>
+              <button
+                type="button"
+                className="admin-action admin-action--line"
+                onClick={onApplyPackageCostDefaults}
+                disabled={!packageCostDefaults}
+              >
+                {'\uBE44\uC6A9 \uAE30\uBCF8\uAC12 \uC801\uC6A9'}
+              </button>
+            </div>
+            <div className="admin-form-grid admin-form-grid--spaced admin-form-grid--priority">
             {needsLegacyProductLink ? (
               <label>
-                <span>연결 상품</span>
+                <span>{'\uC5F0\uACB0 \uC0C1\uD488'}</span>
                 <select name="productNo" value={packageForm.productNo} onChange={onPackageFormChange}>
-                  <option value="">선택</option>
+                  <option value="">{'\uC120\uD0DD'}</option>
                   {products.map((product) => (
                     <option key={product.productNo} value={product.productNo}>
                       {product.productName}
@@ -1751,39 +2881,151 @@ function PurchasePage({
                 </select>
               </label>
             ) : null}
-            <label><span>생성 수량</span><input name="packagedQty" value={packageForm.packagedQty} onChange={onPackageFormChange} /></label>
-            <label><span>1개당 중량</span><input name="packagedWeight" value={packageForm.packagedWeight} onChange={onPackageFormChange} /></label>
-            <label><span>판매가</span><input name="salePrice" value={packageForm.salePrice} onChange={onPackageFormChange} /></label>
+            <label><span>{'\uC0DD\uC131 \uC218\uB7C9'}</span><input name="packagedQty" value={packageForm.packagedQty} onChange={onPackageFormChange} /></label>
+            <label><span>{`1\uAC1C\uB2F9 \uC911\uB7C9 (${selectedBatch?.purchaseUnit || 'kg'})`}</span><input name="packagedWeight" value={packageForm.packagedWeight} onChange={onPackageFormChange} /></label>
+            <label><span>{'\uD310\uB9E4\uAC00'}</span><input name="salePrice" value={packageForm.salePrice} onChange={onPackageFormChange} /></label>
+            </div>
+            <div className="admin-form-grid admin-form-grid--spaced admin-form-grid--secondary">
+            <label><span>{'\uD3EC\uC7A5\uC7AC\uBE44'}</span><input name="packagingMaterialCost" value={packageForm.packagingMaterialCost} onChange={onPackageFormChange} /></label>
+            <label><span>{'\uC18C\uBD84 \uC778\uAC74\uBE44'}</span><input name="packagingLaborCost" value={packageForm.packagingLaborCost} onChange={onPackageFormChange} /></label>
+            <label><span>{'\uAE30\uD0C0 \uC18C\uBD84\uBE44'}</span><input name="otherPackagingCost" value={packageForm.otherPackagingCost} onChange={onPackageFormChange} /></label>
             <label>
-              <span>판매 상태</span>
+              <span>{'\uD310\uB9E4 \uC0C1\uD0DC'}</span>
               <select name="saleStatus" value={packageForm.saleStatus} onChange={onPackageFormChange}>
-                <option value="SELLING">판매중</option>
-                <option value="READY">준비중</option>
-                <option value="SOLD_OUT">품절</option>
-                <option value="STOP">판매중지</option>
+                <option value="SELLING">{'\uD310\uB9E4\uC911'}</option>
+                <option value="READY">{'\uC900\uBE44\uC911'}</option>
+                <option value="SOLD_OUT">{'\uD488\uC808'}</option>
+                <option value="STOP">{'\uD310\uB9E4\uC911\uC9C0'}</option>
               </select>
             </label>
-            <label className="admin-form-field admin-form-field--full"><span>메모</span><textarea name="note" value={packageForm.note} onChange={onPackageFormChange} /></label>
-          </div>
-          <div className="admin-page-actions admin-page-actions--end">
-            <button type="button" className="admin-action admin-action--primary" onClick={onCreatePackageHistory} disabled={!selectedBatch || submittingPackage}>
-              {submittingPackage ? '처리 중...' : '소분 실행'}
-            </button>
-          </div>
+            </div>
+            <div className="admin-muted">
+              {packageCostDefaults
+                ? `${packageCostDefaults.profileLabel} \u00B7 \uD3EC\uC7A5\uC7AC\uBE44 ${formatAdminCurrency(packageCostDefaults.packagingMaterialCost)} \u00B7 \uC18C\uBD84 \uC778\uAC74\uBE44 ${formatAdminCurrency(packageCostDefaults.packagingLaborCost)} \u00B7 \uAE30\uD0C0 \uC18C\uBD84\uBE44 ${formatAdminCurrency(packageCostDefaults.otherPackagingCost)}`
+                : '\uC0DD\uC131 \uC218\uB7C9\uACFC 1\uAC1C\uB2F9 \uC911\uB7C9\uC744 \uC785\uB825\uD558\uBA74 \uC18C\uD3EC\uC7A5, \uC911\uD3EC\uC7A5, \uB300\uD3EC\uC7A5 \uAE30\uC900 \uBE44\uC6A9\uC774 \uC790\uB3D9 \uACC4\uC0B0\uB429\uB2C8\uB2E4.'}
+            </div>
+            <div className="admin-form-field admin-form-field--full admin-form-field--memo">
+              <span>{'\uBA54\uBAA8'}</span>
+              <textarea name="note" value={packageForm.note} onChange={onPackageFormChange} />
+            </div>
+          </section>
+          {packageMetrics ? (
+            <>
+              <section className="admin-section-block">
+                <div className="admin-section-block__head">
+                  <h3>{'\uACB0\uACFC \uC694\uC57D'}</h3>
+                </div>
+                <div className="admin-kpi-grid">
+                  <div className="admin-kpi-card">
+                    <div className="admin-kpi-card__label">{'\uAC1C\uB2F9 \uC608\uC0C1 \uC6D0\uAC00'}</div>
+                    <div className="admin-kpi-card__value">{formatAdminCurrency(packageMetrics.finalCostPerPackage)}</div>
+                  </div>
+                  <div className="admin-kpi-card admin-kpi-card--primary">
+                    <div className="admin-kpi-card__label">{'\uAC1C\uB2F9 \uC608\uC0C1 \uC774\uC775'}</div>
+                    <div className="admin-kpi-card__value">{formatAdminCurrency(packageMetrics.expectedProfitPerUnit)}</div>
+                  </div>
+                  <div className="admin-kpi-card">
+                    <div className="admin-kpi-card__label">{'\uB9C8\uC9C4\uC728'}</div>
+                    <div className="admin-kpi-card__value">{formatDecimalInput(packageMetrics.marginRate, 1)}%</div>
+                  </div>
+                </div>
+                {packageMetrics.exceedsSellableQty ? (
+                  <div className="admin-inline-error" style={{ marginTop: '12px' }}>
+                    {'\uC18C\uBD84 \uC218\uB7C9\uC774 \uC794\uC5EC \uC7AC\uACE0\uB97C \uCD08\uACFC\uD588\uC2B5\uB2C8\uB2E4.'}
+                  </div>
+                ) : null}
+              </section>
+              <details className="admin-disclosure">
+                <summary>{'\uC0C1\uC138 \uBCF4\uAE30'}</summary>
+                <div className="admin-disclosure__content">
+                  <div className="admin-summary-grid">
+                    <div className="admin-summary-box">
+                      <strong>{'\uC18C\uBD84 \uCD1D\uBE44\uC6A9'}</strong>
+                      <div className="admin-summary-box__kpi">{formatAdminCurrency(packageMetrics.totalPackagingCost)}</div>
+                    </div>
+                    <div className="admin-summary-box">
+                      <strong>{'\uCD1D \uC0AC\uC6A9\uB7C9'}</strong>
+                      <div className="admin-summary-box__kpi">{formatDecimalInput(packageMetrics.requiredSellableQty, 2)}{selectedBatch?.purchaseUnit || ''}</div>
+                    </div>
+                    <div className="admin-summary-box">
+                      <strong>{'\uC794\uC5EC \uC7AC\uACE0'}</strong>
+                      <div className="admin-summary-box__kpi">{formatDecimalInput(packageMetrics.remainingQty, 2)}{selectedBatch?.purchaseUnit || ''}</div>
+                    </div>
+                    <div className="admin-summary-box">
+                      <strong>{'\uCD5C\uC885 \uC6D0\uAC00/kg'}</strong>
+                      <div className="admin-summary-box__kpi">{formatAdminCurrency(packageMetrics.finalCostPerKg)}</div>
+                    </div>
+                    <div className="admin-summary-box">
+                      <strong>{'\uC608\uC0C1 \uCD1D\uB9E4\uCD9C'}</strong>
+                      <div className="admin-summary-box__kpi">{formatAdminCurrency(packageMetrics.expectedTotalSales)}</div>
+                    </div>
+                    <div className="admin-summary-box">
+                      <strong>{'\uC608\uC0C1 \uCD1D\uC774\uC775'}</strong>
+                      <div className="admin-summary-box__kpi">{formatAdminCurrency(packageMetrics.expectedTotalProfit)}</div>
+                    </div>
+                  </div>
+                </div>
+              </details>
+              <div className="admin-page-actions admin-page-actions--end admin-page-actions--spaced-top">
+                <button
+                  type="button"
+                  className="admin-action admin-action--primary"
+                  onClick={onCreatePackageHistory}
+                  disabled={!selectedBatch || submittingPackage}
+                >
+                  {submittingPackage ? '\uCC98\uB9AC \uC911...' : '\uC18C\uBD84 \uC2E4\uD589'}
+                </button>
+              </div>
+            </>
+          ) : null}
+          {selectedBatchPackageHistories.length ? (
+            <section className="admin-section-block admin-section-block--separated">
+              <div className="admin-section-block__head">
+                <h3>{'\uC18C\uBD84 \uC774\uB825 \uAD00\uB9AC'}</h3>
+              </div>
+              <div className="admin-summary-box admin-summary-box--note">
+              <div className="admin-history-note-head">
+                <strong>{'\uC774\uC804 \uC18C\uBD84 \uC791\uC5C5'}</strong>
+                <span>{formatAdminDate(selectedBatchPackageHistories[0]?.packagedAt)}</span>
+              </div>
+              <div className="admin-history-list">
+                {selectedBatchPackageHistories.map((history) => (
+                  <div className="admin-history-item admin-history-item--row" key={history.packageNo}>
+                    <div className="admin-history-item__details">
+                      <div className="admin-history-item__meta">{'\uC0DD\uC131 : '}{history.packagedQty}{'\uAC1C'}</div>
+                      <div className="admin-history-item__meta">{'\uAC1C\uB2F9 : '}{formatDecimalInput(history.packagedWeight, 2)}{selectedBatch?.purchaseUnit || ''}</div>
+                      <div className="admin-history-item__meta">{'\uD310\uB9E4\uAC00 : '}{formatAdminCurrency(history.salePrice)}</div>
+                    </div>
+                    <button
+                      type="button"
+                      className="admin-action admin-action--danger admin-action--tiny"
+                      onClick={() => onCancelPackageHistory(history)}
+                      disabled={submittingPackage}
+                    >
+                      {'\uC7AC\uACE0 \uBCF5\uAD6C'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+              </div>
+            </section>
+          ) : null}
         </article>
       </section>
 
       <section className="admin-card admin-card--panel">
-        <h2>매입 / 소분 이력</h2>
+        <h2>{'\uB9E4\uC785 / \uC18C\uBD84 \uC774\uB825'}</h2>
         <table className="admin-table admin-table--clickable">
           <thead>
             <tr>
-              <th>배치번호</th>
-              <th>품목</th>
-              <th>매입수량</th>
-              <th>매입가</th>
-              <th>상태</th>
-              <th>최근 소분</th>
+              <th>{'\uBC30\uCE58\uBC88\uD638'}</th>
+              <th>{'\uD488\uBAA9'}</th>
+              <th>{'\uB9E4\uC785\uC218\uB7C9'}</th>
+              <th>{'\uCD1D \uB9E4\uC785\uC6D0\uAC00'}</th>
+              <th>{'\uC2E4\uD310\uB9E4 \uAC00\uB2A5\uB7C9'}</th>
+              <th>{'\uC794\uC5EC \uC7AC\uACE0'}</th>
+              <th>{'\uC0C1\uD0DC'}</th>
+              <th>{'\uCD5C\uADFC \uC18C\uBD84'}</th>
             </tr>
           </thead>
           <tbody>
@@ -1798,7 +3040,9 @@ function PurchasePage({
                   <td>{purchase.batchNo}</td>
                   <td>{purchase.productName}</td>
                   <td>{purchase.purchaseQty}{purchase.purchaseUnit}</td>
-                  <td>{formatAdminCurrency(purchase.purchasePrice)}</td>
+                  <td>{formatAdminCurrency(purchase.totalPurchaseCost || purchase.purchasePrice)}</td>
+                  <td>{formatDecimalInput(purchase.sellableQty || 0, 2)}{purchase.purchaseUnit}</td>
+                  <td>{formatDecimalInput(purchase.remainingQty ?? purchase.sellableQty ?? 0, 2)}{purchase.purchaseUnit}</td>
                   <td><AdminStatusBadge status={purchase.status} /></td>
                   <td>{latestPackage ? formatAdminDate(latestPackage.packagedAt) : '-'}</td>
                   <td className="admin-table__actions">
@@ -1811,7 +3055,7 @@ function PurchasePage({
                       }}
                       disabled={submittingPurchase || submittingPackage}
                     >
-                      삭제
+                      {'\uC0AD\uC81C'}
                     </button>
                   </td>
                 </tr>
@@ -1825,6 +3069,8 @@ function PurchasePage({
 }
 
 function AdminApp() {
+  const authUser = getAuthUser();
+  const canManageAdminRole = isSuperAdminUser(authUser);
   const [currentPage, setCurrentPage] = useState(() => parseAdminPage(window.location.hash));
   const [adminMode, setAdminMode] = useState(() => isAdminMode());
   const [categories, setCategories] = useState([]);
@@ -1833,6 +3079,7 @@ function AdminApp() {
   const [users, setUsers] = useState([]);
   const [purchases, setPurchases] = useState([]);
   const [packageHistories, setPackageHistories] = useState([]);
+  const [purchaseReferenceItems, setPurchaseReferenceItems] = useState([]);
   const [banners, setBanners] = useState([]);
   const [recipeMappings, setRecipeMappings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1852,6 +3099,7 @@ function AdminApp() {
   const [productImagePreviews, setProductImagePreviews] = useState([]);
   const [purchaseForm, setPurchaseForm] = useState(EMPTY_PURCHASE_FORM);
   const [purchaseQuote, setPurchaseQuote] = useState(null);
+  const [packageQuote, setPackageQuote] = useState(null);
   const [purchaseImageFiles, setPurchaseImageFiles] = useState([]);
   const [purchaseImagePreviews, setPurchaseImagePreviews] = useState([]);
   const [packageForm, setPackageForm] = useState(EMPTY_PACKAGE_FORM);
@@ -1861,7 +3109,9 @@ function AdminApp() {
   const [updatingUser, setUpdatingUser] = useState(false);
   const [savingPurchase, setSavingPurchase] = useState(false);
   const [savingPackage, setSavingPackage] = useState(false);
+  const [pendingCancelPackageHistory, setPendingCancelPackageHistory] = useState(null);
   const [quotingPurchase, setQuotingPurchase] = useState(false);
+  const [, setLoadingPackageQuote] = useState(false);
   const [syncingRecipes, setSyncingRecipes] = useState(false);
 
   useEffect(() => {
@@ -1893,6 +3143,7 @@ function AdminApp() {
         nextUsers,
         nextPurchases,
         nextPackageHistories,
+        nextPurchaseReferenceItems,
         nextBanners,
         nextRecipeMappings,
       ] = await Promise.all([
@@ -1902,6 +3153,7 @@ function AdminApp() {
         fetchAdminUsers(),
         fetchAdminPurchases(),
         fetchAdminPackageHistories(),
+        fetchAdminPurchaseReferenceItems(),
         fetchAdminBanners(),
         fetchAdminRecipeMappings(),
       ]);
@@ -1912,6 +3164,7 @@ function AdminApp() {
       setUsers(nextUsers);
       setPurchases(nextPurchases);
       setPackageHistories(nextPackageHistories);
+      setPurchaseReferenceItems(nextPurchaseReferenceItems);
       setBanners(nextBanners);
       setRecipeMappings(nextRecipeMappings);
       if (!selectedProductNo && nextProducts.length) {
@@ -1928,7 +3181,7 @@ function AdminApp() {
         setSelectedBatchNo(nextPurchases[0].batchNo);
       }
     } catch (error) {
-      setLoadError(error.message || '관리자 데이터를 불러오지 못했습니다.');
+      setLoadError(error.message || '\uAD00\uB9AC\uC790 \uB370\uC774\uD130\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setLoading(false);
     }
@@ -1945,7 +3198,11 @@ function AdminApp() {
   }, [adminMode]);
 
   useEffect(() => {
-    if (!adminMode || !selectedOrderNo) {
+    if (
+      !adminMode ||
+      !selectedOrderNo ||
+      (currentPage !== 'orders' && currentPage !== 'carrier')
+    ) {
       setSelectedOrderDetail(null);
       setTrackingNo('');
       return;
@@ -1955,7 +3212,9 @@ function AdminApp() {
 
     async function loadOrderDetail() {
       try {
-        const detail = await fetchAdminOrderDetail(selectedOrderNo);
+        const detail = currentPage === 'carrier'
+          ? await fetchCarrierOrderDetail(selectedOrderNo)
+          : await fetchAdminOrderDetail(selectedOrderNo);
         if (ignore) {
           return;
         }
@@ -1963,7 +3222,7 @@ function AdminApp() {
         setTrackingNo(detail?.trackingNo || '');
       } catch (error) {
         if (!ignore) {
-          setActionError(error.message || '주문 상세를 불러오지 못했습니다.');
+          setActionError(error.message || '\uC8FC\uBB38 \uC0C1\uC138\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.');
         }
       }
     }
@@ -1972,7 +3231,7 @@ function AdminApp() {
     return () => {
       ignore = true;
     };
-  }, [adminMode, selectedOrderNo]);
+  }, [adminMode, currentPage, selectedOrderNo]);
 
   const currentProduct = useMemo(
     () => products.find((product) => product.productNo === selectedProductNo) || null,
@@ -1983,6 +3242,96 @@ function AdminApp() {
     () => users.find((user) => user.userNo === selectedUserNo) || null,
     [users, selectedUserNo]
   );
+
+  const currentBatch = useMemo(
+    () => purchases.find((purchase) => purchase.batchNo === selectedBatchNo) || null,
+    [purchases, selectedBatchNo]
+  );
+
+  const normalizedPurchaseReferenceItems = useMemo(
+    () => normalizeAdminPurchaseReferenceItems(purchaseReferenceItems, categories),
+    [purchaseReferenceItems, categories]
+  );
+
+  const purchaseCategories = useMemo(
+    () => categories.filter(
+      (category) => !ADMIN_DISABLED_PURCHASE_CATEGORY_NAMES.has(String(category?.categoryName || '').trim())
+    ),
+    [categories]
+  );
+
+  const purchaseReferenceItemsForFlow = useMemo(
+    () => normalizedPurchaseReferenceItems.filter(
+      (item) => !ADMIN_DISABLED_PURCHASE_CATEGORY_NAMES.has(String(item?.categoryName || '').trim())
+    ),
+    [normalizedPurchaseReferenceItems]
+  );
+
+  useEffect(() => {
+    if (!adminMode || !currentBatch?.productName) {
+      setPackageQuote(null);
+      return;
+    }
+
+    let ignore = false;
+
+    async function loadPackageQuote() {
+      setLoadingPackageQuote(true);
+
+      try {
+        const nextPackageQuote = await fetchAdminPurchaseQuote(currentBatch.productName);
+        if (!ignore) {
+          setPackageQuote(nextPackageQuote);
+        }
+      } catch (error) {
+        if (!ignore) {
+          setPackageQuote(null);
+        }
+      } finally {
+        if (!ignore) {
+          setLoadingPackageQuote(false);
+        }
+      }
+    }
+
+    loadPackageQuote();
+    return () => {
+      ignore = true;
+    };
+  }, [adminMode, currentBatch]);
+
+  useEffect(() => {
+    if (!currentBatch) {
+      setPackageForm(EMPTY_PACKAGE_FORM);
+      return;
+    }
+
+    setPackageForm((current) => {
+      const nextForm = {
+        ...current,
+        productNo: currentBatch.productNo ? String(currentBatch.productNo) : current.productNo,
+      };
+
+      if (Number(current.packagedQty) > 0) {
+        const autoDefaults = calculateAutoPackageDefaults(
+          currentBatch,
+          packageQuote,
+          current.packagedQty
+        );
+        if (autoDefaults?.packagedWeight != null) {
+          nextForm.packagedWeight = formatDecimalInput(autoDefaults.packagedWeight, 2);
+        }
+        if (autoDefaults?.salePrice != null) {
+          nextForm.salePrice = formatDecimalInput(autoDefaults.salePrice, 0);
+        }
+        if (autoDefaults?.saleStatus) {
+          nextForm.saleStatus = autoDefaults.saleStatus;
+        }
+      }
+
+      return applyPackageCostDefaultsToForm(currentBatch, nextForm);
+    });
+  }, [currentBatch, packageQuote]);
 
   useEffect(() => {
     if (currentProduct) {
@@ -2080,6 +3429,11 @@ function AdminApp() {
         [name]: value,
       };
 
+      if (name === 'categoryNo') {
+        nextForm.referenceItemCode = '';
+        nextForm.productName = '';
+      }
+
       if (purchaseQuote && (name === 'purchaseQty' || name === 'purchaseUnit')) {
         const nextPurchasePrice = calculatePurchasePriceFromQuote(
           purchaseQuote,
@@ -2087,22 +3441,117 @@ function AdminApp() {
           nextForm.purchaseUnit
         );
         if (nextPurchasePrice != null) {
+          nextForm.referenceUnitPrice = formatDecimalInput(
+            Number(purchaseQuote.pricingBasePrice || purchaseQuote.purchasePrice || 0)
+            / Math.max(Number(purchaseQuote.pricingBaseQty || purchaseQuote.purchaseQty || 1), 1),
+            2
+          );
+          nextForm.referenceTotalPrice = formatDecimalInput(nextPurchasePrice, 2);
           nextForm.purchasePrice = formatDecimalInput(nextPurchasePrice, 2);
         }
+      }
+
+      if (name === 'supplierProfileKey') {
+        const selectedSupplierProfile = findPurchaseSupplierProfile(value);
+        const suggestedActualUnitPrice = calculateSupplierSuggestedUnitPrice(
+          nextForm.referenceUnitPrice,
+          selectedSupplierProfile
+        );
+        nextForm.supplierName = selectedSupplierProfile.supplierName;
+        nextForm.supplierType = selectedSupplierProfile.supplierType;
+        nextForm.logisticsCost = formatDecimalInput(selectedSupplierProfile.defaultLogisticsCost, 0);
+        nextForm.commissionRate = formatDecimalInput(selectedSupplierProfile.defaultCommissionRate, 2);
+        nextForm.discardRate = formatDecimalInput(selectedSupplierProfile.defaultDiscardRate, 2);
+        if (suggestedActualUnitPrice > 0) {
+          nextForm.actualUnitPrice = formatDecimalInput(suggestedActualUnitPrice, 2);
+          nextForm.actualPurchaseAmount = formatDecimalInput(
+            suggestedActualUnitPrice * toNumber(nextForm.purchaseQty, 0),
+            2
+          );
+        }
+      }
+
+      if (name === 'referenceUnitPrice' || name === 'purchaseQty') {
+        const selectedSupplierProfile = findPurchaseSupplierProfile(nextForm.supplierProfileKey);
+        const suggestedActualUnitPrice = calculateSupplierSuggestedUnitPrice(
+          nextForm.referenceUnitPrice,
+          selectedSupplierProfile
+        );
+        if (suggestedActualUnitPrice > 0) {
+          nextForm.actualUnitPrice = formatDecimalInput(suggestedActualUnitPrice, 2);
+          nextForm.actualPurchaseAmount = formatDecimalInput(
+            suggestedActualUnitPrice * toNumber(nextForm.purchaseQty, 0),
+            2
+          );
+        }
+      }
+
+      if (name === 'actualUnitPrice') {
+        nextForm.actualPurchaseAmount = formatDecimalInput(
+          toNumber(nextForm.actualUnitPrice, 0) * toNumber(nextForm.purchaseQty, 0),
+          2
+        );
       }
 
       return nextForm;
     });
 
-    if (name === 'productName') {
+    if (name === 'productName' || name === 'referenceItemCode' || name === 'categoryNo') {
       setPurchaseQuote(null);
     }
   }
 
-  async function handleAutofillPurchaseQuote() {
-    const productName = String(purchaseForm.productName || '').trim();
-    if (!productName) {
-      setActionError('품목명을 입력한 뒤 시세 자동 채움을 눌러주세요.');
+  function handlePurchaseReferenceChange(event) {
+    const referenceItemCode = String(event.target.value || '').trim();
+    const selectedReferenceItem = normalizedPurchaseReferenceItems.find(
+      (item) => String(item.itemCode) === referenceItemCode
+    ) || null;
+    const matchedCategory = selectedReferenceItem?.categoryName
+      ? categories.find((category) => category.categoryName === selectedReferenceItem.categoryName) || null
+      : null;
+
+    setActionError('');
+    setActionSuccess('');
+    setPurchaseQuote(null);
+    setPurchaseForm((current) => ({
+      ...current,
+      referenceItemCode,
+      productName: selectedReferenceItem?.productName || '',
+      categoryNo: matchedCategory ? String(matchedCategory.categoryNo) : current.categoryNo,
+    }));
+
+    if (selectedReferenceItem) {
+      handleAutofillPurchaseQuote(
+        selectedReferenceItem.productName,
+        selectedReferenceItem.itemCode,
+        selectedReferenceItem
+      );
+    }
+  }
+
+  async function handleAutofillPurchaseQuote(productNameOverride, itemCodeOverride, referenceItemOverride) {
+    const selectedReferenceItem = referenceItemOverride
+      || normalizedPurchaseReferenceItems.find((item) => String(item.itemCode) === String(itemCodeOverride ?? purchaseForm.referenceItemCode ?? ''))
+      || null;
+    const productName = String(
+      productNameOverride
+      ?? selectedReferenceItem?.quoteName
+      ?? purchaseForm.productName
+      ?? ''
+    ).trim();
+    const shouldUseDirectQuoteItemCode = Boolean(
+      selectedReferenceItem
+      && selectedReferenceItem.referenceSource === 'WHOLESALE'
+      && !isAdminCatalogReferenceItem(selectedReferenceItem.itemCode)
+    );
+    const itemCode = String(
+      itemCodeOverride
+      ?? (shouldUseDirectQuoteItemCode ? selectedReferenceItem?.quoteItemCode : '')
+      ?? purchaseForm.referenceItemCode
+      ?? ''
+    ).trim();
+    if (!productName && !itemCode) {
+      setActionError('\uC2DC\uC138 \uD488\uBAA9\uC744 \uC120\uD0DD\uD55C \uB4A4 \uC2DC\uC138 \uC790\uB3D9 \uCC44\uC6C0\uC744 \uB20C\uB7EC\uC8FC\uC138\uC694.');
       setActionSuccess('');
       return;
     }
@@ -2112,22 +3561,101 @@ function AdminApp() {
     setActionSuccess('');
 
     try {
-      const quote = await fetchAdminPurchaseQuote(productName);
+      let quote = null;
+      let wholesaleErrorMessage = '';
+      const retailLookupName =
+        selectedReferenceItem?.quoteName
+        || selectedReferenceItem?.rawProductName
+        || selectedReferenceItem?.productName
+        || productName;
+
+      try {
+        quote = await fetchAdminPurchaseQuote(productName, itemCode);
+      } catch (quoteError) {
+        wholesaleErrorMessage = quoteError?.message || '?袁ⓥ꼻 ??뽮쉭 鈺곌퀬?????쎈솭??됰뮸??덈뼄.';
+        const retailPriceList = await fetchAdminRecentRetailPriceList(
+          retailLookupName,
+          200,
+          7
+        );
+        if (!Array.isArray(retailPriceList) || !retailPriceList.length) {
+          throw new Error(
+            `?袁ⓥ꼻 ??뽮쉭 鈺곌퀬????쎈솭: ${wholesaleErrorMessage} / ???꼻 ??뽮쉭 鈺곌퀬????쎈솭: 筌ㅼ뮄?????꼻 ??뽮쉭 ?怨쀬뵠?怨? ??곷뮸??덈뼄.`
+          );
+        }
+        const retailSnapshot = selectedReferenceItem
+          ? (
+            findAdminRetailFallbackSnapshot(selectedReferenceItem, retailPriceList)
+            || findAdminRetailSnapshotByName(retailLookupName, retailPriceList)
+          )
+          : findAdminRetailSnapshotByName(retailLookupName, retailPriceList);
+        if (!retailSnapshot) {
+          throw new Error(
+            `?袁ⓥ꼻 ??뽮쉭 鈺곌퀬????쎈솭: ${wholesaleErrorMessage} / ???꼻 ??뽮쉭 筌띲끉臾???쎈솭: '${retailLookupName}' 疫꿸퀣???곗쨮 ?怨뚭퍙 揶쎛?館釉????꼻 ??덀걠??筌≪뼚? 筌륁궢六??щ빍??`
+          );
+        }
+
+        quote = buildAdminRetailFallbackQuote(
+          selectedReferenceItem || {
+            itemCode,
+            productName,
+            quoteName: retailLookupName,
+            snapshotUnit: retailSnapshot?.unit,
+          },
+          retailSnapshot
+        );
+      }
+
+      if (quote && !hasAdminValue(quote.retailComparablePrice) && selectedReferenceItem) {
+        const retailPriceList = await fetchAdminRecentRetailPriceList(retailLookupName, 200, 7);
+        const retailSnapshot = findAdminRetailFallbackSnapshot(selectedReferenceItem, retailPriceList);
+        if (retailSnapshot) {
+          quote = mergeAdminRetailFallbackIntoQuote(quote, retailSnapshot);
+        }
+      }
+
       setPurchaseQuote(quote);
-      setPurchaseForm((current) => ({
-        ...current,
-        purchaseUnit: quote.purchaseUnit || current.purchaseUnit,
-        purchaseQty:
-          quote.purchaseQty == null ? current.purchaseQty : formatDecimalInput(quote.purchaseQty, 2),
-        purchasePrice:
-          quote.purchasePrice == null ? current.purchasePrice : formatDecimalInput(quote.purchasePrice, 2),
-      }));
+      setPurchaseForm((current) => {
+        const nextPurchaseQty =
+          quote.purchaseQty == null ? current.purchaseQty : formatDecimalInput(quote.purchaseQty, 2);
+        const nextReferenceUnitPrice =
+          quote.purchaseQty && quote.purchasePrice != null
+            ? Number(quote.purchasePrice) / Math.max(Number(quote.purchaseQty), 1)
+            : toNumber(current.referenceUnitPrice, 0);
+        const selectedSupplierProfile = findPurchaseSupplierProfile(current.supplierProfileKey);
+        const suggestedActualUnitPrice = calculateSupplierSuggestedUnitPrice(
+          nextReferenceUnitPrice,
+          selectedSupplierProfile
+        );
+
+        return {
+          ...current,
+          purchaseUnit: quote.purchaseUnit || current.purchaseUnit,
+          purchaseQty: nextPurchaseQty,
+          referenceUnitPrice: formatDecimalInput(nextReferenceUnitPrice, 2),
+          referenceTotalPrice:
+            quote.purchasePrice == null ? current.referenceTotalPrice : formatDecimalInput(quote.purchasePrice, 2),
+          referenceSnapshotDate: quote.snapshotDate || current.referenceSnapshotDate,
+          actualUnitPrice:
+            suggestedActualUnitPrice > 0
+              ? formatDecimalInput(suggestedActualUnitPrice, 2)
+              : current.actualUnitPrice,
+          actualPurchaseAmount:
+            suggestedActualUnitPrice > 0
+              ? formatDecimalInput(suggestedActualUnitPrice * toNumber(nextPurchaseQty, 0), 2)
+              : current.actualPurchaseAmount,
+          purchasePrice:
+            quote.purchasePrice == null ? current.purchasePrice : formatDecimalInput(quote.purchasePrice, 2),
+        };
+      });
       setActionSuccess(
-        `${quote.matchedItemName || productName} 최신 도매 시세를 기준으로 매입 정보를 자동 입력했습니다.`
+        quote.quoteSource === 'RETAIL_FALLBACK'
+          ? `${quote.matchedItemName || productName} \uC18C\uB9E4 \uC2DC\uC138\uB97C \uAE30\uC900\uC73C\uB85C \uB9E4\uC785 \uC815\uBCF4\uB97C \uC790\uB3D9 \uC785\uB825\uD588\uC2B5\uB2C8\uB2E4.`
+          : `${quote.matchedItemName || productName} \uCD5C\uC2E0 \uB3C4\uB9E4 \uC2DC\uC138\uB97C \uAE30\uC900\uC73C\uB85C \uB9E4\uC785 \uC815\uBCF4\uB97C \uC790\uB3D9 \uC785\uB825\uD588\uC2B5\uB2C8\uB2E4.`
       );
     } catch (error) {
       setPurchaseQuote(null);
-      setActionError(error.message || '시세 기반 매입 정보를 불러오지 못했습니다.');
+      setActionError(error.message || '\uC2DC\uC138 \uAE30\uBC18 \uB9E4\uC785 \uC815\uBCF4\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setQuotingPurchase(false);
     }
@@ -2137,10 +3665,35 @@ function AdminApp() {
     const { name, value } = event.target;
     setActionError('');
     setActionSuccess('');
-    setPackageForm((current) => ({
-      ...current,
-      [name]: value,
-    }));
+    setPackageForm((current) => {
+      const nextForm = {
+        ...current,
+        [name]: value,
+      };
+
+      if (name === 'packagedQty') {
+        const autoDefaults = calculateAutoPackageDefaults(currentBatch, packageQuote, value);
+        if (autoDefaults?.packagedWeight != null) {
+          nextForm.packagedWeight = formatDecimalInput(autoDefaults.packagedWeight, 2);
+        }
+        if (autoDefaults?.salePrice != null) {
+          nextForm.salePrice = formatDecimalInput(autoDefaults.salePrice, 0);
+        }
+        if (autoDefaults?.saleStatus) {
+          nextForm.saleStatus = autoDefaults.saleStatus;
+        }
+      }
+
+      if (name === 'packagedQty' || name === 'packagedWeight') {
+        return applyPackageCostDefaultsToForm(currentBatch, nextForm);
+      }
+
+      return nextForm;
+    });
+  }
+
+  function handleApplyPackageCostDefaults() {
+    setPackageForm((current) => applyPackageCostDefaultsToForm(currentBatch, current));
   }
 
   async function handleSaveProduct() {
@@ -2178,9 +3731,9 @@ function AdminApp() {
         setSelectedProductNo(savedProduct.productNo);
         setProductForm(buildProductForm(savedProduct));
       }
-      setActionSuccess('상품 정보가 정상적으로 수정되었습니다.');
+      setActionSuccess('\uC0C1\uD488 \uC815\uBCF4\uAC00 \uC815\uC0C1\uC801\uC73C\uB85C \uC218\uC815\uB418\uC5C8\uC2B5\uB2C8\uB2E4.');
     } catch (error) {
-      setActionError(error.message || '상품 저장에 실패했습니다.');
+      setActionError(error.message || '\uC0C1\uD488 \uC800\uC7A5\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setSavingProduct(false);
     }
@@ -2192,7 +3745,7 @@ function AdminApp() {
     }
 
     const shouldDelete = window.confirm(
-      `'${product.productName}' 상품을 영구삭제할까요? 주문 이력이 있는 상품은 삭제할 수 없습니다.`
+      `'${product.productName}' \uC0C1\uD488\uC744 \uC601\uAD6C \uC0AD\uC81C\uD560\uAE4C\uC694?\n\n\uC8FC\uBB38 \uC774\uB825\uC774 \uC788\uB294 \uC0C1\uD488\uC740 \uC0AD\uC81C\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.`
     );
     if (!shouldDelete) {
       return;
@@ -2212,9 +3765,9 @@ function AdminApp() {
         currentForm.productNo === product.productNo ? { ...EMPTY_PRODUCT_FORM } : currentForm
       );
       resetProductImages();
-      setActionSuccess('상품을 영구삭제했습니다.');
+      setActionSuccess('\uC0C1\uD488\uC744 \uC0AD\uC81C\uD588\uC2B5\uB2C8\uB2E4.');
     } catch (error) {
-      setActionError(error.message || '상품 삭제에 실패했습니다.');
+      setActionError(error.message || '\uC0C1\uD488 \uC0AD\uC81C \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setSavingProduct(false);
     }
@@ -2238,7 +3791,210 @@ function AdminApp() {
       setSelectedOrderDetail(detail);
       setTrackingNo(detail?.trackingNo || trackingNo);
     } catch (error) {
-      setActionError(error.message || '주문 상태 변경에 실패했습니다.');
+      setActionError(error.message || '\uC8FC\uBB38 \uC0C1\uD0DC \uBCC0\uACBD\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
+    } finally {
+      setUpdatingOrder(false);
+    }
+  }
+
+  async function handleRejectOrder() {
+    await handleUpdateOrder({ orderStatus: 'CANCELED' });
+  }
+
+  async function handleAcceptOrder() {
+    if (!selectedOrderNo) {
+      return;
+    }
+
+    setUpdatingOrder(true);
+    setActionError('');
+
+    try {
+      const detail = await acceptAdminOrder(selectedOrderNo);
+      const nextOrders = await fetchAdminOrders();
+      setOrders(nextOrders);
+      setSelectedOrderDetail(detail);
+      setTrackingNo(detail?.trackingNo || trackingNo);
+    } catch (error) {
+      setActionError(error.message || '雅뚯눖揆 ?臾믩땾????쎈솭??됰뮸??덈뼄.');
+    } finally {
+      setUpdatingOrder(false);
+    }
+  }
+
+  async function handleAcceptOrderCancel() {
+    if (!selectedOrderNo) {
+      return;
+    }
+
+    setUpdatingOrder(true);
+    setActionError('');
+
+    try {
+      const detail = await acceptAdminOrderCancel(selectedOrderNo);
+      const nextOrders = await fetchAdminOrders();
+      setOrders(nextOrders);
+      setSelectedOrderDetail(detail);
+      setTrackingNo(detail?.trackingNo || trackingNo);
+    } catch (error) {
+      setActionError(error.message || '?띯뫁???遺욧퍕 ??롮뵭????쎈솭??됰뮸??덈뼄.');
+    } finally {
+      setUpdatingOrder(false);
+    }
+  }
+
+  async function handleRejectOrderCancel() {
+    if (!selectedOrderNo) {
+      return;
+    }
+
+    setUpdatingOrder(true);
+    setActionError('');
+
+    try {
+      const detail = await rejectAdminOrderCancel(selectedOrderNo);
+      const nextOrders = await fetchAdminOrders();
+      setOrders(nextOrders);
+      setSelectedOrderDetail(detail);
+      setTrackingNo(detail?.trackingNo || trackingNo);
+    } catch (error) {
+      setActionError(error.message || '?띯뫁???遺욧퍕 椰꾧퀣?????쎈솭??됰뮸??덈뼄.');
+    } finally {
+      setUpdatingOrder(false);
+    }
+  }
+
+  async function handleShipOrder() {
+    if (selectedOrderDetail?.acceptAvailable) {
+      setActionError('雅뚯눖揆 ?臾믩땾 ??10?λ뜄彛??獄쏄퀣????ｍ롥첎? ?癒?짗??곗쨮 筌욊쑵六??몃빍??');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      '獄쏄퀣???硫명?筌욊쑵六??怨밴묶??獄쏄퀣??????癒? ?온?귐뗫???덈뼄. ?類ｌ춾 ?硫명??뤿뻻野껋쥙???뉙돱?'
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    await handleUpdateOrder({
+      orderStatus: 'SHIPPING',
+      trackingNo: String(trackingNo || '').trim(),
+    });
+  }
+
+  function buildGeneratedTrackingNo(order) {
+    const safeOrderId = String(order?.orderId || order?.orderNo || 'ORDER')
+      .replace(/[^A-Z0-9]/gi, '')
+      .slice(-10)
+      .toUpperCase();
+    const timestamp = Date.now().toString().slice(-6);
+    return `OFT-${safeOrderId || 'ORDER'}-${timestamp}`;
+  }
+
+  async function handleAssignWaybill() {
+    if (!selectedOrderDetail) {
+      return;
+    }
+
+    const nextTrackingNo = String(trackingNo || '').trim() || buildGeneratedTrackingNo(selectedOrderDetail);
+    setTrackingNo(nextTrackingNo);
+
+    if (currentPage === 'carrier') {
+      setUpdatingOrder(true);
+      setActionError('');
+
+      try {
+        const detail = await assignCarrierWaybill(selectedOrderNo, {
+          trackingNo: nextTrackingNo,
+          courierName: 'oneulFarm',
+        });
+        const nextOrders = await fetchAdminOrders();
+        setOrders(nextOrders);
+        setSelectedOrderDetail(detail);
+        setTrackingNo(detail?.trackingNo || nextTrackingNo);
+      } catch (error) {
+        setActionError(error.message || '??れ삢 ?源낆쨯????쎈솭??됰뮸??덈뼄.');
+      } finally {
+        setUpdatingOrder(false);
+      }
+      return;
+    }
+
+    await handleUpdateOrder({ trackingNo: nextTrackingNo });
+  }
+
+  async function handlePickupOrder() {
+    if (!selectedOrderNo) {
+      return;
+    }
+
+    const nextTrackingNo = String(trackingNo || '').trim();
+
+    if (currentPage === 'carrier') {
+      setUpdatingOrder(true);
+      setActionError('');
+
+      try {
+        const detail = await pickupCarrierOrder(selectedOrderNo, {
+          trackingNo: nextTrackingNo || undefined,
+          courierName: 'oneulFarm',
+        });
+        const nextOrders = await fetchAdminOrders();
+        setOrders(nextOrders);
+        setSelectedOrderDetail(detail);
+        setTrackingNo(detail?.trackingNo || nextTrackingNo);
+      } catch (error) {
+        setActionError(error.message || '筌욌쵑釉?筌ｌ꼶?????쎈솭??됰뮸??덈뼄.');
+      } finally {
+        setUpdatingOrder(false);
+      }
+      return;
+    }
+
+    await handleUpdateOrder({
+      orderStatus: 'SHIPPING',
+      trackingNo: nextTrackingNo || undefined,
+    });
+  }
+
+  async function handleCarrierDeliverOrder() {
+    if (!selectedOrderNo) {
+      return;
+    }
+
+    setUpdatingOrder(true);
+    setActionError('');
+
+    try {
+      const detail = await deliverCarrierOrder(selectedOrderNo);
+      const nextOrders = await fetchAdminOrders();
+      setOrders(nextOrders);
+      setSelectedOrderDetail(detail);
+      setTrackingNo(detail?.trackingNo || trackingNo);
+    } catch (error) {
+      setActionError(error.message || '獄쏄퀣???袁⑥┷ 筌ｌ꼶?????쎈솭??됰뮸??덈뼄.');
+    } finally {
+      setUpdatingOrder(false);
+    }
+  }
+
+  async function handleCarrierTransitOrder() {
+    if (!selectedOrderNo) {
+      return;
+    }
+
+    setUpdatingOrder(true);
+    setActionError('');
+
+    try {
+      const detail = await transitCarrierOrder(selectedOrderNo);
+      const nextOrders = await fetchAdminOrders();
+      setOrders(nextOrders);
+      setSelectedOrderDetail(detail);
+      setTrackingNo(detail?.trackingNo || trackingNo);
+    } catch (error) {
+      setActionError(error.message || '獄쏄퀣??餓?筌ｌ꼶?????쎈솭??됰뮸??덈뼄.');
     } finally {
       setUpdatingOrder(false);
     }
@@ -2253,12 +4009,12 @@ function AdminApp() {
       order.orderStatus === 'COMPLETED' && order.deliveryStatus === 'DELIVERED';
 
     if (!isDeletable) {
-      setActionError('배송 완료된 주문만 정보 제거할 수 있습니다.');
+      setActionError('\uBC30\uC1A1 \uC644\uB8CC\uB41C \uC8FC\uBB38\uB9CC \uC815\uBCF4\uB97C \uC0AD\uC81C\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.');
       return;
     }
 
     const shouldDelete = window.confirm(
-      `'${order.orderId}' 주문 정보를 제거할까요? 배송 완료 주문에 한해서만 삭제할 수 있습니다.`
+      `'${order.orderId}' \uC8FC\uBB38 \uC815\uBCF4\uB97C \uC0AD\uC81C\uD560\uAE4C\uC694?\n\n\uBC30\uC1A1 \uC644\uB8CC \uC8FC\uBB38\uB9CC \uC0AD\uC81C\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.`
     );
     if (!shouldDelete) {
       return;
@@ -2278,9 +4034,9 @@ function AdminApp() {
       setUsers(nextUsers);
       setSelectedOrderDetail(null);
       setSelectedOrderNo(nextOrders[0]?.orderNo || null);
-      setActionSuccess('배송 완료 주문 정보를 제거했습니다.');
+      setActionSuccess('\uBC30\uC1A1 \uC644\uB8CC \uC8FC\uBB38 \uC815\uBCF4\uB97C \uC0AD\uC81C\uD588\uC2B5\uB2C8\uB2E4.');
     } catch (error) {
-      setActionError(error.message || '주문 정보 제거에 실패했습니다.');
+      setActionError(error.message || '\uC8FC\uBB38 \uC815\uBCF4 \uC0AD\uC81C\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setUpdatingOrder(false);
     }
@@ -2295,7 +4051,26 @@ function AdminApp() {
       const nextUsers = await fetchAdminUsers();
       setUsers(nextUsers);
     } catch (error) {
-      setActionError(error.message || '회원 상태 변경에 실패했습니다.');
+      setActionError(error.message || '\uD68C\uC6D0 \uC0C1\uD0DC \uBCC0\uACBD\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
+    } finally {
+      setUpdatingUser(false);
+    }
+  }
+
+  async function handleUpdateUserRole(userNo, role) {
+    setUpdatingUser(true);
+    setActionError('');
+    setActionSuccess('');
+
+    try {
+      await updateAdminUserRole(userNo, role);
+      const nextUsers = await fetchAdminUsers();
+      setUsers(nextUsers);
+      setActionSuccess(
+        role === 'ADMIN' ? '\uAD00\uB9AC\uC790 \uAD8C\uD55C\uC744 \uBD80\uC5EC\uD588\uC2B5\uB2C8\uB2E4.' : '\uAD00\uB9AC\uC790 \uAD8C\uD55C\uC744 \uD574\uC81C\uD588\uC2B5\uB2C8\uB2E4.'
+      );
+    } catch (error) {
+      setActionError(error.message || '\uAD00\uB9AC\uC790 \uAD8C\uD55C \uBCC0\uACBD\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setUpdatingUser(false);
     }
@@ -2357,10 +4132,24 @@ function AdminApp() {
     setActionSuccess('');
 
     try {
+      const { referenceItemCode, supplierProfileKey, ...purchasePayload } = purchaseForm;
+      const purchaseMetrics = calculatePurchaseDraftMetrics(purchaseForm);
       const savedBatch = await createAdminPurchaseBatch({
-        ...purchaseForm,
+        ...purchasePayload,
         categoryNo: Number(purchaseForm.categoryNo),
         purchaseQty: Number(purchaseForm.purchaseQty),
+        referenceUnitPrice: Number(purchaseForm.referenceUnitPrice),
+        referenceTotalPrice: Number(purchaseForm.referenceTotalPrice || purchaseMetrics.referenceTotalPrice),
+        actualUnitPrice: Number(purchaseForm.actualUnitPrice),
+        actualPurchaseAmount: Number(
+          purchaseForm.actualPurchaseAmount || purchaseMetrics.actualPurchaseAmount
+        ),
+        logisticsCost: Number(purchaseForm.logisticsCost),
+        commissionRate: Number(purchaseForm.commissionRate),
+        commissionCost: Number(purchaseMetrics.commissionCost),
+        otherPurchaseCost: Number(purchaseForm.otherPurchaseCost),
+        discardRate: Number(purchaseForm.discardRate),
+        discardQty: Number(purchaseMetrics.discardQty),
         purchasePrice: Number(purchaseForm.purchasePrice),
       });
       if (savedBatch?.productNo && purchaseImageFiles.length) {
@@ -2377,9 +4166,9 @@ function AdminApp() {
       setPurchaseForm(EMPTY_PURCHASE_FORM);
       setPurchaseQuote(null);
       resetPurchaseImages();
-      setActionSuccess('매입과 초안 상품 등록이 완료되었습니다. 소분 단계에서 판매 정보를 확정해주세요.');
+      setActionSuccess('\uB9E4\uC785\uACFC \uCD08\uC548 \uC0C1\uD488 \uB4F1\uB85D\uC774 \uC644\uB8CC\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uC18C\uBD84 \uB2E8\uACC4\uC5D0\uC11C \uD310\uB9E4 \uC815\uBCF4\uB97C \uD655\uC815\uD574\uC8FC\uC138\uC694.');
     } catch (error) {
-      setActionError(error.message || '매입 등록에 실패했습니다.');
+      setActionError(error.message || '\uB9E4\uC785 \uB4F1\uB85D\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setSavingPurchase(false);
     }
@@ -2410,6 +4199,9 @@ function AdminApp() {
         packagedQty: Number(packageForm.packagedQty),
         packagedWeight: Number(packageForm.packagedWeight),
         salePrice: Number(packageForm.salePrice),
+        packagingMaterialCost: Number(packageForm.packagingMaterialCost),
+        packagingLaborCost: Number(packageForm.packagingLaborCost),
+        otherPackagingCost: Number(packageForm.otherPackagingCost),
         saleStatus: packageForm.saleStatus,
         note: packageForm.note,
       });
@@ -2426,9 +4218,9 @@ function AdminApp() {
       if (nextSelectedBatch?.productNo) {
         setSelectedProductNo(nextSelectedBatch.productNo);
       }
-      setActionSuccess('소분 정보가 상품에 반영되었습니다. 상품관리에서는 수정/삭제만 진행하면 됩니다.');
+      setActionSuccess('\uC18C\uBD84 \uC815\uBCF4\uAC00 \uC0C1\uD488\uC5D0 \uBC18\uC601\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uC0C1\uD488\uAD00\uB9AC\uC5D0\uC11C\uB294 \uC218\uC815/\uC0AD\uC81C\uB9CC \uC9C4\uD589\uD558\uBA74 \uB429\uB2C8\uB2E4.');
     } catch (error) {
-      setActionError(error.message || '소분 처리에 실패했습니다.');
+      setActionError(error.message || '\uC18C\uBD84 \uCC98\uB9AC\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setSavingPackage(false);
     }
@@ -2440,7 +4232,7 @@ function AdminApp() {
     }
 
     const shouldDelete = window.confirm(
-      `'${purchase.productName}' 매입/소분 이력을 삭제하시겠습니까?\n\n연결된 소분 이력은 함께 삭제되고, 상품 정보는 유지됩니다.`
+      `'${purchase.productName}' \uB9E4\uC785/\uC18C\uBD84 \uC774\uB825\uC744 \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?\n\n\uC5F0\uACB0\uB41C \uC18C\uBD84 \uC774\uB825\uC740 \uD568\uAED8 \uC0AD\uC81C\uB418\uACE0, \uC0C1\uD488 \uC815\uBCF4\uB294 \uC720\uC9C0\uB429\uB2C8\uB2E4.`
     );
     if (!shouldDelete) {
       return;
@@ -2461,11 +4253,46 @@ function AdminApp() {
       setSelectedBatchNo((currentSelectedBatchNo) =>
         currentSelectedBatchNo === purchase.batchNo ? nextPurchases[0]?.batchNo || null : currentSelectedBatchNo
       );
-      setActionSuccess('매입/소분 이력을 삭제했습니다.');
+      setActionSuccess('\uB9E4\uC785/\uC18C\uBD84 \uC774\uB825\uC744 \uC0AD\uC81C\uD588\uC2B5\uB2C8\uB2E4.');
     } catch (error) {
-      setActionError(error.message || '매입/소분 이력 삭제에 실패했습니다.');
+      setActionError(error.message || '\uB9E4\uC785/\uC18C\uBD84 \uC774\uB825 \uC0AD\uC81C\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setSavingPurchase(false);
+    }
+  }
+
+  async function handleCancelPackageHistory(packageHistory) {
+    if (!packageHistory?.packageNo) {
+      return;
+    }
+    setPendingCancelPackageHistory(packageHistory);
+  }
+
+  async function handleConfirmCancelPackageHistory() {
+    if (!pendingCancelPackageHistory?.packageNo) {
+      return;
+    }
+
+    setSavingPackage(true);
+    setActionError('');
+    setActionSuccess('');
+
+    try {
+      await cancelAdminPackageHistory(pendingCancelPackageHistory.packageNo);
+      const [nextPurchases, nextPackageHistories, nextProducts] = await Promise.all([
+        fetchAdminPurchases(),
+        fetchAdminPackageHistories(),
+        fetchAdminProducts(),
+      ]);
+      setPurchases(nextPurchases);
+      setPackageHistories(nextPackageHistories);
+      setProducts(nextProducts);
+      setActionSuccess('???뀋 ??????띯뫁???랁????х몴?癰귣벀???됰뮸??덈뼄.');
+    } catch (error) {
+      setActionError(error.message || '???뀋 ?띯뫁?????쎈솭??됰뮸??덈뼄.');
+    } finally {
+      setPendingCancelPackageHistory(null);
+      setSavingPackage(false);
     }
   }
 
@@ -2478,7 +4305,7 @@ function AdminApp() {
       const nextMappings = await fetchAdminRecipeMappings();
       setRecipeMappings(nextMappings);
     } catch (error) {
-      setActionError(error.message || '레시피 동기화에 실패했습니다.');
+      setActionError(error.message || '\uB808\uC2DC\uD53C \uB3D9\uAE30\uD654\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
     } finally {
       setSyncingRecipes(false);
     }
@@ -2488,14 +4315,14 @@ function AdminApp() {
     return (
       <div className="admin-access">
         <div className="admin-access__card">
-          <h1>관리자 미리보기</h1>
-          <p>로그인 기능 전에는 임시 전환 버튼으로 관리자 화면에 진입합니다.</p>
+          <h1>{'\uAD00\uB9AC\uC790 \uBBF8\uB9AC\uBCF4\uAE30'}</h1>
+          <p>{'\uB85C\uADF8\uC778 \uAE30\uB2A5 \uC774\uC804\uC5D0 \uC784\uC2DC \uC804\uD658 \uBC84\uD2BC\uC73C\uB85C \uAD00\uB9AC\uC790 \uD654\uBA74\uC5D0 \uC9C4\uC785\uD569\uB2C8\uB2E4.'}</p>
           <div className="admin-page-actions">
-            <button type="button" className="admin-action admin-action--line" onClick={() => leaveAdminPage('#/mypage')}>
-              사용자 화면으로
+            <button type="button" className="admin-action admin-action--line" onClick={() => leaveAdminPage('#/')}>
+              {'\uC0AC\uC6A9\uC790 \uD654\uBA74\uC73C\uB85C'}
             </button>
             <button type="button" className="admin-action admin-action--primary" onClick={() => openAdminPage('#/admin')}>
-              관리자 화면 열기
+              {'\uAD00\uB9AC\uC790 \uD654\uBA74 \uC5F4\uAE30'}
             </button>
           </div>
         </div>
@@ -2504,8 +4331,15 @@ function AdminApp() {
   }
 
   return (
-    <AdminLayout activePage={currentPage === 'dashboard' ? 'dashboard' : currentPage}>
-      {loading ? <div className="admin-loading">관리자 데이터를 불러오는 중입니다.</div> : null}
+    <AdminLayout
+      activePage={currentPage === 'dashboard' ? 'dashboard' : currentPage}
+      onLeaveUserService={() => leaveAdminPage('#/')}
+      onLogout={() => {
+        clearAuthUser();
+        leaveAdminPage('#/login');
+      }}
+    >
+      {loading ? <div className="admin-loading">{'\uAD00\uB9AC\uC790 \uB370\uC774\uD130\uB97C \uBD88\uB7EC\uC624\uB294 \uC911\uC785\uB2C8\uB2E4.'}</div> : null}
       {!loading && loadError ? <div className="admin-error">{loadError}</div> : null}
       {!loading && !loadError && actionError ? <div className="admin-inline-error">{actionError}</div> : null}
       {!loading && !loadError && actionSuccess ? (
@@ -2514,7 +4348,7 @@ function AdminApp() {
       {!loading && !loadError && false ? (
         <div className="admin-page-actions admin-page-actions--spaced">
           <span className="admin-muted">
-            선택 회원: {currentUser.nickname} ({currentUser.userId})
+            ???????????????????? {currentUser.nickname} ({currentUser.userId})
           </span>
           <button
             type="button"
@@ -2522,7 +4356,7 @@ function AdminApp() {
             onClick={() => handleDeleteUser(currentUser)}
             disabled={updatingUser}
           >
-            선택 회원 삭제
+            ????????????????????????
           </button>
         </div>
       ) : null}
@@ -2570,7 +4404,7 @@ function AdminApp() {
             />
           ) : null}
           {currentPage === 'orders' ? (
-            <OrdersPage
+            <AdminOrdersPage
               orders={orders}
               selectedOrderNo={selectedOrderNo}
               selectedOrderDetail={selectedOrderDetail}
@@ -2580,7 +4414,28 @@ function AdminApp() {
               onSelectOrder={setSelectedOrderNo}
               onTrackingChange={(event) => setTrackingNo(event.target.value)}
               onDeleteOrder={handleDeleteOrder}
-              onUpdateOrder={handleUpdateOrder}
+              onAcceptOrder={handleAcceptOrder}
+              onRejectOrder={handleRejectOrder}
+              onAcceptOrderCancel={handleAcceptOrderCancel}
+              onRejectOrderCancel={handleRejectOrderCancel}
+              onShipOrder={handleShipOrder}
+              updating={updatingOrder}
+            />
+          ) : null}
+          {currentPage === 'carrier' ? (
+            <CarrierManagementPage
+              orders={orders}
+              selectedOrderNo={selectedOrderNo}
+              selectedOrderDetail={selectedOrderDetail}
+              orderFilter={orderFilter}
+              trackingNo={trackingNo}
+              onOrderFilterChange={setOrderFilter}
+              onSelectOrder={setSelectedOrderNo}
+              onTrackingChange={(event) => setTrackingNo(event.target.value)}
+              onAssignWaybill={handleAssignWaybill}
+              onPickupOrder={handlePickupOrder}
+              onTransitOrder={handleCarrierTransitOrder}
+              onDeliverOrder={handleCarrierDeliverOrder}
               updating={updatingOrder}
             />
           ) : null}
@@ -2592,22 +4447,26 @@ function AdminApp() {
               onUserFilterChange={setUserFilter}
               onSelectUser={setSelectedUserNo}
               onUpdateUserStatus={handleUpdateUserStatus}
+              onUpdateUserRole={handleUpdateUserRole}
               onDeleteUser={handleDeleteUser}
+              canManageAdminRole={canManageAdminRole}
               updating={updatingUser}
             />
           ) : null}
           {currentPage === 'purchase' ? (
             <PurchasePage
-              categories={categories}
+              categories={purchaseCategories}
               products={products}
               purchases={purchases}
               packageHistories={packageHistories}
+              purchaseReferenceItems={purchaseReferenceItemsForFlow}
               selectedBatchNo={selectedBatchNo}
               purchaseForm={purchaseForm}
               packageForm={packageForm}
               purchaseQuote={purchaseQuote}
               purchaseImagePreviews={purchaseImagePreviews}
               onSelectBatch={setSelectedBatchNo}
+              onPurchaseReferenceChange={handlePurchaseReferenceChange}
               onPurchaseFormChange={handlePurchaseFormChange}
               onPackageFormChange={handlePackageFormChange}
               onAutofillPurchaseQuote={handleAutofillPurchaseQuote}
@@ -2615,6 +4474,8 @@ function AdminApp() {
               onClearPurchaseImages={resetPurchaseImages}
               onCreatePurchase={handleCreatePurchase}
               onCreatePackageHistory={handleCreatePackageHistory}
+              onApplyPackageCostDefaults={handleApplyPackageCostDefaults}
+              onCancelPackageHistory={handleCancelPackageHistory}
               onDeletePurchaseBatch={handleDeletePurchaseBatch}
               quotingPurchase={quotingPurchase}
               submittingPurchase={savingPurchase}
@@ -2628,6 +4489,61 @@ function AdminApp() {
               syncingRecipes={syncingRecipes}
               onSyncRecipes={handleSyncRecipes}
             />
+          ) : null}
+          {pendingCancelPackageHistory ? (
+            <div
+              className="admin-modal-backdrop"
+              role="presentation"
+              onClick={() => (!savingPackage ? setPendingCancelPackageHistory(null) : null)}
+            >
+              <div
+                className="admin-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="cancel-package-history-title"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="admin-modal__body">
+                  <h3 id="cancel-package-history-title">{'\uC7AC\uACE0 \uBCF5\uAD6C \uD655\uC778'}</h3>
+                  <p>{'\uC18C\uBD84 \uC774\uB825\uC744 \uCDE8\uC18C\uD558\uBA74 \uBC30\uCE58 \uC7AC\uACE0\uC640 \uC0C1\uD488 \uC7AC\uACE0\uAC00 \uD568\uAED8 \uBCF5\uAD6C\uB429\uB2C8\uB2E4.'}</p>
+                  <div className="admin-modal__summary">
+                    <div className="admin-modal__summary-item">
+                      <span>{'\uC218\uB7C9'}</span>
+                      <strong>{pendingCancelPackageHistory.packagedQty}{'\uAC1C'}</strong>
+                    </div>
+                    <div className="admin-modal__summary-item">
+                      <span>{'\uC911\uB7C9'}</span>
+                      <strong>
+                        {formatDecimalInput(pendingCancelPackageHistory.packagedWeight, 2)}
+                        {currentBatch?.purchaseUnit || ''}
+                      </strong>
+                    </div>
+                    <div className="admin-modal__summary-item">
+                      <span>{'\uD310\uB9E4\uAC00'}</span>
+                      <strong>{formatAdminCurrency(pendingCancelPackageHistory.salePrice)}</strong>
+                    </div>
+                  </div>
+                </div>
+                <div className="admin-page-actions admin-modal__actions">
+                  <button
+                    type="button"
+                    className="admin-action admin-action--line"
+                    onClick={() => setPendingCancelPackageHistory(null)}
+                    disabled={savingPackage}
+                  >
+                    {'\uB2EB\uAE30'}
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-action admin-action--danger"
+                    onClick={handleConfirmCancelPackageHistory}
+                    disabled={savingPackage}
+                  >
+                    {savingPackage ? '\uCC98\uB9AC \uC911...' : '\uC7AC\uACE0 \uBCF5\uAD6C'}
+                  </button>
+                </div>
+              </div>
+            </div>
           ) : null}
         </>
       ) : null}

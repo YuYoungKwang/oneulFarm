@@ -120,7 +120,12 @@ export function navigateToHash(hash) {
 }
 
 export function getSavingAmount(product) {
-  const averagePrice = Number(product?.priceSnapshot?.avgPrice || 0);
+  const averagePrice = Number(
+    product?.priceSnapshot?.displayAvgPrice ||
+    product?.priceMatch?.comparedPrice ||
+    product?.priceSnapshot?.avgPrice ||
+    0
+  );
   const salePrice = Number(product?.salePrice || 0);
   return Math.max(averagePrice - salePrice, 0);
 }

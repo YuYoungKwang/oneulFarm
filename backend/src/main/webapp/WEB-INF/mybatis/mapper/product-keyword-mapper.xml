@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="productKeywordMapper">
+
+    <resultMap id="ProductSearchKeywordMapResultMap" type="com.app.dto.ProductSearchKeywordMapDto">
+        <id property="mapNo" column="mapNo" />
+        <result property="categoryNo" column="categoryNo" />
+        <result property="categoryName" column="categoryName" />
+        <result property="productNo" column="productNo" />
+        <result property="productName" column="productName" />
+        <result property="representKeyword" column="representKeyword" />
+        <result property="priority" column="priority" />
+        <result property="isActive" column="isActive" />
+    </resultMap>
+
+    <resultMap id="SearchKeywordAliasResultMap" type="com.app.dto.SearchKeywordAliasDto">
+        <id property="aliasNo" column="aliasNo" />
+        <result property="representKeyword" column="representKeyword" />
+        <result property="searchKeyword" column="searchKeyword" />
+        <result property="priority" column="priority" />
+        <result property="isActive" column="isActive" />
+    </resultMap>
+
+    <resultMap id="KeywordRecipeCategoryMapResultMap" type="com.app.dto.KeywordRecipeCategoryMapDto">
+        <id property="categoryMapNo" column="categoryMapNo" />
+        <result property="representKeyword" column="representKeyword" />
+        <result property="recipeCategory" column="recipeCategory" />
+        <result property="priority" column="priority" />
+        <result property="isActive" column="isActive" />
+    </resultMap>
+
+    <select id="selectActiveProductSearchKeywordMapByProductNo"
+        parameterType="long"
+        resultMap="ProductSearchKeywordMapResultMap">
+        SELECT
+            MAP_NO AS mapNo,
+            CATEGORY_NO AS categoryNo,
+            CATEGORY_NAME AS categoryName,
+            PRODUCT_NO AS productNo,
+            PRODUCT_NAME AS productName,
+            REPRESENT_KEYWORD AS representKeyword,
+            PRIORITY AS priority,
+            IS_ACTIVE AS isActive
+        FROM OFT_PRODUCT_SEARCH_KEYWORD_MAP
+        WHERE IS_ACTIVE = 'Y'
+          AND PRODUCT_NO = #{productNo}
+        ORDER BY PRIORITY ASC, MAP_NO ASC
+    </select>
+
+    <select id="selectActiveProductSearchKeywordMapByCategoryName"
+        parameterType="string"
+        resultMap="ProductSearchKeywordMapResultMap">
+        SELECT
+            MAP_NO AS mapNo,
+            CATEGORY_NO AS categoryNo,
+            CATEGORY_NAME AS categoryName,
+            PRODUCT_NO AS productNo,
+            PRODUCT_NAME AS productName,
+            REPRESENT_KEYWORD AS representKeyword,
+            PRIORITY AS priority,
+            IS_ACTIVE AS isActive
+        FROM OFT_PRODUCT_SEARCH_KEYWORD_MAP
+        WHERE IS_ACTIVE = 'Y'
+          AND PRODUCT_NO IS NULL
+          AND UPPER(CATEGORY_NAME) = UPPER(#{categoryName})
+        ORDER BY PRIORITY ASC, MAP_NO ASC
+    </select>
+
+    <select id="selectActiveSearchKeywordAliasList"
+        parameterType="string"
+        resultMap="SearchKeywordAliasResultMap">
+        SELECT
+            ALIAS_NO AS aliasNo,
+            REPRESENT_KEYWORD AS representKeyword,
+            SEARCH_KEYWORD AS searchKeyword,
+            PRIORITY AS priority,
+            IS_ACTIVE AS isActive
+        FROM OFT_SEARCH_KEYWORD_ALIAS
+        WHERE IS_ACTIVE = 'Y'
+          AND UPPER(REPRESENT_KEYWORD) = UPPER(#{representKeyword})
+        ORDER BY PRIORITY ASC, ALIAS_NO ASC
+    </select>
+
+    <select id="selectActiveKeywordRecipeCategoryMapList"
+        parameterType="string"
+        resultMap="KeywordRecipeCategoryMapResultMap">
+        SELECT
+            CATEGORY_MAP_NO AS categoryMapNo,
+            REPRESENT_KEYWORD AS representKeyword,
+            RECIPE_CATEGORY AS recipeCategory,
+            PRIORITY AS priority,
+            IS_ACTIVE AS isActive
+        FROM OFT_KEYWORD_RECIPE_CATEGORY_MAP
+        WHERE IS_ACTIVE = 'Y'
+          AND UPPER(REPRESENT_KEYWORD) = UPPER(#{representKeyword})
+        ORDER BY PRIORITY ASC, CATEGORY_MAP_NO ASC
+    </select>
+
+</mapper>

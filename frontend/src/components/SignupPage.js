@@ -62,7 +62,9 @@ function SignupPage() {
       );
 
       const available = Boolean(payload.data?.available);
-      const message = available ? '사용 가능한 값입니다.' : `${label}이 이미 사용 중입니다.`;
+      const message = available
+        ? '사용 가능한 값입니다.'
+        : `${label}${field === 'userId' ? '가' : '이'} 이미 사용 중입니다.`;
 
       setDuplicateStatus((current) => ({
         ...current,

@@ -16,6 +16,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +33,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import com.app.common.PriceSnapshotUnitSupport;
 import com.app.dao.PriceSnapshotDAO;
 import com.app.dto.PriceSnapshotBackfillItemDTO;
 import com.app.dto.PriceSnapshotDTO;
@@ -40,14 +48,21 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
     private static final String SOURCE_NAME_DAILY = "KAMIS_DAILY_SALES_LIST";
     private static final String SOURCE_NAME_PERIOD_RETAIL = "KAMIS_PERIOD_RETAIL_PRODUCT_LIST";
     private static final String SOURCE_NAME_PERIOD_WHOLESALE = "KAMIS_PERIOD_WHOLESALE_PRODUCT_LIST";
+    private static final String SOURCE_NAME_PROCESS_RETAIL = "KAMIS_PROCESS_RETAIL_ITEM_PAGE";
     private static final String DEFAULT_BACKFILL_ITEM_RESOURCE_PATH = "kamis-price-backfill-items.csv";
+    private static final String DEFAULT_PROCESS_REFERENCE_RESOURCE_PATH = "kamis-process-reference-items.csv";
     private static final String MULTI_KIND_CODE_DELIMITER = "|";
 
     private static final String MARKET_TYPE_RETAIL = "RETAIL";
     private static final String MARKET_TYPE_WHOLESALE = "WHOLESALE";
+    private static final String PROCESS_ITEM_CATEGORY_CODE = "800";
+    private static final String PROCESS_DEFAULT_PRODUCT_RANK_CODE = "00";
+    private static final String PROCESS_ITEM_PAGE_URL = "https://www.kamis.or.kr/customer/price/process/item.do";
 
     private static final String DEFAULT_COUNTRY_CODE = "1101";
     private static final String DEFAULT_CONVERT_KG_YN = "Y";
+    private static final String PROCESS_CONVERT_KG_YN = "N";
+    private static final int PROCESS_ITEM_PARALLELISM = 4;
     private static final int DEFAULT_BACKFILL_DAYS = 365;
     private static final int MAX_BACKFILL_DAYS = 365;
     private static final int MAX_SNAPSHOT_UNIT_LENGTH = 20;
@@ -55,6 +70,21 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
     private static final DateTimeFormatter SNAPSHOT_DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
     private static final DateTimeFormatter REGDAY_SLASH_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
     private static final DateTimeFormatter REGDAY_DASH_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final Pattern PROCESS_SUMMARY_ROW_PATTERN =
+        Pattern.compile("<td class=\"first cell_tit1\" colspan=\"2\">\\s*%s\\s*</td>(.*?)</tr>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern HTML_TABLE_CELL_PATTERN =
+        Pattern.compile("<td[^>]*>(.*?)</td>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern NUMBER_PATTERN =
+        Pattern.compile("([0-9][0-9,]*(?:\\.[0-9]+)?)");
+    private static final Pattern SNAPSHOT_MEASUREMENT_PATTERN =
+        Pattern.compile("([0-9]+(?:\\.[0-9]+)?)\\s*(kg|g|ml|l|ℓ|리터|개|구|알|판|봉|봉지|팩|병|통|포기|단|망|묶음)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SNAPSHOT_COMPOSITE_MEASUREMENT_PATTERN =
+        Pattern.compile(
+            "([0-9]+(?:\\.[0-9]+)?)\\s*(kg|g|ml|l|ℓ|리터)\\s*[x×*]\\s*([0-9]+(?:\\.[0-9]+)?)(?:\\s*(개|구|알|판|봉|봉지|팩|병|통|포기|단|망|묶음))?",
+            Pattern.CASE_INSENSITIVE
+        );
+    private static final Pattern PROCESS_UNIT_PATTERN =
+        Pattern.compile("단위\\s*:\\s*([^<\\r\\n]+)", Pattern.CASE_INSENSITIVE);
 
     private final PriceSnapshotDAO priceSnapshotDAO;
     private final ObjectMapper objectMapper;
@@ -77,7 +107,12 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
 
     @Override
     public int syncPriceSnapshot() {
-        List<PriceSnapshotDTO> priceSnapshotList = fetchDailyPriceSnapshotListFromKamis();
+        List<PriceSnapshotDTO> priceSnapshotList = new ArrayList<PriceSnapshotDTO>(fetchDailyPriceSnapshotListFromKamis());
+        try {
+            priceSnapshotList.addAll(fetchProcessRetailPriceSnapshotListFromKamis(LocalDate.now().format(SNAPSHOT_DATE_FORMATTER)));
+        } catch (Exception exception) {
+            logger.warn("KAMIS 가공식품 시세 동기화는 건너뜁니다. reason={}", exception.getMessage(), exception);
+        }
         int processedCount = mergePriceSnapshotList(priceSnapshotList);
 
         logger.info("KAMIS 시세 일일 동기화 완료 - processedCount={}", processedCount);
@@ -212,7 +247,7 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
         Map<String, PriceRange> priceRangeMap = new LinkedHashMap<String, PriceRange>();
 
         String resolvedItemName = trimToNull(itemNameHint);
-        String resolvedUnit = trimToNull(unitHint);
+        String resolvedUnit = null;
 
         for (String currentKindCode : kindCodeList) {
             PriceBackfillRequest kindRequest = createPriceBackfillRequest(
@@ -249,8 +284,9 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
                 if (resolvedItemName == null) {
                     resolvedItemName = trimToNull(priceSnapshotDTO.getItemName());
                 }
-                if (resolvedUnit == null) {
-                    resolvedUnit = trimToNull(priceSnapshotDTO.getUnit());
+                String snapshotUnit = trimToNull(priceSnapshotDTO.getUnit());
+                if (snapshotUnit != null) {
+                    resolvedUnit = snapshotUnit;
                 }
             }
         }
@@ -298,10 +334,39 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
         List<PriceSnapshotBackfillItemDTO> resultList = new ArrayList<PriceSnapshotBackfillItemDTO>();
 
         for (PriceSnapshotBackfillItemDTO itemDTO : defaultBackfillItemList) {
-            PriceSnapshotBackfillItemDTO resultItemDTO = copyBackfillItem(itemDTO);
+            resultList.add(executeBackfillItem(itemDTO, startDate, endDate, false));
+        }
 
-            try {
-                int processedCount = backfillPriceSnapshotInternal(
+        List<PriceSnapshotBackfillItemDTO> processItemList = loadProcessReferenceItemList();
+        for (PriceSnapshotBackfillItemDTO processItemDTO : processItemList) {
+            resultList.add(executeBackfillItem(processItemDTO, startDate, endDate, true));
+        }
+
+        return resultList;
+    }
+
+    private PriceSnapshotBackfillItemDTO executeBackfillItem(
+        PriceSnapshotBackfillItemDTO itemDTO,
+        String startDate,
+        String endDate,
+        boolean processRetailItem
+    ) {
+        PriceSnapshotBackfillItemDTO resultItemDTO = copyBackfillItem(itemDTO);
+        String storedItemCode = buildHistoricalItemCode(
+            itemDTO.getMarketType(),
+            itemDTO.getItemCategoryCode(),
+            itemDTO.getItemCode(),
+            itemDTO.getKindCode(),
+            itemDTO.getProductRankCode(),
+            itemDTO.getCountryCode(),
+            itemDTO.getConvertKgYn()
+        );
+        resultItemDTO.setStoredItemCode(storedItemCode);
+
+        try {
+            int processedCount = processRetailItem
+                ? backfillProcessRetailPriceSnapshot(itemDTO, startDate, endDate)
+                : backfillPriceSnapshotInternal(
                     itemDTO.getMarketType(),
                     itemDTO.getItemCategoryCode(),
                     itemDTO.getItemCode(),
@@ -315,45 +380,56 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
                     itemDTO.getUnitHint()
                 );
 
-                resultItemDTO.setProcessedCount(processedCount);
-                resultItemDTO.setSuccess(true);
-                resultItemDTO.setStoredItemCode(buildHistoricalItemCode(
-                    itemDTO.getMarketType(),
-                    itemDTO.getItemCategoryCode(),
-                    itemDTO.getItemCode(),
-                    itemDTO.getKindCode(),
-                    itemDTO.getProductRankCode(),
-                    itemDTO.getCountryCode(),
-                    itemDTO.getConvertKgYn()
-                ));
-            } catch (Exception exception) {
-                resultItemDTO.setProcessedCount(0);
-                resultItemDTO.setSuccess(false);
-                resultItemDTO.setErrorMessage(exception.getMessage());
-                resultItemDTO.setStoredItemCode(buildHistoricalItemCode(
-                    itemDTO.getMarketType(),
-                    itemDTO.getItemCategoryCode(),
-                    itemDTO.getItemCode(),
-                    itemDTO.getKindCode(),
-                    itemDTO.getProductRankCode(),
-                    itemDTO.getCountryCode(),
-                    itemDTO.getConvertKgYn()
-                ));
+            resultItemDTO.setProcessedCount(processedCount);
+            resultItemDTO.setSuccess(true);
+        } catch (Exception exception) {
+            resultItemDTO.setProcessedCount(0);
+            resultItemDTO.setSuccess(false);
+            resultItemDTO.setErrorMessage(exception.getMessage());
 
-                logger.error(
-                    "KAMIS 기본 품목 백필 실패 - displayName={}, itemCode={}, kindCode={}, productRankCode={}",
-                    itemDTO.getDisplayName(),
-                    itemDTO.getItemCode(),
-                    itemDTO.getKindCode(),
-                    itemDTO.getProductRankCode(),
-                    exception
-                );
-            }
-
-            resultList.add(resultItemDTO);
+            logger.error(
+                "{} 백필 실패 - displayName={}, itemCode={}, kindCode={}, productRankCode={}",
+                processRetailItem ? "KAMIS 가공식품 품목" : "KAMIS 기본 품목",
+                itemDTO.getDisplayName(),
+                itemDTO.getItemCode(),
+                itemDTO.getKindCode(),
+                itemDTO.getProductRankCode(),
+                exception
+            );
         }
 
-        return resultList;
+        return resultItemDTO;
+    }
+
+    private int backfillProcessRetailPriceSnapshot(
+        PriceSnapshotBackfillItemDTO processItemDTO,
+        String startDate,
+        String endDate
+    ) {
+        BackfillDateRange backfillDateRange = resolveBackfillDateRange(startDate, endDate);
+        List<ProcessRetailFetchTarget> fetchTargetList = new ArrayList<ProcessRetailFetchTarget>();
+
+        for (LocalDate currentDate = backfillDateRange.getStartDate();
+             !currentDate.isAfter(backfillDateRange.getEndDate());
+             currentDate = currentDate.plusDays(1L)) {
+            fetchTargetList.add(new ProcessRetailFetchTarget(
+                processItemDTO,
+                currentDate.format(SNAPSHOT_DATE_FORMATTER)
+            ));
+        }
+
+        List<PriceSnapshotDTO> priceSnapshotList = fetchProcessRetailSnapshotsInParallel(fetchTargetList);
+        int processedCount = mergePriceSnapshotList(priceSnapshotList);
+        logger.info(
+            "KAMIS 가공식품 백필 완료 - displayName={}, itemCode={}, kindCode={}, processedCount={}, startDate={}, endDate={}",
+            processItemDTO.getDisplayName(),
+            processItemDTO.getItemCode(),
+            processItemDTO.getKindCode(),
+            processedCount,
+            backfillDateRange.getStartDate(),
+            backfillDateRange.getEndDate()
+        );
+        return processedCount;
     }
 
     @Override
@@ -365,17 +441,55 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
     public List<PriceSnapshotDTO> getPriceSnapshotList(String itemName, String marketType, String snapshotDate, Integer limit) {
         String resolvedSnapshotDate = normalizeSnapshotDate(snapshotDate);
         String resolvedMarketType = normalizeOptionalMarketType(marketType);
-        int resolvedLimit = resolveLimit(limit, 100, 300);
+        int resolvedLimit = resolveLimit(limit, 100, 1000);
 
         if (resolvedSnapshotDate == null) {
-            resolvedSnapshotDate = priceSnapshotDAO.selectLatestSnapshotDate();
+            resolvedSnapshotDate = resolveLatestSnapshotDate(resolvedMarketType);
         }
 
         if (resolvedSnapshotDate == null) {
             return Collections.emptyList();
         }
 
-        return priceSnapshotDAO.selectPriceSnapshotList(itemName, resolvedMarketType, resolvedSnapshotDate, resolvedLimit);
+        List<PriceSnapshotDTO> priceSnapshotList =
+            priceSnapshotDAO.selectPriceSnapshotList(itemName, resolvedMarketType, resolvedSnapshotDate, resolvedLimit);
+        sanitizePriceSnapshotList(priceSnapshotList);
+        return priceSnapshotList;
+    }
+
+    @Override
+    public List<PriceSnapshotDTO> getLatestPriceSnapshotListByItemName(String itemName, String marketType, Integer limit) {
+        String resolvedMarketType = normalizeOptionalMarketType(marketType);
+        int resolvedLimit = resolveLimit(limit, 100, 1000);
+
+        List<PriceSnapshotDTO> priceSnapshotList =
+            priceSnapshotDAO.selectLatestPriceSnapshotListByItemName(itemName, resolvedMarketType, resolvedLimit);
+        sanitizePriceSnapshotList(priceSnapshotList);
+        return priceSnapshotList;
+    }
+
+    @Override
+    public PriceSnapshotDTO getLatestPriceSnapshotByItemCode(String itemCode, String marketType) {
+        String resolvedItemCode = trimToNull(itemCode);
+        String resolvedMarketType = normalizeOptionalMarketType(marketType);
+        if (resolvedItemCode == null) {
+            return null;
+        }
+
+        PriceSnapshotDTO priceSnapshotDTO =
+            priceSnapshotDAO.selectLatestPriceSnapshotByItemCode(resolvedItemCode, resolvedMarketType);
+        sanitizePriceSnapshot(priceSnapshotDTO);
+        return priceSnapshotDTO;
+    }
+
+    private String resolveLatestSnapshotDate(String marketType) {
+        if (marketType != null) {
+            String marketSpecificDate = priceSnapshotDAO.selectLatestSnapshotDateByMarketType(marketType);
+            if (marketSpecificDate != null) {
+                return marketSpecificDate;
+            }
+        }
+        return priceSnapshotDAO.selectLatestSnapshotDate();
     }
 
     @Override
@@ -387,7 +501,10 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
         String resolvedMarketType = normalizeRequiredMarketType(marketType == null || marketType.isBlank() ? MARKET_TYPE_RETAIL : marketType);
         int resolvedLimit = resolveLimit(limit, 30, 800);
 
-        return priceSnapshotDAO.selectPriceSnapshotTrend(itemCode.trim(), resolvedMarketType, resolvedLimit);
+        List<PriceSnapshotDTO> priceSnapshotList =
+            priceSnapshotDAO.selectPriceSnapshotTrend(itemCode.trim(), resolvedMarketType, resolvedLimit);
+        sanitizePriceSnapshotList(priceSnapshotList);
+        return priceSnapshotList;
     }
 
     private int mergePriceSnapshotList(List<PriceSnapshotDTO> priceSnapshotList) {
@@ -407,6 +524,15 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
         }
 
         priceSnapshotDTO.setUnit(normalizeSnapshotUnit(priceSnapshotDTO.getUnit(), priceSnapshotDTO.getItemCode()));
+    }
+
+    private void sanitizePriceSnapshotList(List<PriceSnapshotDTO> priceSnapshotList) {
+        if (priceSnapshotList == null || priceSnapshotList.isEmpty()) {
+            return;
+        }
+        for (PriceSnapshotDTO priceSnapshotDTO : priceSnapshotList) {
+            sanitizePriceSnapshot(priceSnapshotDTO);
+        }
     }
 
     private List<PriceSnapshotDTO> fetchDailyPriceSnapshotListFromKamis() {
@@ -607,7 +733,16 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
                 itemName = trimToNull(rowNode.path("itemname").asText());
             }
             if (unit == null) {
-                unit = trimToNull(rowNode.path("kindname").asText());
+                String rowUnit = trimToNull(rowNode.path("unit").asText());
+                if (rowUnit != null) {
+                    unit = rowUnit;
+                }
+            }
+            if (unit == null) {
+                String kindName = trimToNull(rowNode.path("kindname").asText());
+                if (kindName != null) {
+                    unit = kindName;
+                }
             }
 
             if (itemName != null && unit != null) {
@@ -628,7 +763,7 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
             unit = priceBackfillRequest.getKindCode();
         }
 
-        return new HistoricalMetadata(itemName, unit);
+        return new HistoricalMetadata(itemName, normalizeSnapshotUnit(unit, priceBackfillRequest.getStoredItemCode()));
     }
 
     private Map<String, PriceRange> buildHistoricalPriceRangeMap(JsonNode itemNode) {
@@ -786,6 +921,261 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
             throw new IllegalStateException("KAMIS 기간 시세 응답이 비어 있습니다.");
         }
         return responseBody;
+    }
+
+    private List<PriceSnapshotDTO> fetchProcessRetailPriceSnapshotListFromKamis(String snapshotDate) {
+        String resolvedSnapshotDate = normalizeSnapshotDate(snapshotDate);
+        if (resolvedSnapshotDate == null) {
+            return Collections.emptyList();
+        }
+
+        List<PriceSnapshotBackfillItemDTO> processItemList = loadProcessReferenceItemList();
+        if (processItemList.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<ProcessRetailFetchTarget> fetchTargetList = new ArrayList<ProcessRetailFetchTarget>();
+        for (PriceSnapshotBackfillItemDTO processItemDTO : processItemList) {
+            fetchTargetList.add(new ProcessRetailFetchTarget(processItemDTO, resolvedSnapshotDate));
+        }
+        return fetchProcessRetailSnapshotsInParallel(fetchTargetList);
+    }
+
+    private List<PriceSnapshotDTO> fetchProcessRetailSnapshotsInParallel(List<ProcessRetailFetchTarget> fetchTargetList) {
+        if (fetchTargetList == null || fetchTargetList.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        ExecutorService executorService = createProcessFetchExecutor(fetchTargetList.size());
+        List<Future<PriceSnapshotDTO>> futureList = new ArrayList<Future<PriceSnapshotDTO>>();
+
+        try {
+            for (ProcessRetailFetchTarget fetchTarget : fetchTargetList) {
+                futureList.add(executorService.submit(() ->
+                    fetchProcessRetailPriceSnapshotFromKamis(fetchTarget.getProcessItemDTO(), fetchTarget.getSnapshotDate())
+                ));
+            }
+
+            List<PriceSnapshotDTO> priceSnapshotList = new ArrayList<PriceSnapshotDTO>();
+            for (int index = 0; index < futureList.size(); index += 1) {
+                Future<PriceSnapshotDTO> future = futureList.get(index);
+                ProcessRetailFetchTarget fetchTarget = fetchTargetList.get(index);
+                try {
+                    PriceSnapshotDTO priceSnapshotDTO = future.get();
+                    if (priceSnapshotDTO != null) {
+                        priceSnapshotList.add(priceSnapshotDTO);
+                    }
+                } catch (ExecutionException exception) {
+                    Throwable cause = exception.getCause() == null ? exception : exception.getCause();
+                    logger.warn(
+                        "KAMIS process retail fetch failed - displayName={}, itemCode={}, kindCode={}, snapshotDate={}, reason={}",
+                        fetchTarget.getProcessItemDTO().getDisplayName(),
+                        fetchTarget.getProcessItemDTO().getItemCode(),
+                        fetchTarget.getProcessItemDTO().getKindCode(),
+                        fetchTarget.getSnapshotDate(),
+                        cause.getMessage(),
+                        cause
+                    );
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException("KAMIS process retail fetch was interrupted.", exception);
+                }
+            }
+            return priceSnapshotList;
+        } finally {
+            shutdownProcessFetchExecutor(executorService);
+        }
+    }
+
+    private ExecutorService createProcessFetchExecutor(int taskCount) {
+        return Executors.newFixedThreadPool(Math.max(1, Math.min(PROCESS_ITEM_PARALLELISM, taskCount)));
+    }
+
+    private void shutdownProcessFetchExecutor(ExecutorService executorService) {
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(5L, TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+            }
+        } catch (InterruptedException exception) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private PriceSnapshotDTO fetchProcessRetailPriceSnapshotFromKamis(
+        PriceSnapshotBackfillItemDTO processItemDTO,
+        String snapshotDate
+    ) {
+        String responseBody = requestProcessItemPage(processItemDTO, snapshotDate);
+        if (responseBody.contains("검색조건에 해당하는 데이터가 없습니다.")) {
+            return null;
+        }
+
+        BigDecimal avgPrice = extractProcessSummaryPrice(responseBody, "평균");
+        if (avgPrice == null) {
+            return null;
+        }
+
+        BigDecimal maxPrice = extractProcessSummaryPrice(responseBody, "최고값");
+        BigDecimal minPrice = extractProcessSummaryPrice(responseBody, "최저값");
+        String parsedUnit = extractProcessDisplayUnit(responseBody);
+        String resolvedUnit = normalizeSnapshotUnit(
+            processItemDTO.getUnitHint() == null ? parsedUnit : processItemDTO.getUnitHint(),
+            buildHistoricalItemCode(
+                MARKET_TYPE_RETAIL,
+                processItemDTO.getItemCategoryCode(),
+                processItemDTO.getItemCode(),
+                processItemDTO.getKindCode(),
+                processItemDTO.getProductRankCode(),
+                processItemDTO.getCountryCode(),
+                processItemDTO.getConvertKgYn()
+            )
+        );
+
+        PriceSnapshotDTO priceSnapshotDTO = new PriceSnapshotDTO();
+        priceSnapshotDTO.setItemCode(buildHistoricalItemCode(
+            MARKET_TYPE_RETAIL,
+            processItemDTO.getItemCategoryCode(),
+            processItemDTO.getItemCode(),
+            processItemDTO.getKindCode(),
+            processItemDTO.getProductRankCode(),
+            processItemDTO.getCountryCode(),
+            processItemDTO.getConvertKgYn()
+        ));
+        priceSnapshotDTO.setItemName(buildProcessSnapshotItemName(processItemDTO));
+        priceSnapshotDTO.setMarketType(MARKET_TYPE_RETAIL);
+        priceSnapshotDTO.setUnit(resolvedUnit);
+        priceSnapshotDTO.setAvgPrice(avgPrice);
+        priceSnapshotDTO.setMinPrice(minPrice);
+        priceSnapshotDTO.setMaxPrice(maxPrice);
+        priceSnapshotDTO.setChangeRate(null);
+        priceSnapshotDTO.setSnapshotDate(snapshotDate);
+        priceSnapshotDTO.setSourceName(SOURCE_NAME_PROCESS_RETAIL);
+        return priceSnapshotDTO;
+    }
+
+    private String requestProcessItemPage(PriceSnapshotBackfillItemDTO processItemDTO, String snapshotDate) {
+        String requestUrl = UriComponentsBuilder
+            .fromHttpUrl(PROCESS_ITEM_PAGE_URL)
+            .queryParam("regday", snapshotDate)
+            .queryParam("itemcode", processItemDTO.getItemCode())
+            .queryParam("kindcode", processItemDTO.getKindCode())
+            .queryParam("productrankcode", "0")
+            .build(true)
+            .toUriString();
+
+        logger.info(
+            "KAMIS 가공식품 시세 조회 요청 - itemCode={}, kindCode={}, snapshotDate={}",
+            processItemDTO.getItemCode(),
+            processItemDTO.getKindCode(),
+            snapshotDate
+        );
+
+        String responseBody = restTemplate.getForObject(requestUrl, String.class);
+        if (responseBody == null || responseBody.isBlank()) {
+            throw new IllegalStateException("KAMIS 가공식품 시세 응답이 비어 있습니다.");
+        }
+        return responseBody;
+    }
+
+    private BigDecimal extractProcessSummaryPrice(String responseBody, String label) {
+        Matcher rowMatcher = Pattern
+            .compile(String.format(PROCESS_SUMMARY_ROW_PATTERN.pattern(), Pattern.quote(label)), PROCESS_SUMMARY_ROW_PATTERN.flags())
+            .matcher(responseBody);
+        if (!rowMatcher.find()) {
+            return null;
+        }
+
+        Matcher cellMatcher = HTML_TABLE_CELL_PATTERN.matcher(rowMatcher.group(1));
+        while (cellMatcher.find()) {
+            String cellText = stripHtml(cellMatcher.group(1));
+            BigDecimal value = toBigDecimal(cellText);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String extractProcessDisplayUnit(String responseBody) {
+        Matcher matcher = PROCESS_UNIT_PATTERN.matcher(responseBody);
+        if (!matcher.find()) {
+            return null;
+        }
+        return trimToNull(stripHtml(matcher.group(1)));
+    }
+
+    private String stripHtml(String value) {
+        String normalizedValue = value == null ? null : value
+            .replace("&nbsp;", " ")
+            .replace("&#160;", " ");
+        String cleanedValue = trimToNull(normalizedValue);
+        if (cleanedValue == null) {
+            return null;
+        }
+        return cleanedValue
+            .replaceAll("<[^>]+>", " ")
+            .replaceAll("\\s+", " ")
+            .trim();
+    }
+
+    private String buildProcessSnapshotItemName(PriceSnapshotBackfillItemDTO processItemDTO) {
+        String displayName = trimToNull(processItemDTO.getDisplayName());
+        String unitHint = trimToNull(processItemDTO.getUnitHint());
+        if (displayName == null) {
+            return unitHint;
+        }
+        if (unitHint == null) {
+            return displayName;
+        }
+        return displayName + " " + unitHint;
+    }
+
+    private List<PriceSnapshotBackfillItemDTO> loadProcessReferenceItemList() {
+        ClassPathResource classPathResource = new ClassPathResource(DEFAULT_PROCESS_REFERENCE_RESOURCE_PATH);
+        if (!classPathResource.exists()) {
+            return Collections.emptyList();
+        }
+
+        try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(classPathResource.getInputStream(), StandardCharsets.UTF_8))) {
+            List<PriceSnapshotBackfillItemDTO> processItemList = new ArrayList<PriceSnapshotBackfillItemDTO>();
+            String line = null;
+            boolean headerSkipped = false;
+
+            while ((line = bufferedReader.readLine()) != null) {
+                String normalizedLine = line.trim();
+                if (normalizedLine.isEmpty() || normalizedLine.startsWith("#")) {
+                    continue;
+                }
+                if (!headerSkipped) {
+                    headerSkipped = true;
+                    continue;
+                }
+
+                String[] tokenArray = normalizedLine.split(",", -1);
+                if (tokenArray.length < 6) {
+                    throw new IllegalStateException("가공식품 시세 참조 목록 형식이 올바르지 않습니다. line=" + normalizedLine);
+                }
+
+                PriceSnapshotBackfillItemDTO processItemDTO = new PriceSnapshotBackfillItemDTO();
+                processItemDTO.setDisplayName(trimToNull(tokenArray[0]));
+                processItemDTO.setMarketType(MARKET_TYPE_RETAIL);
+                processItemDTO.setItemCategoryCode(PROCESS_ITEM_CATEGORY_CODE);
+                processItemDTO.setItemCode(trimToNull(tokenArray[2]));
+                processItemDTO.setKindCode(trimToNull(tokenArray[3]));
+                processItemDTO.setProductRankCode(PROCESS_DEFAULT_PRODUCT_RANK_CODE);
+                processItemDTO.setCountryCode(DEFAULT_COUNTRY_CODE);
+                processItemDTO.setConvertKgYn(PROCESS_CONVERT_KG_YN);
+                processItemDTO.setItemNameHint(trimToNull(tokenArray[4]));
+                processItemDTO.setUnitHint(trimToNull(tokenArray[5]));
+                processItemList.add(processItemDTO);
+            }
+
+            return processItemList;
+        } catch (IOException exception) {
+            throw new IllegalStateException("가공식품 시세 참조 목록을 읽지 못했습니다.", exception);
+        }
     }
 
     private RestTemplate createRestTemplate() {
@@ -1033,6 +1423,20 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
         return new BigDecimal(normalizedValue);
     }
 
+    private BigDecimal toBigDecimal(String value) {
+        String normalizedValue = trimToNull(value);
+        if (normalizedValue == null) {
+            return null;
+        }
+
+        Matcher matcher = NUMBER_PATTERN.matcher(normalizedValue.replace(" ", ""));
+        if (!matcher.find()) {
+            return null;
+        }
+
+        return new BigDecimal(matcher.group(1).replace(",", ""));
+    }
+
     private String normalizeSnapshotDate(String snapshotDate) {
         String value = trimToNull(snapshotDate);
         if (value == null) {
@@ -1090,6 +1494,22 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
         }
     }
 
+    private BackfillDateRange resolveBackfillDateRange(String startDate, String endDate) {
+        LocalDate resolvedEndDate = parseBackfillDateOrDefault(endDate, LocalDate.now());
+        LocalDate resolvedStartDate = parseBackfillDateOrDefault(startDate, resolvedEndDate.minusDays(DEFAULT_BACKFILL_DAYS - 1L));
+
+        if (resolvedStartDate.isAfter(resolvedEndDate)) {
+            throw new IllegalArgumentException("startDate는 endDate보다 늦을 수 없습니다.");
+        }
+
+        long totalDays = ChronoUnit.DAYS.between(resolvedStartDate, resolvedEndDate) + 1L;
+        if (totalDays > MAX_BACKFILL_DAYS) {
+            throw new IllegalArgumentException("KAMIS 기간 API는 최대 1회 365일까지만 조회할 수 있습니다.");
+        }
+
+        return new BackfillDateRange(resolvedStartDate, resolvedEndDate);
+    }
+
     private int resolveLimit(Integer limit, int defaultValue, int maxValue) {
         if (limit == null || limit.intValue() <= 0) {
             return defaultValue;
@@ -1109,8 +1529,14 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
         if (value == null) {
             return null;
         }
-        String trimmed = value.trim();
+        String trimmed = value
+            .replace('\u00A0', ' ')
+            .trim();
         if (trimmed.isEmpty()) {
+            return null;
+        }
+        String lowercaseValue = trimmed.toLowerCase(Locale.ROOT);
+        if ("null".equals(lowercaseValue) || "undefined".equals(lowercaseValue) || "nan".equals(lowercaseValue)) {
             return null;
         }
         return trimmed;
@@ -1122,6 +1548,19 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
             return null;
         }
 
+        String normalizedConvertedUnit = PriceSnapshotUnitSupport.normalizeConvertedRetailWeightUnit(itemCode, originalUnit);
+        if (!originalUnit.equals(normalizedConvertedUnit)) {
+            return normalizedConvertedUnit;
+        }
+
+        String extractedMeasurementUnit = extractMeasurementUnit(originalUnit);
+        if (shouldNormalizeConvertedWeightUnitToKilogram(itemCode, extractedMeasurementUnit)) {
+            return "1kg";
+        }
+        if (extractedMeasurementUnit != null) {
+            return extractedMeasurementUnit;
+        }
+
         String normalizedUnit = originalUnit
             .replaceAll("\\([^)]*\\)", " ")
             .replaceAll("\\[[^\\]]*\\]", " ")
@@ -1130,6 +1569,10 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
 
         if (normalizedUnit.isEmpty()) {
             normalizedUnit = originalUnit;
+        }
+
+        if (shouldNormalizeConvertedWeightUnitToKilogram(itemCode, normalizedUnit)) {
+            return "1kg";
         }
 
         if (normalizedUnit.length() <= MAX_SNAPSHOT_UNIT_LENGTH) {
@@ -1145,6 +1588,94 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
             truncatedUnit
         );
         return truncatedUnit;
+    }
+
+    private boolean shouldNormalizeConvertedWeightUnitToKilogram(String itemCode, String unit) {
+        if (!isConvertKgStoredItemCode(itemCode)) {
+            return false;
+        }
+
+        String candidateUnit = trimToNull(unit);
+        if (candidateUnit == null) {
+            return false;
+        }
+
+        String extractedMeasurementUnit = extractMeasurementUnit(candidateUnit);
+        String normalizedUnit = trimToNull(extractedMeasurementUnit == null ? candidateUnit : extractedMeasurementUnit);
+        if (normalizedUnit == null) {
+            return false;
+        }
+
+        String compactUnit = normalizedUnit.replace(" ", "").toLowerCase(Locale.ROOT);
+        return compactUnit.endsWith("kg") || compactUnit.endsWith("g");
+    }
+
+    private boolean isConvertKgStoredItemCode(String itemCode) {
+        String normalizedItemCode = trimToNull(itemCode);
+        if (normalizedItemCode == null) {
+            return false;
+        }
+
+        return normalizedItemCode.toUpperCase(Locale.ROOT).endsWith("_Y");
+    }
+
+    private String extractMeasurementUnit(String value) {
+        String normalizedValue = trimToNull(value);
+        if (normalizedValue == null) {
+            return null;
+        }
+
+        Matcher compositeMatcher = SNAPSHOT_COMPOSITE_MEASUREMENT_PATTERN.matcher(normalizedValue.replace(" ", ""));
+        if (compositeMatcher.find()) {
+            BigDecimal baseAmount = new BigDecimal(compositeMatcher.group(1));
+            String unitToken = compositeMatcher.group(2);
+            BigDecimal multiplier = new BigDecimal(compositeMatcher.group(3));
+            return formatMeasurementUnit(baseAmount.multiply(multiplier), unitToken);
+        }
+
+        Matcher measurementMatcher = SNAPSHOT_MEASUREMENT_PATTERN.matcher(normalizedValue.replace(" ", ""));
+        if (measurementMatcher.find()) {
+            return measurementMatcher.group(1) + measurementMatcher.group(2);
+        }
+
+        String bracketlessValue = normalizedValue
+            .replaceAll("\\([^)]*\\)", " ")
+            .replaceAll("\\[[^\\]]*\\]", " ")
+            .replaceAll("\\s+", " ")
+            .trim();
+        if (bracketlessValue.isEmpty()) {
+            return null;
+        }
+        if ("kg".equalsIgnoreCase(bracketlessValue)
+            || "g".equalsIgnoreCase(bracketlessValue)
+            || "ml".equalsIgnoreCase(bracketlessValue)
+            || "l".equalsIgnoreCase(bracketlessValue)
+            || "ℓ".equals(bracketlessValue)
+            || "리터".equals(bracketlessValue)
+            || "개".equals(bracketlessValue)
+            || "구".equals(bracketlessValue)
+            || "알".equals(bracketlessValue)
+            || "판".equals(bracketlessValue)
+            || "봉".equals(bracketlessValue)
+            || "봉지".equals(bracketlessValue)
+            || "팩".equals(bracketlessValue)
+            || "병".equals(bracketlessValue)
+            || "통".equals(bracketlessValue)
+            || "포기".equals(bracketlessValue)
+            || "단".equals(bracketlessValue)
+            || "망".equals(bracketlessValue)
+            || "묶음".equals(bracketlessValue)) {
+            return bracketlessValue;
+        }
+        return null;
+    }
+
+    private String formatMeasurementUnit(BigDecimal amount, String unitToken) {
+        if (amount == null || unitToken == null) {
+            return null;
+        }
+        BigDecimal normalizedAmount = amount.stripTrailingZeros();
+        return normalizedAmount.toPlainString() + unitToken;
     }
 
     private static final class HistoricalMetadata {
@@ -1182,6 +1713,44 @@ public class PriceSnapshotServiceImpl implements PriceSnapshotService {
 
         private BigDecimal getMaxPrice() {
             return maxPrice;
+        }
+    }
+
+    private static final class ProcessRetailFetchTarget {
+
+        private final PriceSnapshotBackfillItemDTO processItemDTO;
+        private final String snapshotDate;
+
+        private ProcessRetailFetchTarget(PriceSnapshotBackfillItemDTO processItemDTO, String snapshotDate) {
+            this.processItemDTO = processItemDTO;
+            this.snapshotDate = snapshotDate;
+        }
+
+        private PriceSnapshotBackfillItemDTO getProcessItemDTO() {
+            return processItemDTO;
+        }
+
+        private String getSnapshotDate() {
+            return snapshotDate;
+        }
+    }
+
+    private static final class BackfillDateRange {
+
+        private final LocalDate startDate;
+        private final LocalDate endDate;
+
+        private BackfillDateRange(LocalDate startDate, LocalDate endDate) {
+            this.startDate = startDate;
+            this.endDate = endDate;
+        }
+
+        private LocalDate getStartDate() {
+            return startDate;
+        }
+
+        private LocalDate getEndDate() {
+            return endDate;
         }
     }
 

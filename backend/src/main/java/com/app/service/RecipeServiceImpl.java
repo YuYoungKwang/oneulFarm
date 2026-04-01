@@ -231,6 +231,13 @@ public class RecipeServiceImpl implements RecipeService {
                 .thenComparing(ProductDto::getSavingRate, Comparator.nullsLast(Comparator.reverseOrder()))
         );
 
+        for (ProductDto product : candidateList) {
+            if (product == null || product.getProductNo() == null) {
+                continue;
+            }
+            product.setImages(resolveDisplayImages(product.getProductNo()));
+        }
+
         if (candidateList.size() > limit) {
             return candidateList.subList(0, limit);
         }
@@ -287,6 +294,26 @@ public class RecipeServiceImpl implements RecipeService {
         }
 
         return tokenScore;
+    }
+
+    private List<com.app.dto.ProductImageDto> resolveDisplayImages(Long productNo) {
+        List<com.app.dto.ProductImageDto> images = productDao.findProductImages(productNo);
+        if (images == null || images.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<com.app.dto.ProductImageDto> displayImages = new ArrayList<com.app.dto.ProductImageDto>();
+        for (com.app.dto.ProductImageDto image : images) {
+            if (image == null || image.getImageNo() == null) {
+                continue;
+            }
+            if (image.getImageSize() != null && image.getImageSize().longValue() <= 0L) {
+                continue;
+            }
+            displayImages.add(image);
+        }
+
+        return displayImages;
     }
 
     private int syncRecipeNodeList(List<JsonNode> recipeNodeList) {

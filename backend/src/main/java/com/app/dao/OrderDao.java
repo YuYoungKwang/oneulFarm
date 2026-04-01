@@ -1,11 +1,15 @@
 package com.app.dao;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
+import com.app.dto.CancelRequestHistoryDto;
 import com.app.dto.DeliveryDto;
+import com.app.dto.DeliveryTrackingHistoryDto;
 import com.app.dto.OrderDto;
 import com.app.dto.OrderItemDto;
+import com.app.dto.OrderStatusHistoryDto;
 import com.app.dto.PaymentDto;
 
 public interface OrderDao {
@@ -16,7 +20,15 @@ public interface OrderDao {
 
     OrderDto findOrderDetail(Long userNo, Long orderNo);
 
+    List<OrderDto> findFulfillmentSimulationTargets();
+
     List<OrderItemDto> findOrderItems(Long orderNo);
+
+    List<DeliveryTrackingHistoryDto> findDeliveryTrackingHistories(Long orderNo);
+
+    List<OrderStatusHistoryDto> findOrderStatusHistories(Long orderNo);
+
+    List<CancelRequestHistoryDto> findCancelRequestHistories(Long orderNo);
 
     List<Long> findOrderPreviewImageNos(Long orderNo);
 
@@ -34,9 +46,45 @@ public interface OrderDao {
 
     int updateOrderStatus(Long orderNo, String orderStatus);
 
+    int updateOrderCancelStatus(Long orderNo, String cancelStatus);
+
+    int updateOrderPurchaseConfirm(Long orderNo, String purchaseConfirmStatus, LocalDateTime purchaseConfirmedAt);
+
+    int startFulfillmentSimulation(Long orderNo, LocalDateTime fulfillmentStartedAt);
+
+    int autoConfirmEligiblePurchasesByUser(Long userNo);
+
+    int autoConfirmEligiblePurchases();
+
+    int insertOrderCancelRequest(Long orderNo, Long requestedByUserNo, String cancelStatus, String requestReason);
+
+    int updateLatestOrderCancelRequest(Long orderNo, String cancelStatus, Long decidedByUserNo, String decisionReason);
+
+    int insertDeliveryTrackingHistory(
+        Long orderNo,
+        String carrierCode,
+        String trackingNo,
+        String trackingStatus,
+        String trackingMessage,
+        String locationName,
+        String locationAddress,
+        Long recordedByUserNo
+    );
+
+    int insertOrderStatusHistory(
+        Long orderNo,
+        String prevOrderStatus,
+        String nextOrderStatus,
+        String changedByType,
+        Long changedByUserNo,
+        String changeReason
+    );
+
     int updateDeliveryForShipping(Long orderNo, String trackingNo);
 
     int updateDeliveryForDelivered(Long orderNo);
 
     int decreaseProductStock(Long productNo, Integer quantity);
+
+    int increaseProductStock(Long productNo, Integer quantity);
 }

@@ -26,9 +26,14 @@
         <result property="orderId" column="orderId" />
         <result property="orderedAt" column="orderedAt" />
         <result property="orderStatus" column="orderStatus" />
+        <result property="cancelStatus" column="cancelStatus" />
+        <result property="purchaseConfirmStatus" column="purchaseConfirmStatus" />
+        <result property="purchaseConfirmedAt" column="purchaseConfirmedAt" />
+        <result property="fulfillmentStartedAt" column="fulfillmentStartedAt" />
         <result property="recipientName" column="recipientName" />
         <result property="recipientPhone" column="recipientPhone" />
         <result property="deliveryStatus" column="deliveryStatus" />
+        <result property="carrierCode" column="carrierCode" />
         <result property="displayProductName" column="displayProductName" />
         <result property="itemCount" column="itemCount" />
         <result property="finalAmount" column="finalAmount" />
@@ -38,6 +43,11 @@
         <result property="paidAmount" column="paidAmount" />
         <result property="trackingNo" column="trackingNo" />
         <result property="courierName" column="courierName" />
+        <result property="waybillStatus" column="waybillStatus" />
+        <result property="waybillAssignedAt" column="waybillAssignedAt" />
+        <result property="pickedUpAt" column="pickedUpAt" />
+        <result property="inTransitAt" column="inTransitAt" />
+        <result property="deliveredAt" column="deliveredAt" />
     </resultMap>
 
     <resultMap id="AdminOrderDetailResultMap" type="com.app.dto.OrderDto">
@@ -46,13 +56,22 @@
         <result property="orderId" column="orderId" />
         <result property="orderedAt" column="orderedAt" />
         <result property="orderStatus" column="orderStatus" />
+        <result property="cancelStatus" column="cancelStatus" />
+        <result property="purchaseConfirmStatus" column="purchaseConfirmStatus" />
+        <result property="purchaseConfirmedAt" column="purchaseConfirmedAt" />
+        <result property="fulfillmentStartedAt" column="fulfillmentStartedAt" />
         <result property="recipientName" column="recipientName" />
         <result property="recipientPhone" column="recipientPhone" />
         <result property="zipCode" column="zipCode" />
         <result property="address1" column="address1" />
         <result property="address2" column="address2" />
         <result property="deliveryStatus" column="deliveryStatus" />
+        <result property="carrierCode" column="carrierCode" />
         <result property="courierName" column="courierName" />
+        <result property="waybillStatus" column="waybillStatus" />
+        <result property="waybillAssignedAt" column="waybillAssignedAt" />
+        <result property="pickedUpAt" column="pickedUpAt" />
+        <result property="inTransitAt" column="inTransitAt" />
         <result property="trackingNo" column="trackingNo" />
         <result property="shippedAt" column="shippedAt" />
         <result property="deliveredAt" column="deliveredAt" />
@@ -344,9 +363,13 @@
             o.ORDER_ID AS orderId,
             o.ORDERED_AT AS orderedAt,
             o.ORDER_STATUS AS orderStatus,
+            o.CANCEL_STATUS AS cancelStatus,
+            o.PURCHASE_CONFIRM_STATUS AS purchaseConfirmStatus,
+            o.PURCHASE_CONFIRMED_AT AS purchaseConfirmedAt,
             o.RECIPIENT_NAME AS recipientName,
             o.RECIPIENT_PHONE AS recipientPhone,
             NVL(d.DELIVERY_STATUS, 'READY') AS deliveryStatus,
+            d.CARRIER_CODE AS carrierCode,
             CASE
                 WHEN oi.ITEM_COUNT &lt;= 1 THEN oi.FIRST_PRODUCT_NAME
                 ELSE oi.FIRST_PRODUCT_NAME || ' 외 ' || TO_CHAR(oi.ITEM_COUNT - 1) || '건'
@@ -358,7 +381,12 @@
             p.PAYMENT_STATUS AS paymentStatus,
             p.PAID_AMOUNT AS paidAmount,
             d.TRACKING_NO AS trackingNo,
-            d.COURIER_NAME AS courierName
+            d.COURIER_NAME AS courierName,
+            d.WAYBILL_STATUS AS waybillStatus,
+            d.WAYBILL_ASSIGNED_AT AS waybillAssignedAt,
+            d.PICKED_UP_AT AS pickedUpAt,
+            d.IN_TRANSIT_AT AS inTransitAt,
+            d.DELIVERED_AT AS deliveredAt
         FROM OFT_ORDERS o
         LEFT JOIN OFT_DELIVERY d
             ON d.ORDER_NO = o.ORDER_NO
@@ -393,14 +421,22 @@
             o.ORDER_ID AS orderId,
             o.ORDERED_AT AS orderedAt,
             o.ORDER_STATUS AS orderStatus,
+            o.CANCEL_STATUS AS cancelStatus,
+            o.PURCHASE_CONFIRM_STATUS AS purchaseConfirmStatus,
+            o.PURCHASE_CONFIRMED_AT AS purchaseConfirmedAt,
             o.RECIPIENT_NAME AS recipientName,
             o.RECIPIENT_PHONE AS recipientPhone,
             o.ZIP_CODE AS zipCode,
             o.ADDRESS1 AS address1,
             o.ADDRESS2 AS address2,
             NVL(d.DELIVERY_STATUS, 'READY') AS deliveryStatus,
+            d.CARRIER_CODE AS carrierCode,
             d.COURIER_NAME AS courierName,
             d.TRACKING_NO AS trackingNo,
+            d.WAYBILL_STATUS AS waybillStatus,
+            d.WAYBILL_ASSIGNED_AT AS waybillAssignedAt,
+            d.PICKED_UP_AT AS pickedUpAt,
+            d.IN_TRANSIT_AT AS inTransitAt,
             d.SHIPPED_AT AS shippedAt,
             d.DELIVERED_AT AS deliveredAt,
             p.PAYMENT_METHOD AS paymentMethod,
@@ -421,30 +457,51 @@
 
     <update id="updateAdminOrderStatus" parameterType="map">
         UPDATE OFT_ORDERS
-        SET ORDER_STATUS = #{orderStatus}
+        SET ORDER_STATUS = #{orderStatus},
+            UPDATED_AT = SYSTIMESTAMP
         WHERE ORDER_NO = #{orderNo}
     </update>
 
     <update id="updateAdminDeliveryTracking" parameterType="map">
         UPDATE OFT_DELIVERY
         SET TRACKING_NO = #{trackingNo},
-            COURIER_NAME = #{courierName}
+            COURIER_NAME = #{courierName},
+            WAYBILL_STATUS = 'ASSIGNED',
+            WAYBILL_ASSIGNED_AT = NVL(WAYBILL_ASSIGNED_AT, SYSTIMESTAMP),
+            UPDATED_AT = SYSTIMESTAMP
         WHERE ORDER_NO = #{orderNo}
     </update>
 
     <update id="updateAdminDeliveryForShipping" parameterType="map">
         UPDATE OFT_DELIVERY
-        SET DELIVERY_STATUS = 'SHIPPING',
+        SET DELIVERY_STATUS = 'IN_TRANSIT',
             TRACKING_NO = #{trackingNo},
             COURIER_NAME = #{courierName},
-            SHIPPED_AT = NVL(SHIPPED_AT, SYSTIMESTAMP)
+            WAYBILL_STATUS = 'ASSIGNED',
+            WAYBILL_ASSIGNED_AT = NVL(WAYBILL_ASSIGNED_AT, SYSTIMESTAMP),
+            IN_TRANSIT_AT = NVL(IN_TRANSIT_AT, SYSTIMESTAMP),
+            SHIPPED_AT = NVL(SHIPPED_AT, SYSTIMESTAMP),
+            UPDATED_AT = SYSTIMESTAMP
+        WHERE ORDER_NO = #{orderNo}
+    </update>
+
+    <update id="updateAdminDeliveryForPickup" parameterType="map">
+        UPDATE OFT_DELIVERY
+        SET DELIVERY_STATUS = 'PICKED_UP',
+            TRACKING_NO = #{trackingNo},
+            COURIER_NAME = #{courierName},
+            WAYBILL_STATUS = 'ASSIGNED',
+            WAYBILL_ASSIGNED_AT = NVL(WAYBILL_ASSIGNED_AT, SYSTIMESTAMP),
+            PICKED_UP_AT = NVL(PICKED_UP_AT, SYSTIMESTAMP),
+            UPDATED_AT = SYSTIMESTAMP
         WHERE ORDER_NO = #{orderNo}
     </update>
 
     <update id="updateAdminDeliveryForDelivered" parameterType="long">
         UPDATE OFT_DELIVERY
         SET DELIVERY_STATUS = 'DELIVERED',
-            DELIVERED_AT = SYSTIMESTAMP
+            DELIVERED_AT = SYSTIMESTAMP,
+            UPDATED_AT = SYSTIMESTAMP
         WHERE ORDER_NO = #{_parameter}
     </update>
 
@@ -582,6 +639,12 @@
         WHERE USER_NO = #{userNo}
     </update>
 
+    <update id="updateAdminUserRole" parameterType="map">
+        UPDATE OFT_USERS
+        SET ROLE = #{role}
+        WHERE USER_NO = #{userNo}
+    </update>
+
     <select id="countAdminPackageHistoriesByUser" parameterType="long" resultType="int">
         SELECT COUNT(*)
         FROM OFT_PACKAGE_HISTORY
@@ -683,6 +746,23 @@
             PURCHASE_UNIT AS purchaseUnit,
             PURCHASE_QTY AS purchaseQty,
             PURCHASE_PRICE AS purchasePrice,
+            REFERENCE_UNIT_PRICE AS referenceUnitPrice,
+            REFERENCE_TOTAL_PRICE AS referenceTotalPrice,
+            REFERENCE_SNAPSHOT_DATE AS referenceSnapshotDate,
+            GRADE AS grade,
+            SUPPLIER_TYPE AS supplierType,
+            ACTUAL_UNIT_PRICE AS actualUnitPrice,
+            ACTUAL_PURCHASE_AMOUNT AS actualPurchaseAmount,
+            LOGISTICS_COST AS logisticsCost,
+            COMMISSION_RATE AS commissionRate,
+            COMMISSION_COST AS commissionCost,
+            OTHER_PURCHASE_COST AS otherPurchaseCost,
+            DISCARD_RATE AS discardRate,
+            DISCARD_QTY AS discardQty,
+            SELLABLE_QTY AS sellableQty,
+            REMAINING_QTY AS remainingQty,
+            TOTAL_PURCHASE_COST AS totalPurchaseCost,
+            ACTUAL_COST_PER_KG AS actualCostPerKg,
             PURCHASE_DATE AS purchaseDate,
             SUPPLIER_NAME AS supplierName,
             STATUS AS status,
@@ -701,6 +781,23 @@
             PURCHASE_UNIT AS purchaseUnit,
             PURCHASE_QTY AS purchaseQty,
             PURCHASE_PRICE AS purchasePrice,
+            REFERENCE_UNIT_PRICE AS referenceUnitPrice,
+            REFERENCE_TOTAL_PRICE AS referenceTotalPrice,
+            REFERENCE_SNAPSHOT_DATE AS referenceSnapshotDate,
+            GRADE AS grade,
+            SUPPLIER_TYPE AS supplierType,
+            ACTUAL_UNIT_PRICE AS actualUnitPrice,
+            ACTUAL_PURCHASE_AMOUNT AS actualPurchaseAmount,
+            LOGISTICS_COST AS logisticsCost,
+            COMMISSION_RATE AS commissionRate,
+            COMMISSION_COST AS commissionCost,
+            OTHER_PURCHASE_COST AS otherPurchaseCost,
+            DISCARD_RATE AS discardRate,
+            DISCARD_QTY AS discardQty,
+            SELLABLE_QTY AS sellableQty,
+            REMAINING_QTY AS remainingQty,
+            TOTAL_PURCHASE_COST AS totalPurchaseCost,
+            ACTUAL_COST_PER_KG AS actualCostPerKg,
             PURCHASE_DATE AS purchaseDate,
             SUPPLIER_NAME AS supplierName,
             STATUS AS status,
@@ -721,6 +818,23 @@
                 PURCHASE_UNIT AS purchaseUnit,
                 PURCHASE_QTY AS purchaseQty,
                 PURCHASE_PRICE AS purchasePrice,
+                REFERENCE_UNIT_PRICE AS referenceUnitPrice,
+                REFERENCE_TOTAL_PRICE AS referenceTotalPrice,
+                REFERENCE_SNAPSHOT_DATE AS referenceSnapshotDate,
+                GRADE AS grade,
+                SUPPLIER_TYPE AS supplierType,
+                ACTUAL_UNIT_PRICE AS actualUnitPrice,
+                ACTUAL_PURCHASE_AMOUNT AS actualPurchaseAmount,
+                LOGISTICS_COST AS logisticsCost,
+                COMMISSION_RATE AS commissionRate,
+                COMMISSION_COST AS commissionCost,
+                OTHER_PURCHASE_COST AS otherPurchaseCost,
+                DISCARD_RATE AS discardRate,
+                DISCARD_QTY AS discardQty,
+                SELLABLE_QTY AS sellableQty,
+                REMAINING_QTY AS remainingQty,
+                TOTAL_PURCHASE_COST AS totalPurchaseCost,
+                ACTUAL_COST_PER_KG AS actualCostPerKg,
                 PURCHASE_DATE AS purchaseDate,
                 SUPPLIER_NAME AS supplierName,
                 STATUS AS status,
@@ -733,6 +847,22 @@
               AND PURCHASE_UNIT = #{purchaseUnit}
               AND PURCHASE_QTY = #{purchaseQty}
               AND PURCHASE_PRICE = #{purchasePrice}
+              AND REFERENCE_UNIT_PRICE = #{referenceUnitPrice}
+              AND REFERENCE_TOTAL_PRICE = #{referenceTotalPrice}
+              AND NVL(GRADE, ' ') = NVL(#{grade}, ' ')
+              AND NVL(SUPPLIER_TYPE, ' ') = NVL(#{supplierType}, ' ')
+              AND ACTUAL_UNIT_PRICE = #{actualUnitPrice}
+              AND ACTUAL_PURCHASE_AMOUNT = #{actualPurchaseAmount}
+              AND LOGISTICS_COST = #{logisticsCost}
+              AND COMMISSION_RATE = #{commissionRate}
+              AND COMMISSION_COST = #{commissionCost}
+              AND OTHER_PURCHASE_COST = #{otherPurchaseCost}
+              AND DISCARD_RATE = #{discardRate}
+              AND DISCARD_QTY = #{discardQty}
+              AND SELLABLE_QTY = #{sellableQty}
+              AND REMAINING_QTY = #{remainingQty}
+              AND TOTAL_PURCHASE_COST = #{totalPurchaseCost}
+              AND ACTUAL_COST_PER_KG = #{actualCostPerKg}
               AND PURCHASE_DATE = #{purchaseDate}
               AND NVL(SUPPLIER_NAME, ' ') = NVL(#{supplierName}, ' ')
               AND STATUS = #{status}
@@ -750,6 +880,23 @@
             PURCHASE_UNIT,
             PURCHASE_QTY,
             PURCHASE_PRICE,
+            REFERENCE_UNIT_PRICE,
+            REFERENCE_TOTAL_PRICE,
+            REFERENCE_SNAPSHOT_DATE,
+            GRADE,
+            SUPPLIER_TYPE,
+            ACTUAL_UNIT_PRICE,
+            ACTUAL_PURCHASE_AMOUNT,
+            LOGISTICS_COST,
+            COMMISSION_RATE,
+            COMMISSION_COST,
+            OTHER_PURCHASE_COST,
+            DISCARD_RATE,
+            DISCARD_QTY,
+            SELLABLE_QTY,
+            REMAINING_QTY,
+            TOTAL_PURCHASE_COST,
+            ACTUAL_COST_PER_KG,
             PURCHASE_DATE,
             SUPPLIER_NAME,
             STATUS
@@ -761,6 +908,23 @@
             #{purchaseUnit},
             #{purchaseQty},
             #{purchasePrice},
+            #{referenceUnitPrice},
+            #{referenceTotalPrice},
+            #{referenceSnapshotDate},
+            #{grade},
+            #{supplierType},
+            #{actualUnitPrice},
+            #{actualPurchaseAmount},
+            #{logisticsCost},
+            #{commissionRate},
+            #{commissionCost},
+            #{otherPurchaseCost},
+            #{discardRate},
+            #{discardQty},
+            #{sellableQty},
+            #{remainingQty},
+            #{totalPurchaseCost},
+            #{actualCostPerKg},
             #{purchaseDate},
             #{supplierName},
             #{status}
@@ -780,7 +944,15 @@
             PRODUCT_NO AS productNo,
             PACKAGED_QTY AS packagedQty,
             PACKAGED_WEIGHT AS packagedWeight,
+            TOTAL_USED AS totalUsed,
             SALE_PRICE AS salePrice,
+            PACKAGING_MATERIAL_COST AS packagingMaterialCost,
+            PACKAGING_LABOR_COST AS packagingLaborCost,
+            OTHER_PACKAGING_COST AS otherPackagingCost,
+            FINAL_COST_PER_KG AS finalCostPerKg,
+            FINAL_COST_PER_PACKAGE AS finalCostPerPackage,
+            EXPECTED_PROFIT_PER_UNIT AS expectedProfitPerUnit,
+            EXPECTED_TOTAL_PROFIT AS expectedTotalProfit,
             SALE_STATUS AS saleStatus,
             PACKAGED_AT AS packagedAt,
             NOTE AS note,
@@ -789,13 +961,70 @@
         ORDER BY PACKAGED_AT DESC, PACKAGE_NO DESC
     </select>
 
+    <select id="selectPackageHistoriesByBatch" parameterType="long" resultType="com.app.dto.PackageHistoryDto">
+        SELECT
+            PACKAGE_NO AS packageNo,
+            BATCH_NO AS batchNo,
+            PRODUCT_NO AS productNo,
+            PACKAGED_QTY AS packagedQty,
+            PACKAGED_WEIGHT AS packagedWeight,
+            TOTAL_USED AS totalUsed,
+            SALE_PRICE AS salePrice,
+            PACKAGING_MATERIAL_COST AS packagingMaterialCost,
+            PACKAGING_LABOR_COST AS packagingLaborCost,
+            OTHER_PACKAGING_COST AS otherPackagingCost,
+            FINAL_COST_PER_KG AS finalCostPerKg,
+            FINAL_COST_PER_PACKAGE AS finalCostPerPackage,
+            EXPECTED_PROFIT_PER_UNIT AS expectedProfitPerUnit,
+            EXPECTED_TOTAL_PROFIT AS expectedTotalProfit,
+            SALE_STATUS AS saleStatus,
+            PACKAGED_AT AS packagedAt,
+            NOTE AS note,
+            USER_NO AS userNo
+        FROM OFT_PACKAGE_HISTORY
+        WHERE BATCH_NO = #{_parameter}
+        ORDER BY PACKAGED_AT DESC, PACKAGE_NO DESC
+    </select>
+
+    <select id="selectPackageHistory" parameterType="long" resultType="com.app.dto.PackageHistoryDto">
+        SELECT
+            PACKAGE_NO AS packageNo,
+            BATCH_NO AS batchNo,
+            PRODUCT_NO AS productNo,
+            PACKAGED_QTY AS packagedQty,
+            PACKAGED_WEIGHT AS packagedWeight,
+            TOTAL_USED AS totalUsed,
+            SALE_PRICE AS salePrice,
+            PACKAGING_MATERIAL_COST AS packagingMaterialCost,
+            PACKAGING_LABOR_COST AS packagingLaborCost,
+            OTHER_PACKAGING_COST AS otherPackagingCost,
+            FINAL_COST_PER_KG AS finalCostPerKg,
+            FINAL_COST_PER_PACKAGE AS finalCostPerPackage,
+            EXPECTED_PROFIT_PER_UNIT AS expectedProfitPerUnit,
+            EXPECTED_TOTAL_PROFIT AS expectedTotalProfit,
+            SALE_STATUS AS saleStatus,
+            PACKAGED_AT AS packagedAt,
+            NOTE AS note,
+            USER_NO AS userNo
+        FROM OFT_PACKAGE_HISTORY
+        WHERE PACKAGE_NO = #{_parameter}
+    </select>
+
     <insert id="insertPackageHistory" parameterType="com.app.dto.PackageHistoryDto">
         INSERT INTO OFT_PACKAGE_HISTORY (
             BATCH_NO,
             PRODUCT_NO,
             PACKAGED_QTY,
             PACKAGED_WEIGHT,
+            TOTAL_USED,
             SALE_PRICE,
+            PACKAGING_MATERIAL_COST,
+            PACKAGING_LABOR_COST,
+            OTHER_PACKAGING_COST,
+            FINAL_COST_PER_KG,
+            FINAL_COST_PER_PACKAGE,
+            EXPECTED_PROFIT_PER_UNIT,
+            EXPECTED_TOTAL_PROFIT,
             SALE_STATUS,
             NOTE,
             USER_NO
@@ -804,7 +1033,15 @@
             #{productNo},
             #{packagedQty},
             #{packagedWeight},
+            #{totalUsed},
             #{salePrice},
+            #{packagingMaterialCost},
+            #{packagingLaborCost},
+            #{otherPackagingCost},
+            #{finalCostPerKg},
+            #{finalCostPerPackage},
+            #{expectedProfitPerUnit},
+            #{expectedTotalProfit},
             #{saleStatus},
             #{note},
             #{userNo}
@@ -814,6 +1051,11 @@
     <delete id="deletePackageHistoriesByBatch" parameterType="long">
         DELETE FROM OFT_PACKAGE_HISTORY
         WHERE BATCH_NO = #{_parameter}
+    </delete>
+
+    <delete id="deletePackageHistory" parameterType="long">
+        DELETE FROM OFT_PACKAGE_HISTORY
+        WHERE PACKAGE_NO = #{_parameter}
     </delete>
 
     <delete id="deletePurchaseBatch" parameterType="long">
@@ -827,9 +1069,22 @@
         WHERE BATCH_NO = #{batchNo}
     </update>
 
+    <update id="updatePurchaseBatchInventory" parameterType="map">
+        UPDATE OFT_PURCHASE_BATCH
+        SET REMAINING_QTY = #{remainingQty},
+            STATUS = #{status}
+        WHERE BATCH_NO = #{batchNo}
+    </update>
+
     <update id="increaseProductStock" parameterType="map">
         UPDATE OFT_PRODUCT
         SET STOCK_QTY = STOCK_QTY + #{quantity}
+        WHERE PRODUCT_NO = #{productNo}
+    </update>
+
+    <update id="decreaseProductStock" parameterType="map">
+        UPDATE OFT_PRODUCT
+        SET STOCK_QTY = CASE WHEN STOCK_QTY - #{quantity} &lt; 0 THEN 0 ELSE STOCK_QTY - #{quantity} END
         WHERE PRODUCT_NO = #{productNo}
     </update>
 

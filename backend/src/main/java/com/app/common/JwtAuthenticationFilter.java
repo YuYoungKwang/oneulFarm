@@ -65,6 +65,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return false;
         }
 
+        if (requestPath.startsWith("/api/admin")) {
+            return false;
+        }
+
         if (requestPath.startsWith("/api/dashboard/")) {
             return false;
         }
@@ -116,6 +120,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String requestPath = getRequestPath(request);
+        if (
+            requestPath.startsWith("/api/admin")
+                && !"ADMIN".equalsIgnoreCase(authenticatedUser.getRole())
+                && !"SUPER_ADMIN".equalsIgnoreCase(authenticatedUser.getRole())
+        ) {
+            writeErrorResponse(response, HttpStatus.FORBIDDEN, "Administrator access is required.");
+            return;
+        }
+
         boolean isPasswordChangeEndpoint =
             "/api/auth/password".equals(requestPath) && HttpMethod.PATCH.matches(request.getMethod());
         if ("Y".equalsIgnoreCase(authenticatedUser.getTempPasswordYn()) && !isPasswordChangeEndpoint) {

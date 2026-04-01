@@ -3023,8 +3023,693 @@
     text-align: left;
   }
 
-  .account-app .mypage-recent-order__content{
+.account-app .mypage-recent-order__content{
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+.account-app .account-meal-plans{
+  display: grid;
+  gap: 24px;
+}
+
+.account-app .account-meal-plans__head{
+  align-items: stretch;
+}
+
+.account-app .account-meal-plans__pill{
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 16px;
+  border: 1px solid rgba(21, 154, 85, 0.16);
+  border-radius: 999px;
+  background: rgba(241, 249, 244, 0.92);
+  color: var(--green-dark);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.account-app .account-meal-plans__summary{
+  min-width: 220px;
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  padding: 20px 22px;
+}
+
+.account-app .account-meal-plans__summary-label,
+.account-app .account-meal-plans__calendar-label{
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.account-app .account-meal-plans__summary-value{
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--green-dark);
+}
+
+.account-app .account-meal-plans__summary-sub{
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.account-app .account-meal-plans__content{
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(360px, 0.95fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.account-app .account-meal-plans__calendar-stack,
+.account-app .account-meal-plans__detail-stack{
+  display: grid;
+  gap: 18px;
+}
+
+.account-app .account-meal-plans__calendar-card,
+.account-app .account-meal-plans__detail-card,
+.account-app .account-meal-plans__editor-card,
+.account-app .account-meal-plans__hook-card{
+  display: grid;
+  gap: 18px;
+}
+
+.account-app .account-meal-plans__calendar-toolbar,
+.account-app .account-meal-plans__detail-header,
+.account-app .account-meal-plans__hook-header{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.account-app .account-meal-plans__calendar-title,
+.account-app .account-meal-plans__detail-title,
+.account-app .account-meal-plans__hook-title{
+  margin: 8px 0 0;
+  font-size: 28px;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+}
+
+.account-app .account-meal-plans__calendar-actions,
+.account-app .account-meal-plans__hook-actions,
+.account-app .account-meal-plans__form-actions{
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.account-app .account-meal-plans__calendar-grid{
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.account-app .account-meal-plans__calendar-grid--head{
+  gap: 10px;
+}
+
+.account-app .account-meal-plans__weekday{
+  display: inline-flex;
+  justify-content: center;
+  padding: 8px 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: #64748b;
+}
+
+.account-app .account-meal-plans__day{
+  display: grid;
+  gap: 10px;
+  min-height: 138px;
+  padding: 14px;
+  border: 1px solid rgba(226, 232, 240, 0.94);
+  border-radius: 22px;
+  background: linear-gradient(180deg, #ffffff, #f8fbf9);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.account-app .account-meal-plans__day:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 18px 30px rgba(15, 23, 42, 0.08);
+  border-color: rgba(21, 154, 85, 0.24);
+}
+
+.account-app .account-meal-plans__day.is-selected{
+  border-color: rgba(21, 154, 85, 0.34);
+  box-shadow: 0 18px 32px rgba(21, 154, 85, 0.12);
+  background: linear-gradient(180deg, rgba(244, 250, 246, 0.98), #ffffff);
+}
+
+.account-app .account-meal-plans__day.is-outside{
+  opacity: 0.45;
+}
+
+.account-app .account-meal-plans__day.is-today .account-meal-plans__day-number{
+  color: var(--green-dark);
+}
+
+.account-app .account-meal-plans__day-head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.account-app .account-meal-plans__day-number{
+  font-size: 19px;
+  font-weight: 900;
+  color: var(--text);
+}
+
+.account-app .account-meal-plans__day-count{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(21, 154, 85, 0.12);
+  color: var(--green-dark);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.account-app .account-meal-plans__day-list{
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.account-app .account-meal-plans__day-item{
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: #f8fafb;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.account-app .account-meal-plans__day-item strong{
+  color: var(--green-dark);
+  font-size: 11px;
+}
+
+.account-app .account-meal-plans__day-more{
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.account-app .account-meal-plans__group-list,
+.account-app .account-meal-plans__entry-list{
+  display: grid;
+  gap: 14px;
+}
+
+.account-app .account-meal-plans__group{
+  display: grid;
+  gap: 12px;
+}
+
+.account-app .account-meal-plans__group-head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.88);
+  color: #475569;
+}
+
+.account-app .account-meal-plans__entry{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 20px;
+  background: #fafcfc;
+}
+
+.account-app .account-meal-plans__entry-main{
+  display: grid;
+  gap: 8px;
+}
+
+.account-app .account-meal-plans__entry-top,
+.account-app .account-meal-plans__entry-meta,
+.account-app .account-meal-plans__entry-actions{
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.account-app .account-meal-plans__entry-top{
+  align-items: center;
+  justify-content: space-between;
+}
+
+.account-app .account-meal-plans__entry-top strong{
+  font-size: 18px;
+}
+
+.account-app .account-meal-plans__entry-top span,
+.account-app .account-meal-plans__entry-meta span{
+  color: #64748b;
+  font-size: 14px;
+}
+
+.account-app .account-meal-plans__entry-notes{
+  margin: 0;
+  color: #475569;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.account-app .account-meal-plans__empty{
+  padding: 18px;
+  border-radius: 18px;
+  background: #f8fafb;
+  color: #64748b;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.account-app .account-meal-plans__hook-grid,
+.account-app .account-meal-plans__form-grid{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.account-app .account-meal-plans__form{
+  display: grid;
+  gap: 16px;
+}
+
+@media (max-width: 1180px){
+  .account-app .account-meal-plans__content{
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 820px){
+  .account-app .account-meal-plans__calendar-toolbar,
+  .account-app .account-meal-plans__detail-header,
+  .account-app .account-meal-plans__hook-header{
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .account-app .account-meal-plans__calendar-grid{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .account-app .account-meal-plans__calendar-grid--head{
+    display: none;
+  }
+
+  .account-app .account-meal-plans__entry{
+    grid-template-columns: 1fr;
+  }
+
+  .account-app .account-meal-plans__hook-grid,
+  .account-app .account-meal-plans__form-grid{
+    grid-template-columns: 1fr;
+  }
+}
+
+.account-app .meal-schedule-section{
+  display: grid;
+  gap: 20px;
+}
+
+.account-app .meal-schedule-head-copy{
+  max-width: 680px;
+}
+
+.account-app .meal-schedule-head-actions{
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.account-app .meal-schedule-summary{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.account-app .meal-schedule-summary__item{
+  display: grid;
+  gap: 6px;
+  padding: 18px 20px;
+  border-radius: 22px;
+  border: 1px solid rgba(231, 235, 239, 0.9);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 247, 0.98));
+  box-shadow: var(--shadow-soft);
+}
+
+.account-app .meal-schedule-summary__item span{
+  color: #64748b;
+  font-size: 14px;
+}
+
+.account-app .meal-schedule-summary__item strong{
+  color: var(--green-dark);
+  font-size: 26px;
+  letter-spacing: -0.02em;
+}
+
+.account-app .meal-schedule-calendar{
+  display: grid;
+  gap: 18px;
+}
+
+.account-app .meal-schedule-calendar__head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.account-app .meal-schedule-calendar__head strong{
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+
+.account-app .meal-schedule-calendar__weekdays{
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.account-app .meal-schedule-calendar__grid{
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.account-app .meal-schedule-calendar__cell{
+  min-height: 138px;
+  padding: 14px 12px;
+  border: 1px solid rgba(231, 235, 239, 0.92);
+  border-radius: 22px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  align-content: flex-start;
+  gap: 12px;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.account-app .meal-schedule-calendar__cell:hover{
+  transform: translateY(-2px);
+  border-color: rgba(21, 154, 85, 0.3);
+  box-shadow: 0 18px 26px rgba(15, 23, 42, 0.06);
+}
+
+.account-app .meal-schedule-calendar__cell.is-selected{
+  border-color: rgba(21, 154, 85, 0.55);
+  background: linear-gradient(180deg, rgba(240, 250, 243, 0.95), rgba(255, 255, 255, 0.98));
+  box-shadow: 0 18px 28px rgba(21, 154, 85, 0.1);
+}
+
+.account-app .meal-schedule-calendar__cell.is-outside-month{
+  background: rgba(248, 250, 252, 0.82);
+  border-color: rgba(226, 232, 240, 0.9);
+}
+
+.account-app .meal-schedule-calendar__cell.is-outside-month:hover{
+  border-color: rgba(148, 163, 184, 0.35);
+  box-shadow: 0 14px 22px rgba(15, 23, 42, 0.04);
+}
+
+.account-app .meal-schedule-calendar__cell.is-blank{
+  min-height: 138px;
+  border-radius: 22px;
+  background: rgba(248, 250, 252, 0.76);
+}
+
+.account-app .meal-schedule-calendar__day{
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.account-app .meal-schedule-calendar__cell.is-outside-month .meal-schedule-calendar__day{
+  color: #94a3b8;
+}
+
+.account-app .meal-schedule-calendar__chips{
+  display: grid;
+  gap: 6px;
+}
+
+.account-app .meal-schedule-chip{
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-app .meal-schedule-chip.is-ai{
+  background: rgba(21, 154, 85, 0.12);
+  color: var(--green-dark);
+}
+
+.account-app .meal-schedule-chip.is-recipe{
+  background: rgba(243, 200, 91, 0.18);
+  color: #7c5a00;
+}
+
+.account-app .meal-schedule-chip.is-manual{
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+}
+
+.account-app .meal-schedule-chip.is-more{
+  background: #fff;
+  border: 1px dashed rgba(148, 163, 184, 0.7);
+}
+
+.account-app .meal-schedule-detail-grid{
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.95fr);
+  gap: 18px;
+}
+
+.account-app .meal-schedule-detail-card{
+  display: grid;
+  gap: 14px;
+}
+
+.account-app .meal-schedule-feedback{
+  margin: 0;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.account-app .meal-schedule-feedback.is-error{
+  background: rgba(254, 242, 242, 0.92);
+  color: #b91c1c;
+}
+
+.account-app .meal-schedule-entry-list,
+.account-app .meal-schedule-plan-list,
+.account-app .meal-schedule-recipe-results{
+  display: grid;
+  gap: 12px;
+}
+
+.account-app .meal-schedule-entry-card,
+.account-app .meal-schedule-plan-card,
+.account-app .meal-schedule-recipe-card{
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(231, 235, 239, 0.92);
+  background: #fff;
+}
+
+.account-app .meal-schedule-entry-card__head,
+.account-app .meal-schedule-entry-card__actions,
+.account-app .meal-schedule-entry-card__meta,
+.account-app .meal-schedule-recipe-card{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.account-app .meal-schedule-source-badge{
+  display: inline-flex;
+  align-items: center;
+  margin-right: 8px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.account-app .meal-schedule-source-badge.is-ai{
+  background: rgba(21, 154, 85, 0.12);
+  color: var(--green-dark);
+}
+
+.account-app .meal-schedule-source-badge.is-recipe{
+  background: rgba(243, 200, 91, 0.18);
+  color: #7c5a00;
+}
+
+.account-app .meal-schedule-source-badge.is-manual{
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+}
+
+.account-app .meal-schedule-entry-card__copy,
+.account-app .meal-schedule-plan-card p{
+  margin: 0;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.account-app .meal-schedule-entry-card__meta,
+.account-app .meal-schedule-plan-card span,
+.account-app .meal-schedule-recipe-card span{
+  color: #64748b;
+  font-size: 14px;
+}
+
+.account-app .meal-schedule-entry-card__ingredients{
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.account-app .meal-schedule-entry-card__ingredients span{
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 13px;
+}
+
+.account-app .meal-schedule-side-panel{
+  margin-top: 18px;
+}
+
+.account-app .meal-schedule-form{
+  display: grid;
+  gap: 16px;
+}
+
+.account-app .meal-schedule-form label{
+  display: grid;
+  gap: 8px;
+}
+
+.account-app .meal-schedule-form label span{
+  color: #475569;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.account-app .meal-schedule-form input,
+.account-app .meal-schedule-form select,
+.account-app .meal-schedule-form textarea{
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  border-radius: 16px;
+  background: #fff;
+  font: inherit;
+  color: #0f172a;
+}
+
+.account-app .meal-schedule-form textarea{
+  resize: vertical;
+}
+
+.account-app .meal-schedule-form .btn-outline.is-danger,
+.account-app .meal-schedule-entry-card__actions .is-danger,
+.account-app .meal-schedule-plan-card .is-danger{
+  color: #b91c1c;
+  border-color: rgba(248, 113, 113, 0.32);
+}
+
+@media (max-width: 1180px){
+  .account-app .meal-schedule-detail-grid{
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px){
+  .account-app .meal-schedule-summary{
+    grid-template-columns: 1fr;
+  }
+
+  .account-app .meal-schedule-calendar__weekdays{
+    display: none;
+  }
+
+  .account-app .meal-schedule-calendar__grid{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px){
+  .account-app .meal-schedule-head-actions,
+  .account-app .meal-schedule-calendar__head{
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .account-app .meal-schedule-calendar__grid{
+    grid-template-columns: 1fr;
   }
 }

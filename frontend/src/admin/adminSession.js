@@ -9,16 +9,16 @@ function notifyStorageChange() {
 }
 
 export function isAdminMode() {
-  return window.localStorage.getItem(ADMIN_MODE_KEY) === 'true';
+  return window.sessionStorage.getItem(ADMIN_MODE_KEY) === 'true';
 }
 
 export function enterAdminMode() {
-  window.localStorage.setItem(ADMIN_MODE_KEY, 'true');
+  window.sessionStorage.setItem(ADMIN_MODE_KEY, 'true');
   notifyStorageChange();
 }
 
 export function exitAdminMode() {
-  window.localStorage.removeItem(ADMIN_MODE_KEY);
+  window.sessionStorage.removeItem(ADMIN_MODE_KEY);
   notifyStorageChange();
 }
 

@@ -3,7 +3,7 @@ import '../styles/recipe.css';
 import { fetchRecipeList } from './recipeApi';
 
 const PAGE_SIZE = 8;
-const QUICK_INGREDIENTS = ['양파', '감자', '토마토', '오이', '버섯'];
+const QUICK_INGREDIENTS = ['양파', '감자', '브로콜리', '두부', '달걀', '우유', '삼겹살', '닭고기', '버섯'];
 
 export default function RecipeListPage({
   initialIngredientKeyword = '',
@@ -416,3 +416,4 @@ function buildPaginationNumbers(currentPage, totalPages) {
 
   return pageNumbers;
 }
+

@@ -66,7 +66,7 @@ async function requestApi(path, options, fallbackMessage) {
 function apiHeaders(includeJson = false) {
   return buildAuthHeaders({
     includeJson,
-    includeUserNo: false,
+    includeUserNo: true,
   });
 }
 
@@ -206,16 +206,22 @@ function buildReviews(rawReviews = []) {
   }));
 }
 
-function buildProductModel(rawProduct) {
+export function buildProductModel(rawProduct) {
   const display = buildDisplay(rawProduct.productNo);
   const images = enrichProductImages(buildGalleryItems(rawProduct, display));
   const avgPrice = toNumber(rawProduct.avgPrice, toNumber(rawProduct.salePrice, 0));
   const salePrice = toNumber(rawProduct.salePrice, 0);
+  const comparedPrice = toNumber(rawProduct.comparedPrice, 0);
+  const displayPriceRatio = avgPrice > 0 && comparedPrice > 0 ? comparedPrice / avgPrice : 1;
+  const displayAvgPrice = comparedPrice > 0 ? comparedPrice : avgPrice;
+  const displayMinPrice = toNumber(rawProduct.minPrice, avgPrice) * displayPriceRatio;
+  const displayMaxPrice =
+    toNumber(rawProduct.maxPrice, Math.max(avgPrice, salePrice)) * displayPriceRatio;
   const savingRate = toNumber(
     rawProduct.savingRate,
-    avgPrice > 0 ? ((avgPrice - salePrice) / avgPrice) * 100 : 0
+    displayAvgPrice > 0 ? ((displayAvgPrice - salePrice) / displayAvgPrice) * 100 : 0
   );
-  const priceGap = toNumber(rawProduct.priceGap, Math.max(avgPrice - salePrice, 0));
+  const priceGap = toNumber(rawProduct.priceGap, Math.max(displayAvgPrice - salePrice, 0));
   const recommendedFor = buildRecommendedTags(rawProduct);
 
   return {
@@ -253,15 +259,18 @@ function buildProductModel(rawProduct) {
       marketType: rawProduct.marketType || 'RETAIL',
       unit: rawProduct.snapshotUnit || rawProduct.unit || '',
       avgPrice,
+      displayAvgPrice,
       minPrice: toNumber(rawProduct.minPrice, avgPrice),
+      displayMinPrice,
       maxPrice: toNumber(rawProduct.maxPrice, Math.max(avgPrice, salePrice)),
+      displayMaxPrice,
       changeRate: toNumber(rawProduct.changeRate, 0),
       snapshotDate: rawProduct.snapshotDate || rawProduct.createdAt,
       sourceName: rawProduct.sourceName || 'KAMIS',
     },
     priceMatch: {
       matchNo: rawProduct.matchNo,
-      comparedPrice: toNumber(rawProduct.comparedPrice, salePrice),
+      comparedPrice: comparedPrice > 0 ? comparedPrice : salePrice,
       priceGap,
       savingRate,
       badgeType: rawProduct.badgeType || (salePrice < avgPrice ? 'UNDER_AVG' : 'HOT_DEAL'),
@@ -271,11 +280,70 @@ function buildProductModel(rawProduct) {
   };
 }
 
+function normalizeCartItem(rawItem = {}) {
+  return {
+    cartItemNo: rawItem.cartItemNo ?? null,
+    cartNo: rawItem.cartNo ?? null,
+    cartGroupNo: rawItem.cartGroupNo ?? null,
+    productNo: rawItem.productNo ?? null,
+    productName: rawItem.productName || '',
+    quantity: toNumber(rawItem.quantity, 0),
+    salePrice: toNumber(rawItem.salePrice, 0),
+    stockQty: toNumber(rawItem.stockQty, 0),
+    saleStatus: rawItem.saleStatus || '',
+    avgPrice: toNumber(rawItem.avgPrice, 0),
+    savingRate: toNumber(rawItem.savingRate, 0),
+    savedAmount: toNumber(rawItem.savedAmount, 0),
+    groupKey: rawItem.groupKey || '',
+    groupType: rawItem.groupType || 'PRODUCT',
+    recipeNo: rawItem.recipeNo ?? null,
+    groupName: rawItem.groupName || '',
+  };
+}
+
 function adaptCartResponse(rawCart) {
-  return (rawCart?.items || []).reduce((cartMap, item) => ({
+  const items = Array.isArray(rawCart?.items)
+    ? rawCart.items.map(normalizeCartItem)
+    : [];
+
+  const quantityMap = items.reduce((cartMap, item) => ({
     ...cartMap,
-    [item.productNo]: toNumber(item.quantity, 0),
+    [item.productNo]: toNumber(cartMap[item.productNo], 0) + toNumber(item.quantity, 0),
   }), {});
+
+  return {
+    cartNo: rawCart?.cartNo ?? null,
+    items,
+    quantityMap,
+    totalQuantity: toNumber(rawCart?.totalQuantity, items.reduce((sum, item) => sum + item.quantity, 0)),
+    totalAmount: toNumber(rawCart?.totalAmount, 0),
+  };
+}
+
+function persistCartCache(cartPayload) {
+  if (typeof window === 'undefined' || !cartPayload || typeof cartPayload !== 'object') {
+    return cartPayload;
+  }
+
+  try {
+    window.localStorage.setItem(
+      'oneulFarmCart',
+      JSON.stringify(cartPayload.quantityMap || {})
+    );
+    window.localStorage.setItem(
+      'oneulFarmCartDetails',
+      JSON.stringify(Array.isArray(cartPayload.items) ? cartPayload.items : [])
+    );
+    window.dispatchEvent(
+      new CustomEvent('oneulFarm:storage-change', {
+        detail: { key: 'oneulFarmCart' },
+      })
+    );
+  } catch (error) {
+    // Ignore local cache sync failures and keep API payload.
+  }
+
+  return cartPayload;
 }
 
 function adaptOrderDetail(rawDetail, options = {}) {
@@ -353,26 +421,31 @@ export async function fetchCartFromApi() {
     'Failed to load cart.'
   );
 
-  return adaptCartResponse(data);
+  return persistCartCache(adaptCartResponse(data));
 }
 
-export async function addCartItemToApi(productNo, quantity) {
+export async function addCartItemToApi(productNo, quantity, extraPayload = {}) {
+  const payload = {
+    productNo,
+    quantity,
+    ...(extraPayload && typeof extraPayload === 'object' ? extraPayload : {}),
+  };
   const data = await requestApi(
     `${CART_API_BASE}/me/items`,
     {
       method: 'POST',
       headers: apiHeaders(true),
-      body: JSON.stringify({ productNo, quantity }),
+      body: JSON.stringify(payload),
     },
     'Failed to add cart item.'
   );
 
-  return adaptCartResponse(data);
+  return persistCartCache(adaptCartResponse(data));
 }
 
-export async function updateCartItemOnApi(productNo, quantity) {
+export async function updateCartItemOnApi(cartItemNo, quantity) {
   const data = await requestApi(
-    `${CART_API_BASE}/me/items/${productNo}`,
+    `${CART_API_BASE}/me/items/${cartItemNo}`,
     {
       method: 'PATCH',
       headers: apiHeaders(true),
@@ -381,12 +454,12 @@ export async function updateCartItemOnApi(productNo, quantity) {
     'Failed to update cart item.'
   );
 
-  return adaptCartResponse(data);
+  return persistCartCache(adaptCartResponse(data));
 }
 
-export async function removeCartItemFromApi(productNo) {
+export async function removeCartItemFromApi(cartItemNo) {
   const data = await requestApi(
-    `${CART_API_BASE}/me/items/${productNo}`,
+    `${CART_API_BASE}/me/items/${cartItemNo}`,
     {
       method: 'DELETE',
       headers: apiHeaders(),
@@ -394,7 +467,7 @@ export async function removeCartItemFromApi(productNo) {
     'Failed to remove cart item.'
   );
 
-  return adaptCartResponse(data);
+  return persistCartCache(adaptCartResponse(data));
 }
 
 export async function clearCartOnApi() {
@@ -407,7 +480,7 @@ export async function clearCartOnApi() {
     'Failed to clear cart.'
   );
 
-  return adaptCartResponse(data);
+  return persistCartCache(adaptCartResponse(data));
 }
 
 export async function fetchOrdersFromApi() {

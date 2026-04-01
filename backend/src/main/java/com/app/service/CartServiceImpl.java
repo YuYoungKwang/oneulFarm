@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -30,15 +31,17 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
-    public CartDto addCartItem(Long userNo, Long productNo, Integer quantity) {
-        int safeQuantity = quantity == null ? 1 : quantity;
+    public CartDto addCartItem(Long userNo, CartItemDto requestDto) {
+        Long productNo = requestDto == null ? null : requestDto.getProductNo();
+        int safeQuantity = requestDto == null || requestDto.getQuantity() == null ? 1 : requestDto.getQuantity();
         if (safeQuantity < 1) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quantity must be at least 1.");
         }
 
         ProductDto product = requireProduct(productNo);
-        CartItemDto existingItem = cartDao.findCartItem(userNo, productNo);
         Long cartNo = getOrCreateCartNo(userNo);
+        Long cartGroupNo = getOrCreateCartGroupNo(cartNo, product, requestDto);
+        CartItemDto existingItem = cartDao.findCartItem(cartNo, cartGroupNo, productNo);
         int nextQuantity = safeQuantity;
 
         if (existingItem != null) {
@@ -48,36 +51,41 @@ public class CartServiceImpl implements CartService {
         validateStock(product, nextQuantity);
 
         if (existingItem == null) {
-            cartDao.insertCartItem(cartNo, productNo, safeQuantity);
+            cartDao.insertCartItem(cartNo, cartGroupNo, productNo, safeQuantity);
         } else {
-            cartDao.updateCartItemQuantity(cartNo, productNo, nextQuantity);
+            cartDao.updateCartItemQuantity(cartNo, existingItem.getCartItemNo(), nextQuantity);
         }
 
         return buildCartResponse(cartNo, userNo);
     }
 
     @Override
-    public CartDto updateCartItem(Long userNo, Long productNo, Integer quantity) {
+    public CartDto updateCartItem(Long userNo, Long cartItemNo, Integer quantity) {
         Long cartNo = getOrCreateCartNo(userNo);
         if (quantity == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quantity is required.");
         }
 
+        CartItemDto currentItem = requireCartItem(userNo, cartItemNo);
+
         if (quantity <= 0) {
-            cartDao.deleteCartItem(cartNo, productNo);
+            cartDao.deleteCartItem(cartNo, cartItemNo);
+            cartDao.deleteEmptyCartGroups(cartNo);
             return buildCartResponse(cartNo, userNo);
         }
 
-        ProductDto product = requireProduct(productNo);
+        ProductDto product = requireProduct(currentItem.getProductNo());
         validateStock(product, quantity);
-        cartDao.updateCartItemQuantity(cartNo, productNo, quantity);
+        cartDao.updateCartItemQuantity(cartNo, cartItemNo, quantity);
         return buildCartResponse(cartNo, userNo);
     }
 
     @Override
-    public CartDto removeCartItem(Long userNo, Long productNo) {
+    public CartDto removeCartItem(Long userNo, Long cartItemNo) {
         Long cartNo = getOrCreateCartNo(userNo);
-        cartDao.deleteCartItem(cartNo, productNo);
+        requireCartItem(userNo, cartItemNo);
+        cartDao.deleteCartItem(cartNo, cartItemNo);
+        cartDao.deleteEmptyCartGroups(cartNo);
         return buildCartResponse(cartNo, userNo);
     }
 
@@ -85,6 +93,7 @@ public class CartServiceImpl implements CartService {
     public CartDto clearCart(Long userNo) {
         Long cartNo = getOrCreateCartNo(userNo);
         cartDao.deleteAllCartItems(cartNo);
+        cartDao.deleteEmptyCartGroups(cartNo);
         return buildCartResponse(cartNo, userNo);
     }
 
@@ -100,6 +109,75 @@ public class CartServiceImpl implements CartService {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to initialize cart.");
         }
         return createdCartNo;
+    }
+
+    private Long getOrCreateCartGroupNo(Long cartNo, ProductDto product, CartItemDto requestDto) {
+        String groupType = resolveGroupType(requestDto);
+        String groupKey = resolveGroupKey(product, requestDto, groupType);
+        String groupName = resolveGroupName(product, requestDto, groupType);
+        Long recipeNo = "RECIPE".equals(groupType) ? requestDto.getRecipeNo() : null;
+        Long cartGroupNo = cartDao.findCartGroupNo(cartNo, groupKey);
+        if (cartGroupNo != null) {
+            return cartGroupNo;
+        }
+
+        try {
+            cartDao.insertCartGroup(
+                cartNo,
+                groupKey,
+                groupType,
+                recipeNo,
+                groupName
+            );
+        } catch (DataIntegrityViolationException exception) {
+            // Another request may have created the same group first.
+        }
+
+        Long createdCartGroupNo = cartDao.findCartGroupNo(cartNo, groupKey);
+        if (createdCartGroupNo == null) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to initialize cart group.");
+        }
+        return createdCartGroupNo;
+    }
+
+    private String resolveGroupType(CartItemDto requestDto) {
+        String groupType = requestDto == null ? null : trimToNull(requestDto.getGroupType());
+        if ("RECIPE".equalsIgnoreCase(groupType)) {
+            return "RECIPE";
+        }
+        return "PRODUCT";
+    }
+
+    private String resolveGroupKey(ProductDto product, CartItemDto requestDto, String groupType) {
+        String explicitGroupKey = requestDto == null ? null : trimToNull(requestDto.getGroupKey());
+        if (explicitGroupKey != null) {
+            return explicitGroupKey;
+        }
+        if ("RECIPE".equals(groupType) && requestDto != null && requestDto.getRecipeNo() != null) {
+            return "RECIPE:" + requestDto.getRecipeNo();
+        }
+        return "PRODUCT:" + product.getProductNo();
+    }
+
+    private String resolveGroupName(ProductDto product, CartItemDto requestDto, String groupType) {
+        String explicitGroupName = requestDto == null ? null : trimToNull(requestDto.getGroupName());
+        if (explicitGroupName != null) {
+            return explicitGroupName;
+        }
+        if ("RECIPE".equals(groupType) && requestDto != null && requestDto.getRecipeNo() != null) {
+            return "레시피 " + requestDto.getRecipeNo();
+        }
+        return product.getProductName();
+    }
+
+    private CartItemDto requireCartItem(Long userNo, Long cartItemNo) {
+        List<CartItemDto> items = cartDao.findCartItems(userNo);
+        for (CartItemDto item : items) {
+            if (item != null && cartItemNo != null && cartItemNo.equals(item.getCartItemNo())) {
+                return item;
+            }
+        }
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Cart item not found.");
     }
 
     private ProductDto requireProduct(Long productNo) {
@@ -140,5 +218,13 @@ public class CartServiceImpl implements CartService {
 
     private BigDecimal safe(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmedValue = value.trim();
+        return trimmedValue.isEmpty() ? null : trimmedValue;
     }
 }

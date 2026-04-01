@@ -29,6 +29,18 @@ public interface AdminService {
 
     OrderDto getOrderDetail(Long orderNo);
 
+    OrderDto acceptOrder(Long orderNo, Long actorUserNo);
+
+    OrderDto rejectOrder(Long orderNo);
+
+    OrderDto acceptCancelRequest(Long orderNo, Long actorUserNo);
+
+    OrderDto rejectCancelRequest(Long orderNo, Long actorUserNo);
+
+    OrderDto shipOrder(Long orderNo, OrderDto request);
+
+    OrderDto deliverOrder(Long orderNo);
+
     OrderDto updateOrder(Long orderNo, OrderDto request);
 
     void deleteOrder(Long orderNo);
@@ -36,6 +48,8 @@ public interface AdminService {
     List<UserProfileDto> getUsers();
 
     UserProfileDto updateUserStatus(Long userNo, UserProfileDto request);
+
+    UserProfileDto updateUserRole(Long actorUserNo, Long userNo, UserProfileDto request);
 
     void deleteUser(Long userNo);
 
@@ -46,6 +60,8 @@ public interface AdminService {
     PurchaseBatchDto createPurchaseBatch(PurchaseBatchDto request);
 
     PackageHistoryDto packageBatch(Long userNo, Long batchNo, PackageHistoryDto request);
+
+    void cancelPackageHistory(Long packageNo);
 
     void deletePurchaseBatch(Long batchNo);
 

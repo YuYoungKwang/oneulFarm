@@ -1,7 +1,12 @@
 package com.app.controller;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -11,6 +16,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -26,8 +32,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.app.common.ProduceStandardWeightSupport;
 import com.app.common.ApiResponse;
+import com.app.common.PriceSnapshotUnitSupport;
+import com.app.common.ProduceStandardWeightSupport;
 import com.app.dto.MainBannerDto;
 import com.app.dto.OrderDto;
 import com.app.dto.PackageHistoryDto;
@@ -59,6 +66,12 @@ public class AdminController {
         "pack",
         "pk"
     );
+
+    private static final String PRICE_REFERENCE_RESOURCE_PATH = "kamis-price-backfill-items.csv";
+    private static final String PROCESS_REFERENCE_RESOURCE_PATH = "kamis-process-reference-items.csv";
+    private static final String REFERENCE_SOURCE_WHOLESALE = "WHOLESALE";
+    private static final String REFERENCE_SOURCE_RETAIL = "RETAIL";
+    private static final String REFERENCE_SOURCE_CATALOG = "CATALOG";
 
     @Autowired
     private AdminService adminService;
@@ -131,6 +144,58 @@ public class AdminController {
         return ApiResponse.success(adminService.updateOrder(orderNo, request), "Admin order updated.");
     }
 
+    @PatchMapping("/orders/{orderNo}/reject")
+    public ApiResponse<OrderDto> rejectOrder(
+        @PathVariable Long orderNo
+    ) {
+        return ApiResponse.success(adminService.rejectOrder(orderNo), "Admin order rejected.");
+    }
+
+    @PatchMapping("/orders/{orderNo}/accept")
+    public ApiResponse<OrderDto> acceptOrder(
+        @RequestHeader(value = "X-USER-NO", required = false) Long actorUserNo,
+        @PathVariable Long orderNo
+    ) {
+        return ApiResponse.success(adminService.acceptOrder(orderNo, actorUserNo), "Admin order accepted.");
+    }
+
+    @PatchMapping("/orders/{orderNo}/cancel/accept")
+    public ApiResponse<OrderDto> acceptCancelRequest(
+        @RequestHeader(value = "X-USER-NO", required = false) Long actorUserNo,
+        @PathVariable Long orderNo
+    ) {
+        return ApiResponse.success(
+            adminService.acceptCancelRequest(orderNo, actorUserNo),
+            "Cancel request accepted."
+        );
+    }
+
+    @PatchMapping("/orders/{orderNo}/cancel/reject")
+    public ApiResponse<OrderDto> rejectCancelRequest(
+        @RequestHeader(value = "X-USER-NO", required = false) Long actorUserNo,
+        @PathVariable Long orderNo
+    ) {
+        return ApiResponse.success(
+            adminService.rejectCancelRequest(orderNo, actorUserNo),
+            "Cancel request rejected."
+        );
+    }
+
+    @PatchMapping("/orders/{orderNo}/ship")
+    public ApiResponse<OrderDto> shipOrder(
+        @PathVariable Long orderNo,
+        @RequestBody(required = false) OrderDto request
+    ) {
+        return ApiResponse.success(adminService.shipOrder(orderNo, request), "Admin order moved to shipping.");
+    }
+
+    @PatchMapping("/orders/{orderNo}/deliver")
+    public ApiResponse<OrderDto> deliverOrder(
+        @PathVariable Long orderNo
+    ) {
+        return ApiResponse.success(adminService.deliverOrder(orderNo), "Admin order delivered.");
+    }
+
     @DeleteMapping("/orders/{orderNo}")
     public ApiResponse<Void> deleteOrder(
         @PathVariable Long orderNo
@@ -146,10 +211,23 @@ public class AdminController {
 
     @PatchMapping(value = "/users/{userNo}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ApiResponse<UserProfileDto> updateUserStatus(
+        @RequestHeader(value = "X-USER-NO", required = false) Long actorUserNo,
         @PathVariable Long userNo,
         @RequestBody UserProfileDto request
     ) {
+        if (request != null && request.getRole() != null && !request.getRole().trim().isEmpty()) {
+            return ApiResponse.success(adminService.updateUserRole(actorUserNo, userNo, request), "Admin user role updated.");
+        }
         return ApiResponse.success(adminService.updateUserStatus(userNo, request), "Admin user updated.");
+    }
+
+    @PatchMapping(value = "/users/{userNo}/role", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ApiResponse<UserProfileDto> updateUserRole(
+        @RequestHeader("X-USER-NO") Long actorUserNo,
+        @PathVariable Long userNo,
+        @RequestBody UserProfileDto request
+    ) {
+        return ApiResponse.success(adminService.updateUserRole(actorUserNo, userNo, request), "Admin user role updated.");
     }
 
     @DeleteMapping("/users/{userNo}")
@@ -170,11 +248,17 @@ public class AdminController {
         return ApiResponse.success(adminService.getPackageHistories(), "Package histories loaded.");
     }
 
+    @GetMapping("/purchases/reference-items")
+    public ApiResponse<List<Map<String, Object>>> getPurchaseReferenceItems() {
+        return ApiResponse.success(buildPurchaseReferenceItems(), "Purchase reference items loaded.");
+    }
+
     @GetMapping("/purchases/quote")
     public ApiResponse<Map<String, Object>> getPurchaseQuote(
-        @RequestParam("productName") String productName
+        @RequestParam(value = "productName", required = false) String productName,
+        @RequestParam(value = "itemCode", required = false) String itemCode
     ) {
-        return ApiResponse.success(buildPurchaseQuote(productName), "Purchase quote loaded.");
+        return ApiResponse.success(buildPurchaseQuote(productName, itemCode), "Purchase quote loaded.");
     }
 
     @PostMapping(value = "/purchases", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -201,6 +285,14 @@ public class AdminController {
         return ApiResponse.success(adminService.packageBatch(userNo, batchNo, request), "Package history created.");
     }
 
+    @DeleteMapping("/package-histories/{packageNo}")
+    public ApiResponse<Void> cancelPackageHistory(
+        @PathVariable Long packageNo
+    ) {
+        adminService.cancelPackageHistory(packageNo);
+        return ApiResponse.success(null, "Package history canceled.");
+    }
+
     @GetMapping("/content/banners")
     public ApiResponse<List<MainBannerDto>> getBanners() {
         return ApiResponse.success(adminService.getMainBanners(), "Admin banners loaded.");
@@ -211,21 +303,465 @@ public class AdminController {
         return ApiResponse.success(adminService.getRecipeMappings(), "Recipe mappings loaded.");
     }
 
-    private Map<String, Object> buildPurchaseQuote(String productName) {
+    private List<Map<String, Object>> buildPurchaseReferenceItems() {
+        List<PriceSnapshotDTO> wholesaleCandidates =
+            priceSnapshotService.getLatestPriceSnapshotListByItemName(null, "WHOLESALE", 1000);
+        List<PriceSnapshotDTO> retailCandidates =
+            priceSnapshotService.getLatestPriceSnapshotListByItemName(null, "RETAIL", 1000);
+        Map<String, Map<String, Object>> uniqueItems = new LinkedHashMap<String, Map<String, Object>>();
+
+        for (PriceSnapshotDTO snapshot : wholesaleCandidates) {
+            mergeSnapshotPurchaseReferenceItem(uniqueItems, snapshot, REFERENCE_SOURCE_WHOLESALE);
+        }
+
+        for (PriceSnapshotDTO snapshot : retailCandidates) {
+            mergeSnapshotPurchaseReferenceItem(uniqueItems, snapshot, REFERENCE_SOURCE_RETAIL);
+        }
+
+        return new ArrayList<Map<String, Object>>(uniqueItems.values());
+    }
+
+    private void mergeSnapshotPurchaseReferenceItem(
+        Map<String, Map<String, Object>> uniqueItems,
+        PriceSnapshotDTO snapshot,
+        String referenceSource
+    ) {
+        if (snapshot == null) {
+            return;
+        }
+
+        String itemName = trimToNull(snapshot.getItemName());
+        String productName = normalizeReferenceProductName(itemName);
+        String categoryName = resolvePurchaseReferenceCategory(snapshot);
+        String mergeKey = normalizeReferenceOptionKey(productName);
+        if (mergeKey.isEmpty() || categoryName == null) {
+            return;
+        }
+
+        String itemCode = REFERENCE_SOURCE_WHOLESALE.equals(referenceSource)
+            ? trimToNull(snapshot.getItemCode())
+            : buildRetailReferenceItemCode(snapshot.getItemCode(), itemName);
+        if (itemCode == null) {
+            return;
+        }
+
+        Map<String, Object> nextItem = buildPurchaseReferenceItemData(
+            itemCode,
+            productName,
+            categoryName,
+            trimToNull(snapshot.getUnit()),
+            snapshot.getSnapshotDate(),
+            itemName,
+            true,
+            referenceSource
+        );
+        if (nextItem == null) {
+            return;
+        }
+
+        Map<String, Object> existingItem = uniqueItems.get(mergeKey);
+        if (existingItem == null || shouldReplacePurchaseReferenceItem(existingItem, nextItem)) {
+            uniqueItems.put(mergeKey, nextItem);
+        }
+    }
+
+    private boolean shouldReplacePurchaseReferenceItem(
+        Map<String, Object> existingItem,
+        Map<String, Object> nextItem
+    ) {
+        int existingRank = resolvePurchaseReferenceSourceRank(existingItem.get("referenceSource"));
+        int nextRank = resolvePurchaseReferenceSourceRank(nextItem.get("referenceSource"));
+        if (existingRank != nextRank) {
+            return nextRank > existingRank;
+        }
+
+        Object existingSnapshotDateValue = existingItem.get("snapshotDate");
+        Object nextSnapshotDateValue = nextItem.get("snapshotDate");
+        String existingSnapshotDate = trimToNull(
+            existingSnapshotDateValue == null ? null : String.valueOf(existingSnapshotDateValue)
+        );
+        String nextSnapshotDate = trimToNull(
+            nextSnapshotDateValue == null ? null : String.valueOf(nextSnapshotDateValue)
+        );
+        if (existingSnapshotDate == null) {
+            return nextSnapshotDate != null;
+        }
+        if (nextSnapshotDate == null) {
+            return false;
+        }
+        return nextSnapshotDate.compareTo(existingSnapshotDate) > 0;
+    }
+
+    private int resolvePurchaseReferenceSourceRank(Object referenceSource) {
+        String normalizedReferenceSource = trimToNull(
+            referenceSource == null ? null : String.valueOf(referenceSource)
+        );
+        if (REFERENCE_SOURCE_WHOLESALE.equals(normalizedReferenceSource)) {
+            return 2;
+        }
+        if (REFERENCE_SOURCE_RETAIL.equals(normalizedReferenceSource)) {
+            return 1;
+        }
+        return 0;
+    }
+
+    private Map<String, Object> buildPurchaseReferenceItemData(
+        String itemCode,
+        String productName,
+        String categoryName,
+        String snapshotUnit,
+        Object snapshotDate,
+        String displayName,
+        boolean supportsAutoQuote,
+        String referenceSource
+    ) {
+        String normalizedItemCode = trimToNull(itemCode);
         String normalizedProductName = trimToNull(productName);
-        if (normalizedProductName == null) {
+        String normalizedCategoryName = trimToNull(categoryName);
+        if (normalizedItemCode == null || normalizedProductName == null || normalizedCategoryName == null) {
+            return null;
+        }
+
+        String normalizedDisplayName = trimToNull(displayName);
+        if (normalizedDisplayName == null) {
+            normalizedDisplayName = normalizedProductName;
+        }
+
+        Map<String, Object> itemData = new LinkedHashMap<String, Object>();
+        itemData.put("itemCode", normalizedItemCode);
+        itemData.put("productName", normalizedProductName);
+        itemData.put("categoryName", normalizedCategoryName);
+        itemData.put("snapshotUnit", trimToNull(snapshotUnit));
+        itemData.put("snapshotDate", snapshotDate);
+        itemData.put(
+            "displayLabel",
+            buildPurchaseReferenceLabel(
+                normalizedCategoryName,
+                buildReferenceDisplayName(normalizedDisplayName),
+                trimToNull(snapshotUnit)
+            )
+        );
+        itemData.put("supportsAutoQuote", supportsAutoQuote);
+        itemData.put("referenceSource", referenceSource);
+        return itemData;
+    }
+
+    private String buildRetailReferenceItemCode(String storedItemCode, String itemName) {
+        String normalizedStoredItemCode = trimToNull(storedItemCode);
+        String normalizedItemName = normalizeReferenceProductName(itemName);
+        if (normalizedStoredItemCode == null) {
+            return null;
+        }
+        if (normalizedItemName == null) {
+            return "retail:" + normalizedStoredItemCode;
+        }
+        return "retail:" + normalizedStoredItemCode + ":" + normalizeReferenceOptionKey(normalizedItemName);
+    }
+
+    private String normalizeReferenceOptionKey(String value) {
+        String normalizedValue = trimToNull(value);
+        if (normalizedValue == null) {
+            return "";
+        }
+        return normalizedValue
+            .toLowerCase(Locale.ROOT)
+            .replaceAll("\\s+", "-")
+            .replaceAll("[^0-9a-z\\uAC00-\\uD7A3_-]", "");
+    }
+
+    private void mergePurchaseReferenceItem(
+        Map<String, Map<String, Object>> uniqueItems,
+        String itemCode,
+        String productName,
+        String categoryName,
+        String snapshotUnit,
+        Object snapshotDate,
+        String displayName,
+        boolean supportsAutoQuote,
+        String referenceSource
+    ) {
+        String normalizedItemCode = trimToNull(itemCode);
+        String normalizedProductName = trimToNull(productName);
+        String normalizedCategoryName = trimToNull(categoryName);
+        if (normalizedItemCode == null || normalizedProductName == null || normalizedCategoryName == null) {
+            return;
+        }
+        if (uniqueItems.containsKey(normalizedItemCode)) {
+            return;
+        }
+
+        String normalizedDisplayName = trimToNull(displayName);
+        if (normalizedDisplayName == null) {
+            normalizedDisplayName = normalizedProductName;
+        }
+
+        Map<String, Object> itemData = new LinkedHashMap<String, Object>();
+        itemData.put("itemCode", normalizedItemCode);
+        itemData.put("productName", normalizedProductName);
+        itemData.put("categoryName", normalizedCategoryName);
+        itemData.put("snapshotUnit", trimToNull(snapshotUnit));
+        itemData.put("snapshotDate", snapshotDate);
+        itemData.put(
+            "displayLabel",
+            buildPurchaseReferenceLabel(
+                normalizedCategoryName,
+                buildReferenceDisplayName(normalizedDisplayName),
+                trimToNull(snapshotUnit)
+            )
+        );
+        itemData.put("supportsAutoQuote", supportsAutoQuote);
+        itemData.put("referenceSource", referenceSource);
+        uniqueItems.put(normalizedItemCode, itemData);
+    }
+
+    private void mergeCatalogPurchaseReferenceItems(Map<String, Map<String, Object>> uniqueItems) {
+        for (Map<String, String> catalogItem : loadRetailCatalogReferenceItems()) {
+            String categoryName = resolveCatalogCategoryName(
+                catalogItem.get("itemCategoryCode"),
+                catalogItem.get("itemNameHint")
+            );
+            if (categoryName == null) {
+                continue;
+            }
+
+            String syntheticItemCode = trimToNull(
+                "catalog:"
+                    + catalogItem.get("itemCategoryCode")
+                    + ":"
+                    + catalogItem.get("itemCode")
+                    + ":"
+                    + catalogItem.get("kindCode")
+            );
+            mergePurchaseReferenceItem(
+                uniqueItems,
+                syntheticItemCode,
+                normalizeReferenceProductName(catalogItem.get("itemNameHint")),
+                categoryName,
+                catalogItem.get("unitHint"),
+                null,
+                catalogItem.get("itemNameHint"),
+                false,
+                REFERENCE_SOURCE_CATALOG
+            );
+        }
+
+        for (Map<String, String> catalogItem : loadProcessCatalogReferenceItems()) {
+            String syntheticItemCode = trimToNull(
+                "catalog:800:"
+                    + catalogItem.get("itemCode")
+                    + ":"
+                    + catalogItem.get("kindCode")
+            );
+            mergePurchaseReferenceItem(
+                uniqueItems,
+                syntheticItemCode,
+                normalizeReferenceProductName(catalogItem.get("itemNameHint")),
+                "\uAC00\uACF5\uC2DD\uD488",
+                catalogItem.get("unitHint"),
+                null,
+                catalogItem.get("itemNameHint"),
+                false,
+                REFERENCE_SOURCE_CATALOG
+            );
+        }
+    }
+
+    private List<Map<String, String>> loadRetailCatalogReferenceItems() {
+        List<Map<String, String>> catalogItemList = new ArrayList<Map<String, String>>();
+        ClassPathResource classPathResource = new ClassPathResource(PRICE_REFERENCE_RESOURCE_PATH);
+        if (!classPathResource.exists()) {
+            return catalogItemList;
+        }
+
+        try (BufferedReader bufferedReader = new BufferedReader(
+            new InputStreamReader(classPathResource.getInputStream(), StandardCharsets.UTF_8)
+        )) {
+            String line;
+            boolean headerSkipped = false;
+            while ((line = bufferedReader.readLine()) != null) {
+                String normalizedLine = line.trim();
+                if (normalizedLine.isEmpty() || normalizedLine.startsWith("#")) {
+                    continue;
+                }
+                if (!headerSkipped) {
+                    headerSkipped = true;
+                    continue;
+                }
+
+                String[] tokenArray = normalizedLine.split(",", -1);
+                if (tokenArray.length < 10) {
+                    continue;
+                }
+
+                Map<String, String> itemData = new LinkedHashMap<String, String>();
+                itemData.put("itemCategoryCode", trimToNull(tokenArray[2]));
+                itemData.put("itemCode", trimToNull(tokenArray[3]));
+                itemData.put("kindCode", trimToNull(tokenArray[4]));
+                itemData.put("itemNameHint", trimToNull(tokenArray[8]));
+                itemData.put("unitHint", trimToNull(tokenArray[9]));
+                catalogItemList.add(itemData);
+            }
+        } catch (IOException exception) {
+            throw new IllegalStateException("Failed to load KAMIS retail reference catalog.", exception);
+        }
+
+        return catalogItemList;
+    }
+
+    private List<Map<String, String>> loadProcessCatalogReferenceItems() {
+        List<Map<String, String>> catalogItemList = new ArrayList<Map<String, String>>();
+        ClassPathResource classPathResource = new ClassPathResource(PROCESS_REFERENCE_RESOURCE_PATH);
+        if (!classPathResource.exists()) {
+            return catalogItemList;
+        }
+
+        try (BufferedReader bufferedReader = new BufferedReader(
+            new InputStreamReader(classPathResource.getInputStream(), StandardCharsets.UTF_8)
+        )) {
+            String line;
+            boolean headerSkipped = false;
+            while ((line = bufferedReader.readLine()) != null) {
+                String normalizedLine = line.trim();
+                if (normalizedLine.isEmpty() || normalizedLine.startsWith("#")) {
+                    continue;
+                }
+                if (!headerSkipped) {
+                    headerSkipped = true;
+                    continue;
+                }
+
+                String[] tokenArray = normalizedLine.split(",", -1);
+                if (tokenArray.length < 6) {
+                    continue;
+                }
+
+                Map<String, String> itemData = new LinkedHashMap<String, String>();
+                itemData.put("itemCode", trimToNull(tokenArray[2]));
+                itemData.put("kindCode", trimToNull(tokenArray[3]));
+                itemData.put("itemNameHint", trimToNull(tokenArray[4]));
+                itemData.put("unitHint", trimToNull(tokenArray[5]));
+                catalogItemList.add(itemData);
+            }
+        } catch (IOException exception) {
+            throw new IllegalStateException("Failed to load KAMIS process reference catalog.", exception);
+        }
+
+        return catalogItemList;
+    }
+
+    private String resolveCatalogCategoryName(String itemCategoryCode, String itemName) {
+        String normalizedCategoryCode = trimToNull(itemCategoryCode);
+        String normalizedItemName = normalizeReferenceProductName(itemName);
+        if ("800".equals(normalizedCategoryCode)) {
+            return "\uAC00\uACF5\uC2DD\uD488";
+        }
+        if ("500".equals(normalizedCategoryCode)) {
+            if (looksLikeDairyItem(normalizedItemName)) {
+                return "\uC720\uC81C\uD488";
+            }
+            if (looksLikeEggItem(normalizedItemName)) {
+                return "\uB2EC\uAC40";
+            }
+            return "\uC721\uB958";
+        }
+        if (normalizedItemName != null) {
+            if (looksLikeMushroomItem(normalizedItemName)) {
+                return "\uBC84\uC12F";
+            }
+            if (looksLikeFruitItem(normalizedItemName)) {
+                return "\uACFC\uC77C";
+            }
+        }
+        if ("400".equals(normalizedCategoryCode)) {
+            return "\uACFC\uC77C";
+        }
+        if ("300".equals(normalizedCategoryCode)) {
+            return "\uBC84\uC12F";
+        }
+        if (normalizedItemName != null && !looksLikeUnsupportedPurchaseReferenceItem(normalizedItemName)) {
+            return "\uCC44\uC18C";
+        }
+        return null;
+    }
+
+    private String normalizeReferenceProductName(String value) {
+        List<String> segmentList = splitReferenceNameSegments(value);
+        if (segmentList.isEmpty()) {
+            return trimToNull(value);
+        }
+        return segmentList.get(0);
+    }
+
+    private String buildReferenceDisplayName(String value) {
+        List<String> segmentList = splitReferenceNameSegments(value);
+        if (segmentList.isEmpty()) {
+            return trimToNull(value);
+        }
+        return String.join(" / ", segmentList);
+    }
+
+    private List<String> splitReferenceNameSegments(String value) {
+        List<String> segmentList = new ArrayList<String>();
+        String normalizedValue = trimToNull(value);
+        if (normalizedValue == null) {
+            return segmentList;
+        }
+
+        String[] tokenArray = normalizedValue.split("/");
+        for (String token : tokenArray) {
+            String normalizedToken = trimToNull(token);
+            if (normalizedToken != null && !segmentList.contains(normalizedToken)) {
+                segmentList.add(normalizedToken);
+            }
+        }
+        return segmentList;
+    }
+
+    private Map<String, Object> buildPurchaseQuote(String productName, String itemCode) {
+        String normalizedProductName = trimToNull(productName);
+        String normalizedItemCode = trimToNull(itemCode);
+        if (normalizedItemCode != null && normalizedItemCode.startsWith("catalog:")) {
+            normalizedItemCode = null;
+        }
+        if (normalizedProductName == null && normalizedItemCode == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "상품명을 입력해주세요.");
         }
 
-        List<PriceSnapshotDTO> wholesaleCandidates =
-            priceSnapshotService.getPriceSnapshotList(normalizedProductName, "WHOLESALE", null, 40);
-        PriceSnapshotDTO wholesaleSnapshot = findBestSnapshot(normalizedProductName, wholesaleCandidates);
+        List<PriceSnapshotDTO> wholesaleCandidates;
+        PriceSnapshotDTO wholesaleSnapshot;
+        if (normalizedItemCode != null) {
+            wholesaleCandidates = priceSnapshotService.getLatestPriceSnapshotListByItemName(null, "WHOLESALE", 1000);
+            wholesaleSnapshot = priceSnapshotService.getLatestPriceSnapshotByItemCode(normalizedItemCode, "WHOLESALE");
+            if (wholesaleSnapshot == null) {
+                wholesaleSnapshot = findSnapshotByItemCode(normalizedItemCode, wholesaleCandidates);
+            }
+        } else {
+            wholesaleCandidates = priceSnapshotService.getLatestPriceSnapshotListByItemName(
+                normalizedProductName,
+                "WHOLESALE",
+                40
+            );
+            wholesaleSnapshot = findBestSnapshot(normalizedProductName, wholesaleCandidates);
+        }
+        List<PriceSnapshotDTO> fallbackRetailCandidates =
+            priceSnapshotService.getLatestPriceSnapshotListByItemName(normalizedProductName, "RETAIL", 40);
+        PriceSnapshotDTO fallbackRetailSnapshot = findBestSnapshot(normalizedProductName, fallbackRetailCandidates);
+        if (wholesaleSnapshot == null && fallbackRetailSnapshot != null) {
+            return buildRetailFallbackPurchaseQuote(normalizedProductName, normalizedItemCode, fallbackRetailSnapshot);
+        }
         if (wholesaleSnapshot == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "해당 품목의 최신 도매 시세를 찾지 못했습니다.");
         }
+        if (normalizedProductName == null) {
+            normalizedProductName = trimToNull(wholesaleSnapshot.getItemName());
+        }
 
         List<PriceSnapshotDTO> retailCandidates =
-            priceSnapshotService.getPriceSnapshotList(normalizedProductName, "RETAIL", null, 40);
+            priceSnapshotService.getLatestPriceSnapshotListByItemName(normalizedProductName, "RETAIL", 40);
+        PriceSnapshotDTO retailFallbackSnapshot = findBestSnapshot(normalizedProductName, retailCandidates);
+        if (wholesaleSnapshot == null && retailFallbackSnapshot != null) {
+            return buildRetailFallbackPurchaseQuote(normalizedProductName, normalizedItemCode, retailFallbackSnapshot);
+        }
         PriceSnapshotDTO retailSnapshot = findRelatedRetailSnapshot(
             normalizedProductName,
             wholesaleSnapshot,
@@ -233,13 +769,24 @@ public class AdminController {
         );
 
         ResolvedPurchaseQuote resolvedQuote = resolvePurchaseQuote(wholesaleSnapshot);
+        String normalizedWholesaleUnit = PriceSnapshotUnitSupport.normalizeConvertedRetailWeightUnit(
+            wholesaleSnapshot.getItemCode(),
+            wholesaleSnapshot.getUnit()
+        );
+        String normalizedRetailUnit = retailSnapshot == null
+            ? null
+            : PriceSnapshotUnitSupport.normalizeConvertedRetailWeightUnit(retailSnapshot.getItemCode(), retailSnapshot.getUnit());
 
         Map<String, Object> data = new LinkedHashMap<String, Object>();
         data.put("queryName", normalizedProductName);
+        data.put("requestedItemCode", normalizedItemCode);
         data.put("matchedItemName", wholesaleSnapshot.getItemName());
+        data.put("matchedItemCode", trimToNull(wholesaleSnapshot.getItemCode()));
         data.put("snapshotDate", wholesaleSnapshot.getSnapshotDate());
-        data.put("snapshotUnit", wholesaleSnapshot.getUnit());
-        data.put("wholesaleSourceUnit", wholesaleSnapshot.getUnit());
+        data.put("wholesaleSnapshotDate", wholesaleSnapshot.getSnapshotDate());
+        data.put("retailSnapshotDate", retailSnapshot == null ? null : retailSnapshot.getSnapshotDate());
+        data.put("snapshotUnit", normalizedWholesaleUnit);
+        data.put("wholesaleSourceUnit", normalizedWholesaleUnit);
         data.put("purchaseUnit", resolvedQuote.getPurchaseUnit());
         data.put("purchaseQty", resolvedQuote.getPurchaseQty());
         data.put("purchasePrice", resolvedQuote.getPurchasePrice());
@@ -248,7 +795,7 @@ public class AdminController {
         data.put("pricingBasePrice", resolvedQuote.getPricingBasePrice());
         BigDecimal wholesaleSourcePrice = scaleMoney(wholesaleSnapshot.getAvgPrice());
         BigDecimal retailSourcePrice = retailSnapshot == null ? null : scaleMoney(retailSnapshot.getAvgPrice());
-        ParsedUnit wholesaleParsedUnit = parseSnapshotUnit(wholesaleSnapshot.getUnit());
+        ParsedUnit wholesaleParsedUnit = parseSnapshotUnit(normalizedWholesaleUnit);
         PricingBasis pricingBasis = resolvePricingBasis(wholesaleParsedUnit);
         BigDecimal wholesaleComparablePrice = calculateComparablePriceForBasis(wholesaleSnapshot, pricingBasis);
         BigDecimal retailComparablePrice = retailSnapshot == null
@@ -265,7 +812,7 @@ public class AdminController {
         data.put("wholesaleAvgPrice", wholesaleComparablePrice);
         data.put("wholesaleComparablePrice", wholesaleComparablePrice);
         data.put("retailAvgPrice", retailComparablePrice);
-        data.put("retailSnapshotUnit", retailSnapshot == null ? null : retailSnapshot.getUnit());
+        data.put("retailSnapshotUnit", normalizedRetailUnit);
         data.put("retailComparablePrice", retailComparablePrice);
         data.put(
             "recommendedSalePrice",
@@ -280,6 +827,255 @@ public class AdminController {
         data.put("wholesaleItemCode", trimToNull(wholesaleSnapshot.getItemCode()));
         data.put("retailItemCode", retailSnapshot == null ? null : trimToNull(retailSnapshot.getItemCode()));
         return data;
+    }
+
+    private Map<String, Object> buildRetailFallbackPurchaseQuote(
+        String productName,
+        String itemCode,
+        PriceSnapshotDTO retailSnapshot
+    ) {
+        String normalizedProductName = trimToNull(productName);
+        String normalizedSnapshotUnit = PriceSnapshotUnitSupport.normalizeConvertedRetailWeightUnit(
+            retailSnapshot.getItemCode(),
+            retailSnapshot.getUnit()
+        );
+        ParsedUnit parsedSnapshotUnit = parseSnapshotUnit(normalizedSnapshotUnit);
+        PricingBasis pricingBasis = resolvePricingBasis(parsedSnapshotUnit);
+        BigDecimal retailSourcePrice = scaleMoney(retailSnapshot.getAvgPrice());
+        BigDecimal retailComparablePrice = calculateComparablePriceForBasis(retailSnapshot, pricingBasis);
+        BigDecimal purchaseQty = parsedSnapshotUnit == null ? BigDecimal.ONE : parsedSnapshotUnit.getQuantity();
+        String purchaseUnit = parsedSnapshotUnit == null
+            ? (normalizedSnapshotUnit == null ? "ea" : normalizedSnapshotUnit)
+            : parsedSnapshotUnit.getDisplayUnit();
+        String priceBasisUnit = pricingBasis == null ? normalizedSnapshotUnit : pricingBasis.getLabel();
+
+        Map<String, Object> data = new LinkedHashMap<String, Object>();
+        data.put("quoteSource", "RETAIL_FALLBACK");
+        data.put("queryName", normalizedProductName == null ? trimToNull(retailSnapshot.getItemName()) : normalizedProductName);
+        data.put("requestedItemCode", itemCode);
+        data.put("matchedItemName", retailSnapshot.getItemName());
+        data.put("matchedItemCode", trimToNull(retailSnapshot.getItemCode()));
+        data.put("snapshotDate", retailSnapshot.getSnapshotDate());
+        data.put("wholesaleSnapshotDate", null);
+        data.put("retailSnapshotDate", retailSnapshot.getSnapshotDate());
+        data.put("snapshotUnit", normalizedSnapshotUnit);
+        data.put("wholesaleSourceUnit", null);
+        data.put("purchaseUnit", purchaseUnit);
+        data.put("purchaseQty", purchaseQty);
+        data.put("purchasePrice", retailSourcePrice);
+        data.put("pricingBaseUnit", purchaseUnit);
+        data.put("pricingBaseQty", purchaseQty);
+        data.put("pricingBasePrice", retailSourcePrice);
+        data.put("priceBasisUnit", priceBasisUnit);
+        data.put("wholesalePriceBasisUnit", null);
+        data.put("retailPriceBasisUnit", priceBasisUnit);
+        data.put("recommendedPriceBasisUnit", priceBasisUnit);
+        data.put("wholesaleSourcePrice", null);
+        data.put("retailSourcePrice", retailSourcePrice);
+        data.put("wholesaleAvgPrice", null);
+        data.put("wholesaleComparablePrice", null);
+        data.put("retailAvgPrice", retailComparablePrice);
+        data.put("retailSnapshotUnit", normalizedSnapshotUnit);
+        data.put("retailComparablePrice", retailComparablePrice);
+        data.put(
+            "recommendedSalePrice",
+            retailComparablePrice == null ? null : retailComparablePrice.setScale(0, RoundingMode.HALF_UP)
+        );
+        data.put(
+            "pricingNote",
+            "\uB3C4\uB9E4 \uC2DC\uC138\uAC00 \uC5C6\uC5B4 \uD488\uBAA9\uBCC4 \uAC00\uC7A5 \uCD5C\uADFC \uC18C\uB9E4 \uC2DC\uC138\uB97C \uAE30\uC900\uC73C\uB85C \uB9E4\uC785 \uC815\uBCF4\uB97C \uC790\uB3D9 \uC785\uB825\uD588\uC2B5\uB2C8\uB2E4."
+        );
+        data.put("wholesaleItemCode", null);
+        data.put("retailItemCode", trimToNull(retailSnapshot.getItemCode()));
+        return data;
+    }
+
+    private String buildPurchaseReferenceLabel(String categoryName, String itemName, String snapshotUnit) {
+        StringBuilder labelBuilder = new StringBuilder();
+        if (categoryName != null) {
+            labelBuilder.append(categoryName).append(" / ");
+        }
+        labelBuilder.append(itemName);
+        if (snapshotUnit != null) {
+            labelBuilder.append(" / ").append(snapshotUnit);
+        }
+        return labelBuilder.toString();
+    }
+
+    private String resolvePurchaseReferenceCategory(PriceSnapshotDTO snapshot) {
+        String itemName = trimToNull(snapshot.getItemName());
+        String normalizedItemName = normalizeReferenceProductName(itemName);
+        if (normalizedItemName == null) {
+            normalizedItemName = itemName;
+        }
+        String itemCategoryCode = extractStoredItemCategoryCode(snapshot.getItemCode());
+
+        if (normalizedItemName != null) {
+            if (looksLikeDairyItem(normalizedItemName)) {
+                return "\uC720\uC81C\uD488";
+            }
+            if (looksLikeEggItem(normalizedItemName)) {
+                return "\uB2EC\uAC40";
+            }
+            if (looksLikeProcessedItem(normalizedItemName)) {
+                return "\uAC00\uACF5\uC2DD\uD488";
+            }
+            if (looksLikeMeatItem(normalizedItemName)) {
+                return "\uC721\uB958";
+            }
+            if (looksLikeMushroomItem(normalizedItemName)) {
+                return "\uBC84\uC12F";
+            }
+            if (looksLikeFruitItem(normalizedItemName)) {
+                return "\uACFC\uC77C";
+            }
+        }
+
+        if ("800".equals(itemCategoryCode)) {
+            return "\uAC00\uACF5\uC2DD\uD488";
+        }
+        if ("400".equals(itemCategoryCode)) {
+            return "\uACFC\uC77C";
+        }
+        if ("300".equals(itemCategoryCode) && normalizedItemName != null && looksLikeMushroomItem(normalizedItemName)) {
+            return "\uBC84\uC12F";
+        }
+        if ("100".equals(itemCategoryCode) || "200".equals(itemCategoryCode)) {
+            return "\uCC44\uC18C";
+        }
+        if (normalizedItemName != null && !looksLikeUnsupportedPurchaseReferenceItem(normalizedItemName)) {
+            return "\uCC44\uC18C";
+        }
+        return null;
+    }
+
+    private String extractStoredItemCategoryCode(String itemCode) {
+        String normalizedItemCode = trimToNull(itemCode);
+        if (normalizedItemCode == null || !normalizedItemCode.contains("_")) {
+            return null;
+        }
+
+        String[] tokenArray = normalizedItemCode.split("_");
+        if (tokenArray.length < 2) {
+            return null;
+        }
+        return trimToNull(tokenArray[1]);
+    }
+
+    private boolean looksLikeFruitItem(String itemName) {
+        return equalsAnyKeyword(
+            itemName,
+            "\uC0AC\uACFC", "\uBC30", "\uBCF5\uC22D\uC544", "\uD3EC\uB3C4", "\uAC10\uADE4", "\uB2E8\uAC10",
+            "\uBC14\uB098\uB098", "\uCC38\uB2E4\uB798", "\uC218\uBC15", "\uCC38\uC678", "\uB538\uAE30", "\uBA5C\uB860"
+        );
+    }
+
+    private boolean looksLikeMushroomItem(String itemName) {
+        return containsAnyKeyword(itemName, "\uBC84\uC12F", "\uC1A1\uC774");
+    }
+
+    private boolean looksLikeMeatItem(String itemName) {
+        return containsAnyKeyword(
+            itemName,
+            "\uC1E0\uACE0\uAE30", "\uC18C\uACE0\uAE30", "\uD55C\uC6B0", "\uC18C ", "\uC548\uC2EC", "\uB4F1\uC2EC",
+            "\uC124\uB3C4", "\uC591\uC9C0", "\uAC08\uBE44", "\uB3FC\uC9C0", "\uC0BC\uACB9\uC0B4", "\uBAA9\uC2EC",
+            "\uC55E\uB2E4\uB9AC", "\uB2ED ", "\uC721\uACC4", "\uD1A0\uC885\uB2ED", "\uAC00\uC2B4\uC0B4",
+            "\uBD81\uCC44", "\uC624\uB9AC"
+        );
+    }
+
+    private boolean looksLikeEggItem(String itemName) {
+        return containsAnyKeyword(itemName, "\uACC4\uB780", "\uB2EC\uAC40", "\uD2B9\uB780");
+    }
+
+    private boolean looksLikeDairyItem(String itemName) {
+        return containsAnyKeyword(
+            itemName,
+            "\uC6B0\uC720", "\uCE58\uC988", "\uC694\uAC70\uD2B8", "\uC694\uAD6C\uB974\uD2B8",
+            "\uBC84\uD130", "\uBD84\uC720", "\uC5F0\uC720"
+        );
+    }
+
+    private boolean looksLikeProcessedItem(String itemName) {
+        return containsAnyKeyword(
+            itemName,
+            "\uAE40\uCE58", "\uACE0\uCD94\uC7A5", "\uB41C\uC7A5", "\uAC04\uC7A5", "\uB450\uBD80",
+            "\uC21C\uB450\uBD80", "\uC5F0\uB450\uBD80", "\uC989\uC11D\uBC25", "\uB9DB\uAE40", "\uCF69\uB098\uBB3C"
+        );
+    }
+
+    private boolean looksLikeUnsupportedPurchaseReferenceItem(String itemName) {
+        return containsAnyKeyword(
+            itemName,
+            "\uAC00\uB9AC\uBE44",
+            "\uAC08\uCE58",
+            "\uACE0\uB4F1\uC5B4",
+            "\uAD74",
+            "\uAE40",
+            "\uB2E4\uC2DC\uB9C8",
+            "\uBA78\uCE58",
+            "\uBBF8\uC5ED",
+            "\uC624\uC9D5\uC5B4",
+            "\uC0C8\uC6B0",
+            "\uBCD1\uC5B4",
+            "\uBD81\uC5B4",
+            "\uAF41\uCE58",
+            "\uBA85\uD0DC",
+            "\uBB38\uC5B4",
+            "\uCC38\uAE68",
+            "\uD325",
+            "\uBA54\uBC00",
+            "\uB4E4\uAE68",
+            "\uB545\uCF69",
+            "\uC300",
+            "\uCC39\uC300",
+            "\uCF69",
+            "\uB179\uB450",
+            "\uC870",
+            "\uC218\uC218"
+        );
+    }
+
+    private boolean containsAnyKeyword(String value, String... keywordArray) {
+        String normalizedValue = trimToNull(value);
+        if (normalizedValue == null) {
+            return false;
+        }
+
+        for (String keyword : keywordArray) {
+            if (normalizedValue.contains(keyword)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean equalsAnyKeyword(String value, String... keywordArray) {
+        String normalizedValue = trimToNull(value);
+        if (normalizedValue == null) {
+            return false;
+        }
+
+        for (String keyword : keywordArray) {
+            if (normalizedValue.equals(keyword)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private PriceSnapshotDTO findSnapshotByItemCode(String itemCode, List<PriceSnapshotDTO> candidates) {
+        String normalizedItemCode = trimToNull(itemCode);
+        if (normalizedItemCode == null || candidates == null || candidates.isEmpty()) {
+            return null;
+        }
+
+        for (PriceSnapshotDTO candidate : candidates) {
+            if (normalizedItemCode.equals(trimToNull(candidate.getItemCode()))) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     private PriceSnapshotDTO findBestSnapshot(String query, List<PriceSnapshotDTO> candidates) {
@@ -371,7 +1167,7 @@ public class AdminController {
     }
 
     private ResolvedPurchaseQuote resolvePurchaseQuote(PriceSnapshotDTO wholesaleSnapshot) {
-        String snapshotUnit = trimToNull(wholesaleSnapshot.getUnit());
+        String snapshotUnit = resolveEffectiveSnapshotUnit(wholesaleSnapshot);
         BigDecimal avgPrice = scaleMoney(wholesaleSnapshot.getAvgPrice());
         if (snapshotUnit == null) {
             return new ResolvedPurchaseQuote("ea", BigDecimal.ONE, avgPrice);
@@ -393,7 +1189,7 @@ public class AdminController {
             return null;
         }
 
-        ParsedUnit sourceUnit = parseSnapshotUnit(snapshot.getUnit());
+        ParsedUnit sourceUnit = parseSnapshotUnit(resolveEffectiveSnapshotUnit(snapshot));
         ParsedUnit targetUnit = resolveUnit(baseQuote.getPricingBaseUnit(), baseQuote.getPricingBaseQty());
         if (sourceUnit == null || targetUnit == null) {
             return null;
@@ -416,7 +1212,7 @@ public class AdminController {
             return null;
         }
 
-        ParsedUnit parsedUnit = parseSnapshotUnit(snapshot.getUnit());
+        ParsedUnit parsedUnit = parseSnapshotUnit(resolveEffectiveSnapshotUnit(snapshot));
         if (parsedUnit == null) {
             return null;
         }
@@ -445,7 +1241,7 @@ public class AdminController {
 
         BigDecimal sourceAmountInGram = ProduceStandardWeightSupport.resolveSnapshotAmountInGram(
             snapshot.getItemName(),
-            snapshot.getUnit()
+            resolveEffectiveSnapshotUnit(snapshot)
         );
         BigDecimal basisAmountInGram = ProduceStandardWeightSupport.resolveProductAmountInGram(
             snapshot.getItemName(),
@@ -595,7 +1391,7 @@ public class AdminController {
             return String.format(
                 Locale.KOREAN,
                 "소매 시세 단위(%s)가 %s 기준과 맞지 않아 환산값과 권장 판매가를 계산하지 않았습니다.",
-                retailSnapshot.getUnit(),
+                resolveEffectiveSnapshotUnit(retailSnapshot),
                 basisLabel
             );
         }
@@ -618,10 +1414,20 @@ public class AdminController {
             return String.format(
                 Locale.KOREAN,
                 "소매 시세 단위(%s)가 무게 기준이 아니어서 1kg 환산값과 권장 판매가를 계산하지 않았습니다.",
-                retailSnapshot.getUnit()
+                resolveEffectiveSnapshotUnit(retailSnapshot)
             );
         }
         return null;
+    }
+
+    private String resolveEffectiveSnapshotUnit(PriceSnapshotDTO snapshot) {
+        if (snapshot == null) {
+            return null;
+        }
+        return PriceSnapshotUnitSupport.normalizeConvertedRetailWeightUnit(
+            snapshot.getItemCode(),
+            trimToNull(snapshot.getUnit())
+        );
     }
 
     private BigDecimal scaleMoney(BigDecimal value) {
@@ -657,7 +1463,14 @@ public class AdminController {
         }
 
         String trimmedValue = value.trim();
-        return trimmedValue.isEmpty() ? null : trimmedValue;
+        if (trimmedValue.isEmpty()) {
+            return null;
+        }
+        String lowercaseValue = trimmedValue.toLowerCase(Locale.ROOT);
+        if ("null".equals(lowercaseValue) || "undefined".equals(lowercaseValue) || "nan".equals(lowercaseValue)) {
+            return null;
+        }
+        return trimmedValue;
     }
 
     private static final class ParsedUnit {
