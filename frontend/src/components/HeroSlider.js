@@ -143,9 +143,6 @@ export default function HeroSlider({ slides }) {
       <div className="hero-banner__copy">
         <div className="hero-banner__top">
           <span className="hero-banner__eyebrow">{currentSlide.eyebrow}</span>
-          <span className="hero-banner__pager">
-            {index + 1} / {normalizedSlides.length}
-          </span>
         </div>
 
         <h1 className="hero-banner__title">{currentSlide.title}</h1>
