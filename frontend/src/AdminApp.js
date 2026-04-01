@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { clearAuthUser, getAuthUser, isSuperAdminUser } from './auth';
 import './styles/admin.css';
 import AdminLayout from './admin/AdminLayout';
