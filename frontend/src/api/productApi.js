@@ -320,6 +320,32 @@ function adaptCartResponse(rawCart) {
   };
 }
 
+function persistCartCache(cartPayload) {
+  if (typeof window === 'undefined' || !cartPayload || typeof cartPayload !== 'object') {
+    return cartPayload;
+  }
+
+  try {
+    window.localStorage.setItem(
+      'oneulFarmCart',
+      JSON.stringify(cartPayload.quantityMap || {})
+    );
+    window.localStorage.setItem(
+      'oneulFarmCartDetails',
+      JSON.stringify(Array.isArray(cartPayload.items) ? cartPayload.items : [])
+    );
+    window.dispatchEvent(
+      new CustomEvent('oneulFarm:storage-change', {
+        detail: { key: 'oneulFarmCart' },
+      })
+    );
+  } catch (error) {
+    // Ignore local cache sync failures and keep API payload.
+  }
+
+  return cartPayload;
+}
+
 function adaptOrderDetail(rawDetail, options = {}) {
   const orderInfo = rawDetail?.orderInfo || rawDetail || {};
   const deliveryInfo = rawDetail?.deliveryInfo || rawDetail || {};
@@ -395,7 +421,7 @@ export async function fetchCartFromApi() {
     'Failed to load cart.'
   );
 
-  return adaptCartResponse(data);
+  return persistCartCache(adaptCartResponse(data));
 }
 
 export async function addCartItemToApi(productNo, quantity, extraPayload = {}) {
@@ -414,7 +440,7 @@ export async function addCartItemToApi(productNo, quantity, extraPayload = {}) {
     'Failed to add cart item.'
   );
 
-  return adaptCartResponse(data);
+  return persistCartCache(adaptCartResponse(data));
 }
 
 export async function updateCartItemOnApi(cartItemNo, quantity) {
@@ -428,7 +454,7 @@ export async function updateCartItemOnApi(cartItemNo, quantity) {
     'Failed to update cart item.'
   );
 
-  return adaptCartResponse(data);
+  return persistCartCache(adaptCartResponse(data));
 }
 
 export async function removeCartItemFromApi(cartItemNo) {
@@ -441,7 +467,7 @@ export async function removeCartItemFromApi(cartItemNo) {
     'Failed to remove cart item.'
   );
 
-  return adaptCartResponse(data);
+  return persistCartCache(adaptCartResponse(data));
 }
 
 export async function clearCartOnApi() {
@@ -454,7 +480,7 @@ export async function clearCartOnApi() {
     'Failed to clear cart.'
   );
 
-  return adaptCartResponse(data);
+  return persistCartCache(adaptCartResponse(data));
 }
 
 export async function fetchOrdersFromApi() {

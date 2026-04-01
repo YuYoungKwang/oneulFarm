@@ -177,6 +177,7 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
         builder.append("Return JSON only. Do not use markdown. ");
         builder.append("The user wants a meal plan first, then total ingredients for one serving across the full plan, ");
         builder.append("then a clear separation between ingredients that can be matched to store products and those that cannot. ");
+        builder.append("Treat 달걀, 계란, and 계란(특란) as the same grocery ingredient for meal planning and product matching. ");
         builder.append("If the user asks to remove a specific weekday or meal, revise the plan and note the removal in removalNotes. ");
         builder.append("If the user asks for a weekly plan, provide the full requested number of days, not just one day. ");
         builder.append("Default to breakfast, lunch, and dinner for each day unless the user explicitly asks for a different structure. ");
@@ -1771,6 +1772,8 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
         aliasMap.put("\ud48b\uace0\ucd94", List.of("\uace0\ucd94", "\uccad\uc591\uace0\ucd94", "\uaf48\ub9ac\uace0\ucd94", "\uc624\uc774\ub9db\uace0\ucd94"));
         aliasMap.put("\uac10\uc790", List.of("\uac10\uc790\uc218\ubbf8", "\uac10\uc790\uc218\ubbf8\ub178\uc9c0"));
         aliasMap.put("\uc0c1\ucd94", List.of("\uccad\uc0c1\ucd94", "\uc801\uc0c1\ucd94"));
+        aliasMap.put("\ub2ec\uac40", List.of("\uacc4\ub780", "\uacc4\ub780 \ud2b9\ub780", "\uacc4\ub780\ud2b9\ub780"));
+        aliasMap.put("\uacc4\ub780", List.of("\ub2ec\uac40", "\uacc4\ub780 \ud2b9\ub780", "\uacc4\ub780\ud2b9\ub780"));
         return aliasMap;
     }
 
