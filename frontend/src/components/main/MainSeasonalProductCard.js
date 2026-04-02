@@ -94,7 +94,12 @@ export default function MainSeasonalProductCard({
   const fallbackText = product?.display?.symbol || productName.slice(0, 1) || "P";
 
   return (
-    <article className={`home-product-card ${featured ? "is-featured" : ""}`.trim()}>
+    <button
+      aria-label={`${productName} 상품 보기`}
+      className={`home-product-card ${featured ? "is-featured" : ""}`.trim()}
+      type="button"
+      onClick={onOpen}
+    >
       <div
         className="home-product-card__media"
         style={{
@@ -133,11 +138,7 @@ export default function MainSeasonalProductCard({
             ))}
           </div>
         ) : null}
-
-        <button className="home-product-card__action" type="button" onClick={onOpen}>
-          상품 보기
-        </button>
       </div>
-    </article>
+    </button>
   );
 }

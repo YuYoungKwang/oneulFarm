@@ -130,29 +130,39 @@ public class MainServiceImpl implements MainService {
 
     @Override
     public MainRecommendationResponseDto getMainRecommendations() {
+        long startedAt = System.currentTimeMillis();
         MainRecommendationResponseDto response = new MainRecommendationResponseDto();
 
         List<SeasonalProductCardDto> seasonalProducts =
             defaultList(mainDao.findSeasonalRecommendationProducts(limitParam(SEASONAL_LIMIT)));
         List<SeasonalProductCardDto> rankingProducts =
             defaultList(mainDao.findRankingRecommendationProducts(limitParam(SEASONAL_LIMIT)));
-        Map<Long, ProductKeywordProfileDto> seasonalProductProfileMap =
-            buildSeasonalProductProfileMap(seasonalProducts);
-        Map<Long, ProductKeywordProfileDto> rankingProductProfileMap =
-            buildSeasonalProductProfileMap(rankingProducts);
+        Map<Long, ProductKeywordProfileDto> productProfileMap =
+            buildProductProfileMap(seasonalProducts, rankingProducts);
+        Map<String, KeywordTrendScore> trendScoreMap = buildKeywordTrendScoreMap(productProfileMap);
+        Map<String, List<LinkedRecipeDto>> linkedRecipeCache = new HashMap<String, List<LinkedRecipeDto>>();
 
-        applyDatalabRanking(seasonalProducts, seasonalProductProfileMap);
-        applyDatalabRanking(rankingProducts, rankingProductProfileMap);
+        applyDatalabRanking(seasonalProducts, productProfileMap, trendScoreMap);
+        applyDatalabRanking(rankingProducts, productProfileMap, trendScoreMap);
 
-        decorateRecommendationProducts(seasonalProducts, seasonalProductProfileMap, true);
-        decorateRecommendationProducts(rankingProducts, rankingProductProfileMap, false);
+        decorateRecommendationProducts(seasonalProducts, productProfileMap, linkedRecipeCache, true);
+        decorateRecommendationProducts(rankingProducts, productProfileMap, linkedRecipeCache, false);
 
-        List<PopularRecipeCardDto> popularRecipes = buildPopularRecipeCards(seasonalProducts);
+        List<PopularRecipeCardDto> popularRecipes =
+            buildPopularRecipeCards(seasonalProducts, productProfileMap);
 
         response.setSeasonalProducts(seasonalProducts);
         response.setRankingProducts(rankingProducts);
         response.setPopularRecipes(popularRecipes);
         response.setHeroSlides(buildHeroSlides(seasonalProducts, popularRecipes));
+
+        logger.info(
+            "Main recommendations loaded. seasonalCount={}, rankingCount={}, popularRecipeCount={}, elapsedMs={}",
+            Integer.valueOf(seasonalProducts.size()),
+            Integer.valueOf(rankingProducts.size()),
+            Integer.valueOf(popularRecipes.size()),
+            Long.valueOf(System.currentTimeMillis() - startedAt)
+        );
 
         return response;
     }
@@ -160,6 +170,7 @@ public class MainServiceImpl implements MainService {
     private void decorateRecommendationProducts(
         List<SeasonalProductCardDto> products,
         Map<Long, ProductKeywordProfileDto> productProfileMap,
+        Map<String, List<LinkedRecipeDto>> linkedRecipeCache,
         boolean seasonal
     ) {
         for (SeasonalProductCardDto item : defaultList(products)) {
@@ -169,29 +180,41 @@ public class MainServiceImpl implements MainService {
             if (seasonal) {
                 badges.add(SEASONAL_BADGE);
             }
-            if (isPriceBenefit(toBigDecimal(item), item.getAvgPrice())) {
+            if (isPriceBenefit(toBigDecimal(item), resolveComparableAvgPrice(item))) {
                 badges.add(PRICE_BADGE);
             }
             item.setBadges(badges);
 
             ProductKeywordProfileDto keywordProfile =
                 productProfileMap.get(resolveProductNo(item));
-            item.setLinkedRecipes(findLinkedRecipes(item, keywordProfile));
+            item.setLinkedRecipes(findLinkedRecipes(item, keywordProfile, linkedRecipeCache));
         }
     }
 
-    private Map<Long, ProductKeywordProfileDto> buildSeasonalProductProfileMap(
-        List<SeasonalProductCardDto> seasonalProducts
+    private Map<Long, ProductKeywordProfileDto> buildProductProfileMap(
+        List<SeasonalProductCardDto> seasonalProducts,
+        List<SeasonalProductCardDto> rankingProducts
     ) {
         Map<Long, ProductKeywordProfileDto> productProfileMap = new LinkedHashMap<Long, ProductKeywordProfileDto>();
+        appendProductProfiles(productProfileMap, seasonalProducts);
+        appendProductProfiles(productProfileMap, rankingProducts);
+        return productProfileMap;
+    }
 
-        for (SeasonalProductCardDto item : defaultList(seasonalProducts)) {
+    private void appendProductProfiles(
+        Map<Long, ProductKeywordProfileDto> productProfileMap,
+        List<SeasonalProductCardDto> products
+    ) {
+        for (SeasonalProductCardDto item : defaultList(products)) {
             Long productNo = resolveProductNo(item);
             if (productNo.longValue() <= 0L) {
                 continue;
             }
+            if (productProfileMap.containsKey(productNo)) {
+                continue;
+            }
 
-            ProductDto product = productService.getProduct(productNo);
+            ProductDto product = toKeywordSourceProduct(item);
             if (product == null) {
                 continue;
             }
@@ -203,19 +226,16 @@ public class MainServiceImpl implements MainService {
 
             productProfileMap.put(productNo, keywordProfile);
         }
-
-        return productProfileMap;
     }
 
     private void applyDatalabRanking(
         List<SeasonalProductCardDto> seasonalProducts,
-        Map<Long, ProductKeywordProfileDto> seasonalProductProfileMap
+        Map<Long, ProductKeywordProfileDto> seasonalProductProfileMap,
+        Map<String, KeywordTrendScore> trendScoreMap
     ) {
         if (seasonalProducts == null || seasonalProducts.isEmpty()) {
             return;
         }
-
-        Map<String, KeywordTrendScore> trendScoreMap = buildKeywordTrendScoreMap(seasonalProductProfileMap);
 
         for (SeasonalProductCardDto item : seasonalProducts) {
             Long productNo = resolveProductNo(item);
@@ -412,7 +432,8 @@ public class MainServiceImpl implements MainService {
 
     private List<LinkedRecipeDto> findLinkedRecipes(
         SeasonalProductCardDto item,
-        ProductKeywordProfileDto keywordProfile
+        ProductKeywordProfileDto keywordProfile,
+        Map<String, List<LinkedRecipeDto>> linkedRecipeCache
     ) {
         Set<Long> usedRecipeNoSet = new LinkedHashSet<Long>();
         Set<String> keywordSet = new LinkedHashSet<String>();
@@ -435,11 +456,8 @@ public class MainServiceImpl implements MainService {
         }
 
         for (String keyword : keywordSet) {
-            Map<String, Object> linkedParam = new HashMap<String, Object>();
-            linkedParam.put("productName", keyword);
-            linkedParam.put("limit", Integer.valueOf(LINKED_RECIPE_LIMIT));
-
-            for (LinkedRecipeDto linkedRecipe : defaultList(mainDao.findLinkedRecipesByProductName(linkedParam))) {
+            List<LinkedRecipeDto> cachedRecipes = resolveLinkedRecipesByKeyword(keyword, linkedRecipeCache);
+            for (LinkedRecipeDto linkedRecipe : defaultList(cachedRecipes)) {
                 if (linkedRecipe == null || linkedRecipe.getRecipeNo() == null) {
                     continue;
                 }
@@ -457,14 +475,17 @@ public class MainServiceImpl implements MainService {
         return linkedRecipeList;
     }
 
-    private List<PopularRecipeCardDto> buildPopularRecipeCards(List<SeasonalProductCardDto> seasonalProducts) {
+    private List<PopularRecipeCardDto> buildPopularRecipeCards(
+        List<SeasonalProductCardDto> seasonalProducts,
+        Map<Long, ProductKeywordProfileDto> productProfileMap
+    ) {
         List<PopularRecipeCardDto> reviewedRecipes =
             defaultList(mainDao.findPopularRecipes(limitParam(POPULAR_RECIPE_CANDIDATE_LIMIT)));
 
         List<PopularRecipeCardDto> candidateRecipes = new ArrayList<PopularRecipeCardDto>();
         Set<Long> usedRecipeNoSet = new HashSet<Long>();
 
-        for (PopularRecipeCardDto recipe : buildDatalabDrivenRecipes(seasonalProducts)) {
+        for (PopularRecipeCardDto recipe : buildDatalabDrivenRecipes(seasonalProducts, productProfileMap)) {
             appendPopularRecipe(candidateRecipes, usedRecipeNoSet, recipe);
         }
 
@@ -526,13 +547,17 @@ public class MainServiceImpl implements MainService {
         return selectedRecipes;
     }
 
-    private List<PopularRecipeCardDto> buildDatalabDrivenRecipes(List<SeasonalProductCardDto> seasonalProducts) {
+    private List<PopularRecipeCardDto> buildDatalabDrivenRecipes(
+        List<SeasonalProductCardDto> seasonalProducts,
+        Map<Long, ProductKeywordProfileDto> productProfileMap
+    ) {
         if (naverDataLabService == null) {
             return Collections.emptyList();
         }
 
-        List<ProductKeywordProfileDto> keywordProfiles = buildSeasonalKeywordProfiles(seasonalProducts);
-        logger.info("Main popular recipes - seasonal keyword profiles={}", keywordProfiles.size());
+        List<ProductKeywordProfileDto> keywordProfiles =
+            buildSeasonalKeywordProfiles(seasonalProducts, productProfileMap);
+        logger.debug("Main popular recipes - seasonal keyword profiles={}", keywordProfiles.size());
         List<String> keywordList = new ArrayList<String>();
         for (ProductKeywordProfileDto profile : keywordProfiles) {
             String representKeyword = profile == null ? null : profile.getRepresentKeyword();
@@ -547,11 +572,11 @@ public class MainServiceImpl implements MainService {
         }
 
         if (keywordList.isEmpty()) {
-            logger.info("Main popular recipes - no represent keywords resolved from seasonal products");
+            logger.debug("Main popular recipes - no represent keywords resolved from seasonal products");
             return Collections.emptyList();
         }
 
-        logger.info("Main popular recipes - datalab request keywords={}", keywordList);
+        logger.debug("Main popular recipes - datalab request keywords={}", keywordList);
 
         try {
             Map<String, Object> data = naverDataLabService.getPopularSearchData(
@@ -585,7 +610,7 @@ public class MainServiceImpl implements MainService {
                     ? Collections.<String>emptyList()
                     : defaultList(matchedProfile.getAllowedRecipeCategoryList());
 
-                logger.info(
+                logger.debug(
                     "Main popular recipes - datalab keyword='{}', searchKeywords={}, allowedCategories={}",
                     keyword,
                     searchKeywordList,
@@ -598,7 +623,7 @@ public class MainServiceImpl implements MainService {
 
                 for (String searchKeyword : searchKeywordList) {
                     List<RecipeDTO> recipeList = searchRecipesByKeyword(searchKeyword);
-                    logger.info(
+                    logger.debug(
                         "Main popular recipes - searchKeyword='{}', matchedRecipes={}",
                         searchKeyword,
                         recipeList == null ? 0 : recipeList.size()
@@ -607,14 +632,14 @@ public class MainServiceImpl implements MainService {
                     for (RecipeDTO recipe : defaultList(recipeList)) {
                         PopularRecipeCardDto card = toPopularRecipeCard(recipe);
                         if (card == null) {
-                            logger.info(
+                            logger.debug(
                                 "Main popular recipes - skip null card for searchKeyword='{}'",
                                 searchKeyword
                             );
                             continue;
                         }
                         if (!isAllowedRecipeCategory(card, allowedRecipeCategoryList)) {
-                            logger.info(
+                            logger.debug(
                                 "Main popular recipes - filtered recipeNo={}, recipeName='{}', category='{}', allowedCategories={}",
                                 card.getRecipeNo(),
                                 card.getRecipeName(),
@@ -630,7 +655,7 @@ public class MainServiceImpl implements MainService {
                         card.setDatalabDriven(true);
                         card.setSourceKeyword(keyword);
                         acceptedCountForKeyword++;
-                        logger.info(
+                        logger.debug(
                             "Main popular recipes - accepted datalab recipeNo={}, recipeName='{}', sourceKeyword='{}', category='{}'",
                             card.getRecipeNo(),
                             card.getRecipeName(),
@@ -642,7 +667,7 @@ public class MainServiceImpl implements MainService {
                 }
 
                 if (acceptedCountForKeyword == 0 && !relaxedDatalabRecipes.isEmpty()) {
-                    logger.info(
+                    logger.debug(
                         "Main popular recipes - relaxed category filter for keyword='{}', fallbackAccepted={}",
                         keyword,
                         relaxedDatalabRecipes.size()
@@ -655,7 +680,7 @@ public class MainServiceImpl implements MainService {
                 }
             }
 
-            logger.info("Main popular recipes - total datalab recipes={}", datalabRecipes.size());
+            logger.debug("Main popular recipes - total datalab recipes={}", datalabRecipes.size());
             return datalabRecipes;
         } catch (Exception exception) {
             logger.warn("Main popular recipes - datalab recipe build failed", exception);
@@ -681,22 +706,24 @@ public class MainServiceImpl implements MainService {
         target.add(recipe);
     }
 
-    private List<ProductKeywordProfileDto> buildSeasonalKeywordProfiles(List<SeasonalProductCardDto> seasonalProducts) {
+    private List<ProductKeywordProfileDto> buildSeasonalKeywordProfiles(
+        List<SeasonalProductCardDto> seasonalProducts,
+        Map<Long, ProductKeywordProfileDto> productProfileMap
+    ) {
         List<ProductKeywordProfileDto> keywordProfiles = new ArrayList<ProductKeywordProfileDto>();
         Set<String> usedRepresentKeywordSet = new LinkedHashSet<String>();
 
         for (SeasonalProductCardDto item : defaultList(seasonalProducts)) {
-            Long productNo = item == null || item.getProduct() == null ? null : item.getProduct().getProductNo();
+            Long productNo = item == null || item.getProduct() == null
+                ? null
+                : item.getProduct().getProductNo();
             if (productNo == null) {
                 continue;
             }
 
-            ProductDto product = productService.getProduct(productNo);
-            if (product == null) {
-                continue;
-            }
-
-            ProductKeywordProfileDto profile = buildKeywordProfile(product);
+            ProductKeywordProfileDto profile = productProfileMap == null
+                ? null
+                : productProfileMap.get(productNo);
             if (profile == null || profile.getRepresentKeyword() == null || profile.getRepresentKeyword().trim().isEmpty()) {
                 continue;
             }
@@ -710,6 +737,43 @@ public class MainServiceImpl implements MainService {
         }
 
         return keywordProfiles;
+    }
+
+    private List<LinkedRecipeDto> resolveLinkedRecipesByKeyword(
+        String keyword,
+        Map<String, List<LinkedRecipeDto>> linkedRecipeCache
+    ) {
+        String cacheKey = normalizeKeywordKey(keyword);
+        if (cacheKey.isEmpty()) {
+            return Collections.emptyList();
+        }
+        if (linkedRecipeCache != null && linkedRecipeCache.containsKey(cacheKey)) {
+            return linkedRecipeCache.get(cacheKey);
+        }
+
+        Map<String, Object> linkedParam = new HashMap<String, Object>();
+        linkedParam.put("productName", keyword);
+        linkedParam.put("limit", Integer.valueOf(LINKED_RECIPE_LIMIT));
+        List<LinkedRecipeDto> linkedRecipes =
+            defaultList(mainDao.findLinkedRecipesByProductName(linkedParam));
+        if (linkedRecipeCache != null) {
+            linkedRecipeCache.put(cacheKey, linkedRecipes);
+        }
+        return linkedRecipes;
+    }
+
+    private ProductDto toKeywordSourceProduct(SeasonalProductCardDto item) {
+        if (item == null || item.getProduct() == null || item.getProduct().getProductNo() == null) {
+            return null;
+        }
+
+        com.app.dto.main.ProductDto source = item.getProduct();
+        ProductDto product = new ProductDto();
+        product.setProductNo(source.getProductNo());
+        product.setCategoryNo(source.getCategoryNo());
+        product.setCategoryName(source.getCategoryName());
+        product.setProductName(source.getProductName());
+        return product;
     }
 
     private ProductKeywordProfileDto buildKeywordProfile(ProductDto product) {
@@ -1078,8 +1142,15 @@ public class MainServiceImpl implements MainService {
     }
 
     private double calculateSeasonalSavingRate(SeasonalProductCardDto item) {
+        BigDecimal savingRate = item == null || item.getProduct() == null
+            ? null
+            : item.getProduct().getSavingRate();
+        if (savingRate != null && savingRate.compareTo(BigDecimal.ZERO) > 0) {
+            return savingRate.doubleValue() / 100D;
+        }
+
         BigDecimal salePrice = toBigDecimal(item);
-        BigDecimal avgPrice = item == null ? null : item.getAvgPrice();
+        BigDecimal avgPrice = resolveComparableAvgPrice(item);
 
         if (salePrice == null || avgPrice == null || avgPrice.compareTo(BigDecimal.ZERO) <= 0) {
             return 0d;
@@ -1088,6 +1159,19 @@ public class MainServiceImpl implements MainService {
         return avgPrice.subtract(salePrice)
             .divide(avgPrice, 4, RoundingMode.HALF_UP)
             .doubleValue();
+    }
+
+    private BigDecimal resolveComparableAvgPrice(SeasonalProductCardDto item) {
+        if (item == null || item.getProduct() == null) {
+            return null;
+        }
+
+        BigDecimal comparedPrice = item.getProduct().getComparedPrice();
+        if (comparedPrice != null && comparedPrice.compareTo(BigDecimal.ZERO) > 0) {
+            return comparedPrice;
+        }
+
+        return item.getAvgPrice();
     }
 
     private long resolveProductNo(SeasonalProductCardDto item) {

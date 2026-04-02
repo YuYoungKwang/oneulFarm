@@ -84,7 +84,7 @@ public class AuthServiceImpl implements AuthService {
 
         UserDto user = userDao.findByUserIdOrEmail(request.getUserId());
         if (user == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User ID or email is incorrect.");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "사용자 ID 또는 이메일이 잘못되었습니다.");
         }
 
         if (!matchesStoredPassword(request.getPassword(), user.getPassword())) {

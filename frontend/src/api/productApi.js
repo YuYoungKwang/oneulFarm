@@ -470,6 +470,19 @@ export async function removeCartItemFromApi(cartItemNo) {
   return persistCartCache(adaptCartResponse(data));
 }
 
+export async function removeCartGroupFromApi(cartGroupNo) {
+  const data = await requestApi(
+    `${CART_API_BASE}/me/groups/${cartGroupNo}`,
+    {
+      method: 'DELETE',
+      headers: apiHeaders(),
+    },
+    'Failed to remove cart group.'
+  );
+
+  return persistCartCache(adaptCartResponse(data));
+}
+
 export async function clearCartOnApi() {
   const data = await requestApi(
     `${CART_API_BASE}/me/items`,

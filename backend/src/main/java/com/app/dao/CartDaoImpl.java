@@ -100,8 +100,34 @@ public class CartDaoImpl implements CartDao {
     }
 
     @Override
+    public int deleteCartItemsByGroup(Long cartNo, Long cartGroupNo) {
+        return jdbcTemplate().update(
+            "DELETE FROM OFT_CART_ITEM WHERE CART_NO = ? AND CART_GROUP_NO = ?",
+            cartNo,
+            cartGroupNo
+        );
+    }
+
+    @Override
+    public int deleteCartGroup(Long cartNo, Long cartGroupNo) {
+        return jdbcTemplate().update(
+            "DELETE FROM OFT_CART_GROUP WHERE CART_NO = ? AND CART_GROUP_NO = ?",
+            cartNo,
+            cartGroupNo
+        );
+    }
+
+    @Override
     public int deleteAllCartItems(Long cartNo) {
         return sqlSessionTemplate.delete(NAMESPACE + "deleteAllCartItems", cartNo);
+    }
+
+    @Override
+    public int deleteAllCartGroups(Long cartNo) {
+        return jdbcTemplate().update(
+            "DELETE FROM OFT_CART_GROUP WHERE CART_NO = ?",
+            cartNo
+        );
     }
 
     @Override
