@@ -87,10 +87,34 @@ function writeStore(user, store) {
 }
 
 function normalizeMealType(value) {
-  const safeValue = String(value || 'DINNER').toUpperCase();
-  return ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK', 'CUSTOM'].includes(safeValue)
-    ? safeValue
-    : 'DINNER';
+  const safeValue = String(value || '').trim();
+  const upperValue = safeValue.toUpperCase();
+
+  if (['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK', 'CUSTOM'].includes(upperValue)) {
+    return upperValue;
+  }
+
+  if (safeValue.includes('아침') || safeValue.includes('조식') || upperValue.includes('BREAKFAST')) {
+    return 'BREAKFAST';
+  }
+
+  if (safeValue.includes('점심') || safeValue.includes('중식') || upperValue.includes('LUNCH')) {
+    return 'LUNCH';
+  }
+
+  if (safeValue.includes('저녁') || safeValue.includes('석식') || upperValue.includes('DINNER')) {
+    return 'DINNER';
+  }
+
+  if (safeValue.includes('간식') || upperValue.includes('SNACK')) {
+    return 'SNACK';
+  }
+
+  if (safeValue.includes('직접 입력') || upperValue.includes('CUSTOM')) {
+    return 'CUSTOM';
+  }
+
+  return 'DINNER';
 }
 
 function normalizeIngredient(item, nextIngredientNo, linkedProductMap) {

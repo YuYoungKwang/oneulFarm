@@ -295,12 +295,52 @@ function addDays(dateKey, offset) {
 }
 
 function normalizeMealType(value) {
-  const nextValue = String(value || 'CUSTOM').toUpperCase();
-  if (['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK', 'CUSTOM'].includes(nextValue)) {
-    return nextValue;
+  const nextValue = String(value || '').trim();
+  const upperValue = nextValue.toUpperCase();
+
+  if (['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK', 'CUSTOM'].includes(upperValue)) {
+    return upperValue;
   }
 
-  return 'CUSTOM';
+  if (
+    nextValue.includes('아침') ||
+    nextValue.includes('조식') ||
+    upperValue.includes('BREAKFAST')
+  ) {
+    return 'BREAKFAST';
+  }
+
+  if (
+    nextValue.includes('점심') ||
+    nextValue.includes('중식') ||
+    upperValue.includes('LUNCH')
+  ) {
+    return 'LUNCH';
+  }
+
+  if (
+    nextValue.includes('저녁') ||
+    nextValue.includes('석식') ||
+    upperValue.includes('DINNER')
+  ) {
+    return 'DINNER';
+  }
+
+  if (
+    nextValue.includes('간식') ||
+    upperValue.includes('SNACK')
+  ) {
+    return 'SNACK';
+  }
+
+  if (
+    nextValue.includes('직접 입력') ||
+    upperValue.includes('CUSTOM')
+  ) {
+    return 'CUSTOM';
+  }
+
+  return 'DINNER';
 }
 
 function buildMealEntryTitle(meal, dayLabel, mealIndex) {
@@ -322,7 +362,7 @@ function buildMealEntryTitle(meal, dayLabel, mealIndex) {
   return `\uC2DD\uB2E8 ${Number(mealIndex || 0) + 1}`;
 }
 
-function buildMealEntryNotes({ meal, requestText, mealIngredients }) {
+function buildMealEntryNotes({ meal, mealIngredients }) {
   const noteParts = [];
   const description = String(meal?.description || '').trim();
   if (description) {
@@ -345,11 +385,6 @@ function buildMealEntryNotes({ meal, requestText, mealIngredients }) {
 
   if (ingredientText) {
     noteParts.push(ingredientText);
-  }
-
-  const nextRequestText = String(requestText || '').trim();
-  if (nextRequestText) {
-    noteParts.push(nextRequestText);
   }
 
   return noteParts.join('\n');
@@ -410,7 +445,6 @@ function createLocalMealPlanImport({
           title: buildMealEntryTitle(meal, day?.dayLabel, mealIndex),
           notes: buildMealEntryNotes({
             meal,
-            requestText,
             mealIngredients,
           }),
           servings: Number(plan?.servings || 1) || 1,
@@ -431,7 +465,7 @@ function createLocalMealPlanImport({
       date: baseStartDate,
       mealType: 'CUSTOM',
       title: resolvedTitle,
-      notes: String(requestText || '').trim(),
+      notes: '',
       servings: Number(plan?.servings || 1) || 1,
       sourceType: 'AI',
       recipeNo: null,
@@ -449,7 +483,7 @@ function createLocalMealPlanImport({
       planSummary: String(plan?.goalSummary || '').trim(),
       startDate: toDateKey(startDate),
       endDate: toDateKey(endDate),
-      requestText: String(requestText || '').trim(),
+      requestText: '',
       aiResponseId: aiResponseId || null,
       importedEntryCount,
       createdAt: new Date().toISOString(),

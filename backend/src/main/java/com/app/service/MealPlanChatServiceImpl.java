@@ -55,6 +55,10 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
     private static final String BREAKFAST = "\uc544\uce68";
     private static final String LUNCH = "\uc810\uc2ec";
     private static final String DINNER = "\uc800\ub141";
+    private static final String CUISINE_KOREAN = "\ud55c\uc2dd";
+    private static final String CUISINE_WESTERN = "\uc591\uc2dd";
+    private static final String CUISINE_JAPANESE = "\uc77c\uc2dd";
+    private static final String CUISINE_CHINESE = "\uc911\uc2dd";
 
     private static final Pattern JSON_BLOCK_PATTERN =
         Pattern.compile("```(?:json)?\\s*(\\{.*\\})\\s*```", Pattern.DOTALL);
@@ -92,7 +96,20 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
             "\uacf1\ucc3d",
             "\uc721\uc218",
             "\ub9e5\uc8fc");
+    private static final Set<String> KOREAN_DISALLOWED_KEYWORD_SET =
+        Set.of(
+            "\uc0d0\ub7ec\ub4dc",
+            "\ubcfc",
+            "\ud50c\ub808\uc774\ud2b8",
+            "\ud1a0\uc2a4\ud2b8",
+            "\uc694\uac70\ud2b8",
+            "\ud30c\uc2a4\ud0c0",
+            "\uc0cc\ub4dc\uc704\uce58",
+            "\uc624\ud2b8\ubc00",
+            "\uc2a4\ud14c\uc774\ud06c"
+        );
     private static final Map<String, List<String>> INGREDIENT_ALIAS_MAP = createIngredientAliasMap();
+    private static final Map<String, Set<String>> CUISINE_KEYWORD_MAP = createCuisineKeywordMap();
 
     @Autowired
     private ProductDao productDao;
@@ -132,6 +149,7 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
 
         try {
             MealPlanChatResponseDto responseDto = requestOpenAiChat(userMessage, previousResponseId);
+            responseDto = normalizeResponseForRequest(userMessage, responseDto);
             return enforceReplySafety(userMessage, responseDto);
         } catch (Exception exception) {
             logger.warn("Failed to call OpenAI meal-plan chat. Falling back to local template.", exception);
@@ -170,6 +188,9 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
 
     private String buildInstructions(String userMessage) {
         int requestedDays = extractRequestedDays(userMessage);
+        List<String> requestedMealTypes = extractRequestedMealTypes(userMessage);
+        boolean singleMealRequest = requestsSingleMeal(userMessage);
+        String requestedCuisineStyle = extractRequestedCuisineStyle(userMessage);
         StringBuilder builder = new StringBuilder();
         builder.append("You are oneulFarm's Korean grocery meal-planning assistant. ");
         builder.append("Always answer in Korean. ");
@@ -180,7 +201,32 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
         builder.append("Treat 달걀, 계란, and 계란(특란) as the same grocery ingredient for meal planning and product matching. ");
         builder.append("If the user asks to remove a specific weekday or meal, revise the plan and note the removal in removalNotes. ");
         builder.append("If the user asks for a weekly plan, provide the full requested number of days, not just one day. ");
-        builder.append("Default to breakfast, lunch, and dinner for each day unless the user explicitly asks for a different structure. ");
+        builder.append("Unless the user explicitly asks for a very strict health-food plan, prefer satisfying everyday meals that feel tasty and realistic, not only fitness food. ");
+        builder.append("Do not make every meal a salad, bowl, yogurt bowl, toast plate, plain chicken breast plate, or bland vegetable-only dish. ");
+        builder.append("Even when diet or health conditions are mentioned, keep the meals familiar and enjoyable by using portion control, lighter cooking methods, or ingredient swaps instead of turning the whole plan into clean-eating food. ");
+        if (!isBlank(requestedCuisineStyle)) {
+            builder.append("All meals across the full plan must follow ");
+            builder.append(requestedCuisineStyle);
+            builder.append(" cuisine. Do not mix multiple cuisine styles unless the user explicitly asks for that. ");
+            if (CUISINE_KOREAN.equals(requestedCuisineStyle)) {
+                builder.append("For Korean cuisine, prefer clearly Korean-style meals such as rice bowls, soups, stews, bibimbap, deopbap, muchim, gui, jeongol, juk, and banchan-based meals. ");
+                builder.append("Avoid Western-feeling mains like pasta, sandwich, toast plate, steak plate, or salad bowl as the main identity of the meal. ");
+                builder.append("The meals should feel like Korean home meals that someone would actually want to eat for a week, not just healthy ingredients arranged together. ");
+            } else if (CUISINE_WESTERN.equals(requestedCuisineStyle)) {
+                builder.append("For Western cuisine, prefer clearly Western-style meals such as salad bowls, toast, omelet, pasta, soup plates, yogurt bowls, and steak-style plates. ");
+                builder.append("Avoid Korean-style mains like guk, jjigae, bibimbap, deopbap, muchim, and jeongol unless the user explicitly asks for fusion. ");
+            }
+        }
+        if (!requestedMealTypes.isEmpty()) {
+            builder.append("The user explicitly requested only these meal types: ")
+                .append(String.join(", ", requestedMealTypes))
+                .append(". Return only those meal types and do not add other meals. ");
+        } else if (singleMealRequest) {
+            builder.append("The user asked for exactly one meal only. Return exactly one meal per day. ");
+            builder.append("If no meal type is specified, prefer dinner. ");
+        } else {
+            builder.append("Default to breakfast, lunch, and dinner for each day unless the user explicitly asks for a different structure. ");
+        }
         builder.append("Use numeric amountValue whenever possible and also fill amountText. ");
         builder.append("Allowed units are g, kg, ml, L, \uac1c, \uad6c, \uc54c, \ubd09, \ud329, \ubcd1, \ud1b5, \ud3ec\uae30, \ub2e8, \ub9dd, \ubb36\uc74c. ");
         builder.append("Exclude water, salt, pepper, oil, and simple seasoning from ingredient totals unless the user explicitly asks for them. ");
@@ -804,6 +850,18 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
             return buildFallbackResponse(userMessage);
         }
 
+        List<String> requestedMealTypes = extractRequestedMealTypes(userMessage);
+        boolean singleMealRequest = requestsSingleMeal(userMessage);
+        if ((!requestedMealTypes.isEmpty() || singleMealRequest)
+            && !matchesRequestedMealScope(dayList, requestedMealTypes, singleMealRequest)) {
+            return buildFallbackResponse(userMessage);
+        }
+
+        String requestedCuisineStyle = extractRequestedCuisineStyle(userMessage);
+        if (!isBlank(requestedCuisineStyle) && !matchesRequestedCuisine(dayList, requestedCuisineStyle)) {
+            return buildFallbackResponse(userMessage);
+        }
+
         if (mentionsGout(userMessage) && containsGoutRiskIngredient(responseDto.getAggregatedIngredients())) {
             return buildFallbackResponse(userMessage);
         }
@@ -812,6 +870,38 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
             return buildFallbackResponse(userMessage);
         }
 
+        return responseDto;
+    }
+
+    private MealPlanChatResponseDto normalizeResponseForRequest(String userMessage, MealPlanChatResponseDto responseDto) {
+        if (responseDto == null || responseDto.getPlan() == null || responseDto.getPlan().getDaysList() == null) {
+            return responseDto;
+        }
+
+        int requestedDays = extractRequestedDays(userMessage);
+        List<String> requestedMealTypes = extractRequestedMealTypes(userMessage);
+        boolean singleMealRequest = requestsSingleMeal(userMessage);
+
+        List<DayDto> normalizedDayList = new ArrayList<DayDto>();
+        for (DayDto dayDto : responseDto.getPlan().getDaysList()) {
+            if (dayDto == null) {
+                continue;
+            }
+
+            if ((!requestedMealTypes.isEmpty() || singleMealRequest) && dayDto.getMeals() != null) {
+                dayDto.setMeals(filterMealsForRequest(dayDto.getMeals(), requestedMealTypes, singleMealRequest));
+            }
+
+            normalizedDayList.add(dayDto);
+            if (normalizedDayList.size() >= requestedDays) {
+                break;
+            }
+        }
+
+        responseDto.getPlan().setDays(Integer.valueOf(requestedDays));
+        responseDto.getPlan().setDaysList(normalizedDayList);
+        responseDto.setAggregatedIngredients(aggregateIngredients(normalizedDayList));
+        enrichWithCatalogData(responseDto);
         return responseDto;
     }
 
@@ -870,6 +960,153 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
         return false;
     }
 
+    private boolean matchesRequestedMealScope(
+        List<DayDto> dayList,
+        List<String> requestedMealTypes,
+        boolean singleMealRequest
+    ) {
+        if (dayList == null || dayList.isEmpty()) {
+            return false;
+        }
+
+        Set<String> requestedMealTypeSet = new LinkedHashSet<String>();
+        for (String requestedMealType : requestedMealTypes) {
+            String canonicalMealType = canonicalizeMealType(requestedMealType);
+            if (canonicalMealType != null) {
+                requestedMealTypeSet.add(canonicalMealType);
+            }
+        }
+
+        for (DayDto dayDto : dayList) {
+            List<MealDto> mealList = dayDto == null ? null : dayDto.getMeals();
+            if (mealList == null || mealList.isEmpty()) {
+                return false;
+            }
+
+            if (singleMealRequest && mealList.size() != 1) {
+                return false;
+            }
+
+            if (!requestedMealTypeSet.isEmpty()) {
+                for (MealDto mealDto : mealList) {
+                    String canonicalMealType = canonicalizeMealType(mealDto == null ? null : mealDto.getMealType());
+                    if (canonicalMealType == null || !requestedMealTypeSet.contains(canonicalMealType)) {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private boolean matchesRequestedCuisine(List<DayDto> dayList, String requestedCuisineStyle) {
+        String normalizedCuisineStyle = normalizeCuisineStyle(requestedCuisineStyle);
+        if (normalizedCuisineStyle == null) {
+            return true;
+        }
+
+        Set<String> cuisineKeywordSet = CUISINE_KEYWORD_MAP.get(normalizedCuisineStyle);
+        if (cuisineKeywordSet == null || cuisineKeywordSet.isEmpty()) {
+            return true;
+        }
+
+        int totalMealCount = 0;
+        int matchedMealCount = 0;
+
+        for (DayDto dayDto : dayList) {
+            if (dayDto == null || dayDto.getMeals() == null) {
+                continue;
+            }
+            for (MealDto mealDto : dayDto.getMeals()) {
+                if (mealDto == null) {
+                    continue;
+                }
+                if (CUISINE_KOREAN.equals(normalizedCuisineStyle)
+                    && containsCuisineDisallowedKeyword(mealDto, KOREAN_DISALLOWED_KEYWORD_SET)) {
+                    return false;
+                }
+                totalMealCount++;
+                if (matchesCuisineKeyword(mealDto, cuisineKeywordSet)) {
+                    matchedMealCount++;
+                }
+            }
+        }
+
+        if (totalMealCount == 0) {
+            return false;
+        }
+
+        if (CUISINE_KOREAN.equals(normalizedCuisineStyle)) {
+            return matchedMealCount >= totalMealCount;
+        }
+
+        return matchedMealCount >= Math.max(1, (int) Math.ceil(totalMealCount * 0.7d));
+    }
+
+    private boolean matchesCuisineKeyword(MealDto mealDto, Set<String> cuisineKeywordSet) {
+        if (mealDto == null || cuisineKeywordSet == null || cuisineKeywordSet.isEmpty()) {
+            return false;
+        }
+
+        String searchableText = buildMealSearchText(mealDto);
+        if (searchableText == null) {
+            return false;
+        }
+
+        for (String cuisineKeyword : cuisineKeywordSet) {
+            String normalizedKeyword = normalizeIngredientName(cuisineKeyword);
+            if (normalizedKeyword != null && searchableText.contains(normalizedKeyword)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean containsCuisineDisallowedKeyword(MealDto mealDto, Set<String> disallowedKeywordSet) {
+        if (mealDto == null || disallowedKeywordSet == null || disallowedKeywordSet.isEmpty()) {
+            return false;
+        }
+
+        String searchableText = buildMealSearchText(mealDto);
+        if (searchableText == null) {
+            return false;
+        }
+
+        for (String disallowedKeyword : disallowedKeywordSet) {
+            String normalizedKeyword = normalizeIngredientName(disallowedKeyword);
+            if (normalizedKeyword != null && searchableText.contains(normalizedKeyword)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private String buildMealSearchText(MealDto mealDto) {
+        if (mealDto == null) {
+            return null;
+        }
+
+        StringBuilder builder = new StringBuilder();
+        if (mealDto.getMenuName() != null) {
+            builder.append(mealDto.getMenuName()).append(' ');
+        }
+        if (mealDto.getDescription() != null) {
+            builder.append(mealDto.getDescription()).append(' ');
+        }
+        if (mealDto.getIngredients() != null) {
+            for (IngredientDto ingredientDto : mealDto.getIngredients()) {
+                if (ingredientDto != null && ingredientDto.getIngredientName() != null) {
+                    builder.append(ingredientDto.getIngredientName()).append(' ');
+                }
+            }
+        }
+
+        return normalizeIngredientName(builder.toString());
+    }
+
     private MealPlanChatResponseDto buildFallbackResponse(String userMessage) {
         MealPlanChatResponseDto responseDto = new MealPlanChatResponseDto();
         MealPlanPlanDto planDto = buildFallbackPlan(userMessage);
@@ -891,9 +1128,11 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
         boolean diet = mentionsDiet(userMessage);
         Set<String> removedDayLabels = extractRemovedDayLabels(userMessage);
         Set<String> removedMealTypes = extractRemovedMealTypes(userMessage);
+        List<String> requestedMealTypes = resolveRequestedMealTypes(userMessage);
+        String requestedCuisineStyle = extractRequestedCuisineStyle(userMessage);
 
         MealPlanPlanDto planDto = new MealPlanPlanDto();
-        planDto.setGoalSummary(buildFallbackSummary(gout, diet, requestedDays));
+        planDto.setGoalSummary(buildFallbackSummary(gout, diet, requestedDays, requestedCuisineStyle));
         planDto.setServings(Integer.valueOf(1));
         planDto.setDays(Integer.valueOf(requestedDays));
 
@@ -908,7 +1147,15 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
 
             DayDto dayDto = new DayDto();
             dayDto.setDayLabel(dayLabel);
-            dayDto.setMeals(buildFallbackMeals(index, gout, diet, removedMealTypes, removalNotes));
+            dayDto.setMeals(buildFallbackMeals(
+                index,
+                gout,
+                diet,
+                requestedCuisineStyle,
+                requestedMealTypes,
+                removedMealTypes,
+                removalNotes
+            ));
             dayList.add(dayDto);
         }
 
@@ -921,35 +1168,45 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
         int index,
         boolean gout,
         boolean diet,
+        String requestedCuisineStyle,
+        List<String> requestedMealTypes,
         Set<String> removedMealTypes,
         List<String> removalNotes
     ) {
         List<MealDto> mealList = new ArrayList<MealDto>();
 
-        if (!removedMealTypes.contains(BREAKFAST)) {
-            mealList.add(buildFallbackBreakfast(index, gout, diet));
-        } else {
+        if (requestedMealTypes.contains(BREAKFAST) && !removedMealTypes.contains(BREAKFAST)) {
+            mealList.add(buildFallbackBreakfast(index, gout, diet, requestedCuisineStyle));
+        } else if (requestedMealTypes.contains(BREAKFAST)) {
             removalNotes.add("\uc544\uce68 \uc2dd\ub2e8\uc744 \uc81c\uc678\ud588\uc5b4\uc694.");
         }
 
-        if (!removedMealTypes.contains(LUNCH)) {
-            mealList.add(buildFallbackLunch(index, gout, diet));
-        } else {
+        if (requestedMealTypes.contains(LUNCH) && !removedMealTypes.contains(LUNCH)) {
+            mealList.add(buildFallbackLunch(index, gout, diet, requestedCuisineStyle));
+        } else if (requestedMealTypes.contains(LUNCH)) {
             removalNotes.add("\uc810\uc2ec \uc2dd\ub2e8\uc744 \uc81c\uc678\ud588\uc5b4\uc694.");
         }
 
-        if (!removedMealTypes.contains(DINNER)) {
-            mealList.add(buildFallbackDinner(index, gout, diet));
-        } else {
+        if (requestedMealTypes.contains(DINNER) && !removedMealTypes.contains(DINNER)) {
+            mealList.add(buildFallbackDinner(index, gout, diet, requestedCuisineStyle));
+        } else if (requestedMealTypes.contains(DINNER)) {
             removalNotes.add("\uc800\ub141 \uc2dd\ub2e8\uc744 \uc81c\uc678\ud588\uc5b4\uc694.");
         }
 
         return mealList;
     }
 
-    private MealDto buildFallbackBreakfast(int index, boolean gout, boolean diet) {
+    private MealDto buildFallbackBreakfast(int index, boolean gout, boolean diet, String requestedCuisineStyle) {
+        String normalizedCuisineStyle = normalizeCuisineStyle(requestedCuisineStyle);
+        if (CUISINE_KOREAN.equals(normalizedCuisineStyle)) {
+            return buildKoreanFallbackBreakfast(index, gout, diet);
+        }
+        if (CUISINE_WESTERN.equals(normalizedCuisineStyle)) {
+            return buildWesternFallbackBreakfast(index, gout, diet);
+        }
+
         int variant = Math.floorMod(index, 7);
-        boolean lightMode = gout || diet;
+        boolean lightMode = gout;
 
         if (lightMode) {
             switch (variant) {
@@ -1040,8 +1297,8 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
             case 1:
                 return createMeal(
                     BREAKFAST,
-                    "\ud1a0\uc2a4\ud2b8 \uc694\uac70\ud2b8 \ud50c\ub808\uc774\ud2b8",
-                    "\uacfc\uc77c\uacfc \ud568\uaed8 \uba39\ub294 \uc544\uce68 \uc2dd\uc0ac\uc608\uc694.",
+                    "\ub2ec\uac40\ud1a0\uc2a4\ud2b8\uc640 \uc694\uac70\ud2b8",
+                    "\uac00\ubccd\uc9c0\ub9cc \ubd80\ub2f4 \uc5c6\uc774 \uba39\uae30 \uc88b\uc740 \uc544\uce68 \uc2dd\uc0ac\uc608\uc694.",
                     List.of(
                         createIngredient("\uc2dd\ube75", "2", "\uc7a5"),
                         createIngredient("\ud50c\ub808\uc778 \uc694\uac70\ud2b8", "180", "g"),
@@ -1050,8 +1307,8 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
             case 2:
                 return createMeal(
                     BREAKFAST,
-                    "\uac10\uc790 \ub2ec\uac40 \uc0d0\ub7ec\ub4dc",
-                    "\ud3ec\ub9cc\uac10 \uc788\uac8c \uc2dc\uc791\ud558\ub294 \uc544\uce68 \uc2dd\uc0ac\uc608\uc694.",
+                    "\uac10\uc790 \ub2ec\uac40 \uc544\uce68",
+                    "\ud3ec\ub9cc\uac10 \uc788\uac8c \uc2dc\uc791\ud558\ub294 \ub4e0\ub4e0\ud55c \uc544\uce68 \uc2dd\uc0ac\uc608\uc694.",
                     List.of(
                         createIngredient("\uac10\uc790", "180", "g"),
                         createIngredient("\ub2ec\uac40", "2", "\uac1c"),
@@ -1060,8 +1317,8 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
             case 3:
                 return createMeal(
                     BREAKFAST,
-                    "\ub450\ubd80 \ud1a0\ub9c8\ud1a0 \ud50c\ub808\uc774\ud2b8",
-                    "\ub2f4\ubc31\uc9c8\uacfc \ucc44\uc18c\ub97c \uac19\uc774 \ub2f4\uc740 \uc544\uce68 \uc2dd\uc0ac\uc608\uc694.",
+                    "\ub450\ubd80\uad6c\uc774\uc640 \ud1a0\ub9c8\ud1a0",
+                    "\ub2f4\ubc31\uc9c8\uacfc \ucc44\uc18c\ub97c \uac19\uc774 \ucc59\uae30\ub294 \uc544\uce68 \uc2dd\uc0ac\uc608\uc694.",
                     List.of(
                         createIngredient("\ub450\ubd80", "220", "g"),
                         createIngredient("\ubc29\uc6b8\ud1a0\ub9c8\ud1a0", "120", "g"),
@@ -1080,8 +1337,8 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
             case 5:
                 return createMeal(
                     BREAKFAST,
-                    "\uc694\uac70\ud2b8 \ubc14\ub098\ub098 \ubcfc",
-                    "\uc0c1\ud07c\ud558\uac8c \uc2dc\uc791\ud558\ub294 \uc544\uce68 \uc2dd\uc0ac\uc608\uc694.",
+                    "\uc694\uac70\ud2b8\uc640 \ubc14\ub098\ub098 \uc544\uce68",
+                    "\uc0c1\ud07c\ud558\uac8c \uc2dc\uc791\ud558\ub294 \uac00\ubcbc\uc6b4 \uc544\uce68 \uc2dd\uc0ac\uc608\uc694.",
                     List.of(
                         createIngredient("\ud50c\ub808\uc778 \uc694\uac70\ud2b8", "180", "g"),
                         createIngredient("\ubc14\ub098\ub098", "1", "\uac1c"),
@@ -1090,8 +1347,8 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
             default:
                 return createMeal(
                     BREAKFAST,
-                    "\uace0\uad6c\ub9c8 \uc0ac\uacfc \ud50c\ub808\uc774\ud2b8",
-                    "\uacfc\uc77c\uacfc \ud568\uaed8 \uac00\ubccd\uac8c \uc2dc\uc791\ud558\ub294 \uc2dd\uc0ac\uc608\uc694.",
+                    "\uace0\uad6c\ub9c8\uc640 \uc0ac\uacfc \uc544\uce68",
+                    "\uacfc\uc77c\uacfc \ud568\uaed8 \uac00\ubccd\uc9c0\ub9cc \ubd80\ub2f4 \uc5c6\uac8c \uc2dc\uc791\ud558\ub294 \uc2dd\uc0ac\uc608\uc694.",
                     List.of(
                         createIngredient("\uace0\uad6c\ub9c8", "180", "g"),
                         createIngredient("\uc0ac\uacfc", "1", "\uac1c"),
@@ -1100,9 +1357,17 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
         }
     }
 
-    private MealDto buildFallbackLunch(int index, boolean gout, boolean diet) {
+    private MealDto buildFallbackLunch(int index, boolean gout, boolean diet, String requestedCuisineStyle) {
+        String normalizedCuisineStyle = normalizeCuisineStyle(requestedCuisineStyle);
+        if (CUISINE_KOREAN.equals(normalizedCuisineStyle)) {
+            return buildKoreanFallbackLunch(index, gout, diet);
+        }
+        if (CUISINE_WESTERN.equals(normalizedCuisineStyle)) {
+            return buildWesternFallbackLunch(index, gout, diet);
+        }
+
         int variant = Math.floorMod(index, 7);
-        boolean lightMode = gout || diet;
+        boolean lightMode = gout;
 
         if (lightMode) {
             switch (variant) {
@@ -1190,8 +1455,8 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
             case 0:
                 return createMeal(
                     LUNCH,
-                    "\ub2ed\uac00\uc2b4\uc0b4 \ucc44\uc18c\ubcfc",
-                    "\ub2e8\ubc31\uc9c8\uacfc \ucc44\uc18c\ub97c \ud568\uaed8 \ucc59\uae30\ub294 \uc810\uc2ec \uc2dd\uc0ac\uc608\uc694.",
+                    "\ub2ed\uac00\uc2b4\uc0b4 \ub36e\ubc25",
+                    "\ub2e8\ubc31\uc9c8\uacfc \ucc44\uc18c\ub97c \ud568\uaed8 \ucc59\uae30\ub294 \ub4e0\ub4e0\ud55c \uc810\uc2ec \ud55c \ub07c\uc608\uc694.",
                     List.of(
                         createIngredient("\ub2ed\uac00\uc2b4\uc0b4", "180", "g"),
                         createIngredient("\uc591\ubc30\ucd94", "150", "g"),
@@ -1256,8 +1521,8 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
             default:
                 return createMeal(
                     LUNCH,
-                    "\ub450\ubd80 \uc591\ubc30\ucd94 \ubcfc",
-                    "\ucc44\uc18c \ube44\uc911\uc744 \ub192\uc778 \uad6c\uc131\uc774\uc5d0\uc694.",
+                    "\ub450\ubd80 \uc591\ubc30\ucd94 \ud55c \ub07c",
+                    "\ucc44\uc18c \ube44\uc911\uc744 \ub192\uc774\uba74\uc11c\ub3c4 \ud3ec\ub9cc\uac10 \uc788\uac8c \uad6c\uc131\ud55c \uc810\uc2ec\uc774\uc5d0\uc694.",
                     List.of(
                         createIngredient("\ub450\ubd80", "220", "g"),
                         createIngredient("\uc591\ubc30\ucd94", "180", "g"),
@@ -1267,9 +1532,17 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
         }
     }
 
-    private MealDto buildFallbackDinner(int index, boolean gout, boolean diet) {
+    private MealDto buildFallbackDinner(int index, boolean gout, boolean diet, String requestedCuisineStyle) {
+        String normalizedCuisineStyle = normalizeCuisineStyle(requestedCuisineStyle);
+        if (CUISINE_KOREAN.equals(normalizedCuisineStyle)) {
+            return buildKoreanFallbackDinner(index, gout, diet);
+        }
+        if (CUISINE_WESTERN.equals(normalizedCuisineStyle)) {
+            return buildWesternFallbackDinner(index, gout, diet);
+        }
+
         int variant = Math.floorMod(index, 7);
-        boolean lightMode = gout || diet;
+        boolean lightMode = gout;
 
         if (lightMode) {
             switch (variant) {
@@ -1420,6 +1693,283 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
         }
     }
 
+    private MealDto buildKoreanFallbackBreakfast(int index, boolean gout, boolean diet) {
+        int variant = Math.floorMod(index, 4);
+        switch (variant) {
+            case 0:
+                return createMeal(
+                    BREAKFAST,
+                    "\ub2ec\uac40\uad6d\uacfc \ud604\ubbf8\ubc25",
+                    "\ub530\ub73b\ud55c \uad6d\uacfc \ubc25\uc73c\ub85c \uc2dc\uc791\ud558\ub294 \ud55c\uc2dd \uc544\uce68\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\ud604\ubbf8\ubc25", "180", "g"),
+                        createIngredient("\ub2ec\uac40", gout ? "1" : "2", "\uac1c"),
+                        createIngredient("\uc591\ud30c", "60", "g"))
+                );
+            case 1:
+                return createMeal(
+                    BREAKFAST,
+                    "\ub450\ubd80\ubd80\uce68\uacfc \ubc25",
+                    "\uc18d \ud3b8\ud558\uac8c \uba39\uae30 \uc88b\uc740 \uc18c\ubc15\ud55c \ud55c\uc2dd \uc544\uce68\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\ub450\ubd80", "220", "g"),
+                        createIngredient("\uc591\ubc30\ucd94", "120", "g"),
+                        createIngredient("\ud604\ubbf8\ubc25", "160", "g"))
+                );
+            case 2:
+                return createMeal(
+                    BREAKFAST,
+                    "\uac10\uc790\uad6d\uacfc \ubc25",
+                    "\ubd80\ub2f4 \uc5c6\uc774 \uba39\ub294 \ub530\ub73b\ud55c \ud55c\uc2dd \uc544\uce68\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\uac10\uc790", "180", "g"),
+                        createIngredient("\uc591\ud30c", "80", "g"),
+                        createIngredient("\ud604\ubbf8\ubc25", "160", "g"))
+                );
+            default:
+                return createMeal(
+                    BREAKFAST,
+                    "\uc8fc\uba39\ubc25\uacfc \ub2ec\uac40\ub9d0\uc774",
+                    "\ud55c\uc2dd \uc9d1\ubc25 \ub290\ub08c\uc73c\ub85c \uac00\ubccd\uac8c \uc2dc\uc791\ud558\ub294 \uc544\uce68\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\ud604\ubbf8\ubc25", "180", "g"),
+                        createIngredient("\ub2ec\uac40", gout ? "1" : "2", "\uac1c"),
+                        createIngredient("\ub2f9\uadfc", "70", "g"))
+                );
+        }
+    }
+
+    private MealDto buildKoreanFallbackLunch(int index, boolean gout, boolean diet) {
+        int variant = Math.floorMod(index, 4);
+        switch (variant) {
+            case 0:
+                return createMeal(
+                    LUNCH,
+                    "\ub2ed\uac00\uc2b4\uc0b4 \uac04\uc7a5\ub36e\ubc25",
+                    "\ubc25\uacfc \ud568\uaed8 \ub4e0\ub4e0\ud558\uac8c \uba39\ub294 \ud55c\uc2dd \uc810\uc2ec\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\ub2ed\uac00\uc2b4\uc0b4", "160", "g"),
+                        createIngredient("\uc591\ubc30\ucd94", "150", "g"),
+                        createIngredient("\ud604\ubbf8\ubc25", "180", "g"))
+                );
+            case 1:
+                return createMeal(
+                    LUNCH,
+                    "\ub450\ubd80 \ube44\ube54\ubc25",
+                    "\ucc44\uc18c\uc640 \ub450\ubd80\ub97c \ube44\ube48 \uc775\uc219\ud55c \ud55c\uc2dd \uc810\uc2ec\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\ub450\ubd80", "240", "g"),
+                        createIngredient("\uc624\uc774", "100", "g"),
+                        createIngredient("\ud604\ubbf8\ubc25", "180", "g"))
+                );
+            case 2:
+                return createMeal(
+                    LUNCH,
+                    "\ub3fc\uc9c0\uc548\uc2ec \uac10\uc790\uc870\ub9bc",
+                    "\uc870\ub9bc \ubc18\ucc2c\uacfc \ubc25\uc73c\ub85c \ud3ec\ub9cc\uac10 \uc788\uac8c \uba39\ub294 \ud55c\uc2dd \uc810\uc2ec\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\ub3fc\uc9c0\uc548\uc2ec", "160", "g"),
+                        createIngredient("\uac10\uc790", "180", "g"),
+                        createIngredient("\uc591\ud30c", "90", "g"),
+                        createIngredient("\ud604\ubbf8\ubc25", "180", "g"))
+                );
+            default:
+                return createMeal(
+                    LUNCH,
+                    "\ub2ec\uac40 \uc57c\ucc44\ubcf6\uc74c\ubc25",
+                    "\uc775\uc219\ud558\uace0 \uba39\uae30 \ud3b8\ud55c \ud55c\uc2dd \uc810\uc2ec \ud55c \ub07c\uc608\uc694.",
+                    List.of(
+                        createIngredient("\ub2ec\uac40", gout ? "1" : "2", "\uac1c"),
+                        createIngredient("\ub2f9\uadfc", "80", "g"),
+                        createIngredient("\ud604\ubbf8\ubc25", "180", "g"))
+                );
+        }
+    }
+
+    private MealDto buildKoreanFallbackDinner(int index, boolean gout, boolean diet) {
+        int variant = Math.floorMod(index, 4);
+        switch (variant) {
+            case 0:
+                return createMeal(
+                    DINNER,
+                    "\uc560\ud638\ubc15 \ub450\ubd80\ucc0c\uac1c",
+                    "\uc9d1\ubc25 \ub290\ub08c\uc73c\ub85c \ub530\ub73b\ud558\uac8c \ub9c8\ubb34\ub9ac\ud558\ub294 \ud55c\uc2dd \uc800\ub141\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\uc560\ud638\ubc15", "1", "\uac1c"),
+                        createIngredient("\ub450\ubd80", "260", "g"),
+                        createIngredient("\uc591\ud30c", "100", "g"))
+                );
+            case 1:
+                return createMeal(
+                    DINNER,
+                    "\ub2ed\uac00\uc2b4\uc0b4 \ub41c\uc7a5\uad6d",
+                    "\uad6d \ud55c \uadf8\ub987\uacfc \ud568\uaed8 \ud3b8\uc548\ud558\uac8c \uba39\ub294 \ud55c\uc2dd \uc800\ub141\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\ub2ed\uac00\uc2b4\uc0b4", "140", "g"),
+                        createIngredient("\uc591\ubc30\ucd94", "180", "g"),
+                        createIngredient("\uac10\uc790", "150", "g"))
+                );
+            case 2:
+                return createMeal(
+                    DINNER,
+                    "\ub450\ubd80 \uac10\uc790\uc804\uace8",
+                    "\ub530\ub73b\ud558\uace0 \ud3ec\ub9cc\uac10 \uc788\uac8c \uba39\ub294 \ud55c\uc2dd \uc800\ub141\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\ub450\ubd80", "240", "g"),
+                        createIngredient("\uac10\uc790", "180", "g"),
+                        createIngredient("\uc591\ubc30\ucd94", "150", "g"))
+                );
+            default:
+                return createMeal(
+                    DINNER,
+                    "\ub2ec\uac40\uad6d\uacfc \ubc25",
+                    "\ud55c\uc2dd \uad6d\ubb3c\uacfc \ubc25\uc73c\ub85c \ubd80\ub2f4 \uc5c6\uc774 \ub05d\ub0b4\ub294 \uc800\ub141\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\ub2ec\uac40", gout ? "1" : "2", "\uac1c"),
+                        createIngredient("\uc591\ubc30\ucd94", "150", "g"),
+                        createIngredient("\ud604\ubbf8\ubc25", "160", "g"))
+                );
+        }
+    }
+
+    private MealDto buildWesternFallbackBreakfast(int index, boolean gout, boolean diet) {
+        int variant = Math.floorMod(index, 4);
+        switch (variant) {
+            case 0:
+                return createMeal(
+                    BREAKFAST,
+                    "\uc5d0\uadf8 \ud1a0\uc2a4\ud2b8 \ud50c\ub808\uc774\ud2b8",
+                    "\uac00\ubccd\uc6b4 \uc591\uc2dd \uc544\uce68 \uad6c\uc131\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\ub2ec\uac40", gout ? "1" : "2", "\uac1c"),
+                        createIngredient("\uc2dd\ube75", "2", "\uc7a5"),
+                        createIngredient("\ubc29\uc6b8\ud1a0\ub9c8\ud1a0", "100", "g"))
+                );
+            case 1:
+                return createMeal(
+                    BREAKFAST,
+                    "\uc694\uac70\ud2b8 \ud504\ub8e8\ud2b8 \ubcfc",
+                    "\uc0c1\ud07c\ud558\uac8c \uc2dc\uc791\ud558\ub294 \uc591\uc2dd \uc544\uce68\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\ud50c\ub808\uc778 \uc694\uac70\ud2b8", "180", "g"),
+                        createIngredient("\ubc14\ub098\ub098", "1", "\uac1c"),
+                        createIngredient("\uc0ac\uacfc", "1", "\uac1c"))
+                );
+            case 2:
+                return createMeal(
+                    BREAKFAST,
+                    "\uc624\ud2b8\ubc00 \ubcfc",
+                    "\ub2e8\uc21c\ud558\uac8c \uba39\ub294 \uc591\uc2dd \uc2a4\ud0c0\uc77c \uc544\uce68\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\uc624\ud2b8\ubc00", "70", "g"),
+                        createIngredient("\ud50c\ub808\uc778 \uc694\uac70\ud2b8", "150", "g"),
+                        createIngredient("\ubc14\ub098\ub098", "1", "\uac1c"))
+                );
+            default:
+                return createMeal(
+                    BREAKFAST,
+                    "\uc2a4\ud06c\ub7a8\ube14 \uc5d0\uadf8 \uc0d0\ub7ec\ub4dc",
+                    "\ucc44\uc18c\ub97c \uace5\ub4e4\uc778 \uc591\uc2dd \uc544\uce68\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\ub2ec\uac40", gout ? "1" : "2", "\uac1c"),
+                        createIngredient("\uc591\uc0c1\ucd94", "100", "g"),
+                        createIngredient("\ubc29\uc6b8\ud1a0\ub9c8\ud1a0", "100", "g"))
+                );
+        }
+    }
+
+    private MealDto buildWesternFallbackLunch(int index, boolean gout, boolean diet) {
+        int variant = Math.floorMod(index, 4);
+        switch (variant) {
+            case 0:
+                return createMeal(
+                    LUNCH,
+                    "\ub2ed\uac00\uc2b4\uc0b4 \uc0d0\ub7ec\ub4dc \ubcfc",
+                    "\ucc44\uc18c \uc911\uc2ec\uc758 \uc591\uc2dd \uc810\uc2ec\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\ub2ed\uac00\uc2b4\uc0b4", "150", "g"),
+                        createIngredient("\uc591\uc0c1\ucd94", "120", "g"),
+                        createIngredient("\ubc29\uc6b8\ud1a0\ub9c8\ud1a0", "120", "g"))
+                );
+            case 1:
+                return createMeal(
+                    LUNCH,
+                    "\ud1a0\ub9c8\ud1a0 \ud30c\uc2a4\ud0c0",
+                    "\ud1a0\ub9c8\ud1a0 \uae30\ubc18\uc758 \uac00\ubcbc\uc6b4 \uc591\uc2dd \uc810\uc2ec\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\uc2dd\ube75", "2", "\uc7a5"),
+                        createIngredient("\ubc29\uc6b8\ud1a0\ub9c8\ud1a0", "150", "g"),
+                        createIngredient("\uc591\ud30c", "80", "g"))
+                );
+            case 2:
+                return createMeal(
+                    LUNCH,
+                    "\ub450\ubd80 \uc2a4\ud14c\uc774\ud06c \ud50c\ub808\uc774\ud2b8",
+                    "\ub2f4\ubc31\uc9c8\uc744 \ucc59\uae30\ub294 \uc591\uc2dd \uc2a4\ud0c0\uc77c \uc810\uc2ec\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\ub450\ubd80", "260", "g"),
+                        createIngredient("\uac10\uc790", "180", "g"),
+                        createIngredient("\uc591\uc0c1\ucd94", "80", "g"))
+                );
+            default:
+                return createMeal(
+                    LUNCH,
+                    "\ud3ec\ud06c \uc2a4\ud14c\uc774\ud06c \uc0d0\ub7ec\ub4dc",
+                    "\uace0\uae30\uc640 \ucc44\uc18c\ub97c \ud568\uaed8 \ub2f4\uc740 \uc591\uc2dd \uc810\uc2ec\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\ub3fc\uc9c0\uc548\uc2ec", "160", "g"),
+                        createIngredient("\uc624\uc774", "100", "g"),
+                        createIngredient("\ubc29\uc6b8\ud1a0\ub9c8\ud1a0", "100", "g"))
+                );
+        }
+    }
+
+    private MealDto buildWesternFallbackDinner(int index, boolean gout, boolean diet) {
+        int variant = Math.floorMod(index, 4);
+        switch (variant) {
+            case 0:
+                return createMeal(
+                    DINNER,
+                    "\ucc44\uc18c \uc218\ud504 \ud50c\ub808\uc774\ud2b8",
+                    "\ub530\ub73b\ud558\uac8c \ub9c8\ubb34\ub9ac\ud558\ub294 \uc591\uc2dd \uc800\ub141\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\uc591\ubc30\ucd94", "150", "g"),
+                        createIngredient("\uac10\uc790", "160", "g"),
+                        createIngredient("\ub2f9\uadfc", "80", "g"))
+                );
+            case 1:
+                return createMeal(
+                    DINNER,
+                    "\ub2ed\uac00\uc2b4\uc0b4 \uad6c\uc774 \ud50c\ub808\uc774\ud2b8",
+                    "\ub2e8\ubc31\uc9c8 \uc911\uc2ec\uc73c\ub85c \uad6c\uc131\ud55c \uc591\uc2dd \uc800\ub141\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\ub2ed\uac00\uc2b4\uc0b4", "150", "g"),
+                        createIngredient("\uace0\uad6c\ub9c8", "180", "g"),
+                        createIngredient("\uc591\uc0c1\ucd94", "80", "g"))
+                );
+            case 2:
+                return createMeal(
+                    DINNER,
+                    "\ub450\ubd80 \uad6c\uc774 \uc0d0\ub7ec\ub4dc",
+                    "\uac00\ubccd\uac8c \uba39\ub294 \uc591\uc2dd \uc2a4\ud0c0\uc77c \uc800\ub141\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\ub450\ubd80", "240", "g"),
+                        createIngredient("\uc591\uc0c1\ucd94", "100", "g"),
+                        createIngredient("\ubc29\uc6b8\ud1a0\ub9c8\ud1a0", "120", "g"))
+                );
+            default:
+                return createMeal(
+                    DINNER,
+                    "\ud3ec\ud06c \uad6c\uc774 \ubcfc",
+                    "\ud3ec\ub9cc\uac10 \uc788\uac8c \ub9c8\ubb34\ub9ac\ud558\ub294 \uc591\uc2dd \uc800\ub141\uc774\uc5d0\uc694.",
+                    List.of(
+                        createIngredient("\ub3fc\uc9c0\uc548\uc2ec", "160", "g"),
+                        createIngredient("\uac10\uc790", "160", "g"),
+                        createIngredient("\uc591\ud30c", "90", "g"))
+                );
+        }
+    }
+
     private MealDto createMeal(
         String mealType,
         String menuName,
@@ -1443,17 +1993,18 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
         return ingredientDto;
     }
 
-    private String buildFallbackSummary(boolean gout, boolean diet, int requestedDays) {
+    private String buildFallbackSummary(boolean gout, boolean diet, int requestedDays, String requestedCuisineStyle) {
+        String cuisinePrefix = isBlank(requestedCuisineStyle) ? "" : requestedCuisineStyle + " ";
         if (gout && diet) {
-            return "\ud1b5\ud48d\uc744 \uace0\ub824\ud55c \uc800\ud4e8\ub9b0 \ub2e4\uc774\uc5b4\ud2b8 \uc2dd\ub2e8 " + requestedDays + "\uc77c\ubd84\uc744 \uc815\ub9ac\ud588\uc5b4\uc694.";
+            return "\ud1b5\ud48d\uc744 \uace0\ub824\ud558\uba74\uc11c\ub3c4 \ubd80\ub2f4 \ub35c\uace0 \uba39\uae30 \uc88b\uc740 " + cuisinePrefix + "\ub2e4\uc774\uc5b4\ud2b8 \uc2dd\ub2e8 " + requestedDays + "\uc77c\ubd84\uc744 \uc815\ub9ac\ud588\uc5b4\uc694.";
         }
         if (gout) {
-            return "\ud1b5\ud48d\uc744 \uace0\ub824\ud55c \uc800\ud4e8\ub9b0 \uc2dd\ub2e8 " + requestedDays + "\uc77c\ubd84\uc744 \uc815\ub9ac\ud588\uc5b4\uc694.";
+            return "\ud1b5\ud48d\uc744 \uace0\ub824\ud558\uba74\uc11c\ub3c4 \ub9db\uc788\uac8c \uba39\uc744 \uc218 \uc788\ub294 " + cuisinePrefix + "\uc2dd\ub2e8 " + requestedDays + "\uc77c\ubd84\uc744 \uc815\ub9ac\ud588\uc5b4\uc694.";
         }
         if (diet) {
-            return "\ub2e4\uc774\uc5b4\ud2b8\ub97c \uace0\ub824\ud55c \uc2dd\ub2e8 " + requestedDays + "\uc77c\ubd84\uc744 \uc815\ub9ac\ud588\uc5b4\uc694.";
+            return "\ub2e4\uc774\uc5b4\ud2b8\ub97c \uace0\ub824\ud558\uba74\uc11c\ub3c4 \uc77c\uc0c1\uc801\uc73c\ub85c \ub9db\uc788\uac8c \uba39\uae30 \uc88b\uc740 " + cuisinePrefix + "\uc2dd\ub2e8 " + requestedDays + "\uc77c\ubd84\uc744 \uc815\ub9ac\ud588\uc5b4\uc694.";
         }
-        return requestedDays + "\uc77c\uce58 \uc2dd\ub2e8\uacfc \uc7a5\ubcf4\uae30 \uc7ac\ub8cc\ub97c \uc815\ub9ac\ud588\uc5b4\uc694.";
+        return cuisinePrefix + requestedDays + "\uc77c\uce58 \uc2dd\ub2e8\uacfc \uc7a5\ubcf4\uae30 \uc7ac\ub8cc\ub97c \uc815\ub9ac\ud588\uc5b4\uc694.";
     }
 
     private String buildReplyMessage(MealPlanChatResponseDto responseDto) {
@@ -1530,12 +2081,67 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
         return removedMealTypes;
     }
 
-    private int extractRequestedDays(String userMessage) {
+    private List<String> extractRequestedMealTypes(String userMessage) {
+        LinkedHashSet<String> requestedMealTypes = new LinkedHashSet<String>();
         if (isBlank(userMessage)) {
-            return 3;
+            return new ArrayList<String>();
         }
 
-        if (userMessage.contains("\uc77c\uc8fc\uc77c") || userMessage.contains("\uc8fc\uac04") || userMessage.contains("7\uc77c")) {
+        if (userMessage.contains(BREAKFAST)) {
+            requestedMealTypes.add(BREAKFAST);
+        }
+        if (userMessage.contains(LUNCH)) {
+            requestedMealTypes.add(LUNCH);
+        }
+        if (userMessage.contains(DINNER)) {
+            requestedMealTypes.add(DINNER);
+        }
+        return new ArrayList<String>(requestedMealTypes);
+    }
+
+    private String extractRequestedCuisineStyle(String userMessage) {
+        if (isBlank(userMessage)) {
+            return null;
+        }
+
+        if (userMessage.contains(CUISINE_KOREAN)) {
+            return CUISINE_KOREAN;
+        }
+        if (userMessage.contains(CUISINE_WESTERN)) {
+            return CUISINE_WESTERN;
+        }
+        if (userMessage.contains(CUISINE_JAPANESE)) {
+            return CUISINE_JAPANESE;
+        }
+        if (userMessage.contains(CUISINE_CHINESE)) {
+            return CUISINE_CHINESE;
+        }
+        return null;
+    }
+
+    private List<String> resolveRequestedMealTypes(String userMessage) {
+        List<String> requestedMealTypes = extractRequestedMealTypes(userMessage);
+        if (!requestedMealTypes.isEmpty()) {
+            return requestedMealTypes;
+        }
+
+        if (requestsSingleMeal(userMessage)) {
+            return Collections.singletonList(DINNER);
+        }
+
+        return List.of(BREAKFAST, LUNCH, DINNER);
+    }
+
+    private int extractRequestedDays(String userMessage) {
+        if (isBlank(userMessage)) {
+            return 1;
+        }
+
+        if (userMessage.contains("\uc77c\uc8fc\uc77c")
+            || userMessage.contains("\ud55c \uc8fc")
+            || userMessage.contains("\ud55c\uc8fc")
+            || userMessage.contains("\uc8fc\uac04")
+            || userMessage.contains("7\uc77c")) {
             return 7;
         }
 
@@ -1547,7 +2153,35 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
             }
         }
 
-        return 3;
+        return 1;
+    }
+
+    private boolean requestsSingleMeal(String userMessage) {
+        return !isBlank(userMessage)
+            && (userMessage.contains("\ud55c\ub07c")
+                || userMessage.contains("\ud55c \ub07c")
+                || userMessage.contains("1\ub07c")
+                || userMessage.contains("1 \ub07c"));
+    }
+
+    private String normalizeCuisineStyle(String requestedCuisineStyle) {
+        String normalizedCuisineStyle = trimToNull(requestedCuisineStyle);
+        if (normalizedCuisineStyle == null) {
+            return null;
+        }
+        if (normalizedCuisineStyle.contains(CUISINE_KOREAN)) {
+            return CUISINE_KOREAN;
+        }
+        if (normalizedCuisineStyle.contains(CUISINE_WESTERN)) {
+            return CUISINE_WESTERN;
+        }
+        if (normalizedCuisineStyle.contains(CUISINE_JAPANESE)) {
+            return CUISINE_JAPANESE;
+        }
+        if (normalizedCuisineStyle.contains(CUISINE_CHINESE)) {
+            return CUISINE_CHINESE;
+        }
+        return null;
     }
 
     private boolean mentionsGout(String userMessage) {
@@ -1573,6 +2207,81 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
         if (normalizedValue != null) {
             searchTerms.add(normalizedValue);
         }
+    }
+
+    private List<MealDto> filterMealsForRequest(
+        List<MealDto> mealList,
+        List<String> requestedMealTypes,
+        boolean singleMealRequest
+    ) {
+        if (mealList == null || mealList.isEmpty()) {
+            return new ArrayList<MealDto>();
+        }
+
+        List<MealDto> filteredMealList = new ArrayList<MealDto>();
+        Set<String> requestedMealTypeSet = new LinkedHashSet<String>();
+        for (String requestedMealType : requestedMealTypes) {
+            String canonicalMealType = canonicalizeMealType(requestedMealType);
+            if (canonicalMealType != null) {
+                requestedMealTypeSet.add(canonicalMealType);
+            }
+        }
+
+        if (!requestedMealTypeSet.isEmpty()) {
+            for (MealDto mealDto : mealList) {
+                String canonicalMealType = canonicalizeMealType(mealDto == null ? null : mealDto.getMealType());
+                if (canonicalMealType != null && requestedMealTypeSet.contains(canonicalMealType)) {
+                    filteredMealList.add(mealDto);
+                }
+            }
+        } else {
+            filteredMealList.addAll(mealList);
+        }
+
+        if (!singleMealRequest) {
+            return filteredMealList;
+        }
+
+        MealDto selectedMealDto = selectSingleMeal(filteredMealList.isEmpty() ? mealList : filteredMealList);
+        if (selectedMealDto == null) {
+            return new ArrayList<MealDto>();
+        }
+        return new ArrayList<MealDto>(Collections.singletonList(selectedMealDto));
+    }
+
+    private MealDto selectSingleMeal(List<MealDto> mealList) {
+        if (mealList == null || mealList.isEmpty()) {
+            return null;
+        }
+
+        for (String preferredMealType : List.of(DINNER, LUNCH, BREAKFAST)) {
+            for (MealDto mealDto : mealList) {
+                if (preferredMealType.equals(canonicalizeMealType(mealDto == null ? null : mealDto.getMealType()))) {
+                    return mealDto;
+                }
+            }
+        }
+
+        return mealList.get(0);
+    }
+
+    private String canonicalizeMealType(String value) {
+        String normalizedValue = trimToNull(value);
+        if (normalizedValue == null) {
+            return null;
+        }
+
+        String lowerCaseValue = normalizedValue.toLowerCase(Locale.ROOT);
+        if (lowerCaseValue.contains("\uc544\uce68") || lowerCaseValue.contains("\uc870\uc2dd") || lowerCaseValue.contains("breakfast")) {
+            return BREAKFAST;
+        }
+        if (lowerCaseValue.contains("\uc810\uc2ec") || lowerCaseValue.contains("\uc911\uc2dd") || lowerCaseValue.contains("lunch")) {
+            return LUNCH;
+        }
+        if (lowerCaseValue.contains("\uc800\ub141") || lowerCaseValue.contains("\uc11d\uc2dd") || lowerCaseValue.contains("dinner")) {
+            return DINNER;
+        }
+        return normalizedValue;
     }
 
     private String stripQuantitySuffix(String productName) {
@@ -1762,6 +2471,19 @@ public class MealPlanChatServiceImpl implements MealPlanChatService {
 
     private int safeInteger(Integer value) {
         return value == null ? 0 : value.intValue();
+    }
+
+    private static Map<String, Set<String>> createCuisineKeywordMap() {
+        Map<String, Set<String>> cuisineKeywordMap = new LinkedHashMap<String, Set<String>>();
+        cuisineKeywordMap.put(
+            CUISINE_KOREAN,
+            Set.of("\uc815\uc2dd", "\ub36e\ubc25", "\ube44\ube54\ubc25", "\uc870\ub9bc", "\uad6d", "\ucc0c\uac1c", "\ubb34\uce68", "\ubcf6\uc74c", "\uc804\uace8", "\uc8fd", "\uc8fc\uba39\ubc25", "\ubd80\uce68")
+        );
+        cuisineKeywordMap.put(
+            CUISINE_WESTERN,
+            Set.of("\ud1a0\uc2a4\ud2b8", "\uc0d0\ub7ec\ub4dc", "\ud30c\uc2a4\ud0c0", "\uc2a4\ud14c\uc774\ud06c", "\uc624\ud2b8\ubc00", "\uc694\uac70\ud2b8", "\uc218\ud504", "\ud50c\ub808\uc774\ud2b8", "\uc624\ubb00\ub81b", "\uc2a4\ud06c\ub7a8\ube14")
+        );
+        return cuisineKeywordMap;
     }
 
     private static Map<String, List<String>> createIngredientAliasMap() {

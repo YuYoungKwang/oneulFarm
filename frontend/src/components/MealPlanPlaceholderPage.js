@@ -16,7 +16,7 @@ const MEAL_PLAN_CHAT_TAB_ID_KEY = 'oneulFarmMealPlanChat:tabId';
 const MAX_STORED_MESSAGES = 40;
 const MAX_STORED_SESSIONS = 5;
 const MEAL_PLAN_IMPORT_RANGE_PROMPT =
-  '\uC88B\uC544\uC694. \uB9C8\uC774\uD398\uC774\uC9C0 \uC2DD\uB2E8\uAD00\uB9AC\uC5D0 \uCD94\uAC00\uD560\uAC8C\uC694. \uBA87\uC77C\uBD80\uD130 \uBA87\uC77C\uAE4C\uC9C0 \uB123\uC744\uAE4C\uC694? \uC608: 2026-04-01\uBD80\uD130 2026-04-07\uAE4C\uC9C0 \uCD94\uAC00\uD574\uC918';
+  '\uC88B\uC544\uC694. \uB9C8\uC774\uD398\uC774\uC9C0 \uC2DD\uB2E8\uAD00\uB9AC\uC5D0 \uCD94\uAC00\uD560\uAC8C\uC694. \uC5B8\uC81C\uBD80\uD130 \uB123\uC744\uAE4C\uC694? \uC608: 4\uC6D4 2\uC77C\uBD80\uD130 \uB123\uC5B4\uC918, 2026-04-02\uBD80\uD130 \uCD94\uAC00\uD574\uC918, \uB610\uB294 2026-04-02\uBD80\uD130 2026-04-08\uAE4C\uC9C0 \uCD94\uAC00\uD574\uC918';
 
 const STARTER_PROMPTS = [
   '\uC800\uB294 180cm, 100kg\uC774\uACE0 \uB2E4\uC774\uC5B4\uD2B8 \uC911\uC774\uC5D0\uC694. \uD1B5\uD48D\uB3C4 \uC788\uC2B5\uB2C8\uB2E4. 7\uC77C \uC2DD\uB2E8\uC744 \uC9DC\uC8FC\uC138\uC694.',
@@ -230,6 +230,21 @@ function buildIsoDate(year, month, day) {
   return `${nextYear}-${padDatePart(nextMonth)}-${padDatePart(nextDay)}`;
 }
 
+function addDaysToIsoDate(dateKey, offset) {
+  const matched = String(dateKey || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!matched) {
+    return '';
+  }
+
+  const date = new Date(Number(matched[1]), Number(matched[2]) - 1, Number(matched[3]));
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  date.setDate(date.getDate() + Number(offset || 0));
+  return buildIsoDate(date.getFullYear(), date.getMonth() + 1, date.getDate());
+}
+
 function normalizeDateToken(token, fallbackYear) {
   const normalizedToken = normalizeText(token).replace(/\s+/g, '');
   if (!normalizedToken) {
@@ -259,6 +274,7 @@ function normalizeDateToken(token, fallbackYear) {
   return '';
 }
 
+// eslint-disable-next-line no-unused-vars
 function extractDateRange(text) {
   const fallbackYear = new Date().getFullYear();
   const normalizedTextValue = normalizeText(text);
@@ -320,7 +336,7 @@ function isMealCalendarImportIntentSafe(value) {
   return (hasCalendarNoun && hasImportVerb) || (hasImportVerb && hasDateRangeCue);
 }
 
-function normalizeDateTokenSafe(token, fallbackYear) {
+function normalizeDateTokenSafe(token, fallbackYear, fallbackMonth = new Date().getMonth() + 1) {
   const normalizedToken = normalizeText(token).replace(/\s+/g, '');
   if (!normalizedToken) {
     return '';
@@ -346,19 +362,25 @@ function normalizeDateTokenSafe(token, fallbackYear) {
     return buildIsoDate(fallbackYear, match[1], match[2]);
   }
 
+  match = normalizedToken.match(/^(\d{1,2})\uC77C$/);
+  if (match) {
+    return buildIsoDate(fallbackYear, fallbackMonth, match[1]);
+  }
+
   return '';
 }
 
-function extractDateRangeSafe(text) {
+function extractDateRangeSafe(text, fallbackDays = 1) {
   const fallbackYear = new Date().getFullYear();
+  const fallbackMonth = new Date().getMonth() + 1;
   const normalizedTextValue = normalizeText(text);
   if (!normalizedTextValue) {
     return null;
   }
 
   const patterns = [
-    /(\d{4}[./-]\d{1,2}[./-]\d{1,2}|\d{1,2}[./-]\d{1,2}|\d{1,2}\uC6D4\s*\d{1,2}\uC77C)\s*(?:\uBD80\uD130|\uC5D0\uC11C)\s*(\d{4}[./-]\d{1,2}[./-]\d{1,2}|\d{1,2}[./-]\d{1,2}|\d{1,2}\uC6D4\s*\d{1,2}\uC77C)\s*(?:\uAE4C\uC9C0)?/,
-    /(\d{4}[./-]\d{1,2}[./-]\d{1,2}|\d{1,2}[./-]\d{1,2}|\d{1,2}\uC6D4\s*\d{1,2}\uC77C)\s*[-~]\s*(\d{4}[./-]\d{1,2}[./-]\d{1,2}|\d{1,2}[./-]\d{1,2}|\d{1,2}\uC6D4\s*\d{1,2}\uC77C)/,
+    /(\d{4}[./-]\d{1,2}[./-]\d{1,2}|\d{1,2}[./-]\d{1,2}|\d{1,2}\uC6D4\s*\d{1,2}\uC77C|\d{1,2}\uC77C)\s*(?:\uBD80\uD130|\uC5D0\uC11C)\s*(\d{4}[./-]\d{1,2}[./-]\d{1,2}|\d{1,2}[./-]\d{1,2}|\d{1,2}\uC6D4\s*\d{1,2}\uC77C|\d{1,2}\uC77C)\s*(?:\uAE4C\uC9C0)?/,
+    /(\d{4}[./-]\d{1,2}[./-]\d{1,2}|\d{1,2}[./-]\d{1,2}|\d{1,2}\uC6D4\s*\d{1,2}\uC77C|\d{1,2}\uC77C)\s*[-~]\s*(\d{4}[./-]\d{1,2}[./-]\d{1,2}|\d{1,2}[./-]\d{1,2}|\d{1,2}\uC6D4\s*\d{1,2}\uC77C|\d{1,2}\uC77C)/,
   ];
 
   for (const pattern of patterns) {
@@ -367,13 +389,26 @@ function extractDateRangeSafe(text) {
       continue;
     }
 
-    const startDate = normalizeDateTokenSafe(match[1], fallbackYear);
-    const endDate = normalizeDateTokenSafe(match[2], fallbackYear);
+    const startDate = normalizeDateTokenSafe(match[1], fallbackYear, fallbackMonth);
+    const endDate = normalizeDateTokenSafe(match[2], fallbackYear, fallbackMonth);
     if (!startDate || !endDate || startDate > endDate) {
       return null;
     }
 
     return { startDate, endDate };
+  }
+
+  const singleStartMatch = normalizedTextValue.match(
+    /(\d{4}[./-]\d{1,2}[./-]\d{1,2}|\d{1,2}[./-]\d{1,2}|\d{1,2}\uC6D4\s*\d{1,2}\uC77C|\d{1,2}\uC77C)\s*(?:\uBD80\uD130|\uC5D0\uC11C)/
+  );
+
+  if (singleStartMatch) {
+    const startDate = normalizeDateTokenSafe(singleStartMatch[1], fallbackYear, fallbackMonth);
+    const safeSpanDays = Math.max(1, Number(fallbackDays || 1));
+    const endDate = addDaysToIsoDate(startDate, safeSpanDays - 1);
+    if (startDate && endDate) {
+      return { startDate, endDate };
+    }
   }
 
   return null;
@@ -1150,7 +1185,15 @@ export default function MealPlanPlaceholderPage({ authUser }) {
       return;
     }
 
-    const dateRange = extractDateRangeSafe(normalizedMessage);
+    const inferredPlanDays = Math.max(
+      1,
+      Number(
+        structuredContext.message?.plan?.days ||
+          structuredContext.message?.plan?.daysList?.length ||
+          1
+      )
+    );
+    const dateRange = extractDateRangeSafe(normalizedMessage, inferredPlanDays);
     if (!dateRange) {
       setIsAwaitingMealPlanDateRange(true);
       setMessages((currentMessages) => [
@@ -1329,7 +1372,15 @@ export default function MealPlanPlaceholderPage({ authUser }) {
       return;
     }
 
-    const dateRange = extractDateRange(normalizedMessage);
+    const inferredPlanDays = Math.max(
+      1,
+      Number(
+        structuredContext.message?.plan?.days ||
+          structuredContext.message?.plan?.daysList?.length ||
+          1
+      )
+    );
+    const dateRange = extractDateRangeSafe(normalizedMessage, inferredPlanDays);
     if (!dateRange) {
       setMessages((currentMessages) => [
         ...currentMessages,

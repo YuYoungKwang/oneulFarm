@@ -52,11 +52,6 @@ function formatDateLabel(dateKey) {
   return `${matched[1]}.${matched[2]}.${matched[3]}`;
 }
 
-function getMealTypeLabel(mealType) {
-  const matchedOption = MEAL_TYPE_OPTIONS.find((option) => option.value === mealType);
-  return matchedOption ? matchedOption.label : mealType || '\uC2DD\uB2E8';
-}
-
 function buildCalendarCells(monthKey, entryList) {
   const [year, month] = String(monthKey).split('-').map(Number);
   const firstDate = new Date(year, month - 1, 1);
@@ -346,7 +341,7 @@ export default function MealScheduleView({
                       key={entry.entryNo}
                       className={`meal-schedule-chip is-${String(entry.sourceType || '').toLowerCase()}`}
                     >
-                      {`${getMealTypeLabel(entry.mealType)} \u00B7 ${entry.entryTitle}`}
+                      {entry.entryTitle}
                     </span>
                   ))}
                   {cell.entries.length > 3 ? (
@@ -384,7 +379,6 @@ export default function MealScheduleView({
                         </span>
                         <strong>{entry.entryTitle}</strong>
                       </div>
-                      <span>{getMealTypeLabel(entry.mealType)}</span>
                     </div>
 
                     {entry.entryDescription ? (
