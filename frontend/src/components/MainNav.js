@@ -54,6 +54,20 @@ function buildSearchHash(searchTab, searchQuery) {
   return queryString ? `${basePath}?${queryString}` : basePath;
 }
 
+function getAccountLabel(authUser) {
+  const nickname = String(authUser?.nickname || "").trim();
+  if (nickname) {
+    return nickname;
+  }
+
+  const userId = String(authUser?.userId || "").trim();
+  if (userId) {
+    return userId;
+  }
+
+  return "내 계정";
+}
+
 export default function MainNav({
   activeSection,
   authUser,
@@ -164,7 +178,7 @@ export default function MainNav({
                 type="button"
                 onClick={() => navigateTo("#/mypage")}
               >
-                내 계정
+                {getAccountLabel(authUser)}
               </button>
               <button className="main-nav__btn" type="button" onClick={onLogout}>
                 로그아웃

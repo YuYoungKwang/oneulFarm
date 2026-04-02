@@ -41,11 +41,14 @@ export function getAuthUser() {
       return null;
     }
 
-    if (storedValue !== storedAccessToken) {
-      window.localStorage.setItem(AUTH_STORAGE_KEY, storedAccessToken);
+    if (typeof parsedValue !== 'object' || parsedValue == null) {
+      window.localStorage.setItem(
+        AUTH_STORAGE_KEY,
+        JSON.stringify({ accessToken: storedAccessToken })
+      );
     }
 
-    return hydrateAuthUser(storedAccessToken);
+    return hydrateAuthUser(storedAccessToken, parsedValue);
   } catch (error) {
     return null;
   }
@@ -57,7 +60,19 @@ export function setAuthUser(user) {
     if (!storedAccessToken) {
       window.localStorage.removeItem(AUTH_STORAGE_KEY);
     } else {
-      window.localStorage.setItem(AUTH_STORAGE_KEY, storedAccessToken);
+      const storedUser =
+        user && typeof user === 'object'
+          ? {
+              accessToken: storedAccessToken,
+              userNo: user.userNo ?? null,
+              userId: user.userId || '',
+              nickname: user.nickname || '',
+              role: user.role || '',
+              status: user.status || '',
+              passwordChangeRequired: Boolean(user.passwordChangeRequired),
+            }
+          : { accessToken: storedAccessToken };
+      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(storedUser));
     }
     window.dispatchEvent(
       new CustomEvent('oneulFarm:storage-change', {
@@ -87,7 +102,7 @@ function sanitizeStoredAuthToken(value) {
   return String(accessToken).trim() || null;
 }
 
-function hydrateAuthUser(accessToken) {
+function hydrateAuthUser(accessToken, storedUser = null) {
   if (!accessToken) {
     return null;
   }
@@ -95,10 +110,14 @@ function hydrateAuthUser(accessToken) {
   const claims = parseJwtClaims(accessToken);
   return {
     accessToken,
-    userNo: normalizeNumericClaim(claims?.userNo ?? claims?.sub),
-    role: String(claims?.role || ''),
-    status: String(claims?.status || ''),
-    passwordChangeRequired: Boolean(claims?.passwordChangeRequired),
+    userNo: normalizeNumericClaim(storedUser?.userNo ?? claims?.userNo ?? claims?.sub),
+    userId: String(storedUser?.userId || claims?.userId || ''),
+    nickname: String(storedUser?.nickname || claims?.nickname || ''),
+    role: String(storedUser?.role || claims?.role || ''),
+    status: String(storedUser?.status || claims?.status || ''),
+    passwordChangeRequired: Boolean(
+      storedUser?.passwordChangeRequired ?? claims?.passwordChangeRequired
+    ),
   };
 }
 

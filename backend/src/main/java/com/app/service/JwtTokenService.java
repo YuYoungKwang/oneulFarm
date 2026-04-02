@@ -42,6 +42,8 @@ public class JwtTokenService {
             .issuedAt(Date.from(now))
             .expiration(Date.from(expiration))
             .claim("userNo", user.getUserNo())
+            .claim("userId", user.getUserId())
+            .claim("nickname", user.getNickname())
             .claim("role", user.getRole())
             .claim("status", user.getStatus())
             .claim("passwordChangeRequired", "Y".equalsIgnoreCase(user.getTempPasswordYn()))

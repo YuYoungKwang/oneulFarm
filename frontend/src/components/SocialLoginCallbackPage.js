@@ -13,9 +13,15 @@ const PROVIDER_LABELS = {
   google: '구글',
 };
 
+const SOCIAL_CALLBACK_REQUEST_PREFIX = 'oneulFarmSocialCallbackRequest:';
+
 function buildFallbackMessage(provider) {
   const label = PROVIDER_LABELS[provider] || '소셜';
   return `${label} 로그인 처리에 실패했습니다.`;
+}
+
+function buildRequestStorageKey(provider, code) {
+  return `${SOCIAL_CALLBACK_REQUEST_PREFIX}${provider}:${code}`;
 }
 
 export default function SocialLoginCallbackPage({ callbackContext }) {
@@ -52,6 +58,18 @@ export default function SocialLoginCallbackPage({ callbackContext }) {
       return undefined;
     }
 
+    const requestStorageKey = buildRequestStorageKey(provider, authorizationCode);
+    if (window.sessionStorage.getItem(requestStorageKey) === 'done') {
+      replaceAppLocation(basePath, getPostLoginHash());
+      return undefined;
+    }
+
+    if (window.sessionStorage.getItem(requestStorageKey) === 'pending') {
+      return undefined;
+    }
+
+    window.sessionStorage.setItem(requestStorageKey, 'pending');
+
     let cancelled = false;
 
     async function completeSocialLogin() {
@@ -72,13 +90,15 @@ export default function SocialLoginCallbackPage({ callbackContext }) {
           buildFallbackMessage(provider)
         );
 
-        if (cancelled || !payload.data) {
+        if (!payload.data) {
           return;
         }
 
         setAuthUser(payload.data);
+        window.sessionStorage.setItem(requestStorageKey, 'done');
         replaceAppLocation(basePath, getPostLoginHash(payload.data));
       } catch (requestError) {
+        window.sessionStorage.removeItem(requestStorageKey);
         if (!cancelled) {
           setError(requestError.message || buildFallbackMessage(provider));
         }
@@ -104,7 +124,7 @@ export default function SocialLoginCallbackPage({ callbackContext }) {
             <p className="card-sub" style={{ marginTop: '16px', marginBottom: '24px' }}>
               {error
                 ? error
-                : `${providerLabel} 계정 인증을 확인한 뒤 oneulFarm 로그인을 마무리하고 있습니다.`}
+                : `${providerLabel} 계정 인증을 확인하고 oneulFarm 로그인을 마무리하고 있습니다.`}
             </p>
 
             {error ? (
