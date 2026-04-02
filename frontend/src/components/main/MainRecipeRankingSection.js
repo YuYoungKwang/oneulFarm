@@ -273,14 +273,6 @@ export default function MainRecipeRankingSection({ items = [] }) {
                 <h3>{selectedItem?.product?.productName || "추천 상품"}</h3>
                 <p>{getModeDescription(selectedItem, rankingMode)}</p>
               </div>
-
-              <button
-                className="home-trend-recipes__action"
-                type="button"
-                onClick={() => openProduct(selectedItem?.product?.productNo)}
-              >
-                상품 보기
-              </button>
             </div>
 
             {recipeItems.length ? (
@@ -343,7 +335,9 @@ export default function MainRecipeRankingSection({ items = [] }) {
                     key={productNo}
                     className={`home-trend-ranking__item ${isActive ? "is-active" : ""}`.trim()}
                     type="button"
-                    onClick={() => setSelectedProductNo(productNo)}
+                    onClick={() => openProduct(productNo)}
+                    onFocus={() => setSelectedProductNo(productNo)}
+                    onMouseEnter={() => setSelectedProductNo(productNo)}
                   >
                     <span className="home-trend-ranking__rank">
                       {String(rankingNumber).padStart(2, "0")}

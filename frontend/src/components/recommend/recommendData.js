@@ -1,7 +1,6 @@
 import {
   buildProductImageSources,
   buildProductModel,
-  fetchProductsFromApi,
 } from "../../api/productApi";
 import { fetchMainRecommendations } from "../../api/mainApi";
 
@@ -285,14 +284,22 @@ function normalizeSeasonalProduct(item, productCatalogMap) {
   }
 
   const avgPrice = toNumber(item.avgPrice, salePrice);
-  const savingRate =
-    avgPrice > 0 && salePrice > 0 && salePrice < avgPrice
-      ? ((avgPrice - salePrice) / avgPrice) * 100
-      : 0;
+  const comparedPrice = toNumber(item?.product?.comparedPrice, avgPrice);
+  const savingRate = toNumber(
+    item?.product?.savingRate,
+    comparedPrice > 0 && salePrice > 0 && salePrice < comparedPrice
+      ? ((comparedPrice - salePrice) / comparedPrice) * 100
+      : 0
+  );
+  const priceGap = toNumber(
+    item?.product?.priceGap,
+    Math.max(comparedPrice - salePrice, 0)
+  );
   const normalizedProduct = buildProductModel({
     ...item.product,
     avgPrice,
-    comparedPrice: avgPrice,
+    comparedPrice,
+    priceGap,
     savingRate,
   });
   const mainImage =
@@ -309,8 +316,11 @@ function normalizeSeasonalProduct(item, productCatalogMap) {
           .filter(Boolean)
           .join(" / ")
       : "",
-    metricLabel: avgPrice > 0 ? "평균가" : "",
-    metricValue: avgPrice > 0 ? `${Math.round(avgPrice).toLocaleString("ko-KR")}원` : "",
+    metricLabel: comparedPrice > 0 ? "평균가" : "",
+    metricValue:
+      comparedPrice > 0
+        ? `${Math.round(comparedPrice).toLocaleString("ko-KR")}원`
+        : "",
     product: {
       ...normalizedProduct,
       imageNo: item?.product?.imageNo || mainImage?.imageNo || null,
@@ -351,16 +361,8 @@ export function buildEmptyRecommendData() {
 }
 
 export async function loadRecommendData() {
-  const [payload, catalogProducts] = await Promise.all([
-    fetchMainRecommendations(),
-    fetchProductsFromApi().catch(() => []),
-  ]);
-  const productCatalogMap = new Map(
-    (Array.isArray(catalogProducts) ? catalogProducts : []).map((product) => [
-      Number(product?.productNo || 0),
-      product,
-    ])
-  );
+  const payload = await fetchMainRecommendations();
+  const productCatalogMap = new Map();
   const seasonalProducts = Array.isArray(payload?.seasonalProducts)
     ? payload.seasonalProducts
         .map((item) => normalizeSeasonalProduct(item, productCatalogMap))

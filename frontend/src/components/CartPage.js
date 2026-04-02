@@ -2,8 +2,10 @@ import { formatCurrency, getSavingAmount } from './productUiUtils';
 import SafeImage from './SafeImage';
 
 const TEXT = {
-  recipeGroup: '\uB808\uC2DC\uD53C \uB2F4\uAE30',
+  recipeGroup: '\uB808\uC2DC\uD53C \uBB36\uC74C',
   defaultGroup: '\uC77C\uBC18 \uB2F4\uAE30',
+  recipeGroupHint: '\uB808\uC2DC\uD53C \uC7AC\uB8CC\uB97C \uD55C \uBC88\uC5D0 \uB2F4\uC740 \uBB36\uC74C',
+  defaultGroupHint: '\uAC1C\uBCC4 \uC0C1\uD488 \uAE30\uC900\uC73C\uB85C \uB2F4\uC740 \uBAA9\uB85D',
   emptyTitle: '\uC7A5\uBC14\uAD6C\uB2C8\uAC00 \uBE44\uC5B4 \uC788\uC2B5\uB2C8\uB2E4.',
   emptyDescription:
     '\uC0C1\uD488\uC774\uB098 \uB808\uC2DC\uD53C \uC7AC\uB8CC\uB97C \uBA3C\uC800 \uB2F4\uACE0 \uC8FC\uBB38\uC744 \uC9C4\uD589\uD574 \uC8FC\uC138\uC694.',
@@ -22,6 +24,7 @@ const TEXT = {
   amountHint: '\uBC30\uC1A1\uBE44 \uC81C\uC678 \uAE30\uC900',
   savingHint: '\uD3C9\uADE0\uAC00 \uB300\uBE44 \uC608\uC0C1 \uC808\uC57D \uAE08\uC561',
   remove: '\uC81C\uAC70',
+  removeRecipeGroup: '\uB808\uC2DC\uD53C \uBB36\uC74C \uC0AD\uC81C',
   originFallback: '\uC6D0\uC0B0\uC9C0 \uC815\uBCF4 \uC5C6\uC74C',
   stockLabel: '\uC7AC\uACE0',
   averagePriceLabel: '\uD3C9\uADE0\uAC00',
@@ -50,7 +53,9 @@ function groupCartItems(cartItems) {
     if (!groupMap.has(key)) {
       groupMap.set(key, {
         key,
+        cartGroupNo: item?.cartGroupNo ?? null,
         groupType,
+        groupKey: item?.groupKey || '',
         groupName:
           groupType === 'RECIPE'
             ? item?.groupName || TEXT.recipeGroup
@@ -84,12 +89,33 @@ function getGroupLabel(group) {
   return group?.groupType === 'RECIPE' ? TEXT.recipeGroup : TEXT.defaultGroup;
 }
 
+function getGroupTitle(group) {
+  if (group?.groupType === 'RECIPE') {
+    return group?.groupName || TEXT.recipeGroup;
+  }
+
+  return TEXT.defaultGroup;
+}
+
+function getGroupHint(group) {
+  return group?.groupType === 'RECIPE' ? TEXT.recipeGroupHint : TEXT.defaultGroupHint;
+}
+
 function handleRemoveClick(event, item, onRemoveItem) {
   event.preventDefault();
   event.stopPropagation();
 
   if (typeof onRemoveItem === 'function') {
     onRemoveItem(item);
+  }
+}
+
+function handleRemoveGroupClick(event, group, onRemoveGroup) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  if (typeof onRemoveGroup === 'function') {
+    onRemoveGroup(group);
   }
 }
 
@@ -100,6 +126,7 @@ export default function CartPage({
   onIncreaseQuantity,
   onOpenProduct,
   onProceedToCheckout,
+  onRemoveGroup,
   onRemoveItem,
   onReturnToProducts,
 }) {
@@ -181,12 +208,27 @@ export default function CartPage({
             const groupSummary = getCartGroupSummary(group);
 
             return (
-              <section key={group.key} className="cart-group-block">
+              <section
+                key={group.key}
+                className={`cart-group-block ${
+                  group.groupType === 'RECIPE' ? 'is-recipe' : 'is-product'
+                }`.trim()}
+              >
                 <div className="section-head cart-group-head">
-                  <div>
-                    <div className="section-title">{getGroupLabel(group)}</div>
-                    <small>
-                      {group.groupName}
+                  <div className="cart-group-copy">
+                    <span
+                      className={`cart-group-badge ${
+                        group.groupType === 'RECIPE' ? 'is-recipe' : 'is-product'
+                      }`.trim()}
+                    >
+                      {getGroupLabel(group)}
+                    </span>
+                    <div className="section-title cart-group-title">{getGroupTitle(group)}</div>
+                    <small className="cart-group-summary">
+                      {getGroupHint(group)}
+                      {TEXT.dot}
+                      재료 {group.items.length}
+                      {TEXT.piece}
                       {TEXT.dot}
                       {TEXT.totalQuantity} {groupSummary.quantity}
                       {TEXT.piece}
@@ -194,6 +236,16 @@ export default function CartPage({
                       {formatCurrency(groupSummary.totalAmount)}
                     </small>
                   </div>
+
+                  {group.groupType === 'RECIPE' ? (
+                    <button
+                      className="text-action danger cart-group-remove"
+                      type="button"
+                      onClick={(event) => handleRemoveGroupClick(event, group, onRemoveGroup)}
+                    >
+                      {TEXT.removeRecipeGroup}
+                    </button>
+                  ) : null}
                 </div>
 
                 {group.items.map((item) => {
@@ -214,7 +266,9 @@ export default function CartPage({
                   return (
                     <article
                       key={item?.cartItemNo || `${group.key}-${product?.productNo || quantity}`}
-                      className="cart-card"
+                      className={`cart-card ${
+                        group.groupType === 'RECIPE' ? 'cart-card--recipe' : ''
+                      }`.trim()}
                       style={{
                         '--media-soft': product?.display?.softColor || '#eef8ef',
                         '--media-glow':

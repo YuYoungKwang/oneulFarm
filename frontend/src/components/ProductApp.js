@@ -13,6 +13,7 @@ import {
   fetchOrdersFromApi,
   fetchProductDetailFromApi,
   fetchProductsFromApi,
+  removeCartGroupFromApi,
   removeCartItemFromApi,
   updateCartItemOnApi,
 } from '../api/productApi';
@@ -742,6 +743,34 @@ export default function ProductApp({ authUser }) {
     applyLocalCartDetails(nextDetails);
   }
 
+  function removeLocalCartGroup(targetGroup) {
+    const targetCartGroupNo = Number(targetGroup?.cartGroupNo);
+    const targetGroupKey = String(targetGroup?.groupKey || '');
+    const targetGroupType = String(targetGroup?.groupType || 'PRODUCT');
+    const targetRecipeNo = Number(targetGroup?.recipeNo || 0);
+
+    const nextDetails = getLocalCartDetailBase().filter((item) => {
+      const currentCartGroupNo = Number(item?.cartGroupNo);
+
+      if (
+        Number.isFinite(targetCartGroupNo) &&
+        targetCartGroupNo > 0 &&
+        Number.isFinite(currentCartGroupNo) &&
+        currentCartGroupNo > 0
+      ) {
+        return currentCartGroupNo !== targetCartGroupNo;
+      }
+
+      return !(
+        String(item?.groupKey || '') === targetGroupKey &&
+        String(item?.groupType || 'PRODUCT') === targetGroupType &&
+        Number(item?.recipeNo || 0) === targetRecipeNo
+      );
+    });
+
+    applyLocalCartDetails(nextDetails);
+  }
+
   async function addToCart(productNo, quantity = 1) {
     if (!isLoggedIn) {
       navigateToHash('#/login');
@@ -873,6 +902,22 @@ export default function ProductApp({ authUser }) {
     });
   }
 
+  async function removeFromCartGroup(group) {
+    const safeCartGroupNo = Number(group?.cartGroupNo);
+
+    if (process.env.NODE_ENV !== 'test' && Number.isFinite(safeCartGroupNo) && safeCartGroupNo > 0) {
+      try {
+        const nextCart = await removeCartGroupFromApi(safeCartGroupNo);
+        applyCartPayload(nextCart);
+        return;
+      } catch (error) {
+        // Fall back to local cart state.
+      }
+    }
+
+    removeLocalCartGroup(group);
+  }
+
   async function clearCart() {
     if (process.env.NODE_ENV !== 'test') {
       try {
@@ -997,6 +1042,7 @@ export default function ProductApp({ authUser }) {
               }}
               onOpenProduct={openProduct}
               onProceedToCheckout={openCheckout}
+              onRemoveGroup={removeFromCartGroup}
               onRemoveItem={removeFromCart}
               onReturnToProducts={openProductList}
             />
