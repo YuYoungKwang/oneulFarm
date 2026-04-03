@@ -86,7 +86,7 @@ function writeStore(user, store) {
   );
 }
 
-function normalizeMealType(value) {
+function normalizeMealTypeSafe(value) {
   const safeValue = String(value || '').trim();
   const upperValue = safeValue.toUpperCase();
 
@@ -111,6 +111,49 @@ function normalizeMealType(value) {
   }
 
   if (safeValue.includes('직접 입력') || upperValue.includes('CUSTOM')) {
+    return 'CUSTOM';
+  }
+
+  return 'DINNER';
+}
+
+function normalizeMealType(value) {
+  const safeValue = String(value || '').trim();
+  const upperValue = safeValue.toUpperCase();
+
+  if (['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK', 'CUSTOM'].includes(upperValue)) {
+    return upperValue;
+  }
+
+  if (
+    safeValue.includes('\uC544\uCE68') ||
+    safeValue.includes('\uC870\uC2DD') ||
+    upperValue.includes('BREAKFAST')
+  ) {
+    return 'BREAKFAST';
+  }
+
+  if (
+    safeValue.includes('\uC810\uC2EC') ||
+    safeValue.includes('\uC911\uC2DD') ||
+    upperValue.includes('LUNCH')
+  ) {
+    return 'LUNCH';
+  }
+
+  if (
+    safeValue.includes('\uC800\uB141') ||
+    safeValue.includes('\uC11D\uC2DD') ||
+    upperValue.includes('DINNER')
+  ) {
+    return 'DINNER';
+  }
+
+  if (safeValue.includes('\uAC04\uC2DD') || upperValue.includes('SNACK')) {
+    return 'SNACK';
+  }
+
+  if (safeValue.includes('\uC9C1\uC811 \uC785\uB825') || upperValue.includes('CUSTOM')) {
     return 'CUSTOM';
   }
 
@@ -166,7 +209,7 @@ function normalizeEntryShape(entry) {
     entryNo: Number(entry?.entryNo || 0),
     planNo: entry?.planNo != null ? Number(entry.planNo) : null,
     mealDate: toDateKey(entry?.mealDate || entry?.date || ''),
-    mealType: normalizeMealType(entry?.mealType),
+    mealType: normalizeMealTypeSafe(entry?.mealType),
     entryTitle: String(entry?.entryTitle || entry?.title || '').trim(),
     entryDescription: String(entry?.entryDescription || entry?.notes || '').trim(),
     servings: Math.max(1, Number(entry?.servings || 1)),

@@ -294,7 +294,7 @@ function addDays(dateKey, offset) {
   return formatLocalDateKey(date);
 }
 
-function normalizeMealType(value) {
+function normalizeMealTypeSafe(value) {
   const nextValue = String(value || '').trim();
   const upperValue = nextValue.toUpperCase();
 
@@ -337,6 +337,49 @@ function normalizeMealType(value) {
     nextValue.includes('직접 입력') ||
     upperValue.includes('CUSTOM')
   ) {
+    return 'CUSTOM';
+  }
+
+  return 'DINNER';
+}
+
+function normalizeMealType(value) {
+  const nextValue = String(value || '').trim();
+  const upperValue = nextValue.toUpperCase();
+
+  if (['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK', 'CUSTOM'].includes(upperValue)) {
+    return upperValue;
+  }
+
+  if (
+    nextValue.includes('\uC544\uCE68') ||
+    nextValue.includes('\uC870\uC2DD') ||
+    upperValue.includes('BREAKFAST')
+  ) {
+    return 'BREAKFAST';
+  }
+
+  if (
+    nextValue.includes('\uC810\uC2EC') ||
+    nextValue.includes('\uC911\uC2DD') ||
+    upperValue.includes('LUNCH')
+  ) {
+    return 'LUNCH';
+  }
+
+  if (
+    nextValue.includes('\uC800\uB141') ||
+    nextValue.includes('\uC11D\uC2DD') ||
+    upperValue.includes('DINNER')
+  ) {
+    return 'DINNER';
+  }
+
+  if (nextValue.includes('\uAC04\uC2DD') || upperValue.includes('SNACK')) {
+    return 'SNACK';
+  }
+
+  if (nextValue.includes('\uC9C1\uC811 \uC785\uB825') || upperValue.includes('CUSTOM')) {
     return 'CUSTOM';
   }
 
@@ -441,7 +484,7 @@ function createLocalMealPlanImport({
           entryNo: nextEntryNo,
           planNo: nextPlanNo,
           date: mealDate,
-          mealType: normalizeMealType(meal?.mealType),
+          mealType: normalizeMealTypeSafe(meal?.mealType),
           title: buildMealEntryTitle(meal, day?.dayLabel, mealIndex),
           notes: buildMealEntryNotes({
             meal,

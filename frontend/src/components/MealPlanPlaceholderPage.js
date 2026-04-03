@@ -67,6 +67,9 @@ function sanitizeAssistantText(text) {
 
 function isCartConfirmMessage(value) {
   const normalizedValue = normalizeText(value);
+  if (parseMealPlanDateRangeFinal(normalizedValue, 1) || detectMealPlanImportIntentFinal(normalizedValue)) {
+    return false;
+  }
   return /(\uC7A5\uBC14\uAD6C\uB2C8|\uB2EC\uC544\uC918|\uB123\uC5B4\uC918|\uCE74\uD2B8)/.test(
     normalizedValue
   );
@@ -181,7 +184,7 @@ function getLatestStructuredAssistantContext(messages) {
 }
 
 // eslint-disable-next-line no-unused-vars
-function isMealCalendarImportIntent(value) {
+function isMealCalendarImportIntentLegacyOne(value) {
   const normalizedValue = normalizeText(value);
   if (!normalizedValue) {
     return false;
@@ -245,7 +248,7 @@ function addDaysToIsoDate(dateKey, offset) {
   return buildIsoDate(date.getFullYear(), date.getMonth() + 1, date.getDate());
 }
 
-function normalizeDateToken(token, fallbackYear) {
+function normalizeDateTokenLegacy(token, fallbackYear) {
   const normalizedToken = normalizeText(token).replace(/\s+/g, '');
   if (!normalizedToken) {
     return '';
@@ -275,7 +278,7 @@ function normalizeDateToken(token, fallbackYear) {
 }
 
 // eslint-disable-next-line no-unused-vars
-function extractDateRange(text) {
+function extractDateRangeLegacy(text) {
   const fallbackYear = new Date().getFullYear();
   const normalizedTextValue = normalizeText(text);
   if (!normalizedTextValue) {
@@ -305,7 +308,7 @@ function extractDateRange(text) {
   return null;
 }
 
-function buildMealPlanImportTitle(plan, startDate, endDate) {
+function buildMealPlanImportTitleLegacyOne(plan, startDate, endDate) {
   const summary = normalizeText(plan?.goalSummary);
   if (summary) {
     return `${summary} (${startDate}~${endDate})`;
@@ -314,7 +317,7 @@ function buildMealPlanImportTitle(plan, startDate, endDate) {
   return `AI 맞춤 식단 (${startDate}~${endDate})`;
 }
 
-function isMealCalendarImportIntentSafe(value) {
+function isMealCalendarImportIntentSafeLegacyOne(value) {
   const normalizedValue = normalizeText(value);
   if (!normalizedValue) {
     return false;
@@ -336,7 +339,7 @@ function isMealCalendarImportIntentSafe(value) {
   return (hasCalendarNoun && hasImportVerb) || (hasImportVerb && hasDateRangeCue);
 }
 
-function normalizeDateTokenSafe(token, fallbackYear, fallbackMonth = new Date().getMonth() + 1) {
+function normalizeDateTokenSafeLegacy(token, fallbackYear, fallbackMonth = new Date().getMonth() + 1) {
   const normalizedToken = normalizeText(token).replace(/\s+/g, '');
   if (!normalizedToken) {
     return '';
@@ -370,7 +373,7 @@ function normalizeDateTokenSafe(token, fallbackYear, fallbackMonth = new Date().
   return '';
 }
 
-function extractDateRangeSafe(text, fallbackDays = 1) {
+function extractDateRangeSafeLegacy(text, fallbackDays = 1) {
   const fallbackYear = new Date().getFullYear();
   const fallbackMonth = new Date().getMonth() + 1;
   const normalizedTextValue = normalizeText(text);
@@ -414,7 +417,7 @@ function extractDateRangeSafe(text, fallbackDays = 1) {
   return null;
 }
 
-function buildMealPlanImportTitleSafe(plan, startDate, endDate) {
+function buildMealPlanImportTitleSafeLegacy(plan, startDate, endDate) {
   const summary = normalizeText(plan?.goalSummary);
   if (summary) {
     return `${summary} (${startDate}~${endDate})`;
@@ -423,12 +426,481 @@ function buildMealPlanImportTitleSafe(plan, startDate, endDate) {
   return `AI \uB9DE\uCDA4 \uC2DD\uB2E8 (${startDate}~${endDate})`;
 }
 
+const MEAL_PLAN_DATE_TOKEN_SOURCE =
+  '(?:\\d{4}[./-]\\d{1,2}[./-]\\d{1,2}|\\d{1,2}[./-]\\d{1,2}|\\d{4}년\\s*\\d{1,2}월\\s*\\d{1,2}일|\\d{1,2}월\\s*\\d{1,2}일|\\d{1,2}일)';
+
+function isMealCalendarImportIntentLegacyTwo(value) {
+  const normalizedValue = normalizeText(value);
+  if (!normalizedValue) {
+    return false;
+  }
+
+  const hasCalendarNoun =
+    /(?:\uC2DD\uB2E8|\uB2EC\uB825|\uCE98\uB9B0\uB354|\uB0B4\s*\uC2DD\uB2E8\s*\uAD00\uB9AC)/.test(
+      normalizedValue
+    );
+  const hasImportVerb =
+    /(?:\uCD94\uAC00|\uB4F1\uB85D|\uC800\uC7A5|\uBC18\uC601|\uAC00\uC838\uC640|\uAC00\uC838\uC624|\uB123\uC5B4|\uB123\uC5B4\uC918)/.test(
+      normalizedValue
+    );
+  const hasDateCue =
+    new RegExp(MEAL_PLAN_DATE_TOKEN_SOURCE).test(normalizedValue) &&
+    /(?:\uBD80\uD130|\uC5D0\uC11C|\uAE4C\uC9C0|~|-)/.test(normalizedValue);
+
+  return (hasCalendarNoun && hasImportVerb) || (hasImportVerb && hasDateCue);
+}
+
+function normalizeDateTokenBroken(token, fallbackYear, fallbackMonth = new Date().getMonth() + 1) {
+  const normalizedToken = normalizeText(token).replace(/\s+/g, '');
+  if (!normalizedToken) {
+    return '';
+  }
+
+  let match = normalizedToken.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/);
+  if (match) {
+    return buildIsoDate(match[1], match[2], match[3]);
+  }
+
+  match = normalizedToken.match(/^(\d{1,2})[./-](\d{1,2})$/);
+  if (match) {
+    return buildIsoDate(fallbackYear, match[1], match[2]);
+  }
+
+  match = normalizedToken.match(/^(\d{4})년(\d{1,2})월(\d{1,2})일$/);
+  if (match) {
+    return buildIsoDate(match[1], match[2], match[3]);
+  }
+
+  match = normalizedToken.match(/^(\d{1,2})월(\d{1,2})일$/);
+  if (match) {
+    return buildIsoDate(fallbackYear, match[1], match[2]);
+  }
+
+  match = normalizedToken.match(/^(\d{1,2})일$/);
+  if (match) {
+    return buildIsoDate(fallbackYear, fallbackMonth, match[1]);
+  }
+
+  return '';
+}
+
+function extractDateRangeBroken(text, fallbackDays = 1) {
+  const fallbackYear = new Date().getFullYear();
+  const fallbackMonth = new Date().getMonth() + 1;
+  const normalizedTextValue = normalizeText(text);
+  if (!normalizedTextValue) {
+    return null;
+  }
+
+  const explicitRangePattern = new RegExp(
+    `(${MEAL_PLAN_DATE_TOKEN_SOURCE})\\s*(?:부터|에서|~|-)\\s*(${MEAL_PLAN_DATE_TOKEN_SOURCE})(?:\\s*까지)?`
+  );
+  const explicitMatch = normalizedTextValue.match(explicitRangePattern);
+  if (explicitMatch) {
+    const startDate = normalizeMealPlanDateTokenResolved(
+      explicitMatch[1],
+      fallbackYear,
+      fallbackMonth
+    );
+    const endDate = normalizeMealPlanDateTokenResolved(
+      explicitMatch[2],
+      fallbackYear,
+      fallbackMonth
+    );
+    if (startDate && endDate && startDate <= endDate) {
+      return { startDate, endDate };
+    }
+  }
+
+  const singleStartPattern = new RegExp(
+    `(${MEAL_PLAN_DATE_TOKEN_SOURCE})\\s*(?:부터|에서|에)`
+  );
+  const singleStartMatch = normalizedTextValue.match(singleStartPattern);
+  if (singleStartMatch) {
+    const startDate = normalizeMealPlanDateTokenResolved(
+      singleStartMatch[1],
+      fallbackYear,
+      fallbackMonth
+    );
+    const safeSpanDays = Math.max(1, Number(fallbackDays || 1));
+    const endDate = addDaysToIsoDate(startDate, safeSpanDays - 1);
+    if (startDate && endDate) {
+      return { startDate, endDate };
+    }
+  }
+
+  return null;
+}
+
+function buildMealPlanImportTitleLegacyTwo(plan, startDate, endDate) {
+  const summary = normalizeText(plan?.goalSummary);
+  if (summary) {
+    return `${summary} (${startDate}~${endDate})`;
+  }
+
+  return `AI \uB9DE\uCDA4 \uC2DD\uB2E8 (${startDate}~${endDate})`;
+}
+
+function isMealCalendarImportIntentSafeLegacyTwo(value) {
+  return isMealCalendarImportIntent(value);
+}
+
+function normalizeDateTokenSafeBroken(token, fallbackYear, fallbackMonth = new Date().getMonth() + 1) {
+  return normalizeDateToken(token, fallbackYear, fallbackMonth);
+}
+
+function extractDateRangeSafeBroken(text, fallbackDays = 1) {
+  return extractDateRange(text, fallbackDays);
+}
+
+function buildMealPlanImportTitleSafeBroken(plan, startDate, endDate) {
+  return buildMealPlanImportTitle(plan, startDate, endDate);
+}
+
+const CLEAN_MEAL_PLAN_DATE_TOKEN_SOURCE =
+  '(?:\\d{4}[./-]\\d{1,2}[./-]\\d{1,2}|\\d{1,2}[./-]\\d{1,2}|\\d{4}\\s*년\\s*\\d{1,2}\\s*월\\s*\\d{1,2}\\s*일|\\d{1,2}\\s*월\\s*\\d{1,2}\\s*일|\\d{1,2}\\s*일)';
+
+function isMealPlanImportIntentResolved(value) {
+  const normalizedValue = normalizeText(value);
+  if (!normalizedValue) {
+    return false;
+  }
+
+  const hasCalendarNoun =
+    /(?:\uC2DD\uB2E8|\uB2EC\uB825|\uCE98\uB9B0\uB354|\uB0B4\s*\uC2DD\uB2E8\s*\uAD00\uB9AC)/.test(
+      normalizedValue
+    );
+  const hasImportVerb =
+    /(?:\uCD94\uAC00|\uB4F1\uB85D|\uC800\uC7A5|\uBC18\uC601|\uAC00\uC838\uC640|\uAC00\uC838\uC624|\uB123\uC5B4|\uB123\uC5B4\uC918)/.test(
+      normalizedValue
+    );
+  const hasDateCue =
+    new RegExp(CLEAN_MEAL_PLAN_DATE_TOKEN_SOURCE).test(normalizedValue) &&
+    /(?:\uBD80\uD130|\uC5D0\uC11C|\uAE4C\uC9C0|~|-)/.test(normalizedValue);
+
+  return (hasCalendarNoun && hasImportVerb) || (hasImportVerb && hasDateCue);
+}
+
+function normalizeMealPlanDateTokenResolved(token, fallbackYear, fallbackMonth = new Date().getMonth() + 1) {
+  const normalizedToken = normalizeText(token).replace(/\s+/g, '');
+  if (!normalizedToken) {
+    return '';
+  }
+
+  let match = normalizedToken.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/);
+  if (match) {
+    return buildIsoDate(match[1], match[2], match[3]);
+  }
+
+  match = normalizedToken.match(/^(\d{1,2})[./-](\d{1,2})$/);
+  if (match) {
+    return buildIsoDate(fallbackYear, match[1], match[2]);
+  }
+
+  match = normalizedToken.match(/^(\d{4})년(\d{1,2})월(\d{1,2})일$/);
+  if (match) {
+    return buildIsoDate(match[1], match[2], match[3]);
+  }
+
+  match = normalizedToken.match(/^(\d{1,2})월(\d{1,2})일$/);
+  if (match) {
+    return buildIsoDate(fallbackYear, match[1], match[2]);
+  }
+
+  match = normalizedToken.match(/^(\d{1,2})일$/);
+  if (match) {
+    return buildIsoDate(fallbackYear, fallbackMonth, match[1]);
+  }
+
+  return '';
+}
+
+function extractMealPlanDateRangeResolved(text, fallbackDays = 1) {
+  const fallbackYear = new Date().getFullYear();
+  const fallbackMonth = new Date().getMonth() + 1;
+  const normalizedTextValue = normalizeText(text);
+  if (!normalizedTextValue) {
+    return null;
+  }
+
+  const explicitRangePattern = new RegExp(
+    `(${CLEAN_MEAL_PLAN_DATE_TOKEN_SOURCE})\\s*(?:\\uBD80\\uD130|\\uC5D0\\uC11C|~|-)\\s*(${CLEAN_MEAL_PLAN_DATE_TOKEN_SOURCE})(?:\\s*\\uAE4C\\uC9C0)?`
+  );
+  const explicitMatch = normalizedTextValue.match(explicitRangePattern);
+  if (explicitMatch) {
+    const startDate = normalizeDateToken(explicitMatch[1], fallbackYear, fallbackMonth);
+    const endDate = normalizeDateToken(explicitMatch[2], fallbackYear, fallbackMonth);
+    if (startDate && endDate && startDate <= endDate) {
+      return { startDate, endDate };
+    }
+  }
+
+  const singleStartPattern = new RegExp(
+    `(${CLEAN_MEAL_PLAN_DATE_TOKEN_SOURCE})\\s*(?:\\uBD80\\uD130|\\uC5D0\\uC11C|\\uC5D0)`
+  );
+  const singleStartMatch = normalizedTextValue.match(singleStartPattern);
+  if (singleStartMatch) {
+    const startDate = normalizeDateToken(singleStartMatch[1], fallbackYear, fallbackMonth);
+    const safeSpanDays = Math.max(1, Number(fallbackDays || 1));
+    const endDate = addDaysToIsoDate(startDate, safeSpanDays - 1);
+    if (startDate && endDate) {
+      return { startDate, endDate };
+    }
+  }
+
+  return null;
+}
+
+function buildMealPlanImportTitleResolved(plan, startDate, endDate) {
+  const summary = normalizeText(plan?.goalSummary);
+  if (summary) {
+    return `${summary} (${startDate}~${endDate})`;
+  }
+
+  return `AI \uB9DE\uCDA4 \uC2DD\uB2E8 (${startDate}~${endDate})`;
+}
+
+function isMealPlanImportIntentSafeResolved(value) {
+  return isMealPlanImportIntentResolved(value);
+}
+
+function normalizeMealPlanDateTokenSafeResolved(token, fallbackYear, fallbackMonth = new Date().getMonth() + 1) {
+  return normalizeMealPlanDateTokenResolved(token, fallbackYear, fallbackMonth);
+}
+
+function extractMealPlanDateRangeSafeResolved(text, fallbackDays = 1) {
+  return extractMealPlanDateRangeResolved(text, fallbackDays);
+}
+
+function buildMealPlanImportTitleSafeResolved(plan, startDate, endDate) {
+  return buildMealPlanImportTitleResolved(plan, startDate, endDate);
+}
+
 function buildMealPlanStorageKey(authUser) {
   if (isAuthenticated(authUser) && authUser?.userNo != null) {
     return `${MEAL_PLAN_CHAT_STORAGE_PREFIX}:${authUser.userNo}`;
   }
   return `${MEAL_PLAN_CHAT_STORAGE_PREFIX}:guest`;
 }
+
+const FINAL_MEAL_PLAN_DATE_TOKEN_SOURCE =
+  '(?:\\d{4}[./-]\\d{1,2}[./-]\\d{1,2}|\\d{1,2}[./-]\\d{1,2}|\\d{4}\\s*\\uB144\\s*\\d{1,2}\\s*\\uC6D4\\s*\\d{1,2}\\s*\\uC77C|\\d{1,2}\\s*\\uC6D4\\s*\\d{1,2}\\s*\\uC77C|\\d{1,2}\\s*\\uC77C)';
+
+function detectMealPlanImportIntent(value) {
+  const normalizedValue = normalizeText(value);
+  if (!normalizedValue) {
+    return false;
+  }
+
+  const hasCalendarNoun =
+    /(?:\uC2DD\uB2E8|\uB2EC\uB825|\uCE98\uB9B0\uB354|\uB0B4\s*\uC2DD\uB2E8\s*\uAD00\uB9AC)/.test(
+      normalizedValue
+    );
+  const hasImportVerb =
+    /(?:\uCD94\uAC00|\uB4F1\uB85D|\uC800\uC7A5|\uBC18\uC601|\uAC00\uC838\uC640|\uAC00\uC838\uC624|\uB123\uC5B4|\uB123\uC5B4\uC918)/.test(
+      normalizedValue
+    );
+  const hasDateCue =
+    new RegExp(FINAL_MEAL_PLAN_DATE_TOKEN_SOURCE).test(normalizedValue) &&
+    /(?:\uBD80\uD130|\uC5D0\uC11C|\uAE4C\uC9C0|~|-)/.test(normalizedValue);
+
+  return (hasCalendarNoun && hasImportVerb) || (hasImportVerb && hasDateCue);
+}
+
+function parseMealPlanDateToken(token, fallbackYear, fallbackMonth = new Date().getMonth() + 1) {
+  const normalizedToken = normalizeText(token).replace(/\s+/g, '');
+  if (!normalizedToken) {
+    return '';
+  }
+
+  let match = normalizedToken.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/);
+  if (match) {
+    return buildIsoDate(match[1], match[2], match[3]);
+  }
+
+  match = normalizedToken.match(/^(\d{1,2})[./-](\d{1,2})$/);
+  if (match) {
+    return buildIsoDate(fallbackYear, match[1], match[2]);
+  }
+
+  match = normalizedToken.match(/^(\d{4})년(\d{1,2})월(\d{1,2})일$/);
+  if (match) {
+    return buildIsoDate(match[1], match[2], match[3]);
+  }
+
+  match = normalizedToken.match(/^(\d{1,2})월(\d{1,2})일$/);
+  if (match) {
+    return buildIsoDate(fallbackYear, match[1], match[2]);
+  }
+
+  match = normalizedToken.match(/^(\d{1,2})일$/);
+  if (match) {
+    return buildIsoDate(fallbackYear, fallbackMonth, match[1]);
+  }
+
+  return '';
+}
+
+function parseMealPlanDateRange(text, fallbackDays = 1) {
+  const fallbackYear = new Date().getFullYear();
+  const fallbackMonth = new Date().getMonth() + 1;
+  const normalizedTextValue = normalizeText(text);
+  if (!normalizedTextValue) {
+    return null;
+  }
+
+  const explicitRangePattern = new RegExp(
+    `(${FINAL_MEAL_PLAN_DATE_TOKEN_SOURCE})\\s*(?:\\uBD80\\uD130|\\uC5D0\\uC11C|~|-)\\s*(${FINAL_MEAL_PLAN_DATE_TOKEN_SOURCE})(?:\\s*\\uAE4C\\uC9C0)?`
+  );
+  const explicitMatch = normalizedTextValue.match(explicitRangePattern);
+  if (explicitMatch) {
+    const startDate = parseMealPlanDateToken(explicitMatch[1], fallbackYear, fallbackMonth);
+    const endDate = parseMealPlanDateToken(explicitMatch[2], fallbackYear, fallbackMonth);
+    if (startDate && endDate && startDate <= endDate) {
+      return { startDate, endDate };
+    }
+  }
+
+  const singleStartPattern = new RegExp(
+    `(${FINAL_MEAL_PLAN_DATE_TOKEN_SOURCE})\\s*(?:\\uBD80\\uD130|\\uC5D0\\uC11C|\\uC5D0)`
+  );
+  const singleStartMatch = normalizedTextValue.match(singleStartPattern);
+  if (singleStartMatch) {
+    const startDate = parseMealPlanDateToken(singleStartMatch[1], fallbackYear, fallbackMonth);
+    const safeSpanDays = Math.max(1, Number(fallbackDays || 1));
+    const endDate = addDaysToIsoDate(startDate, safeSpanDays - 1);
+    if (startDate && endDate) {
+      return { startDate, endDate };
+    }
+  }
+
+  return null;
+}
+
+function formatMealPlanImportTitle(plan, startDate, endDate) {
+  const summary = normalizeText(plan?.goalSummary);
+  if (summary) {
+    return `${summary} (${startDate}~${endDate})`;
+  }
+
+  return `AI \uB9DE\uCDA4 \uC2DD\uB2E8 (${startDate}~${endDate})`;
+}
+
+const FINAL_FINAL_MEAL_PLAN_DATE_TOKEN_SOURCE =
+  '(?:\\d{4}[./-]\\d{1,2}[./-]\\d{1,2}|\\d{1,2}[./-]\\d{1,2}|\\d{4}\\s*\uB144\\s*\\d{1,2}\\s*\uC6D4\\s*\\d{1,2}\\s*\uC77C|\\d{1,2}\\s*\uC6D4\\s*\\d{1,2}\\s*\uC77C|\\d{1,2}\\s*\uC77C)';
+
+function detectMealPlanImportIntentFinal(value) {
+  const normalizedValue = normalizeText(value);
+  if (!normalizedValue) {
+    return false;
+  }
+
+  const hasCalendarNoun =
+    /(?:\uC2DD\uB2E8|\uB2EC\uB825|\uCE98\uB9B0\uB354|\uB0B4\s*\uC2DD\uB2E8\s*\uAD00\uB9AC)/.test(
+      normalizedValue
+    );
+  const hasImportVerb =
+    /(?:\uCD94\uAC00|\uB4F1\uB85D|\uC800\uC7A5|\uBC18\uC601|\uAC00\uC838\uC640|\uAC00\uC838\uC624|\uB123\uC5B4|\uB123\uC5B4\uC918)/.test(
+      normalizedValue
+    );
+  const hasDateCue =
+    new RegExp(FINAL_FINAL_MEAL_PLAN_DATE_TOKEN_SOURCE).test(normalizedValue) &&
+    /(?:\uBD80\uD130|\uC5D0\uC11C|\uAE4C\uC9C0|~|-)/.test(normalizedValue);
+
+  return (hasCalendarNoun && hasImportVerb) || (hasImportVerb && hasDateCue);
+}
+
+function parseMealPlanDateTokenFinal(token, fallbackYear, fallbackMonth = new Date().getMonth() + 1) {
+  const normalizedToken = normalizeText(token).replace(/\s+/g, '');
+  if (!normalizedToken) {
+    return '';
+  }
+
+  let match = normalizedToken.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/);
+  if (match) {
+    return buildIsoDate(match[1], match[2], match[3]);
+  }
+
+  match = normalizedToken.match(/^(\d{1,2})[./-](\d{1,2})$/);
+  if (match) {
+    return buildIsoDate(fallbackYear, match[1], match[2]);
+  }
+
+  match = normalizedToken.match(/^(\d{4})\uB144(\d{1,2})\uC6D4(\d{1,2})\uC77C$/);
+  if (match) {
+    return buildIsoDate(match[1], match[2], match[3]);
+  }
+
+  match = normalizedToken.match(/^(\d{1,2})\uC6D4(\d{1,2})\uC77C$/);
+  if (match) {
+    return buildIsoDate(fallbackYear, match[1], match[2]);
+  }
+
+  match = normalizedToken.match(/^(\d{1,2})\uC77C$/);
+  if (match) {
+    return buildIsoDate(fallbackYear, fallbackMonth, match[1]);
+  }
+
+  return '';
+}
+
+function parseMealPlanDateRangeFinal(text, fallbackDays = 1) {
+  const fallbackYear = new Date().getFullYear();
+  const fallbackMonth = new Date().getMonth() + 1;
+  const normalizedTextValue = normalizeText(text);
+  if (!normalizedTextValue) {
+    return null;
+  }
+
+  const explicitRangePattern = new RegExp(
+    `(${FINAL_FINAL_MEAL_PLAN_DATE_TOKEN_SOURCE})\\s*(?:\uBD80\uD130|\uC5D0\uC11C|~|-)\\s*(${FINAL_FINAL_MEAL_PLAN_DATE_TOKEN_SOURCE})(?:\\s*\uAE4C\uC9C0)?`
+  );
+  const explicitMatch = normalizedTextValue.match(explicitRangePattern);
+  if (explicitMatch) {
+    const startDate = parseMealPlanDateTokenFinal(explicitMatch[1], fallbackYear, fallbackMonth);
+    const endDate = parseMealPlanDateTokenFinal(explicitMatch[2], fallbackYear, fallbackMonth);
+    if (startDate && endDate && startDate <= endDate) {
+      return { startDate, endDate };
+    }
+  }
+
+  const singleStartPattern = new RegExp(
+    `(${FINAL_FINAL_MEAL_PLAN_DATE_TOKEN_SOURCE})\\s*(?:\uBD80\uD130|\uC5D0\uC11C|\uC5D0)`
+  );
+  const singleStartMatch = normalizedTextValue.match(singleStartPattern);
+  if (singleStartMatch) {
+    const startDate = parseMealPlanDateTokenFinal(
+      singleStartMatch[1],
+      fallbackYear,
+      fallbackMonth
+    );
+    const safeSpanDays = Math.max(1, Number(fallbackDays || 1));
+    const endDate = addDaysToIsoDate(startDate, safeSpanDays - 1);
+    if (startDate && endDate) {
+      return { startDate, endDate };
+    }
+  }
+
+  return null;
+}
+
+function formatMealPlanImportTitleFinal(plan, startDate, endDate) {
+  const summary = normalizeText(plan?.goalSummary);
+  if (summary) {
+    return `${summary} (${startDate}~${endDate})`;
+  }
+
+  return `AI \uB9DE\uCDA4 \uC2DD\uB2E8 (${startDate}~${endDate})`;
+}
+
+const isMealCalendarImportIntent = detectMealPlanImportIntent;
+const normalizeDateToken = parseMealPlanDateToken;
+const extractDateRange = parseMealPlanDateRange;
+const buildMealPlanImportTitle = formatMealPlanImportTitle;
+const isMealCalendarImportIntentSafe = detectMealPlanImportIntent;
+const normalizeDateTokenSafe = parseMealPlanDateToken;
+const extractDateRangeSafe = parseMealPlanDateRange;
+const buildMealPlanImportTitleSafe = formatMealPlanImportTitle;
 
 function getMealPlanTabId() {
   try {
@@ -1193,7 +1665,7 @@ export default function MealPlanPlaceholderPage({ authUser }) {
           1
       )
     );
-    const dateRange = extractDateRangeSafe(normalizedMessage, inferredPlanDays);
+    const dateRange = parseMealPlanDateRangeFinal(normalizedMessage, inferredPlanDays);
     if (!dateRange) {
       setIsAwaitingMealPlanDateRange(true);
       setMessages((currentMessages) => [
@@ -1219,7 +1691,7 @@ export default function MealPlanPlaceholderPage({ authUser }) {
         user: authUser,
         startDate: dateRange.startDate,
         endDate: dateRange.endDate,
-        title: buildMealPlanImportTitleSafe(
+        title: formatMealPlanImportTitleFinal(
           structuredContext.message.plan,
           dateRange.startDate,
           dateRange.endDate
@@ -1264,12 +1736,17 @@ export default function MealPlanPlaceholderPage({ authUser }) {
       return;
     }
 
-    if (isCartConfirmMessage(normalizedMessage) && latestCartCandidates.length) {
-      await handleAddMatchedItemsToCart(normalizedMessage);
-      return;
-    }
-
     if (isAwaitingMealPlanDateRange) {
+      const structuredContext = getLatestStructuredAssistantContext(messages);
+      const inferredPlanDays = Math.max(
+        1,
+        Number(
+          structuredContext?.message?.plan?.days ||
+            structuredContext?.message?.plan?.daysList?.length ||
+            1
+        )
+      );
+
       if (
         /(?:\uCDE8\uC18C|\uAD1C\uCC2E\uC544|\uD558\uC9C0 ?\uB9C8|\uC548 ?\uD560\uB798|\uC548 ?\uB123\uC5B4|\uBCF4\uB958)/.test(
           normalizedMessage
@@ -1288,7 +1765,7 @@ export default function MealPlanPlaceholderPage({ authUser }) {
         return;
       }
 
-      if (!extractDateRangeSafe(normalizedMessage)) {
+      if (!parseMealPlanDateRangeFinal(normalizedMessage, inferredPlanDays)) {
         setDraft('');
         setMessages((currentMessages) => [
           ...currentMessages,
@@ -1302,8 +1779,13 @@ export default function MealPlanPlaceholderPage({ authUser }) {
       return;
     }
 
-    if (isMealCalendarImportIntentSafe(normalizedMessage)) {
+    if (detectMealPlanImportIntentFinal(normalizedMessage)) {
       await handleImportLatestPlanToCalendarSafe(normalizedMessage);
+      return;
+    }
+
+    if (isCartConfirmMessage(normalizedMessage) && latestCartCandidates.length) {
+      await handleAddMatchedItemsToCart(normalizedMessage);
       return;
     }
 
@@ -1380,7 +1862,7 @@ export default function MealPlanPlaceholderPage({ authUser }) {
           1
       )
     );
-    const dateRange = extractDateRangeSafe(normalizedMessage, inferredPlanDays);
+    const dateRange = parseMealPlanDateRangeFinal(normalizedMessage, inferredPlanDays);
     if (!dateRange) {
       setMessages((currentMessages) => [
         ...currentMessages,
@@ -1838,6 +2320,26 @@ function AssistantStructuredBlocks({
             disabled={isCartSubmitting}
           >
             {isCartSubmitting ? '\uC7A5\uBC14\uAD6C\uB2C8 \uB2F4\uB294 \uC911...' : '\uC7A5\uBC14\uAD6C\uB2C8\uC5D0 \uB2F4\uAE30'}
+          </button>
+        </section>
+      ) : null}
+
+      {false ? (
+        <section className="meal-plan-result__section meal-plan-result__cta meal-plan-result__cta--secondary">
+          <div className="meal-plan-cta-copy">
+            <div className="meal-plan-result__heading">{'\uB0B4 \uC2DD\uB2E8 \uAD00\uB9AC'}</div>
+            <p>{'\uB9C8\uC774\uD398\uC774\uC9C0 \uC2DD\uB2E8 \uAD00\uB9AC\uC5D0 \uCD94\uAC00\uD560\uAE4C\uC694?'}</p>
+            <small>{'\uCD94\uAC00\uD558\uAE30\uB97C \uB204\uB974\uBA74 \uC5B8\uC81C\uBD80\uD130 \uB123\uC744\uC9C0 \uBA3C\uC800 \uBB3C\uC5B4\uBCFC\uAC8C\uC694.'}</small>
+          </div>
+          <button
+            type="button"
+            className="meal-plan-cta-button meal-plan-cta-button--secondary"
+            onClick={onOpenMealPlanImport}
+            disabled={isCartSubmitting}
+          >
+            {isMealPlanImportPending
+              ? '\uB0A0\uC9DC \uC785\uB825 \uAE30\uB2E4\uB9AC\uB294 \uC911...'
+              : '\uCD94\uAC00\uD558\uAE30'}
           </button>
         </section>
       ) : null}
